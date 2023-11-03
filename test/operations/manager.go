@@ -97,7 +97,10 @@ type Manager struct {
 func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 	// Init database instance
 	initOrResetDB()
+	return NewManagerNoInitDB(ctx, cfg)
+}
 
+func NewManagerNoInitDB(ctx context.Context, cfg *Config) (*Manager, error) {
 	opsman := &Manager{
 		cfg:  cfg,
 		ctx:  ctx,

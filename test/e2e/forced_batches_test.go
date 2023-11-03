@@ -6,10 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/config"
-
 	"github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -28,17 +27,16 @@ func TestForcedBatches(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-	}()
+	log.Infof("Running TestForcedBatches ==========================")
+	// defer func() {
+	// 	require.NoError(t, operations.Teardown())
+	// }()
 
 	var err error
-	nTxs := 10
+	nTxs := 2
 	ctx := context.Background()
-	opsman, auth, clientL2, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
 	l1 := setupEnvironmentL1(ctx, t)
-
+	opsman, auth, clientL2, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
 	txs := make([]*types.Transaction, 0, nTxs)
 	for i := 0; i < nTxs; i++ {
 		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
@@ -55,6 +53,7 @@ func TestForcedBatches(t *testing.T) {
 	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
 	signedTx, err := auth.Signer(auth.From, unsignedTx)
 	require.NoError(t, err)
+	log.Info("Forced Batch: 1 tx -> ", signedTx.Hash())
 	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	forcedBatch, err := sendForcedBatch(ctx, t, encodedTxs, opsman, l1)
@@ -110,21 +109,28 @@ func setupEnvironmentL1(ctx context.Context, t *testing.T) *L1Stuff {
 	return &L1Stuff{ethClient: ethClient, authSequencer: authSequencer, authForcedBatch: authForcedBatch, zkEvmAddr: zkEvmAddr, zkEvm: zkEvm}
 }
 
-func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
-	err := operations.Teardown()
-	require.NoError(t, err)
-	opsCfg := operations.GetDefaultOperationsConfig()
-	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+func setForkId(t *testing.T, opsman *operations.Manager) {
 	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/test.genesis.config.json")
 	require.NoError(t, err)
 	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
 	require.NoError(t, err)
-	opsman, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
 	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
-	err = opsman.Setup()
+
+}
+
+func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
+	//err := operations.Teardown()
+	//require.NoError(t, err)
+	opsCfg := operations.GetDefaultOperationsConfig()
+	opsCfg.State.MaxCumulativeGasUsed = 80000000000
+
+	opsman, err := operations.NewManagerNoInitDB(ctx, opsCfg)
 	require.NoError(t, err)
-	time.Sleep(5 * time.Second)
+	// setForkId(t, opsman)
+
+	//err = opsman.Setup()
+	//require.NoError(t, err)
+	//time.Sleep(5 * time.Second)
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
@@ -151,6 +157,7 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 
 	nonce, err := client.PendingNonceAt(ctx, auth.From)
 	require.NoError(t, err)
+	require.Equal(t, senderNonce, nonce)
 	return opsman, auth, client, amount, gasLimit, gasPrice, nonce
 }
 
@@ -184,8 +191,10 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 	disallowed, err := l1.zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	if disallowed {
+		log.Infof("Forced batch is disallowed. Activating...")
 		tx, err := l1.zkEvm.ActivateForceBatches(l1.authSequencer)
 		require.NoError(t, err)
+		log.Infof("Forced batch is disallowed. Activated. Waiting for tx %s to be mined", tx.Hash())
 		err = operations.WaitTxToBeMined(ctx, l1.ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 	}
@@ -193,7 +202,7 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 	currentBlock, err := l1.ethClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	log.Debug("currentBlock.Time(): ", currentBlock.Time())
+	log.Debugf("L1: currentBlock: number:%s Time():%s ", currentBlock.Number().String(), currentBlock.Time())
 
 	// Send forceBatch
 	tx, err := l1.zkEvm.ForceBatch(l1.authForcedBatch, txs, tip)
@@ -253,9 +262,7 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 		if rootInContractHash != initialGer.GlobalExitRoot {
 			finalGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
 			require.NoError(t, err)
-			if finalGer.GlobalExitRoot != rootInContractHash {
-				log.Fatal("global exit root is not updated")
-			}
+			require.Equal(t, rootInContractHash, finalGer.GlobalExitRoot, "global exit root is not updated")
 		}
 	}
 
