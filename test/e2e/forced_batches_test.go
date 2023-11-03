@@ -170,7 +170,7 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 	// Get tip
 	tip, err := l1.zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-
+	log.Infof("Foced Batch Fee:%s", tip.String())
 	managerAddress, err := l1.zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
