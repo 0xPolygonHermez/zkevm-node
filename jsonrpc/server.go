@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
@@ -44,6 +45,10 @@ type Server struct {
 	srv        *http.Server
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
+
+	connCounterMutex sync.Mutex
+	httpConnCounter  int64
+	wsConnCounter    int64
 }
 
 // Service implementation of a service an it's name
@@ -61,7 +66,10 @@ func NewServer(
 	storage storageInterface,
 	services []Service,
 ) *Server {
-	s.PrepareWebSocket()
+	if cfg.WebSockets.Enabled {
+		s.StartToMonitorNewL2Blocks()
+	}
+
 	handler := newJSONRpcHandler()
 
 	for _, service := range services {
@@ -230,6 +238,9 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	s.increaseHttpConnCounter()
+	defer s.decreaseHttpConnCounter()
+
 	start := time.Now()
 	var respLen int
 	if single {
@@ -330,25 +341,35 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	s.wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	// Upgrade the connection to a WS one
-	wsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
+	innerWsConn, err := s.wsUpgrader.Upgrade(w, req, nil)
 	if err != nil {
 		log.Error(fmt.Sprintf("Unable to upgrade to a WS connection, %s", err.Error()))
-
 		return
 	}
 
+	wsConn := new(atomic.Pointer[websocket.Conn])
+	wsConn.Store(innerWsConn)
+
 	// Defer WS closure
-	defer func(ws *websocket.Conn) {
-		err = ws.Close()
+	defer func(wsConn *atomic.Pointer[websocket.Conn]) {
+		err = wsConn.Load().Close()
 		if err != nil {
 			log.Error(fmt.Sprintf("Unable to gracefully close WS connection, %s", err.Error()))
 		}
 	}(wsConn)
 
+	s.increaseWsConnCounter()
+	defer s.decreaseWsConnCounter()
+
+	// recover
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error(err)
+		}
+	}()
 	log.Info("Websocket connection established")
-	var mu sync.Mutex
 	for {
-		msgType, message, err := wsConn.ReadMessage()
+		msgType, message, err := wsConn.Load().ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
@@ -363,19 +384,50 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if msgType == websocket.TextMessage || msgType == websocket.BinaryMessage {
-			go func() {
-				mu.Lock()
-				defer mu.Unlock()
-				resp, err := s.handler.HandleWs(message, wsConn, req)
-				if err != nil {
-					log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
-					_ = wsConn.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
-				} else {
-					_ = wsConn.WriteMessage(msgType, resp)
-				}
-			}()
+			resp, err := s.handler.HandleWs(message, wsConn, req)
+			if err != nil {
+				log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
+				_ = wsConn.Load().WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
+			} else {
+				_ = wsConn.Load().WriteMessage(msgType, resp)
+			}
 		}
 	}
+}
+
+func (s *Server) increaseHttpConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.httpConnCounter, 1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) decreaseHttpConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.httpConnCounter, -1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) increaseWsConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.wsConnCounter, 1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) decreaseWsConnCounter() {
+	s.connCounterMutex.Lock()
+	atomic.AddInt64(&s.wsConnCounter, -1)
+	s.logConnCounters()
+	s.connCounterMutex.Unlock()
+}
+
+func (s *Server) logConnCounters() {
+	httpConnCounter := atomic.LoadInt64(&s.httpConnCounter)
+	wsConnCounter := atomic.LoadInt64(&s.wsConnCounter)
+	totalConnCounter := httpConnCounter + wsConnCounter
+	log.Debugf("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
 }
 
 func handleError(w http.ResponseWriter, err error) {
