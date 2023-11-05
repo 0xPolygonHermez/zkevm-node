@@ -3587,7 +3587,7 @@ func TestNewFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Once().
 					Return("", ErrFilterInvalidPayload).
 					Once()
