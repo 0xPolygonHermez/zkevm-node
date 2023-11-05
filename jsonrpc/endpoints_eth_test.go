@@ -4784,16 +4784,6 @@ func TestSubscribeNewLogs(t *testing.T) {
 				}
 			},
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
-				m.DbTx.
-					On("Commit", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("0x1", nil).
@@ -4809,39 +4799,9 @@ func TestSubscribeNewLogs(t *testing.T) {
 				}
 			},
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
 				m.Storage.
 					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
 					Return("", fmt.Errorf("failed to add filter to storage")).
-					Once()
-			},
-		},
-		{
-			Name:          "Subscribe to new logs fails due to max block range limit exceeded",
-			ExpectedError: types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range"),
-			Prepare: func(t *testing.T, tc *testCase) {
-				tc.Filter = ethereum.FilterQuery{
-					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
-				}
-			},
-			SetupMocks: func(m *mocksWrapper, tc testCase) {
-				m.DbTx.
-					On("Rollback", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
 					Once()
 			},
 		},
