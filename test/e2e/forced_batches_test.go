@@ -117,7 +117,6 @@ func setupEnvironment(ctx context.Context, t *testing.T) *l2Stuff {
 	var opsman *operations.Manager
 	var err error
 
-	require.NoError(t, err)
 	if !dockersArePreLaunched {
 		log.Info("Launching dockers and resetting Database")
 		opsman, err = operations.NewManager(ctx, opsCfg)
