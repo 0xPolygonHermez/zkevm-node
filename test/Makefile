@@ -93,6 +93,7 @@ test-full-non-e2e: stop ## Runs non-e2e tests checking race conditions
 	sleep 7
 	$(RUNL1NETWORK)
 	sleep 15
+	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -short -race -p 1 -covermode=atomic -coverprofile=../coverage.out -timeout 70s ../...
 
