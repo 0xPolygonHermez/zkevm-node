@@ -47,7 +47,12 @@ EnableL2SuggestedGasPricePolling = false
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8546
-	[RCP.Nacos]
+	[RPC.Nacos]
+		URLs = ""
+		NamespaceId = "public"
+		ApplicationName = ""
+		ExternalListenAddr = "127.0.0.1:8123"
+	[RPC.NacosWs]
 		URLs = ""
 		NamespaceId = "public"
 		ApplicationName = ""

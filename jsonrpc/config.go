@@ -43,7 +43,10 @@ type Config struct {
 	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
 
 	// Nacos configuration
-	Nacos NacosConfig `mspstructure:"Nacos"`
+	Nacos NacosConfig `mapstructure:"Nacos"`
+
+	// NacosWs configuration
+	NacosWs NacosConfig `mapstructure:"NacosWs"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

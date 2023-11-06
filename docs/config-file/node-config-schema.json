@@ -391,6 +391,33 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "Nacos configuration"
+				},
+				"NacosWs": {
+					"properties": {
+						"URLs": {
+							"type": "string",
+							"description": "URLs nacos server urls for discovery service of rest api, url is separated by \",\"",
+							"default": ""
+						},
+						"NamespaceId": {
+							"type": "string",
+							"description": "NamespaceId nacos namepace id for discovery service of rest api",
+							"default": ""
+						},
+						"ApplicationName": {
+							"type": "string",
+							"description": "ApplicationName rest application name in  nacos",
+							"default": ""
+						},
+						"ExternalListenAddr": {
+							"type": "string",
+							"description": "ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker",
+							"default": ""
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "NacosWs configuration"
 				}
 			},
 			"additionalProperties": false,
