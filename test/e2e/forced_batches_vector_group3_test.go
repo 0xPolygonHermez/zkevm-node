@@ -8,5 +8,5 @@ func TestForcedBatchesVectorFilesGroup3(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	LaunchTestForcedBatchesVectorFilesGroup(t, "../../vectors/src/state-transition/forced-tx/group3")
+	LaunchTestForcedBatchesVectorFilesGroup(t, "./../vectors/src/state-transition/forced-tx/group3")
 }
