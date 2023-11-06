@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const newL2BlocksCheckInterval = 200 * time.Millisecond
+
 // NewL2BlockEventHandler represent a func that will be called by the
 // state when a NewL2BlockEvent is triggered
 type NewL2BlockEventHandler func(e NewL2BlockEvent)
@@ -47,7 +49,7 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 
 func (s *State) monitorNewL2Blocks() {
 	waitNextCycle := func() {
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(newL2BlocksCheckInterval)
 	}
 
 	for {
