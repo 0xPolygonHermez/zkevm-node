@@ -47,7 +47,7 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 
 func (s *State) monitorNewL2Blocks() {
 	waitNextCycle := func() {
-		time.Sleep(1 * time.Second)
+		time.Sleep(200 * time.Millisecond)
 	}
 
 	for {
