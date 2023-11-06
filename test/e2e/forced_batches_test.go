@@ -27,8 +27,7 @@ const (
 	// dockersArePreLaunched is a flag that indicates if dockers are pre-launched, used for local development
 	// avoiding launch time and reset database time at end (so you can check the database after the test)
 	dockersArePreLaunched = false
-
-	gerFinalityBlocks = ^uint64(0) // The biggeset uint64
+	gerFinalityBlocks     = uint64(9223372036854775807) // The biggeset uint64
 )
 
 type l1Stuff struct {
@@ -63,8 +62,8 @@ func TestForcedBatches(t *testing.T) {
 	var err error
 	nTxs := 10
 	ctx := context.Background()
-	l1 := setupEnvironmentL1(ctx, t)
 	l2 := setupEnvironment(ctx, t)
+	l1 := setupEnvironmentL1(ctx, t)
 	l2BlockNumbersTxsBeforeForcedBatch := generateTxsBeforeSendingForcedBatch(ctx, t, nTxs, l2)
 	time.Sleep(2 * time.Second)
 	l2.amount = big.NewInt(0).Add(l2.amount, big.NewInt(10))
