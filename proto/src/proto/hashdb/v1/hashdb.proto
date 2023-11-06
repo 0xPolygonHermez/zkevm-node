@@ -21,6 +21,7 @@ message Version {
  * Flush: wait for all the pendings writes to the DB are done
  */
 service HashDBService {
+    rpc GetLatestStateRoot(google.protobuf.Empty) returns (GetLatestStateRootResponse) {}
     rpc Set(SetRequest) returns (SetResponse) {}
     rpc Get(GetRequest) returns (GetResponse) {}
     rpc SetProgram(SetProgramRequest) returns (SetProgramResponse) {}
@@ -34,6 +35,8 @@ service HashDBService {
     rpc ConsolidateState (ConsolidateStateRequest) returns (ConsolidateStateResponse) {}
     rpc Purge (PurgeRequest) returns (PurgeResponse) {}
     rpc ReadTree (ReadTreeRequest) returns (ReadTreeResponse) {}
+    rpc CancelBatch (CancelBatchRequest) returns (CancelBatchResponse) {}
+    rpc ResetDB (google.protobuf.Empty) returns (ResetDBResponse) {}
 }
 
 ///////////////////
@@ -89,30 +92,38 @@ message GetRequest {
  * @dev SetProgramRequest
  * @param {key} - key to set
  * @param {data} - Program data to store
- * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
+ * @param {tx} - current transaction ordinal number: 0, 1, 2...
  */
 message SetProgramRequest {
     Fea key = 1;
     bytes data = 2;
-    bool persistent = 3;
+    Persistence persistence = 3;
+    string batch_uuid = 4;
+    uint64 tx = 5;
 }
 
 /**
  * @dev GetProgramRequest
  * @param {key} - key to get program data
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
  */
 message GetProgramRequest {
     Fea key = 1;
+    string batch_uuid = 2;
 }
 
 /**
  * @dev LoadDBRequest
  * @param {input_db} - list of db records (MT) to load in the database
  * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ * @param {state_root} - current (old) state root made up of the provided db records
  */
 message LoadDBRequest {
     map<string, FeList> input_db = 1;
     bool persistent = 2;
+    Fea  state_root = 3;
 }
 
 /**
@@ -189,9 +200,27 @@ message ReadTreeRequest {
     repeated Fea keys = 2;
 }
 
+/**
+ * @dev CancelBatchRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be deleted
+ */
+message CancelBatchRequest {
+    string batch_uuid = 1;
+}
+
 /////////////////////
 // Responses messages
 /////////////////////
+
+/**
+ * @dev GetLatestStateRootResponse
+ * @param {latest_root} - latest state root
+ * @param {result} - result code
+ */
+message GetLatestStateRootResponse {
+    Fea latest_root = 1;
+    ResultCode result = 2;
+}
 
 /**
  * @dev SetResponse
@@ -351,6 +380,22 @@ message ReadTreeResponse {
     repeated KeyValue key_value = 1;
     repeated HashValueGL hash_value = 2;
     ResultCode result = 3;
+}
+
+/**
+ * @dev CancelBatchResponse
+ * @param {result} - result code
+ */
+message CancelBatchResponse {
+    ResultCode result = 1;
+}
+
+/**
+ * @dev ResetDBResponse
+ * @param {result} - result code
+ */
+message ResetDBResponse {
+    ResultCode result = 1;
 }
 
 /**
