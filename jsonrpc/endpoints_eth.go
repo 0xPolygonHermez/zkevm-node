@@ -1053,7 +1053,8 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 			return
 		}
 		for _, filter := range blockFilters {
-			go filter.SendSubscriptionResponse(data)
+			filter.sendSubscriptionResponse(data)
+			go filter.SendEnqueuedSubscriptionData()
 		}
 	}
 	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
@@ -1128,7 +1129,8 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 					if err != nil {
 						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 					}
-					go filter.SendSubscriptionResponse(data)
+					filter.EnqueueSubscriptionDataToBeSent(data)
+					go filter.SendEnqueuedSubscriptionData()
 				}
 			}
 		}
