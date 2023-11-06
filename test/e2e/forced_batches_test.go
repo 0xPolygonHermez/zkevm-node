@@ -252,58 +252,69 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 	err = operations.WaitTxToBeMined(ctx, l1.ethClient, tx, operations.DefaultTimeoutTxToBeMined)
 	require.NoError(t, err)
 
-	query := ethereum.FilterQuery{
-		FromBlock: currentBlock.Number(),
-		Addresses: []common.Address{l1.zkEvmAddr},
+	fb, vLog, err := findForcedBatchInL1Logs(ctx, t, currentBlock.Number(), l1)
+	if err != nil {
+		log.Errorf("failed to parse force batch log event, err: ", err)
 	}
-	logs, err := l1.ethClient.FilterLogs(ctx, query)
+	ger := fb.LastGlobalExitRoot
+
+	log.Debugf("log decoded: %+v", fb)
+	log.Info("GlobalExitRoot: ", ger)
+	log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
+	log.Info("ForcedBatchNum: ", fb.ForceBatchNum)
+	fullBlock, err := l1.ethClient.BlockByHash(ctx, vLog.BlockHash)
+	if err != nil {
+		log.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
+		return nil, err
+	}
+	log.Info("MinForcedTimestamp: ", fullBlock.Time())
+	forcedBatch, err := st.GetBatchByForcedBatchNum(ctx, fb.ForceBatchNum, nil)
+	for err == state.ErrStateNotSynchronized {
+		time.Sleep(1 * time.Second)
+		forcedBatch, err = st.GetBatchByForcedBatchNum(ctx, fb.ForceBatchNum, nil)
+	}
+
+	require.NoError(t, err)
+	require.NotNil(t, forcedBatch)
+
+	log.Info("Waiting for batch to be virtualized...")
+	err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
 	require.NoError(t, err)
 
-	var forcedBatch *state.Batch
-	for _, vLog := range logs { // TODO check if that make sense
-		if vLog.Topics[0] != constants.ForcedBatchSignatureHash {
-			logs, err = l1.ethClient.FilterLogs(ctx, query)
-			require.NoError(t, err)
-			continue
-		}
-		fb, err := l1.zkEvm.ParseForceBatch(vLog)
-		if err != nil {
-			log.Errorf("failed to parse force batch log event, err: ", err)
-		}
-		log.Debugf("log decoded: %+v", fb)
-		ger := fb.LastGlobalExitRoot
-		log.Info("GlobalExitRoot: ", ger)
-		log.Info("Transactions: ", common.Bytes2Hex(fb.Transactions))
-		fullBlock, err := l1.ethClient.BlockByHash(ctx, vLog.BlockHash)
-		if err != nil {
-			log.Errorf("error getting hashParent. BlockNumber: %d. Error: %v", vLog.BlockNumber, err)
-			return nil, err
-		}
-		log.Info("MinForcedTimestamp: ", fullBlock.Time())
-		forcedBatch, err = st.GetBatchByForcedBatchNum(ctx, fb.ForceBatchNum, nil)
-		for err == state.ErrStateNotSynchronized {
-			time.Sleep(1 * time.Second)
-			forcedBatch, err = st.GetBatchByForcedBatchNum(ctx, fb.ForceBatchNum, nil)
-		}
-		log.Info("ForcedBatchNum: ", forcedBatch.BatchNumber)
-		require.NoError(t, err)
-		require.NotNil(t, forcedBatch)
+	log.Info("Waiting for batch to be consolidated...")
+	err = operations.WaitBatchToBeConsolidated(forcedBatch.BatchNumber, 4*time.Minute, st)
+	require.NoError(t, err)
 
-		log.Info("Waiting for batch to be virtualized...")
-		err = operations.WaitBatchToBeVirtualized(forcedBatch.BatchNumber, 4*time.Minute, st)
+	if rootInContractHash != initialGer.GlobalExitRoot {
+		log.Info("Checking if global exit root is updated...")
+		finalGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
 		require.NoError(t, err)
-
-		log.Info("Waiting for batch to be consolidated...")
-		err = operations.WaitBatchToBeConsolidated(forcedBatch.BatchNumber, 4*time.Minute, st)
-		require.NoError(t, err)
-
-		if rootInContractHash != initialGer.GlobalExitRoot {
-			log.Info("Checking if global exit root is updated...")
-			finalGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
-			require.NoError(t, err)
-			require.Equal(t, rootInContractHash, finalGer.GlobalExitRoot, "global exit root is not updated")
-		}
+		require.Equal(t, rootInContractHash, finalGer.GlobalExitRoot, "global exit root is not updated")
 	}
 
 	return forcedBatch, nil
+}
+
+func findForcedBatchInL1Logs(ctx context.Context, t *testing.T, fromBlock *big.Int, l1 *l1Stuff) (*polygonzkevm.PolygonzkevmForceBatch, *types.Log, error) {
+	query := ethereum.FilterQuery{
+		FromBlock: fromBlock,
+		Addresses: []common.Address{l1.zkEvmAddr},
+	}
+
+	found := false
+	for found != true {
+		log.Debugf("Looking for forced batch in logs from block %s", fromBlock.String())
+		logs, err := l1.ethClient.FilterLogs(ctx, query)
+		require.NoError(t, err)
+		for _, vLog := range logs {
+			if vLog.Topics[0] == constants.ForcedBatchSignatureHash {
+				fb, err := l1.zkEvm.ParseForceBatch(vLog)
+				return fb, &vLog, err
+			}
+		}
+		log.Info("Forced batch not found in logs. Waiting 1 second...")
+		time.Sleep(1 * time.Second)
+	}
+	return nil, nil, nil
+
 }
