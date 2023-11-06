@@ -1053,10 +1053,10 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 			return
 		}
 		for _, filter := range blockFilters {
-			e.sendSubscriptionResponse(filter, data)
+			go e.sendSubscriptionResponse(filter, data)
 		}
 	}
-	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %vms to send all the messages for block filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
+	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
@@ -1128,17 +1128,18 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 					if err != nil {
 						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 					}
-					e.sendSubscriptionResponse(filter, data)
+					go e.sendSubscriptionResponse(filter, data)
 				}
 			}
 		}
 	}
-	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %vms to send all the messages for log filters", event.Block.NumberU64(), time.Since(start).Milliseconds())
+	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data []byte) {
 	const errMessage = "Unable to write WS message to filter %v, %s"
 
+	start := time.Now()
 	res := types.SubscriptionResponse{
 		JSONRPC: "2.0",
 		Method:  "eth_subscription",
@@ -1159,4 +1160,5 @@ func (e *EthEndpoints) sendSubscriptionResponse(filter *Filter, data []byte) {
 		return
 	}
 	log.Debugf("WS message sent: %v", string(message))
+	log.Debugf("[sendSubscriptionResponse] took %v", time.Since(start))
 }

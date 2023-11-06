@@ -45,33 +45,6 @@ func (s *State) RegisterNewL2BlockEventHandler(h NewL2BlockEventHandler) {
 	s.newL2BlockEventHandlers = append(s.newL2BlockEventHandlers, h)
 }
 
-func (s *State) handleEvents() {
-	for newL2BlockEvent := range s.newL2BlockEvents {
-		log.Debugf("[handleEvents] new l2 block event detected for block: %v", newL2BlockEvent.Block.NumberU64())
-		if len(s.newL2BlockEventHandlers) == 0 {
-			continue
-		}
-
-		wg := sync.WaitGroup{}
-		for _, handler := range s.newL2BlockEventHandlers {
-			wg.Add(1)
-			go func(h NewL2BlockEventHandler, e NewL2BlockEvent) {
-				defer func() {
-					wg.Done()
-					if r := recover(); r != nil {
-						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
-					}
-				}()
-				log.Debugf("[handleEvents] triggering new l2 block event handler for block: %v", e.Block.NumberU64())
-				start := time.Now()
-				h(e)
-				log.Debugf("[handleEvents] new l2 block event handler for block %v took %vms to be executed", e.Block.NumberU64(), time.Since(start).Milliseconds())
-			}(handler, newL2BlockEvent)
-		}
-		wg.Wait()
-	}
-}
-
 func (s *State) monitorNewL2Blocks() {
 	waitNextCycle := func() {
 		time.Sleep(1 * time.Second)
@@ -116,12 +89,39 @@ func (s *State) monitorNewL2Blocks() {
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
 			}
-			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %vms to be sent", block.NumberU64(), time.Since(start).Milliseconds())
-			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
 			s.lastL2BlockSeen.Store(block)
+			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %v to be sent", block.NumberU64(), time.Since(start))
+			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
 		}
 
 		// interval to check for new l2 blocks
 		waitNextCycle()
+	}
+}
+
+func (s *State) handleEvents() {
+	for newL2BlockEvent := range s.newL2BlockEvents {
+		log.Debugf("[handleEvents] new l2 block event detected for block: %v", newL2BlockEvent.Block.NumberU64())
+		if len(s.newL2BlockEventHandlers) == 0 {
+			continue
+		}
+
+		wg := sync.WaitGroup{}
+		for _, handler := range s.newL2BlockEventHandlers {
+			wg.Add(1)
+			go func(h NewL2BlockEventHandler, e NewL2BlockEvent) {
+				defer func() {
+					wg.Done()
+					if r := recover(); r != nil {
+						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
+					}
+				}()
+				log.Debugf("[handleEvents] triggering new l2 block event handler for block: %v", e.Block.NumberU64())
+				start := time.Now()
+				h(e)
+				log.Debugf("[handleEvents] new l2 block event handler for block %v took %v to be executed", e.Block.NumberU64(), time.Since(start))
+			}(handler, newL2BlockEvent)
+		}
+		wg.Wait()
 	}
 }
