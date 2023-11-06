@@ -23,51 +23,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestForcedBatches(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-	log.Infof("Running TestForcedBatches ==========================")
-	// defer func() {
-	// 	require.NoError(t, operations.Teardown())
-	// }()
+const (
+	// dockersArePreLaunched is a flag that indicates if dockers are pre-launched, used for local development
+	// avoiding launch time and reset database time at end (so you can check the database after the test)
+	dockersArePreLaunched = false
 
-	var err error
-	nTxs := 2
-	ctx := context.Background()
-	l1 := setupEnvironmentL1(ctx, t)
-	opsman, auth, clientL2, amount, gasLimit, gasPrice, nonce := setupEnvironment(ctx, t)
-	txs := make([]*types.Transaction, 0, nTxs)
-	for i := 0; i < nTxs; i++ {
-		tx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
-		nonce = nonce + 1
-		txs = append(txs, tx)
-	}
+	gerFinalityBlocks = ^uint64(0) // The biggeset uint64
+)
 
-	var l2BlockNumbers []*big.Int
-	l2BlockNumbers, err = operations.ApplyL2Txs(ctx, txs, auth, clientL2, operations.VerifiedConfirmationLevel)
-	require.NoError(t, err)
-
-	time.Sleep(2 * time.Second)
-	amount = big.NewInt(0).Add(amount, big.NewInt(10))
-	unsignedTx := types.NewTransaction(nonce, toAddress, amount, gasLimit, gasPrice, nil)
-	signedTx, err := auth.Signer(auth.From, unsignedTx)
-	require.NoError(t, err)
-	log.Info("Forced Batch: 1 tx -> ", signedTx.Hash())
-	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
-	require.NoError(t, err)
-	forcedBatch, err := sendForcedBatch(ctx, t, encodedTxs, opsman, l1)
-	require.NoError(t, err)
-
-	// Checking if all txs sent before the forced batch were processed within previous closed batch
-	for _, l2blockNum := range l2BlockNumbers {
-		batch, err := opsman.State().GetBatchByL2BlockNumber(ctx, l2blockNum.Uint64(), nil)
-		require.NoError(t, err)
-		require.Less(t, batch.BatchNumber, forcedBatch.BatchNumber)
-	}
-}
-
-type L1Stuff struct {
+type l1Stuff struct {
 	ethClient       *ethclient.Client
 	authSequencer   *bind.TransactOpts
 	authForcedBatch *bind.TransactOpts
@@ -75,62 +39,96 @@ type L1Stuff struct {
 	zkEvm           *polygonzkevm.Polygonzkevm
 }
 
-func setupEnvironmentL1(ctx context.Context, t *testing.T) *L1Stuff {
-	// Connect to ethereum node
-	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
-	require.NoError(t, err)
-	authSequencer, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
-	require.NoError(t, err)
-	authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
-	require.NoError(t, err)
-	maticSmc, err := matic.NewMatic(common.HexToAddress(operations.DefaultL1MaticSmartContract), ethClient)
-	require.NoError(t, err)
-	maticAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
-	txValue, err := maticSmc.Transfer(authSequencer, common.HexToAddress(operations.DefaultForcedBatchesAddress), maticAmount)
-	require.NoError(t, err)
-	log.Debug(txValue)
-	log.Debugf("Waiting for tx %s to be mined (transfer of matic from sequencer -> forcedBatches)", txValue.Hash().String())
-	err = operations.WaitTxToBeMined(ctx, ethClient, txValue, operations.DefaultTimeoutTxToBeMined)
-	require.NoError(t, err)
-	balance, err := maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultSequencerAddress))
-	require.NoError(t, err)
-	log.Debugf("Account (sequencer) %s MATIC balance %s", operations.DefaultSequencerAddress, balance.String())
-
-	balance, err = maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultForcedBatchesAddress))
-	require.NoError(t, err)
-	log.Debugf("Account (force_batches) %s MATIC balance %s", operations.DefaultForcedBatchesAddress, balance.String())
-	log.Debugf("Approve to zkEVM SMC to spend %s MATIC", maticAmount.String())
-	_, err = maticSmc.Approve(authForcedBatch, common.HexToAddress(operations.DefaultL1ZkEVMSmartContract), maticAmount)
-	require.NoError(t, err)
-
-	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
-	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
-	require.NoError(t, err)
-	return &L1Stuff{ethClient: ethClient, authSequencer: authSequencer, authForcedBatch: authForcedBatch, zkEvmAddr: zkEvmAddr, zkEvm: zkEvm}
+type l2Stuff struct {
+	opsman        *operations.Manager
+	authSequencer *bind.TransactOpts
+	client        *ethclient.Client
+	amount        *big.Int
+	gasLimit      uint64
+	gasPrice      *big.Int
+	nonce         uint64
 }
 
-func setForkId(t *testing.T, opsman *operations.Manager) {
-	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/test.genesis.config.json")
-	require.NoError(t, err)
-	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
-	require.NoError(t, err)
-	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+func TestForcedBatches(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	log.Infof("Running TestForcedBatches ==========================")
+	if !dockersArePreLaunched {
+		defer func() {
+			require.NoError(t, operations.Teardown())
+		}()
+	}
 
+	var err error
+	nTxs := 10
+	ctx := context.Background()
+	l1 := setupEnvironmentL1(ctx, t)
+	l2 := setupEnvironment(ctx, t)
+	l2BlockNumbersTxsBeforeForcedBatch := generateTxsBeforeSendingForcedBatch(ctx, t, nTxs, l2)
+	time.Sleep(2 * time.Second)
+	l2.amount = big.NewInt(0).Add(l2.amount, big.NewInt(10))
+	encodedTxs := generateSignedAndEncodedTxForForcedBatch(ctx, t, l2)
+	forcedBatch, err := sendForcedBatch(ctx, t, encodedTxs, l2.opsman, l1)
+	require.NoError(t, err)
+	checkThatPreviousTxsWereProcessedWithinPreviousClosedBatch(ctx, t, l2.opsman.State(), l2BlockNumbersTxsBeforeForcedBatch, forcedBatch.BatchNumber)
 }
 
-func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *bind.TransactOpts, *ethclient.Client, *big.Int, uint64, *big.Int, uint64) {
-	//err := operations.Teardown()
-	//require.NoError(t, err)
+func generateTxsBeforeSendingForcedBatch(ctx context.Context, t *testing.T, nTxs int, l2 *l2Stuff) []*big.Int {
+	txs := make([]*types.Transaction, 0, nTxs)
+	for i := 0; i < nTxs; i++ {
+		tx := types.NewTransaction(l2.nonce, toAddress, l2.amount, l2.gasLimit, l2.gasPrice, nil)
+		l2.nonce = l2.nonce + 1
+		txs = append(txs, tx)
+	}
+
+	var l2BlockNumbers []*big.Int
+	l2BlockNumbers, err := operations.ApplyL2Txs(ctx, txs, l2.authSequencer, l2.client, operations.VerifiedConfirmationLevel)
+	require.NoError(t, err)
+	return l2BlockNumbers
+}
+
+func checkThatPreviousTxsWereProcessedWithinPreviousClosedBatch(ctx context.Context, t *testing.T, state *state.State, l2BlockNumbers []*big.Int, forcedBatchNumber uint64) {
+	// Checking if all txs sent before the forced batch were processed within previous closed batch
+	for _, l2blockNum := range l2BlockNumbers {
+		batch, err := state.GetBatchByL2BlockNumber(ctx, l2blockNum.Uint64(), nil)
+		require.NoError(t, err)
+		require.Less(t, batch.BatchNumber, forcedBatchNumber)
+	}
+}
+
+func generateSignedAndEncodedTxForForcedBatch(ctx context.Context, t *testing.T, l2 *l2Stuff) []byte {
+	unsignedTx := types.NewTransaction(l2.nonce, toAddress, l2.amount, l2.gasLimit, l2.gasPrice, nil)
+	signedTx, err := l2.authSequencer.Signer(l2.authSequencer.From, unsignedTx)
+	require.NoError(t, err)
+	log.Info("Forced Batch: 1 tx -> ", signedTx.Hash())
+	encodedTxs, err := state.EncodeTransactions([]types.Transaction{*signedTx}, constants.EffectivePercentage, forkID6)
+	require.NoError(t, err)
+	return encodedTxs
+}
+
+func setupEnvironment(ctx context.Context, t *testing.T) *l2Stuff {
+	if !dockersArePreLaunched {
+		err := operations.Teardown()
+		require.NoError(t, err)
+	}
 	opsCfg := operations.GetDefaultOperationsConfig()
 	opsCfg.State.MaxCumulativeGasUsed = 80000000000
 
-	opsman, err := operations.NewManagerNoInitDB(ctx, opsCfg)
-	require.NoError(t, err)
-	// setForkId(t, opsman)
+	var opsman *operations.Manager
+	var err error
 
-	//err = opsman.Setup()
-	//require.NoError(t, err)
-	//time.Sleep(5 * time.Second)
+	require.NoError(t, err)
+	if !dockersArePreLaunched {
+		log.Info("Launching dockers and resetting Database")
+		opsman, err = operations.NewManager(ctx, opsCfg)
+		log.Info("Setting Genesis")
+		setInitialState(t, opsman)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+		opsman, err = operations.NewManagerNoInitDB(ctx, opsCfg)
+	}
+
 	// Load account with balance on local genesis
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
@@ -154,14 +152,55 @@ func setupEnvironment(ctx context.Context, t *testing.T) (*operations.Manager, *
 
 	gasPrice, err := client.SuggestGasPrice(ctx)
 	require.NoError(t, err)
-
-	nonce, err := client.PendingNonceAt(ctx, auth.From)
-	require.NoError(t, err)
-	require.Equal(t, senderNonce, nonce)
-	return opsman, auth, client, amount, gasLimit, gasPrice, nonce
+	return &l2Stuff{opsman, auth, client, amount, gasLimit, gasPrice, senderNonce}
 }
 
-func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *operations.Manager, l1 *L1Stuff) (*state.Batch, error) {
+func setupEnvironmentL1(ctx context.Context, t *testing.T) *l1Stuff {
+	// Connect to ethereum node
+	ethClient, err := ethclient.Dial(operations.DefaultL1NetworkURL)
+	require.NoError(t, err)
+	authSequencer, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL1ChainID)
+	require.NoError(t, err)
+	authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
+	require.NoError(t, err)
+	maticSmc, err := matic.NewMatic(common.HexToAddress(operations.DefaultL1MaticSmartContract), ethClient)
+	require.NoError(t, err)
+	maticAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
+	log.Debugf("Charging MATIC from sequencer -> forcedBatchesAddress")
+	txValue, err := maticSmc.Transfer(authSequencer, common.HexToAddress(operations.DefaultForcedBatchesAddress), maticAmount)
+	require.NoError(t, err)
+	log.Debugf("Waiting for tx %s to be mined (transfer of matic from sequencer -> forcedBatches)", txValue.Hash().String())
+	err = operations.WaitTxToBeMined(ctx, ethClient, txValue, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+	balance, err := maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultSequencerAddress))
+	require.NoError(t, err)
+	log.Debugf("Account (sequencer) %s MATIC balance %s", operations.DefaultSequencerAddress, balance.String())
+
+	balance, err = maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultForcedBatchesAddress))
+	require.NoError(t, err)
+	log.Debugf("Account (force_batches) %s MATIC balance %s", operations.DefaultForcedBatchesAddress, balance.String())
+	log.Debugf("Approve to zkEVM SMC to spend %s MATIC", maticAmount.String())
+	_, err = maticSmc.Approve(authForcedBatch, common.HexToAddress(operations.DefaultL1ZkEVMSmartContract), maticAmount)
+	require.NoError(t, err)
+
+	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
+	zkEvm, err := polygonzkevm.NewPolygonzkevm(zkEvmAddr, ethClient)
+	require.NoError(t, err)
+	return &l1Stuff{ethClient: ethClient, authSequencer: authSequencer, authForcedBatch: authForcedBatch, zkEvmAddr: zkEvmAddr, zkEvm: zkEvm}
+}
+
+func setInitialState(t *testing.T, opsman *operations.Manager) {
+	genesisFileAsStr, err := config.LoadGenesisFileAsString("../../test/config/test.genesis.config.json")
+	require.NoError(t, err)
+	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
+	require.NoError(t, err)
+	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+	err = opsman.Setup()
+	require.NoError(t, err)
+	time.Sleep(5 * time.Second)
+}
+
+func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *operations.Manager, l1 *l1Stuff) (*state.Batch, error) {
 	st := opsman.State()
 
 	initialGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
@@ -260,6 +299,7 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 		require.NoError(t, err)
 
 		if rootInContractHash != initialGer.GlobalExitRoot {
+			log.Info("Checking if global exit root is updated...")
 			finalGer, _, err := st.GetLatestGer(ctx, gerFinalityBlocks)
 			require.NoError(t, err)
 			require.Equal(t, rootInContractHash, finalGer.GlobalExitRoot, "global exit root is not updated")

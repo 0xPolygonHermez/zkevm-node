@@ -23,7 +23,7 @@ DOCKERCOMPOSENODEAPPROVE := zkevm-approve
 DOCKERCOMPOSEMETRICS := zkevm-metrics
 DOCKERCOMPOSEGRAFANA := grafana
 
-RUNSTATEDB := $(DOCKERCOMPOSE) up -d  $(DOCKERCOMPOSESTATEDB)
+RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
 RUNPOOLDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEPOOLDB)
 RUNEVENTDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEEVENTDB)
 RUNSEQUENCER := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSEAPPSEQ)
@@ -103,8 +103,6 @@ test-e2e-group-1: stop ## Runs group 1 e2e tests checking race conditions
 	$(RUNEVENTDB)
 	sleep 5
 	$(RUNZKPROVER)
-	make run-approve-matic
-	
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -failfast -race -v -p 1 -timeout 600s ../ci/e2e-group1/...
@@ -200,7 +198,12 @@ test-e2e-group-9: stop ## Runs group 9 e2e tests checking race conditions
 
 
 .PHONY: test-e2e-group-10
-test-e2e-group-10: stop run ## Runs group 10 e2e tests checking race conditions
+test-e2e-group-10: stop ## Runs group 10 e2e tests checking race conditions
+	$(RUNSTATEDB)
+	$(RUNPOOLDB)
+	$(RUNEVENTDB)
+	sleep 5
+	$(RUNZKPROVER)
 	docker ps -a
 	docker logs $(DOCKERCOMPOSEZKPROVER)
 	trap '$(STOP)' EXIT; MallocNanoZone=0 go test -count=1 -failfast -race -v -p 1 -timeout 2000s ../ci/e2e-group10/...
