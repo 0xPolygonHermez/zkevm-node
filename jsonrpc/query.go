@@ -3,11 +3,13 @@ package jsonrpc
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/websocket"
 )
@@ -28,6 +30,8 @@ type Filter struct {
 	Parameters interface{}
 	LastPoll   time.Time
 	WsConn     *atomic.Pointer[websocket.Conn]
+
+	mutex sync.Mutex
 }
 
 // FilterType express the type of the filter, block, logs, pending transactions
@@ -265,4 +269,33 @@ func (f *LogFilter) Match(log *types.Log) bool {
 	}
 
 	return true
+}
+
+func (f *Filter) SendSubscriptionResponse(data []byte) {
+	const errMessage = "Unable to write WS message to filter %v, %s"
+
+	start := time.Now()
+	res := types.SubscriptionResponse{
+		JSONRPC: "2.0",
+		Method:  "eth_subscription",
+		Params: types.SubscriptionResponseParams{
+			Subscription: f.ID,
+			Result:       data,
+		},
+	}
+	message, err := json.Marshal(res)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
+		return
+	}
+
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	err = f.WsConn.Load().WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
+		return
+	}
+	log.Debugf("WS message sent: %v", string(message))
+	log.Debugf("[SendSubscriptionResponse] took %v", time.Since(start))
 }
