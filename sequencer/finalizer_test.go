@@ -53,13 +53,6 @@ var (
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-	effectiveGasPriceCfg = EffectiveGasPriceCfg{
-		MaxBreakEvenGasPriceDeviationPercentage: 10,
-		L1GasPriceFactor:                        0.25,
-		ByteGasCost:                             16,
-		MarginFactor:                            1,
-		Enabled:                                 false,
-	}
 	cfg = FinalizerCfg{
 		GERDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
@@ -82,6 +75,18 @@ var (
 		ResourcePercentageToCloseBatch: 10,
 		GERFinalityNumberOfBlocks:      64,
 		SequentialReprocessFullBatch:   true,
+	}
+	poolCfg = pool.Config{
+		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
+			Enabled:           false,
+			L1GasPriceFactor:  0.25,
+			ByteGasCost:       16,
+			ZeroByteGasCost:   4,
+			NetProfit:         1.0,
+			BreakEvenFactor:   1.1,
+			FinalDeviationPct: 10,
+		},
+		DefaultMinGasPriceAllowed: 1000000000,
 	}
 	chainID         = new(big.Int).SetInt64(400)
 	pvtKey          = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -108,7 +113,7 @@ var (
 	decodedBatchL2Data      []byte
 	done                    chan bool
 	gasPrice                = big.NewInt(1000000)
-	breakEvenGasPrice       = big.NewInt(1000000)
+	effectiveGasPrice       = big.NewInt(1000000)
 	l1GasPrice              = uint64(1000000)
 )
 
@@ -124,7 +129,7 @@ func TestNewFinalizer(t *testing.T) {
 	dbManagerMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	f = newFinalizer(cfg, effectiveGasPriceCfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog)
+	f = newFinalizer(cfg, poolCfg, workerMock, dbManagerMock, executorMock, seqAddr, isSynced, closingSignalCh, bc, eventLog, nil)
 
 	// assert
 	assert.NotNil(t, f)
@@ -140,12 +145,29 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
-	txTracker := &TxTracker{Hash: txHash, From: senderAddr, Nonce: 1, GasPrice: gasPrice, BreakEvenGasPrice: breakEvenGasPrice, L1GasPrice: l1GasPrice, BatchResources: state.BatchResources{
-		Bytes: 1000,
-		ZKCounters: state.ZKCounters{
-			CumulativeGasUsed: 500,
+	txTracker := &TxTracker{
+		Hash:              txHash,
+		From:              senderAddr,
+		Nonce:             1,
+		GasPrice:          gasPrice,
+		EffectiveGasPrice: effectiveGasPrice,
+		L1GasPrice:        l1GasPrice,
+		EGPLog: state.EffectiveGasPriceLog{
+			ValueFinal:     new(big.Int).SetUint64(0),
+			ValueFirst:     new(big.Int).SetUint64(0),
+			ValueSecond:    new(big.Int).SetUint64(0),
+			FinalDeviation: new(big.Int).SetUint64(0),
+			MaxDeviation:   new(big.Int).SetUint64(0),
+			GasPrice:       new(big.Int).SetUint64(0),
 		},
-	}}
+		BatchResources: state.BatchResources{
+			Bytes: 1000,
+			ZKCounters: state.ZKCounters{
+				CumulativeGasUsed: 500,
+			},
+		},
+		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
+	}
 
 	txResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
@@ -323,7 +345,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				<-done                              // wait for the goroutine to finish
 				f.pendingTransactionsToStoreWG.Wait()
 				require.Len(t, storedTxs, 1)
-				actualTx := storedTxs[0]
+				actualTx := storedTxs[0] //nolint:gosec
 				assertEqualTransactionToStore(t, tc.expectedStoredTx, actualTx)
 			} else {
 				require.Empty(t, storedTxs)
@@ -1444,14 +1466,24 @@ func Test_processTransaction(t *testing.T) {
 		Hash:              txHash,
 		From:              senderAddr,
 		Nonce:             nonce1,
-		BreakEvenGasPrice: breakEvenGasPrice,
-		GasPrice:          breakEvenGasPrice,
+		GasPrice:          effectiveGasPrice,
+		EffectiveGasPrice: effectiveGasPrice,
+		L1GasPrice:        l1GasPrice,
+		EGPLog: state.EffectiveGasPriceLog{
+			ValueFinal:     new(big.Int).SetUint64(0),
+			ValueFirst:     new(big.Int).SetUint64(0),
+			ValueSecond:    new(big.Int).SetUint64(0),
+			FinalDeviation: new(big.Int).SetUint64(0),
+			MaxDeviation:   new(big.Int).SetUint64(0),
+			GasPrice:       new(big.Int).SetUint64(0),
+		},
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
 				CumulativeGasUsed: 500,
 			},
 		},
+		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
 	}
 	successfulTxResponse := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
@@ -1543,7 +1575,7 @@ func Test_processTransaction(t *testing.T) {
 				}()
 			}
 
-			dbManagerMock.On("GetL1GasPrice").Return(uint64(1000000)).Once()
+			dbManagerMock.On("GetL1AndL2GasPrice").Return(uint64(1000000), uint64(100000)).Once()
 			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr).Once()
 			if tc.executorErr == nil {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
@@ -1562,7 +1594,7 @@ func Test_processTransaction(t *testing.T) {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
 			}
 
-			errWg, err := f.processTransaction(tc.ctx, tc.tx)
+			errWg, err := f.processTransaction(tc.ctx, tc.tx, true)
 
 			if tc.expectedStoredTx.batchResponse != nil {
 				close(f.pendingTransactionsToStore) // ensure the channel is closed
@@ -2502,35 +2534,34 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 	return &finalizer{
-		cfg:                  cfg,
-		effectiveGasPriceCfg: effectiveGasPriceCfg,
-		closingSignalCh:      closingSignalCh,
-		isSynced:             isSynced,
-		sequencerAddress:     seqAddr,
-		worker:               workerMock,
-		dbManager:            dbManagerMock,
-		executor:             executorMock,
-		batch:                wipBatch,
-		batchConstraints:     bc,
-		processRequest:       state.ProcessRequest{},
-		sharedResourcesMux:   new(sync.RWMutex),
-		lastGERHash:          common.Hash{},
+		cfg:                cfg,
+		closingSignalCh:    closingSignalCh,
+		isSynced:           isSynced,
+		sequencerAddress:   seqAddr,
+		worker:             workerMock,
+		dbManager:          dbManagerMock,
+		executor:           executorMock,
+		batch:              wipBatch,
+		batchConstraints:   bc,
+		processRequest:     state.ProcessRequest{},
+		sharedResourcesMux: new(sync.RWMutex),
+		lastGERHash:        common.Hash{},
 		// closing signals
-		nextGER:                                 common.Hash{},
-		nextGERDeadline:                         0,
-		nextGERMux:                              new(sync.RWMutex),
-		nextForcedBatches:                       make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:                 0,
-		nextForcedBatchesMux:                    new(sync.RWMutex),
-		handlingL2Reorg:                         false,
-		eventLog:                                eventLog,
-		maxBreakEvenGasPriceDeviationPercentage: big.NewInt(10),
-		pendingTransactionsToStore:              make(chan transactionToStore, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreWG:            new(sync.WaitGroup),
-		storedFlushID:                           0,
-		storedFlushIDCond:                       sync.NewCond(new(sync.Mutex)),
-		proverID:                                "",
-		lastPendingFlushID:                      0,
-		pendingFlushIDCond:                      sync.NewCond(new(sync.Mutex)),
+		nextGER:                      common.Hash{},
+		nextGERDeadline:              0,
+		nextGERMux:                   new(sync.RWMutex),
+		nextForcedBatches:            make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline:      0,
+		nextForcedBatchesMux:         new(sync.RWMutex),
+		handlingL2Reorg:              false,
+		effectiveGasPrice:            pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		eventLog:                     eventLog,
+		pendingTransactionsToStore:   make(chan transactionToStore, bc.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
+		pendingTransactionsToStoreWG: new(sync.WaitGroup),
+		storedFlushID:                0,
+		storedFlushIDCond:            sync.NewCond(new(sync.Mutex)),
+		proverID:                     "",
+		lastPendingFlushID:           0,
+		pendingFlushIDCond:           sync.NewCond(new(sync.Mutex)),
 	}
 }

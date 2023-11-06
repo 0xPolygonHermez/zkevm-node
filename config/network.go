@@ -71,22 +71,23 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 		networkJSON = TestnetNetworkConfigJSON
 	case string(custom):
 		var err error
-		networkJSON, err = loadGenesisFileAsString(ctx)
+		cfgPath := ctx.String(FlagCustomNetwork)
+		networkJSON, err = LoadGenesisFileAsString(cfgPath)
 		if err != nil {
 			panic(err.Error())
 		}
 	default:
 		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, custom)
 	}
-	config, err := loadGenesisFromJSONString(networkJSON)
+	config, err := LoadGenesisFromJSONString(networkJSON)
 	if err != nil {
 		panic(fmt.Errorf("failed to load genesis configuration from file. Error: %v", err))
 	}
 	cfg.NetworkConfig = config
 }
 
-func loadGenesisFileAsString(ctx *cli.Context) (string, error) {
-	cfgPath := ctx.String(FlagCustomNetwork)
+// LoadGenesisFileAsString loads the genesis file as a string
+func LoadGenesisFileAsString(cfgPath string) (string, error) {
 	if cfgPath != "" {
 		f, err := os.Open(cfgPath) //nolint:gosec
 		if err != nil {
@@ -109,7 +110,8 @@ func loadGenesisFileAsString(ctx *cli.Context) (string, error) {
 	}
 }
 
-func loadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
+// LoadGenesisFromJSONString loads the genesis file from JSON string
+func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 	var cfg NetworkConfig
 
 	var cfgJSON GenesisFromJSON

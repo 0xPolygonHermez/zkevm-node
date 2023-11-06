@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_L1Get(t *testing.T) {
+func TestExploratoryL1Get(t *testing.T) {
 	t.Skip("Exploratory test")
 	sut, ethermans, _ := setup(t)
 	etherman := ethermans[0]
@@ -22,42 +22,37 @@ func Test_L1Get(t *testing.T) {
 		Return(header, nil).
 		Once()
 
-	err := sut.initialize()
+	err := sut.initialize(context.Background())
 	require.NoError(t, err)
-	sut.launchWork()
+	_, err = sut.launchWork()
+	require.NoError(t, err)
 }
 
-func Test_Given_NeedSync_When_Start_Then_AskForRollupInfo(t *testing.T) {
+func TestGivenNeedSyncWhenStartThenAskForRollupInfo(t *testing.T) {
 	sut, ethermans, _ := setup(t)
-	etherman := ethermans[0]
-	expectedForGettingL1LastBlock(t, etherman, 150)
-	expectedRollupInfoCalls(t, etherman, 1)
-	err := sut.initialize()
+	expectedForGettingL1LastBlock(t, ethermans[0], 150)
+	expectedRollupInfoCalls(t, ethermans[1], 1)
+	err := sut.initialize(context.Background())
 	require.NoError(t, err)
-	sut.launchWork()
+	_, err = sut.launchWork()
+	require.NoError(t, err)
 	var waitDuration = time.Duration(0)
 
-	sut.stepInner(&waitDuration)
+	sut.step(&waitDuration)
+	sut.step(&waitDuration)
 	sut.workers.waitFinishAllWorkers()
 }
 
-func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) {
+func TestGivenNoNeedSyncWhenStartsSendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
 	etherman := ethermans[0]
 	// Our last block is 100 in DB and it returns 100 as last block on L1
 	// so is synchronized
 	expectedForGettingL1LastBlock(t, etherman, 100)
-	//expectedRollupInfoCalls(t, etherman, 1)
-	err := sut.initialize()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancel()
+	err := sut.Start(ctx)
 	require.NoError(t, err)
-	sut.launchWork()
-	var waitDuration = time.Duration(0)
-
-	sut.step(&waitDuration)
-
-	waitDuration = time.Duration(0)
-	res := sut.step(&waitDuration)
-	require.True(t, res)
 	// read everything in channel ch
 	for len(ch) > 0 {
 		data := <-ch
@@ -68,25 +63,21 @@ func Test_Given_NoNeedSync_When_Starts_SendAndEventOfSynchronized(t *testing.T) 
 	require.Fail(t, "should not have send a eventProducerIsFullySynced in channel")
 }
 
-func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *testing.T) {
+// Given: Need to synchronize
+// When:  Ask for last block
+// Then:  Ask for rollupinfo
+func TestGivenNeedSyncWhenReachLastBlockThenSendAndEventOfSynchronized(t *testing.T) {
 	sut, ethermans, ch := setup(t)
-	etherman := ethermans[0]
 	// Our last block is 100 in DB and it returns 101 as last block on L1
 	// so it need to retrieve 1 rollupinfo
-	expectedForGettingL1LastBlock(t, etherman, 101)
-	expectedRollupInfoCalls(t, etherman, 1)
-	err := sut.initialize()
-	require.NoError(t, err)
-	var waitDuration = time.Duration(0)
+	expectedForGettingL1LastBlock(t, ethermans[0], 101)
+	expectedRollupInfoCalls(t, ethermans[1], 1)
 
-	// Is going to ask for last block again because it'll launch all request
-	expectedForGettingL1LastBlock(t, etherman, 101)
-	sut.step(&waitDuration)
-	require.Equal(t, sut.status, producerWorking)
-	waitDuration = time.Millisecond * 100 // need a bit of time to receive the response to rollupinfo
-	res := sut.step(&waitDuration)
-	require.True(t, res)
-	require.Equal(t, sut.status, producerSynchronized)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	defer cancel()
+	res := sut.Start(ctx)
+	require.NoError(t, res)
+
 	// read everything in channel ch
 	for len(ch) > 0 {
 		data := <-ch
@@ -95,20 +86,34 @@ func Test_Given_NeedSync_When_ReachLastBlock_Then_SendAndEventOfSynchronized(t *
 		}
 	}
 	require.Fail(t, "should not have send a eventProducerIsFullySynced in channel")
+}
+
+func TestGivenNoSetFirstBlockWhenCallStartThenDontReturnError(t *testing.T) {
+	sut, ethermans, _ := setupNoResetCall(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	cancel()
+	expectedForGettingL1LastBlock(t, ethermans[0], 101)
+	err := sut.Start(ctx)
+	require.NoError(t, err)
 }
 
 func setup(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMessage) {
-	etherman := newEthermanMock(t)
-	ethermansMock := []*ethermanMock{etherman}
-	ethermans := []EthermanInterface{etherman}
+	sut, ethermansMock, resultChannel := setupNoResetCall(t)
+	sut.Reset(100)
+	return sut, ethermansMock, resultChannel
+}
+
+func setupNoResetCall(t *testing.T) (*l1RollupInfoProducer, []*ethermanMock, chan l1SyncMessage) {
+	ethermansMock := []*ethermanMock{newEthermanMock(t), newEthermanMock(t)}
+	ethermans := []EthermanInterface{ethermansMock[0], ethermansMock[1]}
 	resultChannel := make(chan l1SyncMessage, 100)
-	//sut := newL1DataRetriever(context.Background(), ethermans, 100, 10, resultChannel, false)
 	cfg := configProducer{
 		syncChunkSize:      100,
 		ttlOfLastBlockOnL1: time.Second,
+		timeOutMainLoop:    time.Second,
 	}
 
-	sut := newL1DataRetriever(context.Background(), cfg, ethermans, 100, resultChannel)
+	sut := newL1DataRetriever(cfg, ethermans, resultChannel)
 	return sut, ethermansMock, resultChannel
 }
 

@@ -22,5 +22,5 @@ var (
 	poolDbUser = testutils.GetEnv("POOLDB_USER", "pool_user")
 	poolDbPass = testutils.GetEnv("POOLDB_PASS", "pool_password")
 	poolDbHost = testutils.GetEnv("POOLDB_HOST", "localhost")
-	poolDbPort = testutils.GetEnv("POOLDB_PORT", "5432")
+	poolDbPort = testutils.GetEnv("POOLDB_PORT", "5433")
 )

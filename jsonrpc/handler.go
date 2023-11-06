@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"unicode"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -36,7 +36,7 @@ func (f *funcData) numParams() int {
 
 type handleRequest struct {
 	types.Request
-	wsConn      *websocket.Conn
+	wsConn      *atomic.Pointer[websocket.Conn]
 	HttpRequest *http.Request
 }
 
@@ -73,23 +73,10 @@ func newJSONRpcHandler() *Handler {
 	return handler
 }
 
-var connectionCounter = 0
-var connectionCounterMutex sync.Mutex
-
 // Handle is the function that knows which and how a function should
 // be executed when a JSON RPC request is received
 func (h *Handler) Handle(req handleRequest) types.Response {
 	log := log.WithFields("method", req.Method, "requestId", req.ID)
-	connectionCounterMutex.Lock()
-	connectionCounter++
-	connectionCounterMutex.Unlock()
-	defer func() {
-		connectionCounterMutex.Lock()
-		connectionCounter--
-		connectionCounterMutex.Unlock()
-		log.Debugf("Current open connections %d", connectionCounter)
-	}()
-	log.Debugf("Current open connections %d", connectionCounter)
 	log.Debugf("request params %v", string(req.Params))
 
 	service, fd, err := h.getFnHandler(req.Request)
@@ -106,7 +93,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 	firstFuncParamIsWebSocketConn := false
 	firstFuncParamIsHttpRequest := false
 	if funcHasMoreThanOneInputParams {
-		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&websocket.Conn{}))
+		firstFuncParamIsWebSocketConn = fd.reqt[1].AssignableTo(reflect.TypeOf(&atomic.Pointer[websocket.Conn]{}))
 		firstFuncParamIsHttpRequest = fd.reqt[1].AssignableTo(reflect.TypeOf(&http.Request{}))
 	}
 	if requestHasWebSocketConn && firstFuncParamIsWebSocketConn {
@@ -156,7 +143,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 }
 
 // HandleWs handle websocket requests
-func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http.Request) ([]byte, error) {
+func (h *Handler) HandleWs(reqBody []byte, wsConn *atomic.Pointer[websocket.Conn], httpReq *http.Request) ([]byte, error) {
 	log.Debugf("WS message received: %v", string(reqBody))
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
@@ -173,7 +160,7 @@ func (h *Handler) HandleWs(reqBody []byte, wsConn *websocket.Conn, httpReq *http
 }
 
 // RemoveFilterByWsConn uninstalls the filter attached to this websocket connection
-func (h *Handler) RemoveFilterByWsConn(wsConn *websocket.Conn) {
+func (h *Handler) RemoveFilterByWsConn(wsConn *atomic.Pointer[websocket.Conn]) {
 	service, ok := h.serviceMap[APIEth]
 	if !ok {
 		return

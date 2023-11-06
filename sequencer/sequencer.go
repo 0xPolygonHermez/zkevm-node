@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -19,12 +20,12 @@ import (
 type Sequencer struct {
 	cfg      Config
 	batchCfg state.BatchConfig
+	poolCfg  pool.Config
 
-	pool         txPool
-	state        stateInterface
-	eventLog     *event.EventLog
-	ethTxManager ethTxManager
-	etherman     etherman
+	pool     txPool
+	state    stateInterface
+	eventLog *event.EventLog
+	etherman etherman
 
 	address common.Address
 }
@@ -42,22 +43,23 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
-	return &Sequencer{
-		cfg:          cfg,
-		batchCfg:     batchCfg,
-		pool:         txPool,
-		state:        state,
-		etherman:     etherman,
-		ethTxManager: manager,
-		address:      addr,
-		eventLog:     eventLog,
-	}, nil
+	sequencer := &Sequencer{
+		cfg:      cfg,
+		batchCfg: batchCfg,
+		pool:     txPool,
+		state:    state,
+		etherman: etherman,
+		address:  addr,
+		eventLog: eventLog,
+	}
+
+	return sequencer, nil
 }
 
 // Start starts the sequencer
@@ -81,10 +83,31 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	worker := NewWorker(s.state, s.batchCfg.Constraints)
 	dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, s.batchCfg.Constraints)
+
+	// Start stream server if enabled
+	if s.cfg.StreamServer.Enabled {
+		streamServer, err := datastreamer.NewServer(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
+		if err != nil {
+			log.Fatalf("failed to create stream server, err: %v", err)
+		}
+
+		dbManager.streamServer = streamServer
+		err = dbManager.streamServer.Start()
+		if err != nil {
+			log.Fatalf("failed to start stream server, err: %v", err)
+		}
+
+		s.updateDataStreamerFile(ctx, streamServer)
+	}
+
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+	var streamServer *datastreamer.StreamServer = nil
+	if s.cfg.StreamServer.Enabled {
+		streamServer = dbManager.streamServer
+	}
 
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
@@ -113,6 +136,14 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Wait until context is done
 	<-ctx.Done()
+}
+
+func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
+	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state)
+	if err != nil {
+		log.Fatalf("failed to generate data streamer file, err: %v", err)
+	}
+	log.Info("Data streamer file updated")
 }
 
 func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
@@ -180,13 +211,22 @@ func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
 		}
-		log.Infof("will try to delete %d redundant txs", len(txHashes))
+		log.Infof("trying to delete %d selected txs", len(txHashes))
 		err = s.pool.DeleteTransactionsByHashes(ctx, txHashes)
 		if err != nil {
-			log.Errorf("failed to delete txs from the pool, err: %v", err)
+			log.Errorf("failed to delete selected txs from the pool, err: %v", err)
 			continue
 		}
 		log.Infof("deleted %d selected txs from the pool", len(txHashes))
+
+		log.Infof("trying to delete failed txs from the pool")
+		// Delete failed txs older than a certain date (14 seconds per L1 block)
+		err = s.pool.DeleteFailedTransactionsOlderThan(ctx, time.Now().Add(-time.Duration(s.cfg.BlocksAmountForTxsToBeDeleted*14)*time.Second)) //nolint:gomnd
+		if err != nil {
+			log.Errorf("failed to delete failed txs from the pool, err: %v", err)
+			continue
+		}
+		log.Infof("failed txs deleted from the pool")
 	}
 }
 

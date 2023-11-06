@@ -265,6 +265,48 @@
 					"type": "integer",
 					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
 					"default": 1024
+				},
+				"EffectiveGasPrice": {
+					"properties": {
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the effective gas price",
+							"default": false
+						},
+						"L1GasPriceFactor": {
+							"type": "number",
+							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
+							"default": 0.25
+						},
+						"ByteGasCost": {
+							"type": "integer",
+							"description": "ByteGasCost is the gas cost per byte that is not 0",
+							"default": 16
+						},
+						"ZeroByteGasCost": {
+							"type": "integer",
+							"description": "ZeroByteGasCost is the gas cost per byte that is 0",
+							"default": 4
+						},
+						"NetProfit": {
+							"type": "number",
+							"description": "NetProfit is the profit margin to apply to the calculated breakEvenGasPrice",
+							"default": 1
+						},
+						"BreakEvenFactor": {
+							"type": "number",
+							"description": "BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx",
+							"default": 1.1
+						},
+						"FinalDeviationPct": {
+							"type": "integer",
+							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
+							"default": 10
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
 				}
 			},
 			"additionalProperties": false,
@@ -350,11 +392,6 @@
 					"description": "EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.",
 					"default": true
 				},
-				"TraceBatchUseHTTPS": {
-					"type": "boolean",
-					"description": "TraceBatchUseHTTPS enables, in the debug_traceBatchByNum endpoint, the use of the HTTPS protocol (instead of HTTP)\nto do the parallel requests to RPC.debug_traceTransaction endpoint",
-					"default": true
-				},
 				"BatchRequestsEnabled": {
 					"type": "boolean",
 					"description": "BatchRequestsEnabled defines if the Batch requests are enabled or disabled",
@@ -373,6 +410,26 @@
 					"maxItems": 20,
 					"minItems": 20,
 					"description": "L2Coinbase defines which address is going to receive the fees"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 10000
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 10000
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
+					"default": 60000
+				},
+				"EnableHttpLog": {
+					"type": "boolean",
+					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
+					"default": true
 				}
 			},
 			"additionalProperties": false,
@@ -411,12 +468,12 @@
 						"NumberOfParallelOfEthereumClients": {
 							"type": "integer",
 							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 2
+							"default": 10
 						},
 						"CapacityOfBufferingRollupInfoFromL1": {
 							"type": "integer",
 							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 10
+							"default": 25
 						},
 						"TimeForCheckLastBlockOnL1Time": {
 							"type": "string",
@@ -484,6 +541,21 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"MinTimeBetweenRetriesForRollupInfo": {
+							"type": "string",
+							"title": "Duration",
+							"description": "MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
+							"default": "5s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"SwitchToSequentialModeIfIsSynchronized": {
+							"type": "boolean",
+							"description": "SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
@@ -669,42 +741,61 @@
 					"type": "object",
 					"description": "DBManager's specific config properties"
 				},
-				"EffectiveGasPrice": {
+				"StreamServer": {
 					"properties": {
-						"MaxBreakEvenGasPriceDeviationPercentage": {
+						"Port": {
 							"type": "integer",
-							"description": "MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
-							"default": 10
+							"description": "Port to listen on",
+							"default": 0
 						},
-						"L1GasPriceFactor": {
-							"type": "number",
-							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
-							"default": 0.25
-						},
-						"ByteGasCost": {
-							"type": "integer",
-							"description": "ByteGasCost is the gas cost per byte",
-							"default": 16
-						},
-						"MarginFactor": {
-							"type": "number",
-							"description": "MarginFactor is the margin factor percentage to be added to the L2 min gas price",
-							"default": 1
+						"Filename": {
+							"type": "string",
+							"description": "Filename of the binary data file",
+							"default": ""
 						},
 						"Enabled": {
 							"type": "boolean",
-							"description": "Enabled is a flag to enable/disable the effective gas price",
+							"description": "Enabled is a flag to enable/disable the data streamer",
 							"default": false
 						},
-						"DefaultMinGasPriceAllowed": {
-							"type": "integer",
-							"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest\nThis value is assigned from [Pool].DefaultMinGasPriceAllowed",
-							"default": 0
+						"Log": {
+							"properties": {
+								"Environment": {
+									"type": "string",
+									"enum": [
+										"production",
+										"development"
+									],
+									"default": ""
+								},
+								"Level": {
+									"type": "string",
+									"enum": [
+										"debug",
+										"info",
+										"warn",
+										"error",
+										"dpanic",
+										"panic",
+										"fatal"
+									],
+									"default": ""
+								},
+								"Outputs": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array"
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Log is the log configuration"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "EffectiveGasPrice is the config for the gas price"
+					"description": "StreamServerCfg is the config for the stream server"
 				}
 			},
 			"additionalProperties": false,
@@ -778,6 +869,11 @@
 					"type": "integer",
 					"description": "Batch number where there is a forkid change (fork upgrade)",
 					"default": 0
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 80000
 				}
 			},
 			"additionalProperties": false,
@@ -876,6 +972,11 @@
 					"type": "string",
 					"description": "GeneratingProofCleanupThreshold represents the time interval after\nwhich a proof in generating state is considered to be stuck and\nallowed to be cleared.",
 					"default": "10m"
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -1396,6 +1497,21 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "Configuration for the batch constraints"
+				},
+				"MaxLogsCount": {
+					"type": "integer",
+					"description": "MaxLogsCount is a configuration to set the max number of logs that can be returned\nin a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxLogsBlockRange": {
+					"type": "integer",
+					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,

@@ -46,6 +46,10 @@ type L1ParallelSynchronizationConfig struct {
 	TimeForShowUpStatisticsLog types.Duration `mapstructure:"TimeForShowUpStatisticsLog"`
 	// TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated
 	TimeOutMainLoop types.Duration `mapstructure:"TimeOutMainLoop"`
+	// MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1
+	MinTimeBetweenRetriesForRollupInfo types.Duration `mapstructure:"MinTimeBetweenRetriesForRollupInfo"`
+	// SwitchToSequentialModeIfIsSynchronized if true switch to sequential mode if the system is synchronized
+	SwitchToSequentialModeIfIsSynchronized bool `mapstructure:"SwitchToSequentialModeIfIsSynchronized"`
 }
 
 // L1PerformanceCheckConfig Configuration for the consumer of rollup information from L1

@@ -20,6 +20,7 @@ func TestInsertOverlappedBR(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, sut.len(), 1)
 }
+
 func TestInsertDuplicatedBR(t *testing.T) {
 	sut := newLiveBlockRanges()
 	err := sut.addBlockRange(blockRange{fromBlock: 1, toBlock: 10})

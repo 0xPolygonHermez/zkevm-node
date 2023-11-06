@@ -550,6 +550,37 @@ func TestWebSocketsReadLimit(t *testing.T) {
 	require.Equal(t, websocket.CloseMessageTooBig, err.(*websocket.CloseError).Code)
 }
 
+func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	ethereumClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
+	require.NoError(t, err)
+
+	sender := common.HexToAddress(operations.DefaultSequencerAddress)
+	receiver := common.HexToAddress(operations.DefaultSequencerAddress)
+
+	balance, err := ethereumClient.BalanceAt(ctx, sender, nil)
+	require.NoError(t, err)
+
+	_, err = ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+		From:     sender,
+		To:       &receiver,
+		Value:    new(big.Int),
+		Gas:      balance.Uint64(),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     make([]byte, 120000), // large data
+	})
+	rpcErr := err.(rpc.Error)
+	assert.Equal(t, -32000, rpcErr.ErrorCode())
+	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
+}
+
 // waitTimeout waits for the waitgroup for the specified max timeout.
 // Returns true if waiting timed out.
 func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {

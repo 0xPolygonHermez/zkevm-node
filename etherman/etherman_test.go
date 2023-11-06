@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	forkID5 = 5
+	forkID6 = 6
 )
 
 func init() {
@@ -319,7 +319,7 @@ func TestSendSequences(t *testing.T) {
 	require.NoError(t, err)
 
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
-	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID5)
+	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
 		GlobalExitRoot: ger,
@@ -431,7 +431,7 @@ func TestProof(t *testing.T) {
 	proof := "0x20227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a0520227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a05"
 	p, err := convertProof(proof)
 	require.NoError(t, err)
-	str := "20227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a05"
+	str := "20227cbcef731b6cbdc0edd5850c63dc7fbc27fb58d12cd4d08298799cf66a05" //nolint:gosec
 	proofReference, err := encoding.DecodeBytes(&str)
 	require.NoError(t, err)
 	var expected [32]byte

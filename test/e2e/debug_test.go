@@ -294,6 +294,8 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc deployment out of gas", createSignedTx: createScDeployOutOfGasSignedTx},
+		// PENDING {name: "sc creation storage out of gas", createSignedTx: createScCreationCodeStorageOutOfGasSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
@@ -623,7 +625,12 @@ func TestDebugTraceBlock(t *testing.T) {
 					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
 					resultResultMap := resultTransactionMap["result"].(map[string]interface{})
 					resultStructLogsMap := resultResultMap["structLogs"].([]interface{})
-
+					log.Debugf("test[%s] referenceStructLogsMap : L1_len=%d L2_len=%d", tc.name, len(referenceStructLogsMap), len(resultStructLogsMap))
+					if len(referenceStructLogsMap) != len(resultStructLogsMap) {
+						log.Debugf("test[%s] referenceStructLogsMap not equal", tc.name)
+						log.Debug("L1 (referenceTransactions): ", referenceTransactions)
+						log.Debug("L2    (resultTransactions): ", resultTransactions)
+					}
 					require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
 
 					for structLogIndex := range referenceStructLogsMap {

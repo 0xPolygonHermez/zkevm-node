@@ -1,9 +1,9 @@
 package synchronizer
 
 import (
+	"context"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -13,106 +13,132 @@ import (
 This object is used to coordinate the producer and the consumer process.
 */
 type l1RollupProducerInterface interface {
-	start(startingBlockNumber uint64) error
-	stop()
-	reset(startingBlockNumber uint64)
+	// Start launch a new process to retrieve data from L1
+	Start(ctx context.Context) error
+	// Stop cancel current process
+	Stop()
+	// Abort execution
+	Abort()
+	// Reset set a new starting point and cancel current process if any
+	Reset(startingBlockNumber uint64)
 }
 
 type l1RollupConsumerInterface interface {
-	start() error
-	stopAfterProcessChannelQueue()
-	getLastEthBlockSynced() (state.Block, bool)
+	Start(ctx context.Context, lastEthBlockSynced *state.Block) error
+	StopAfterProcessChannelQueue()
+	GetLastEthBlockSynced() (state.Block, bool)
+	// Reset set a new starting point
+	Reset(startingBlockNumber uint64)
 }
 
 type l1SyncOrchestration struct {
-	mutex           sync.Mutex
-	producer        l1RollupProducerInterface
-	consumer        l1RollupConsumerInterface
-	producerStarted bool
-	consumerStarted bool
+	mutex    sync.Mutex
+	producer l1RollupProducerInterface
+	consumer l1RollupConsumerInterface
+	// Producer is running?
+	producerRunning bool
+	consumerRunning bool
+	// The orchestrator is running?
+	isRunning     bool
+	wg            sync.WaitGroup
+	chProducer    chan error
+	chConsumer    chan error
+	ctxParent     context.Context
+	ctxWithCancel contextWithCancel
 }
 
 const (
 	errMissingLastEthBlockSynced = "orchestration: missing last eth block synced"
 )
 
-func newL1SyncOrchestration(producer l1RollupProducerInterface, consumer l1RollupConsumerInterface) *l1SyncOrchestration {
-	return &l1SyncOrchestration{
+func newL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterface, consumer l1RollupConsumerInterface) *l1SyncOrchestration {
+	res := l1SyncOrchestration{
 		producer:        producer,
 		consumer:        consumer,
-		producerStarted: false,
-		consumerStarted: false,
+		producerRunning: false,
+		consumerRunning: false,
+		chProducer:      make(chan error, 1),
+		chConsumer:      make(chan error, 1),
+		ctxParent:       ctx,
 	}
+	res.ctxWithCancel.createWithCancel(ctx)
+	return &res
 }
 
 func (l *l1SyncOrchestration) reset(startingBlockNumber uint64) {
-	log.Warnf("Reset L1 sync process to blockNumber %d", startingBlockNumber)
-	l.mutex.Lock()
-	if l.consumerStarted {
-		log.Warnf("orchestration: Undefined behaviour, reset (%v) and consumer is running", startingBlockNumber)
+	log.Warnf("orchestration: Reset L1 sync process to blockNumber %d", startingBlockNumber)
+	if l.isRunning {
+		log.Infof("orchestration: reset(%d) is going to reset producer", startingBlockNumber)
 	}
-	l.producer.reset(startingBlockNumber)
-
-	l.mutex.Unlock()
+	l.consumer.Reset(startingBlockNumber)
+	l.producer.Reset(startingBlockNumber)
+	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
 }
 
-func (l *l1SyncOrchestration) start(startingBlockNumber uint64) (*state.Block, error) {
-	chProducer := make(chan error, 1)
-	chConsumer := make(chan error, 1)
-	var wg sync.WaitGroup
-	l.launchProducer(startingBlockNumber, chProducer, &wg)
-	l.launchConsumer(chConsumer, &wg)
-	return l.orchestrate(&wg, chProducer, chConsumer)
+func (l *l1SyncOrchestration) start(lastEthBlockSynced *state.Block) (*state.Block, error) {
+	l.isRunning = true
+	l.launchProducer(l.ctxWithCancel.ctx, l.chProducer, &l.wg)
+	l.launchConsumer(l.ctxWithCancel.ctx, lastEthBlockSynced, l.chConsumer, &l.wg)
+	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
 }
 
-func (l *l1SyncOrchestration) launchProducer(startingBlockNumber uint64, chProducer chan error, wg *sync.WaitGroup) {
+func (l *l1SyncOrchestration) abort() {
+	l.producer.Abort()
+	l.ctxWithCancel.cancel()
+	l.wg.Wait()
+	l.ctxWithCancel.createWithCancel(l.ctxParent)
+}
+
+func (l *l1SyncOrchestration) isProducerRunning() bool {
 	l.mutex.Lock()
-	if !l.producerStarted {
+	defer l.mutex.Unlock()
+	return l.producerRunning
+}
+
+func (l *l1SyncOrchestration) launchProducer(ctx context.Context, chProducer chan error, wg *sync.WaitGroup) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+	if !l.producerRunning {
 		if wg != nil {
 			wg.Add(1)
 		}
-
 		// Start producer: L1DataRetriever from L1
-		l.producerStarted = true
-		l.mutex.Unlock()
+		l.producerRunning = true
+
 		go func() {
 			if wg != nil {
 				defer wg.Done()
 			}
-			log.Infof("orchestration: starting producer(%v)", startingBlockNumber)
-			err := l.producer.start(startingBlockNumber)
+			log.Infof("orchestration: starting producer")
+			err := l.producer.Start(ctx)
 			if err != nil {
 				log.Warnf("orchestration: producer error . Error: %s", err)
 			}
 			l.mutex.Lock()
-			l.producerStarted = false
+			l.producerRunning = false
 			l.mutex.Unlock()
 			log.Infof("orchestration: producer finished")
 			chProducer <- err
 		}()
-	} else {
-		// staringBlockNumber could imply a reset...
-		//
-		l.mutex.Unlock()
 	}
 }
 
-func (l *l1SyncOrchestration) launchConsumer(chConsumer chan error, wg *sync.WaitGroup) {
+func (l *l1SyncOrchestration) launchConsumer(ctx context.Context, lastEthBlockSynced *state.Block, chConsumer chan error, wg *sync.WaitGroup) {
 	l.mutex.Lock()
-	if l.consumerStarted {
+	if l.consumerRunning {
 		l.mutex.Unlock()
 		return
 	}
-	l.consumerStarted = true
+	l.consumerRunning = true
 	l.mutex.Unlock()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		log.Infof("orchestration: starting consumer")
-		err := l.consumer.start()
+		err := l.consumer.Start(ctx, lastEthBlockSynced)
 		l.mutex.Lock()
-		l.consumerStarted = false
+		l.consumerRunning = false
 		l.mutex.Unlock()
 		if err != nil {
 			log.Warnf("orchestration: consumer error. Error: %s", err)
@@ -122,40 +148,42 @@ func (l *l1SyncOrchestration) launchConsumer(chConsumer chan error, wg *sync.Wai
 	}()
 }
 
-func (l *l1SyncOrchestration) orchestrate(wg *sync.WaitGroup, hProducer chan error, chConsumer chan error) (*state.Block, error) {
+func (l *l1SyncOrchestration) orchestrate(ctx context.Context, wg *sync.WaitGroup, chProducer chan error, chConsumer chan error) (*state.Block, error) {
 	// Wait a cond_var for known if consumer have finish
 	var err error
 	done := false
 	for !done {
 		select {
-		case err = <-hProducer:
+		case <-ctx.Done():
+			log.Warnf("orchestration: context cancelled")
+			done = true
+		case err = <-chProducer:
 			// Producer has finished
-			log.Warnf("orchestration: consumer have finished! this situation shouldn't happen, restarting it. Error:%s", err)
-			// to avoid respawn too fast it sleeps a bit
-			time.Sleep(time.Second)
-			l.launchProducer(invalidBlockNumber, hProducer, wg)
+			log.Infof("orchestration: producer has finished. Error: %s, stopping consumer", err)
+			l.consumer.StopAfterProcessChannelQueue()
 		case err = <-chConsumer:
-			if err != nil {
+			if err != nil && err != errAllWorkersBusy {
 				log.Warnf("orchestration: consumer have finished with Error: %s", err)
 			} else {
-				log.Info("orchestration: consumer has processed everything and is synced")
+				log.Info("orchestration: consumer has finished. No error")
 			}
 			done = true
 		}
 	}
-	retBlock, ok := l.consumer.getLastEthBlockSynced()
+	l.isRunning = false
+	retBlock, ok := l.consumer.GetLastEthBlockSynced()
 
 	if err == nil {
 		if ok {
-			log.Infof("orchestration: finished L1 sync orchestration. Last block synced: %d err:%s", retBlock.BlockNumber, err)
+			log.Infof("orchestration: finished L1 sync orchestration With LastBlock. Last block synced: %d err:nil", retBlock.BlockNumber)
 			return &retBlock, nil
 		} else {
 			err := errors.New(errMissingLastEthBlockSynced)
-			log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "<no previous block>", err)
+			log.Warnf("orchestration: finished L1 sync orchestration No LastBlock. Last block synced: %s err:%s", "<no previous block>", err)
 			return nil, err
 		}
 	} else {
-		log.Warnf("orchestration: finished L1 sync orchestration. Last block synced: %s err:%s", "IGNORED (nil)", err)
+		log.Warnf("orchestration: finished L1 sync orchestration With Error. Last block synced: %s err:%s", "IGNORED (nil)", err)
 		return nil, err
 	}
 }
