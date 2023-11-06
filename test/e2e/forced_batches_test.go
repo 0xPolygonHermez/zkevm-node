@@ -121,11 +121,13 @@ func setupEnvironment(ctx context.Context, t *testing.T) *l2Stuff {
 	if !dockersArePreLaunched {
 		log.Info("Launching dockers and resetting Database")
 		opsman, err = operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
 		log.Info("Setting Genesis")
 		setInitialState(t, opsman)
 	} else {
 		log.Info("Using pre-launched dockers: no reset Database")
 		opsman, err = operations.NewManagerNoInitDB(ctx, opsCfg)
+		require.NoError(t, err)
 	}
 
 	// Load account with balance on local genesis
