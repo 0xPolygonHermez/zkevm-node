@@ -1053,7 +1053,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 			return
 		}
 		for _, filter := range blockFilters {
-			filter.sendSubscriptionResponse(data)
+			filter.EnqueueSubscriptionDataToBeSent(data)
 			go filter.SendEnqueuedSubscriptionData()
 		}
 	}
