@@ -1562,7 +1562,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			}
 		}
 	}
-	log.Debugf("[AddL2Block] l2 block %v took %vms to be added", l2Block.NumberU64(), time.Since(start).Milliseconds())
+	log.Debugf("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
 	return nil
 }
 
