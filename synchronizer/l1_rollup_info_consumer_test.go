@@ -149,8 +149,8 @@ func setupConsumerTest(t *testing.T) consumerTestData {
 	ch := make(chan l1SyncMessage, 10)
 
 	cfg := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData,
-		acceptableTimeWaitingForNewRollupInfoData:                       minAcceptableTimeWaitingForNewRollupInfoData,
+		ApplyAfterNumRollupReceived: minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData,
+		AceptableInacctivityTime:    minAcceptableTimeWaitingForNewRollupInfoData,
 	}
 	sut := newL1RollupInfoConsumer(cfg, syncMock, ch)
 	return consumerTestData{sut, syncMock, ch}

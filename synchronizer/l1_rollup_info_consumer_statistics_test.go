@@ -10,8 +10,8 @@ import (
 
 func TestL1RollupInfoConsumerStatistics(t *testing.T) {
 	cfg := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: 10,
-		acceptableTimeWaitingForNewRollupInfoData:                       5 * time.Second,
+		ApplyAfterNumRollupReceived: 10,
+		AceptableInacctivityTime:    5 * time.Second,
 	}
 	stats := l1RollupInfoConsumerStatistics{
 		cfg: cfg,
@@ -48,8 +48,8 @@ func TestL1RollupInfoConsumerStatistics(t *testing.T) {
 
 func TestL1RollupInfoConsumerStatisticsWithExceedTimeButNoWarningGenerated(t *testing.T) {
 	cfg := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: 10,
-		acceptableTimeWaitingForNewRollupInfoData:                       0 * time.Second,
+		ApplyAfterNumRollupReceived: 10,
+		AceptableInacctivityTime:    0 * time.Second,
 	}
 	stats := l1RollupInfoConsumerStatistics{
 		cfg: cfg,
@@ -82,8 +82,8 @@ func TestL1RollupInfoConsumerStatisticsWithExceedTimeButNoWarningGenerated(t *te
 
 func TestL1RollupInfoConsumerStatisticsWithExceedTimeButAndWarningGenerated(t *testing.T) {
 	cfg := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: 1,
-		acceptableTimeWaitingForNewRollupInfoData:                       0 * time.Second,
+		ApplyAfterNumRollupReceived: 1,
+		AceptableInacctivityTime:    0 * time.Second,
 	}
 	stats := l1RollupInfoConsumerStatistics{
 		cfg: cfg,

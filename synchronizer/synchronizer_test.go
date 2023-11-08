@@ -92,13 +92,9 @@ func TestForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:                       10,
-		UseParallelModeForL1Synchronization: false,
-		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
-			NumberOfParallelOfEthereumClients:   1,
-			CapacityOfBufferingRollupInfoFromL1: 1,
-		},
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
 	}
 
 	m := mocks{
@@ -343,13 +339,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:                       10,
-		UseParallelModeForL1Synchronization: false,
-		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
-			NumberOfParallelOfEthereumClients:   1,
-			CapacityOfBufferingRollupInfoFromL1: 1,
-		},
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
 	}
 
 	m := mocks{
@@ -579,8 +571,20 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		GenesisBlockNum: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			MaxClients:                             2,
+			MaxPendingNoProcessedBlocks:            2,
+			RequestLastBlockPeriod:                 cfgTypes.Duration{Duration: 1 * time.Second},
+			RequestLastBlockTimeout:                cfgTypes.Duration{Duration: 1 * time.Second},
+			RequestLastBlockMaxRetries:             1,
+			StatisticsPeriod:                       cfgTypes.Duration{Duration: 1 * time.Second},
+			TimeOutMainLoop:                        cfgTypes.Duration{Duration: 1 * time.Second},
+			RollupInfoRetriesSpacing:               cfgTypes.Duration{Duration: 1 * time.Second},
+			FallbackToSequentialModeOnSynchronized: false,
+		},
 	}
 
 	m := mocks{

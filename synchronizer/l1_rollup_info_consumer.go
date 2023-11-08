@@ -26,8 +26,8 @@ var (
 )
 
 type configConsumer struct {
-	numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData int
-	acceptableTimeWaitingForNewRollupInfoData                       time.Duration
+	ApplyAfterNumRollupReceived int
+	AceptableInacctivityTime    time.Duration
 }
 
 // synchronizerProcessBlockRangeInterface is the interface with synchronizer
@@ -50,11 +50,11 @@ type l1RollupInfoConsumer struct {
 
 func newL1RollupInfoConsumer(cfg configConsumer,
 	synchronizer synchronizerProcessBlockRangeInterface, ch chan l1SyncMessage) *l1RollupInfoConsumer {
-	if cfg.acceptableTimeWaitingForNewRollupInfoData < minAcceptableTimeWaitingForNewRollupInfoData {
-		log.Warnf("consumer: the acceptableTimeWaitingForNewRollupInfoData is too low (%s) minimum recommended %s", cfg.acceptableTimeWaitingForNewRollupInfoData, minAcceptableTimeWaitingForNewRollupInfoData)
+	if cfg.AceptableInacctivityTime < minAcceptableTimeWaitingForNewRollupInfoData {
+		log.Warnf("consumer: the AceptableInacctivityTime is too low (%s) minimum recommended %s", cfg.AceptableInacctivityTime, minAcceptableTimeWaitingForNewRollupInfoData)
 	}
-	if cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData < minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData {
-		log.Warnf("consumer: the numIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfoData is too low (%d) minimum recommended  %d", cfg.numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData, minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData)
+	if cfg.ApplyAfterNumRollupReceived < minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData {
+		log.Warnf("consumer: the ApplyAfterNumRollupReceived is too low (%d) minimum recommended  %d", cfg.ApplyAfterNumRollupReceived, minNumIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData)
 	}
 
 	return &l1RollupInfoConsumer{
