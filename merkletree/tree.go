@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/ethereum/go-ethereum/common"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // StateTree provides methods to access and modify state in merkletree
@@ -350,4 +351,26 @@ func (tree *StateTree) ConsolidateState(ctx context.Context, oldRoot common.Hash
 		response.ConsolidatedStateRoot.Fe3}
 
 	return h4ToFilledByteSlice(newRoot), response, nil
+}
+
+// ResetDB resets the database
+func (tree *StateTree) ResetDB(ctx context.Context) error {
+	_, err := tree.grpcClient.ResetDB(ctx, &emptypb.Empty{})
+	return err
+}
+
+// Purge purges the database
+func (tree *StateTree) Purge(ctx context.Context, newStateRoot common.Hash, uuid string) error {
+	virtualStateRoot, err := StringToh4(newStateRoot.Hex())
+	if err != nil {
+		return err
+	}
+
+	purgeRequest := hashdb.PurgeRequest{
+		BatchUuid:    uuid,
+		NewStateRoot: &hashdb.Fea{Fe0: virtualStateRoot[0], Fe1: virtualStateRoot[1], Fe2: virtualStateRoot[2], Fe3: virtualStateRoot[3]},
+		Persistence:  hashdb.Persistence_PERSISTENCE_DATABASE,
+	}
+	_, err = tree.grpcClient.Purge(ctx, &purgeRequest)
+	return err
 }

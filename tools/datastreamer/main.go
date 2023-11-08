@@ -236,19 +236,18 @@ func reprocess(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
+	mtDBServerConfig := merkletree.Config{URI: c.MerkeTree.URI}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+
 	if currentL2BlockNumber == 0 {
 		printColored(color.FgHiYellow, "\n\nSetting Genesis block\n\n")
-
-		mtDBServerConfig := merkletree.Config{URI: c.MerkeTree.URI}
-		var mtDBCancel context.CancelFunc
-		mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
-		defer func() {
-			mtDBCancel()
-			mtDBClientConn.Close()
-		}()
-
-		stateTree := merkletree.NewStateTree(mtDBServiceClient)
-
 		stateRoot, err = setGenesis(ctx, stateTree, networkConfig.Genesis)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
@@ -406,10 +405,16 @@ func reprocess(cliCtx *cli.Context) error {
 			os.Exit(1)
 		}
 
-		if common.Bytes2Hex(processBatchResponse.NewStateRoot) != common.Bytes2Hex(expectedNewRoot) {
+		newRoot, _, err := stateTree.ConsolidateState(ctx, common.BytesToHash(processBatchResponse.NewStateRoot))
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		if common.Bytes2Hex(newRoot) != common.Bytes2Hex(expectedNewRoot) {
 			printColored(color.FgRed, "\nNew state root does not match\n\n")
 			printColored(color.FgRed, fmt.Sprintf("Old State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchRequest.GetOldStateRoot())))
-			printColored(color.FgRed, fmt.Sprintf("New State Root.........: %s\n", "0x"+common.Bytes2Hex(processBatchResponse.NewStateRoot)))
+			printColored(color.FgRed, fmt.Sprintf("New State Root.........: %s\n", "0x"+common.Bytes2Hex(newRoot)))
 			printColored(color.FgRed, fmt.Sprintf("Expected New State Root: %s\n", "0x"+common.Bytes2Hex(expectedNewRoot)))
 			// Check if we must update the file with the new state root
 			if cliCtx.Bool("update") {
@@ -418,7 +423,7 @@ func reprocess(cliCtx *cli.Context) error {
 					os.Exit(1)
 				}
 				blockEnd := state.DSL2BlockEnd{}.Decode(entryToUpdate.Data)
-				blockEnd.StateRoot = common.BytesToHash(processBatchResponse.NewStateRoot)
+				blockEnd.StateRoot = common.BytesToHash(newRoot)
 				err = streamServer.UpdateEntryData(entryToUpdate.Number, state.EntryTypeL2BlockEnd, blockEnd.Encode())
 				if err != nil {
 					printColored(color.FgRed, fmt.Sprintf("Error: %v\n", err))
@@ -429,7 +434,7 @@ func reprocess(cliCtx *cli.Context) error {
 			}
 		} else {
 			printColored(color.FgGreen, "New state root matches\n")
-			previousStateRoot = processBatchResponse.NewStateRoot
+			previousStateRoot = newRoot
 		}
 	}
 
@@ -731,9 +736,9 @@ func printColored(color color.Attribute, text string) {
 // setGenesis populates state with genesis information
 func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.Genesis) ([]byte, error) {
 	var (
-		root    common.Hash
-		newRoot []byte
-		err     error
+		virtualRoot common.Hash
+		newRoot     []byte
+		err         error
 	)
 
 	if tree == nil {
@@ -741,6 +746,11 @@ func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.G
 	}
 
 	uuid := uuid.New().String()
+
+	err = tree.ResetDB(ctx)
+	if err != nil {
+		return newRoot, err
+	}
 
 	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
@@ -792,12 +802,24 @@ func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.G
 		}
 	}
 
-	root.SetBytes(newRoot)
-
 	// flush state db
 	err = tree.Flush(ctx, uuid)
 	if err != nil {
-		fmt.Printf("error flushing state tree after genesis: %v", err)
+		log.Errorf("error flushing state tree after genesis: %v", err)
+		return newRoot, err
+	}
+
+	virtualRoot.SetBytes(newRoot)
+
+	err = tree.Purge(ctx, virtualRoot, uuid)
+	if err != nil {
+		log.Errorf("error purging state tree after genesis: %v", err)
+		return newRoot, err
+	}
+
+	newRoot, _, err = tree.ConsolidateState(ctx, virtualRoot)
+	if err != nil {
+		log.Errorf("error consolidating state tree after genesis: %v", err)
 		return newRoot, err
 	}
 

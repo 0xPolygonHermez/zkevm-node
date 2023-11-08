@@ -53,6 +53,11 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	uuid := uuid.New().String()
 
+	err = s.tree.ResetDB(ctx)
+	if err != nil {
+		return newRoot, err
+	}
+
 	for _, action := range genesis.GenesisActions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
@@ -113,7 +118,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 
 	virtualRoot.SetBytes(newRoot)
-	newRoot, _, _ = s.tree.ConsolidateState(ctx, virtualRoot)
+
+	err = s.tree.Purge(ctx, virtualRoot, uuid)
+	if err != nil {
+		log.Errorf("error purging state tree after genesis: %v", err)
+		return newRoot, err
+	}
+
+	newRoot, _, err = s.tree.ConsolidateState(ctx, virtualRoot)
+	if err != nil {
+		log.Errorf("error consolidating state tree after genesis: %v", err)
+		return newRoot, err
+	}
 
 	root.SetBytes(newRoot)
 
