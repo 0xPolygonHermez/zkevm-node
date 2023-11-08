@@ -414,7 +414,12 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 				resultTransactions := []interface{}{}
 				err = json.Unmarshal(result, &resultTransactions)
 				require.NoError(t, err)
-
+				log.Debugf("transactions length: L1 : %v / L2 %v", len(referenceTransactions), len(resultTransactions))
+				if len(referenceTransactions) != len(resultTransactions) {
+					log.Debug("difer length L1: ", referenceTransactions)
+					log.Debug("difer length L2: ", resultTransactions)
+					require.Fail(t, "transactions results length doesn't match")
+				}
 				for transactionIndex := range referenceTransactions {
 					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
 					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
