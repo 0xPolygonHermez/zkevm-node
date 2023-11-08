@@ -286,10 +286,13 @@ func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]ins
 		copy(step.Memory, response.Memory)
 		step.ReturnData = make([]byte, len(response.ReturnData))
 		copy(step.ReturnData, response.ReturnData)
-		results = append(results, *step)
+		step.Storage = make(map[common.Hash]common.Hash, len(response.Storage))
 		for k, v := range response.Storage {
-			step.Storage[common.HexToHash(k)] = common.HexToHash(v)
+			addr := common.BytesToHash(hex.DecodeBig(k).Bytes())
+			value := common.BytesToHash(hex.DecodeBig(v).Bytes())
+			step.Storage[addr] = value
 		}
+		results = append(results, *step)
 	}
 	return results, nil
 }
