@@ -210,6 +210,32 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
+// GetDSBatch provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetDSBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.DSBatch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 *state.DSBatch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.DSBatch, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.DSBatch); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.DSBatch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDSGenesisBlock provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -236,25 +262,25 @@ func (_m *StateMock) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state
 	return r0, r1
 }
 
-// GetDSL2Blocks provides a mock function with given fields: ctx, limit, offset, dbTx
-func (_m *StateMock) GetDSL2Blocks(ctx context.Context, limit uint64, offset uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error) {
-	ret := _m.Called(ctx, limit, offset, dbTx)
+// GetDSL2Blocks provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetDSL2Blocks(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	var r0 []*state.DSL2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) ([]*state.DSL2Block, error)); ok {
-		return rf(ctx, limit, offset, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]*state.DSL2Block, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) []*state.DSL2Block); ok {
-		r0 = rf(ctx, limit, offset, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []*state.DSL2Block); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*state.DSL2Block)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, limit, offset, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -926,25 +952,25 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	return r0, r1
 }
 
-// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, dbTx
-func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
-	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
+func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
+	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 
 	var r0 *types.Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) (*types.Header, error)); ok {
-		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*types.Header, error)); ok {
+		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) *types.Header); ok {
-		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *types.Header); ok {
+		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*types.Header)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -1460,13 +1460,39 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 	return logs, nil
 }
 
+// GetTransactionEGPLogByHash gets the EGP log accordingly to the provided transaction hash
+func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*EffectiveGasPriceLog, error) {
+	var (
+		egpLogData []byte
+		egpLog     EffectiveGasPriceLog
+	)
+	const getTransactionByHashSQL = "SELECT egp_log FROM state.transaction WHERE hash = $1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&egpLogData)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(egpLogData, &egpLog)
+	if err != nil {
+		return nil, err
+	}
+
+	return &egpLog, nil
+}
+
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
 	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
+
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage) VALUES($1, $2, $3, $4, $5)"
+	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, egp_log) VALUES($1, $2, $3, $4, $5, $6)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -1496,7 +1522,16 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		return err
 	}
 
-	for _, tx := range l2Block.Transactions() {
+	for idx, tx := range l2Block.Transactions() {
+		egpLog := ""
+		if txsEGPData != nil {
+			egpLogBytes, err := json.Marshal(txsEGPData[idx].EGPLog)
+			if err != nil {
+				return err
+			}
+			egpLog = string(egpLogBytes)
+		}
+
 		binary, err := tx.MarshalBinary()
 		if err != nil {
 			return err
@@ -1508,7 +1543,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), effectivePercentage)
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLog)
 		if err != nil {
 			return err
 		}
@@ -1575,34 +1610,10 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	return lastConsolidatedBlockNumber, nil
 }
 
-// GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
-// on or after the safe block on L1
-func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2SafeBlockNumber uint64
-	const query = `
-    SELECT b.block_num
-      FROM state.l2block b
-     INNER JOIN state.virtual_batch vb
-        ON vb.batch_num = b.batch_num
-	 WHERE vb.block_num <= $1
-     ORDER BY b.block_num DESC LIMIT 1`
-
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1SafeBlockNumber).Scan(&l2SafeBlockNumber)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
-	} else if err != nil {
-		return 0, err
-	}
-
-	return l2SafeBlockNumber, nil
-}
-
-// GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
-// on or after the finalized block on L1
-func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2FinalizedBlockNumber uint64
+// GetLastVerifiedL2BlockNumberUntilL1Block gets the last block number that was verified in
+// or before the provided l1 block number. This is used to identify if a l2 block is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedL2BlockNumberUntilL1Block(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var blockNumber uint64
 	const query = `
     SELECT b.block_num
       FROM state.l2block b
@@ -1612,7 +1623,7 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
      ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&l2FinalizedBlockNumber)
+	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&blockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrNotFound
@@ -1620,7 +1631,29 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
 		return 0, err
 	}
 
-	return l2FinalizedBlockNumber, nil
+	return blockNumber, nil
+}
+
+// GetLastVerifiedBatchNumberUntilL1Block gets the last batch number that was verified in
+// or before the provided l1 block number. This is used to identify if a batch is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var batchNumber uint64
+	const query = `
+    SELECT vb.batch_num
+      FROM state.verified_batch vb
+	 WHERE vb.block_num <= $1
+     ORDER BY vb.batch_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1BlockNumber).Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number
@@ -2432,6 +2465,26 @@ func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (
 	return &batch, nil
 }
 
+// GetLastClosedBatchNumber returns the latest closed batch
+func (p *PostgresStorage) GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastClosedBatchSQL = `
+		SELECT bt.batch_num
+			FROM state.batch bt
+			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			ORDER BY bt.batch_num DESC
+			LIMIT 1;`
+
+	batchNumber := uint64(0)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastClosedBatchSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	} else if err != nil {
+		return 0, err
+	}
+	return batchNumber, nil
+}
+
 // UpdateBatchL2Data updates data tx data in a batch
 func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
 	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2 WHERE batch_num = $1"
@@ -2615,13 +2668,13 @@ func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*
 }
 
 // GetDSL2Blocks returns the L2 blocks
-func (p *PostgresStorage) GetDSL2Blocks(ctx context.Context, limit, offset uint64, dbTx pgx.Tx) ([]*DSL2Block, error) {
+func (p *PostgresStorage) GetDSL2Blocks(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error) {
 	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.received_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
 						FROM state.l2block l2b, state.batch b, state.fork_id f
-						WHERE l2b.batch_num = b.batch_num AND l2b.batch_num between f.from_batch_num AND f.to_batch_num
-						ORDER BY l2b.block_num ASC limit $1 offset $2`
+						WHERE l2b.batch_num = $1 AND l2b.batch_num = b.batch_num AND l2b.batch_num between f.from_batch_num AND f.to_batch_num
+						ORDER BY l2b.block_num ASC`
 	e := p.getExecQuerier(dbTx)
-	rows, err := e.Query(ctx, l2BlockSQL, limit, offset)
+	rows, err := e.Query(ctx, l2BlockSQL, batchNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -2687,7 +2740,7 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, minL2Block, m
 	l2Txs := make([]*DSL2Transaction, 0, len(rows.RawValues()))
 
 	for rows.Next() {
-		l2Tx, err := scanL2Transaction(rows)
+		l2Tx, err := scanDSL2Transaction(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -2734,7 +2787,7 @@ func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromB
 	return nativeBlockHashes, nil
 }
 
-func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
+func scanDSL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction := DSL2Transaction{}
 	encoded := []byte{}
 	if err := row.Scan(
@@ -2757,4 +2810,63 @@ func scanL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
 	return &l2Transaction, nil
+}
+
+// GetDSBatch returns the batch with the given number in DS format
+func (p *PostgresStorage) GetDSBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*DSBatch, error) {
+	const getBatchByNumberSQL = `
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
+		  FROM state.batch b, state.fork_id f
+		 WHERE b.state_root is not null AND batch_num = $1 AND batch_num between f.from_batch_num AND f.to_batch_num`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber)
+	batch, err := scanDSBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrStateNotSynchronized
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &batch, nil
+}
+
+func scanDSBatch(row pgx.Row) (DSBatch, error) {
+	batch := DSBatch{}
+	var (
+		gerStr      string
+		lerStr      *string
+		aihStr      *string
+		stateStr    *string
+		coinbaseStr string
+	)
+	err := row.Scan(
+		&batch.BatchNumber,
+		&gerStr,
+		&lerStr,
+		&aihStr,
+		&stateStr,
+		&batch.Timestamp,
+		&coinbaseStr,
+		&batch.BatchL2Data,
+		&batch.ForcedBatchNum,
+		&batch.ForkID,
+	)
+	if err != nil {
+		return batch, err
+	}
+	batch.GlobalExitRoot = common.HexToHash(gerStr)
+	if lerStr != nil {
+		batch.LocalExitRoot = common.HexToHash(*lerStr)
+	}
+	if stateStr != nil {
+		batch.StateRoot = common.HexToHash(*stateStr)
+	}
+	if aihStr != nil {
+		batch.AccInputHash = common.HexToHash(*aihStr)
+	}
+
+	batch.Coinbase = common.HexToAddress(coinbaseStr)
+	return batch, nil
 }

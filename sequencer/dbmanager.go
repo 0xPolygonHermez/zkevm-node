@@ -216,7 +216,8 @@ func (d *dbManager) sendDataToStreamer() {
 
 			_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
 			}
 
 			err = d.streamServer.CommitAtomicOp()
@@ -269,7 +270,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), tx.egpLog, dbTx)
 	if err != nil {
 		return err
 	}
@@ -307,10 +308,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	// Change Tx status to selected
-	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
-	if err != nil {
-		return err
+	if !tx.isForcedBatch {
+		// Change Tx status to selected
+		err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
@@ -704,8 +707,8 @@ func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
 	return d.txPool.GetDefaultMinGasPriceAllowed()
 }
 
-func (d *dbManager) GetL1GasPrice() uint64 {
-	return d.txPool.GetL1GasPrice()
+func (d *dbManager) GetL1AndL2GasPrice() (uint64, uint64) {
+	return d.txPool.GetL1AndL2GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

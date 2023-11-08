@@ -73,4 +73,16 @@ type Config struct {
 	// which a proof in generating state is considered to be stuck and
 	// allowed to be cleared.
 	GeneratingProofCleanupThreshold string `mapstructure:"GeneratingProofCleanupThreshold"`
+
+	// GasOffset is the amount of gas to be added to the gas estimation in order
+	// to provide an amount that is higher than the estimated one. This is used
+	// to avoid the TX getting reverted in case something has changed in the network
+	// state after the estimation which can cause the TX to require more gas to be
+	// executed.
+	//
+	// ex:
+	// gas estimation: 1000
+	// gas offset: 100
+	// final gas: 1100
+	GasOffset uint64 `mapstructure:"GasOffset"`
 }

@@ -2,14 +2,15 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
-QuerySize = 1000
-[StreamServer]
+ChainID = 1440
+
+[Online]
+URI = "zkevm-sequencer:6900"
+StreamType = 1
+
+[Offline]
 Port = 6901
 Filename = "datastreamer.bin"
-	[Log]
-	Environment = "development" # "production" or "development"
-	Level = "info"
-	Outputs = ["stderr"]
 
 [StateDB]
 User = "state_user"
@@ -23,4 +24,12 @@ MaxConns = 200
 [Executor]
 URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
+
+[MerkeTree]
+URI = "zkevm-prover:50061"
+
+[Log]
+Environment = "development" # "production" or "development"
+Level = "info"
+Outputs = ["stderr"]
 `

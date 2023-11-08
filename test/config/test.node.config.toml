@@ -34,9 +34,17 @@ IntervalToRefreshBlockedAddresses = "5m"
 IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
-DefaultMinGasPriceAllowed = 0
+DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
+	[Pool.EffectiveGasPrice]
+		Enabled = false
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		ZeroByteGasCost = 4
+		NetProfit = 1
+	    BreakEvenFactor = 1.1			
+		FinalDeviationPct = 10
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -60,7 +68,7 @@ ReadTimeout = "60s"
 WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = ""
-EnableL2SuggestedGasPricePolling = false
+EnableL2SuggestedGasPricePolling = true
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8133
@@ -104,12 +112,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.EffectiveGasPrice]
-		MaxBreakEvenGasPriceDeviationPercentage = 10
-		L1GasPriceFactor = 0.25
-		ByteGasCost = 16
-		MarginFactor = 1
-		Enabled = false
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"

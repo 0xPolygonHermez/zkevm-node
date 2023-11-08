@@ -63,8 +63,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
 			retry = true
-			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-			resultLog.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
+			mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
+			mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
 	}, nil)
 
@@ -115,9 +115,10 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, nil)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
 	if err != nil {
-		log.Error("error to add sequences tx to eth tx manager: ", err)
+		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
+		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
 		return
 	}
 }
@@ -197,7 +198,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 		//Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (currentBatchNumToSequence == (s.cfg.ForkUpgradeBatchNumber)) {
-			log.Info("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
+			log.Infof("sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
 			return sequences, nil
 		}
 

@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -17,14 +18,25 @@ import (
 const (
 	// FlagCfg is the flag for cfg
 	FlagCfg = "cfg"
+	// FlagGenesis is the flag for genesis file
+	FlagGenesis = "genesis"
 )
+
+// OnlineConfig is the configuration for the online data streamer
+type OnlineConfig struct {
+	URI        string                  `mapstructure:"URI"`
+	StreamType datastreamer.StreamType `mapstructure:"StreamType"`
+}
 
 // Config is the configuration for the tool
 type Config struct {
-	QuerySize    uint64              `mapstructure:"QuerySize"`
-	StreamServer datastreamer.Config `mapstructure:"StreamServer"`
-	StateDB      db.Config           `mapstructure:"StateDB"`
-	Executor     executor.Config     `mapstructure:"Executor"`
+	ChainID   uint64              `mapstructure:"ChainID"`
+	Online    OnlineConfig        `mapstructure:"Online"`
+	Offline   datastreamer.Config `mapstructure:"Offline"`
+	StateDB   db.Config           `mapstructure:"StateDB"`
+	Executor  executor.Config     `mapstructure:"Executor"`
+	MerkeTree merkletree.Config   `mapstructure:"MerkeTree"`
+	Log       log.Config          `mapstructure:"Log"`
 }
 
 // Default parses the default configuration values.

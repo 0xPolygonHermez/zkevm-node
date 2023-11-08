@@ -173,7 +173,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, c.State.Batch.Constraints, l2ChainID, st, eventLog)
 			}
-			seq := createSequencer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
+			seq := createSequencer(*c, poolInstance, st, eventLog)
 			go seq.Start(cliCtx.Context)
 		case SEQUENCE_SENDER:
 			ev.Component = event.Component_Sequence_Sender
@@ -217,7 +217,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, c.State.Batch.Constraints, l2ChainID, st, eventLog)
 			}
-			go runSynchronizer(*c, etherman, etm, st, poolInstance, eventLog)
+			go runSynchronizer(*c, etherman, ethTxManagerStorage, st, poolInstance, eventLog)
 		case ETHTXMANAGER:
 			ev.Component = event.Component_EthTxManager
 			ev.Description = "Running eth tx manager service"
@@ -281,7 +281,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *ethtxmanager.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
@@ -309,8 +309,9 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 			etherManForL1 = append(etherManForL1, eth)
 		}
 	}
+	etm := ethtxmanager.New(cfg.EthTxManager, etherman, ethTxManagerStorage, st)
 	sy, err := synchronizer.NewSynchronizer(
-		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, ethTxManager,
+		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, etm,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
 	)
 	if err != nil {
@@ -385,15 +386,13 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	}
 }
 
-func createSequencer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencer.Sequencer {
+func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, eventLog *event.EventLog) *sequencer.Sequencer {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
-
-	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, pool, st, etherman, ethTxManager, eventLog)
+	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, pool, st, etherman, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}
