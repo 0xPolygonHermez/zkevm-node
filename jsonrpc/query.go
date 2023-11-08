@@ -3,10 +3,14 @@ package jsonrpc
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/websocket"
 )
@@ -20,13 +24,76 @@ const (
 	FilterTypePendingTx = "pendingTx"
 )
 
-// Filter represents a filter.
+// Filter represents a filter used by subscriptions to be used
+// when a new L2 block is detected to select the correct requested data
 type Filter struct {
 	ID         string
 	Type       FilterType
 	Parameters interface{}
 	LastPoll   time.Time
-	WsConn     *websocket.Conn
+	WsConn     *atomic.Pointer[websocket.Conn]
+
+	wsDataQueue state.Queue[[]byte]
+	mutex       sync.Mutex
+	isSending   bool
+}
+
+// EnqueueSubscriptionDataToBeSent enqueues subscription data to be sent
+// via web sockets connection
+func (f *Filter) EnqueueSubscriptionDataToBeSent(data []byte) {
+	f.wsDataQueue.Push(data)
+}
+
+// SendEnqueuedSubscriptionData consumes all the enqueued subscription data
+// and sends it via web sockets connection.
+func (f *Filter) SendEnqueuedSubscriptionData() {
+	if f.isSending {
+		return
+	}
+
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+	f.isSending = true
+	for {
+		d, err := f.wsDataQueue.Pop()
+		if err == state.ErrQueueEmpty {
+			break
+		} else if err != nil {
+			log.Errorf("failed to pop subscription data from queue to be sent via web sockets to filter %v, %s", f.ID, err.Error())
+			break
+		}
+		f.sendSubscriptionResponse(d)
+	}
+	f.isSending = false
+}
+
+// sendSubscriptionResponse send data as subscription response via
+// web sockets connection controlled by a mutex
+func (f *Filter) sendSubscriptionResponse(data []byte) {
+	const errMessage = "Unable to write WS message to filter %v, %s"
+
+	start := time.Now()
+	res := types.SubscriptionResponse{
+		JSONRPC: "2.0",
+		Method:  "eth_subscription",
+		Params: types.SubscriptionResponseParams{
+			Subscription: f.ID,
+			Result:       data,
+		},
+	}
+	message, err := json.Marshal(res)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
+		return
+	}
+
+	err = f.WsConn.Load().WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
+		return
+	}
+	log.Debugf("WS message sent: %v", string(message))
+	log.Debugf("[SendSubscriptionResponse] took %v", time.Since(start))
 }
 
 // FilterType express the type of the filter, block, logs, pending transactions
@@ -88,19 +155,19 @@ func (f *LogFilter) MarshalJSON() ([]byte, error) {
 	obj.BlockHash = f.BlockHash
 
 	if f.FromBlock != nil && (*f.FromBlock == types.LatestBlockNumber) {
-		fromblock := ""
-		obj.FromBlock = &fromblock
+		fromBlock := ""
+		obj.FromBlock = &fromBlock
 	} else if f.FromBlock != nil {
-		fromblock := hex.EncodeUint64(uint64(*f.FromBlock))
-		obj.FromBlock = &fromblock
+		fromBlock := hex.EncodeUint64(uint64(*f.FromBlock))
+		obj.FromBlock = &fromBlock
 	}
 
 	if f.ToBlock != nil && (*f.ToBlock == types.LatestBlockNumber) {
-		toblock := ""
-		obj.ToBlock = &toblock
+		toBlock := ""
+		obj.ToBlock = &toBlock
 	} else if f.ToBlock != nil {
-		toblock := hex.EncodeUint64(uint64(*f.ToBlock))
-		obj.ToBlock = &toblock
+		toBlock := hex.EncodeUint64(uint64(*f.ToBlock))
+		obj.ToBlock = &toBlock
 	}
 
 	if f.Addresses != nil {

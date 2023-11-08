@@ -21,9 +21,10 @@ const (
 )
 
 type mockedServer struct {
-	Config    Config
-	Server    *Server
-	ServerURL string
+	Config              Config
+	Server              *Server
+	ServerURL           string
+	ServerWebSocketsURL string
 }
 
 type mocksWrapper struct {
@@ -51,7 +52,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 
 	var newL2BlockEventHandler state.NewL2BlockEventHandler = func(e state.NewL2BlockEvent) {}
 	st.On("RegisterNewL2BlockEventHandler", mock.IsType(newL2BlockEventHandler)).Once()
-	st.On("PrepareWebSocket").Once()
+	st.On("StartToMonitorNewL2Blocks").Once()
 
 	services := []Service{}
 	if _, ok := apis[APIEth]; ok {
@@ -118,10 +119,13 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	ethClient, err := ethclient.Dial(serverURL)
 	require.NoError(t, err)
 
+	serverWebSocketsURL := fmt.Sprintf("ws://%s:%d", cfg.WebSockets.Host, cfg.WebSockets.Port)
+
 	msv := &mockedServer{
-		Config:    cfg,
-		Server:    server,
-		ServerURL: serverURL,
+		Config:              cfg,
+		Server:              server,
+		ServerURL:           serverURL,
+		ServerWebSocketsURL: serverWebSocketsURL,
 	}
 
 	mks := &mocksWrapper{
@@ -141,6 +145,11 @@ func getDefaultConfig() Config {
 		Port:                      9123,
 		MaxRequestsPerIPAndSecond: maxRequestsPerIPAndSecond,
 		MaxCumulativeGasUsed:      300000,
+		WebSockets: WebSocketsConfig{
+			Enabled: true,
+			Host:    "0.0.0.0",
+			Port:    9133,
+		},
 	}
 	return cfg
 }
@@ -155,6 +164,15 @@ func newNonSequencerMockedServer(t *testing.T, sequencerNodeURI string) (*mocked
 	cfg.Port = 9124
 	cfg.SequencerNodeURI = sequencerNodeURI
 	return newMockedServer(t, cfg)
+}
+
+func (s *mockedServer) GetWSClient() *ethclient.Client {
+	ethClient, err := ethclient.Dial(s.ServerWebSocketsURL)
+	if err != nil {
+		panic(err)
+	}
+
+	return ethClient
 }
 
 func (s *mockedServer) Stop() {
