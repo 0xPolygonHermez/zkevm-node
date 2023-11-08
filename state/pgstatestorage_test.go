@@ -86,7 +86,12 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []state.StoreTxEGPData{}
+	for range transactions {
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	}
+
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
@@ -545,7 +550,7 @@ func TestForkIDs(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func TestGetSafeL2BlockNumber(t *testing.T) {
+func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 	initOrResetDB()
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -556,50 +561,61 @@ func TestGetSafeL2BlockNumber(t *testing.T) {
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
 	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	for i := 1; i <= 10; i++ {
+		blockNumber := uint64(i)
+
 		// add l1 block
-		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
 		require.NoError(t, err)
 
+		batchNumber := uint64(i * 10)
+
 		// add batch
-		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 		require.NoError(t, err)
 
 		// add l2 block
-		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
-		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0).SetUint64(blockNumber + uint64(10))})
+
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range l2Block.Transactions() {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, []*types.Receipt{}, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
-		// virtualize batch
-		if i <= 6 {
-			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
-			err = testState.AddVirtualBatch(ctx, &b, dbTx)
-			require.NoError(t, err)
-		}
+		virtualBatch := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+		err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+		require.NoError(t, err)
+
+		verifiedBatch := state.VerifiedBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, TxHash: hash}
+		err = testState.AddVerifiedBatch(ctx, &verifiedBatch, dbTx)
+		require.NoError(t, err)
 	}
 
 	type testCase struct {
-		name                      string
-		l1SafeBlockNumber         uint64
-		expectedL2SafeBlockNumber uint64
+		name                string
+		l1BlockNumber       uint64
+		expectedBatchNumber uint64
 	}
 
 	testCases := []testCase{
-		{name: "l1 safe block number smaller than block number for the last virtualized batch", l1SafeBlockNumber: 2, expectedL2SafeBlockNumber: 12},
-		{name: "l1 safe block number equal to block number for the last virtualized batch", l1SafeBlockNumber: 6, expectedL2SafeBlockNumber: 16},
-		{name: "l1 safe block number bigger than number for the last virtualized batch", l1SafeBlockNumber: 8, expectedL2SafeBlockNumber: 16},
+		{name: "l1 block number smaller than block number for the last verified batch", l1BlockNumber: 1, expectedBatchNumber: 11},
+		{name: "l1 block number equal to block number for the last verified batch", l1BlockNumber: 10, expectedBatchNumber: 20},
+		{name: "l1 block number bigger than number for the last verified batch", l1BlockNumber: 20, expectedBatchNumber: 20},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			l2SafeBlockNumber, err := testState.GetSafeL2BlockNumber(ctx, uint64(tc.l1SafeBlockNumber), dbTx)
+			batchNumber, err := testState.GetLastVerifiedL2BlockNumberUntilL1Block(ctx, uint64(tc.l1BlockNumber), dbTx)
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.expectedL2SafeBlockNumber, l2SafeBlockNumber)
+			assert.Equal(t, tc.expectedBatchNumber, batchNumber)
 		})
 	}
 }
 
-func TestGetFinalizedL2BlockNumber(t *testing.T) {
+func TestGetLastVerifiedBatchNumberUntilL1Block(t *testing.T) {
 	initOrResetDB()
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -610,52 +626,45 @@ func TestGetFinalizedL2BlockNumber(t *testing.T) {
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
 	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	for i := 1; i <= 10; i++ {
+		blockNumber := uint64(i)
+
 		// add l1 block
-		err = testState.AddBlock(ctx, state.NewBlock(uint64(i)), dbTx)
+		err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
 		require.NoError(t, err)
+
+		batchNumber := uint64(i * 10)
 
 		// add batch
-		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", i)
+		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 		require.NoError(t, err)
 
-		// add l2 block
-		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(int64(i + 10))})
-		err = testState.AddL2Block(ctx, uint64(i), l2Block, []*types.Receipt{}, uint8(0), dbTx)
+		virtualBatch := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
+		err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 		require.NoError(t, err)
 
-		// virtualize batch
-		if i <= 6 {
-			b := state.VirtualBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), Coinbase: addr, SequencerAddr: addr, TxHash: hash}
-			err = testState.AddVirtualBatch(ctx, &b, dbTx)
-			require.NoError(t, err)
-		}
-
-		// verify batch
-		if i <= 3 {
-			b := state.VerifiedBatch{BlockNumber: uint64(i), BatchNumber: uint64(i), TxHash: hash}
-			err = testState.AddVerifiedBatch(ctx, &b, dbTx)
-			require.NoError(t, err)
-		}
+		verifiedBatch := state.VerifiedBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, TxHash: hash}
+		err = testState.AddVerifiedBatch(ctx, &verifiedBatch, dbTx)
+		require.NoError(t, err)
 	}
 
 	type testCase struct {
-		name                           string
-		l1FinalizedBlockNumber         uint64
-		expectedL2FinalizedBlockNumber uint64
+		name                string
+		l1BlockNumber       uint64
+		expectedBatchNumber uint64
 	}
 
 	testCases := []testCase{
-		{name: "l1 finalized block number smaller than block number for the last verified batch", l1FinalizedBlockNumber: 1, expectedL2FinalizedBlockNumber: 11},
-		{name: "l1 finalized block number equal to block number for the last verified batch", l1FinalizedBlockNumber: 3, expectedL2FinalizedBlockNumber: 13},
-		{name: "l1 finalized block number bigger than number for the last verified batch", l1FinalizedBlockNumber: 5, expectedL2FinalizedBlockNumber: 13},
+		{name: "l1 block number smaller than block number for the last verified batch", l1BlockNumber: 1, expectedBatchNumber: 10},
+		{name: "l1 block number equal to block number for the last verified batch", l1BlockNumber: 10, expectedBatchNumber: 100},
+		{name: "l1 block number bigger than number for the last verified batch", l1BlockNumber: 20, expectedBatchNumber: 100},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			l2FinalizedBlockNumber, err := testState.GetFinalizedL2BlockNumber(ctx, uint64(tc.l1FinalizedBlockNumber), dbTx)
+			batchNumber, err := testState.GetLastVerifiedBatchNumberUntilL1Block(ctx, uint64(tc.l1BlockNumber), dbTx)
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.expectedL2FinalizedBlockNumber, l2FinalizedBlockNumber)
+			assert.Equal(t, tc.expectedBatchNumber, batchNumber)
 		})
 	}
 }
@@ -781,7 +790,12 @@ func TestGetLogs(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 	}
 
@@ -899,7 +913,12 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, state.MaxEffectivePercentage, dbTx)
+		storeTxsEGPData := []state.StoreTxEGPData{}
+		for range transactions {
+			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		}
+
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		nativeBlockHashes = append(nativeBlockHashes, l2Block.Header().Root)

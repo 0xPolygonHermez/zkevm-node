@@ -109,7 +109,7 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 // StoreTransactions is used by the sequencer to add processed transactions into
 // an open batch. If the batch already has txs, the processedTxs must be a super
 // set of the existing ones, preserving order.
-func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, dbTx pgx.Tx) error {
+func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, txsEGPLog []*EffectiveGasPriceLog, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
 	}
@@ -176,8 +176,13 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 		receipt.BlockHash = block.Hash()
 
+		storeTxsEGPData := []StoreTxEGPData{{EGPLog: nil, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
+		if txsEGPLog != nil {
+			storeTxsEGPData[0].EGPLog = txsEGPLog[i]
+		}
+
 		// Store L2 block and its transaction
-		if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
+		if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
 			return err
 		}
 	}
@@ -193,7 +198,7 @@ func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction
 
 	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
 	if err != nil {
-		return nil, err
+		return response, err
 	}
 
 	return response, nil
@@ -379,7 +384,7 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 }
 
 // StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) (*types.Header, error) {
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -415,8 +420,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 
 	receipt.BlockHash = block.Hash()
 
+	storeTxsEGPData := []StoreTxEGPData{{EGPLog: egpLog, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
+
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, uint8(processedTx.EffectivePercentage), dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
 		return nil, err
 	}
 

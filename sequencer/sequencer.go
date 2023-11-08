@@ -20,12 +20,12 @@ import (
 type Sequencer struct {
 	cfg      Config
 	batchCfg state.BatchConfig
+	poolCfg  pool.Config
 
-	pool         txPool
-	state        stateInterface
-	eventLog     *event.EventLog
-	ethTxManager ethTxManager
-	etherman     etherman
+	pool     txPool
+	state    stateInterface
+	eventLog *event.EventLog
+	etherman etherman
 
 	address common.Address
 }
@@ -43,21 +43,21 @@ type ClosingSignalCh struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txPool, state stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
 	}
 
 	sequencer := &Sequencer{
-		cfg:          cfg,
-		batchCfg:     batchCfg,
-		pool:         txPool,
-		state:        state,
-		etherman:     etherman,
-		ethTxManager: manager,
-		address:      addr,
-		eventLog:     eventLog,
+		cfg:      cfg,
+		batchCfg: batchCfg,
+		poolCfg:  poolCfg,
+		pool:     txPool,
+		state:    state,
+		etherman: etherman,
+		address:  addr,
+		eventLog: eventLog,
 	}
 
 	return sequencer, nil
@@ -92,19 +92,23 @@ func (s *Sequencer) Start(ctx context.Context) {
 			log.Fatalf("failed to create stream server, err: %v", err)
 		}
 
-		dbManager.streamServer = &streamServer
+		dbManager.streamServer = streamServer
 		err = dbManager.streamServer.Start()
 		if err != nil {
 			log.Fatalf("failed to start stream server, err: %v", err)
 		}
 
-		s.updateDataStreamerFile(ctx, &streamServer)
+		s.updateDataStreamerFile(ctx, streamServer)
 	}
 
 	go dbManager.Start()
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.cfg.EffectiveGasPrice, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog)
+	var streamServer *datastreamer.StreamServer = nil
+	if s.cfg.StreamServer.Enabled {
+		streamServer = dbManager.streamServer
+	}
 
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
@@ -208,13 +212,22 @@ func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
 		}
-		log.Infof("will try to delete %d redundant txs", len(txHashes))
+		log.Infof("trying to delete %d selected txs", len(txHashes))
 		err = s.pool.DeleteTransactionsByHashes(ctx, txHashes)
 		if err != nil {
-			log.Errorf("failed to delete txs from the pool, err: %v", err)
+			log.Errorf("failed to delete selected txs from the pool, err: %v", err)
 			continue
 		}
 		log.Infof("deleted %d selected txs from the pool", len(txHashes))
+
+		log.Infof("trying to delete failed txs from the pool")
+		// Delete failed txs older than a certain date (14 seconds per L1 block)
+		err = s.pool.DeleteFailedTransactionsOlderThan(ctx, time.Now().Add(-time.Duration(s.cfg.BlocksAmountForTxsToBeDeleted*14)*time.Second)) //nolint:gomnd
+		if err != nil {
+			log.Errorf("failed to delete failed txs from the pool, err: %v", err)
+			continue
+		}
+		log.Infof("failed txs deleted from the pool")
 	}
 }
 

@@ -203,7 +203,7 @@ func newL1DataRetriever(cfg configProducer, ethermans []EthermanInterface, outgo
 		workers:                              newWorkerDecoratorLimitRetriesByTime(newWorkers(ethermans, workersConfig), cfg.minTimeBetweenRetriesForRollupInfo),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(invalidBlockNumber),
 		outgoingChannel:                      outgoingChannel,
-		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber),
+		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber, DefaultTimeProvider{}),
 		status:                               producerNoRunning,
 		cfg:                                  cfg,
 		channelCmds:                          make(chan producerCmd, lenCommandsChannels),
@@ -413,7 +413,7 @@ func (l *l1RollupInfoProducer) step(waitDuration *time.Duration) bool {
 	}
 
 	if l.cfg.timeForShowUpStatisticsLog != 0 && time.Since(l.statistics.lastShowUpTime) > l.cfg.timeForShowUpStatisticsLog {
-		log.Infof("producer: Statistics:%s", l.statistics.getETA())
+		log.Infof("producer: Statistics:%s", l.statistics.getStatisticsDebugString())
 		l.statistics.lastShowUpTime = time.Now()
 	}
 	*waitDuration = l.getNextTimeout()

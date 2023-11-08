@@ -1460,13 +1460,39 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 	return logs, nil
 }
 
+// GetTransactionEGPLogByHash gets the EGP log accordingly to the provided transaction hash
+func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*EffectiveGasPriceLog, error) {
+	var (
+		egpLogData []byte
+		egpLog     EffectiveGasPriceLog
+	)
+	const getTransactionByHashSQL = "SELECT egp_log FROM state.transaction WHERE hash = $1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, transactionHash.String()).Scan(&egpLogData)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(egpLogData, &egpLog)
+	if err != nil {
+		return nil, err
+	}
+
+	return &egpLog, nil
+}
+
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
 	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
+
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage) VALUES($1, $2, $3, $4, $5)"
+	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, egp_log) VALUES($1, $2, $3, $4, $5, $6)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -1496,7 +1522,16 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		return err
 	}
 
-	for _, tx := range l2Block.Transactions() {
+	for idx, tx := range l2Block.Transactions() {
+		egpLog := ""
+		if txsEGPData != nil {
+			egpLogBytes, err := json.Marshal(txsEGPData[idx].EGPLog)
+			if err != nil {
+				return err
+			}
+			egpLog = string(egpLogBytes)
+		}
+
 		binary, err := tx.MarshalBinary()
 		if err != nil {
 			return err
@@ -1508,7 +1543,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			return err
 		}
 		decoded := string(binary)
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), effectivePercentage)
+		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLog)
 		if err != nil {
 			return err
 		}
@@ -1575,34 +1610,10 @@ func (p *PostgresStorage) GetLastConsolidatedL2BlockNumber(ctx context.Context, 
 	return lastConsolidatedBlockNumber, nil
 }
 
-// GetSafeL2BlockNumber gets the last l2 block virtualized that was mined
-// on or after the safe block on L1
-func (p *PostgresStorage) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2SafeBlockNumber uint64
-	const query = `
-    SELECT b.block_num
-      FROM state.l2block b
-     INNER JOIN state.virtual_batch vb
-        ON vb.batch_num = b.batch_num
-	 WHERE vb.block_num <= $1
-     ORDER BY b.block_num DESC LIMIT 1`
-
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1SafeBlockNumber).Scan(&l2SafeBlockNumber)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return 0, ErrNotFound
-	} else if err != nil {
-		return 0, err
-	}
-
-	return l2SafeBlockNumber, nil
-}
-
-// GetFinalizedL2BlockNumber gets the last l2 block verified that was mined
-// on or after the finalized block on L1
-func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	var l2FinalizedBlockNumber uint64
+// GetLastVerifiedL2BlockNumberUntilL1Block gets the last block number that was verified in
+// or before the provided l1 block number. This is used to identify if a l2 block is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedL2BlockNumberUntilL1Block(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var blockNumber uint64
 	const query = `
     SELECT b.block_num
       FROM state.l2block b
@@ -1612,7 +1623,7 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
      ORDER BY b.block_num DESC LIMIT 1`
 
 	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&l2FinalizedBlockNumber)
+	err := q.QueryRow(ctx, query, l1FinalizedBlockNumber).Scan(&blockNumber)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, ErrNotFound
@@ -1620,7 +1631,29 @@ func (p *PostgresStorage) GetFinalizedL2BlockNumber(ctx context.Context, l1Final
 		return 0, err
 	}
 
-	return l2FinalizedBlockNumber, nil
+	return blockNumber, nil
+}
+
+// GetLastVerifiedBatchNumberUntilL1Block gets the last batch number that was verified in
+// or before the provided l1 block number. This is used to identify if a batch is safe or finalized.
+func (p *PostgresStorage) GetLastVerifiedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	var batchNumber uint64
+	const query = `
+    SELECT vb.batch_num
+      FROM state.verified_batch vb
+	 WHERE vb.block_num <= $1
+     ORDER BY vb.batch_num DESC LIMIT 1`
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, l1BlockNumber).Scan(&batchNumber)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return batchNumber, nil
 }
 
 // GetLastL2BlockNumber gets the last l2 block number
@@ -2430,6 +2463,26 @@ func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (
 		return nil, err
 	}
 	return &batch, nil
+}
+
+// GetLastClosedBatchNumber returns the latest closed batch
+func (p *PostgresStorage) GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	const getLastClosedBatchSQL = `
+		SELECT bt.batch_num
+			FROM state.batch bt
+			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			ORDER BY bt.batch_num DESC
+			LIMIT 1;`
+
+	batchNumber := uint64(0)
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getLastClosedBatchSQL).Scan(&batchNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrStateNotSynchronized
+	} else if err != nil {
+		return 0, err
+	}
+	return batchNumber, nil
 }
 
 // UpdateBatchL2Data updates data tx data in a batch

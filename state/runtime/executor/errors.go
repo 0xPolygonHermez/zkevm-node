@@ -348,6 +348,8 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidContractsBytecodeKey
 	case ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE:
 		return runtime.ErrExecutorErrorInvalidContractsBytecodeValue
+	case ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY:
+		return runtime.ErrExecutorErrorInvalidGetKey
 	}
 	return ErrExecutorUnknown
 }
@@ -513,6 +515,8 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_KEY
 	case runtime.ErrExecutorErrorInvalidContractsBytecodeValue:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE
+	case runtime.ErrExecutorErrorInvalidGetKey:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
 	}
 	return math.MaxInt32
 }

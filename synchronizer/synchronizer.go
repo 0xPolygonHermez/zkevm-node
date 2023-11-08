@@ -215,7 +215,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
 					return rollbackErr
 				}
-				return fmt.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
+				return fmt.Errorf("calculated newRoot should be %s instead of %s", s.genesis.Root.String(), root.String())
 			}
 			log.Debug("Genesis root matches!")
 		} else {
@@ -1614,7 +1614,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			log.Infof("TrustedBatch info: %+v", processBatchResp)
 			log.Infof("Storing trusted tx %+v", tx)
-			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), dbTx); err != nil {
+			if _, err = s.state.StoreTransaction(s.ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), nil, dbTx); err != nil {
 				log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
 				return nil, err
 			}

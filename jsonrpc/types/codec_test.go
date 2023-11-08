@@ -71,7 +71,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber LatestBlockNumber",
-			bn:                  bnPtr(LatestBlockNumber),
+			bn:                  ptr(LatestBlockNumber),
 			expectedBlockNumber: 50,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -83,7 +83,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber PendingBlockNumber",
-			bn:                  bnPtr(PendingBlockNumber),
+			bn:                  ptr(PendingBlockNumber),
 			expectedBlockNumber: 30,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -95,57 +95,57 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber EarliestBlockNumber",
-			bn:                  bnPtr(EarliestBlockNumber),
+			bn:                  ptr(EarliestBlockNumber),
 			expectedBlockNumber: 0,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber SafeBlockNumber",
-			bn:                  bnPtr(SafeBlockNumber),
+			bn:                  ptr(SafeBlockNumber),
 			expectedBlockNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				liSafeBlock := uint64(30)
+				safeBlockNumber := uint64(30)
 				e.
 					On("GetSafeBlockNumber", context.Background()).
-					Return(liSafeBlock, nil).
+					Return(safeBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetSafeL2BlockNumber", context.Background(), liSafeBlock, d).
+					On("GetLastVerifiedL2BlockNumberUntilL1Block", context.Background(), safeBlockNumber, d).
 					Return(uint64(40), nil).
 					Once()
 			},
 		},
 		{
 			name:                "BlockNumber FinalizedBlockNumber",
-			bn:                  bnPtr(FinalizedBlockNumber),
+			bn:                  ptr(FinalizedBlockNumber),
 			expectedBlockNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
-				liFinalizedBlock := uint64(50)
+				finalizedBlockNumber := uint64(50)
 				e.
 					On("GetFinalizedBlockNumber", context.Background()).
-					Return(liFinalizedBlock, nil).
+					Return(finalizedBlockNumber, nil).
 					Once()
 
 				s.
-					On("GetFinalizedL2BlockNumber", context.Background(), liFinalizedBlock, d).
+					On("GetLastVerifiedL2BlockNumberUntilL1Block", context.Background(), finalizedBlockNumber, d).
 					Return(uint64(60), nil).
 					Once()
 			},
 		},
 		{
 			name:                "BlockNumber Positive Number",
-			bn:                  bnPtr(BlockNumber(int64(10))),
+			bn:                  ptr(BlockNumber(int64(10))),
 			expectedBlockNumber: 10,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Negative Number <= -6",
-			bn:                  bnPtr(BlockNumber(int64(-6))),
+			bn:                  ptr(BlockNumber(int64(-6))),
 			expectedBlockNumber: 0,
 			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -6"),
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
@@ -159,6 +159,129 @@ func TestGetNumericBlockNumber(t *testing.T) {
 			testCase.setupMocks(s, dbTx, &tc)
 			result, rpcErr := testCase.bn.GetNumericBlockNumber(context.Background(), s, e, dbTx)
 			assert.Equal(t, testCase.expectedBlockNumber, result)
+			if rpcErr != nil || testCase.expectedError != nil {
+				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, testCase.expectedError.Error(), rpcErr.Error())
+			}
+		})
+	}
+}
+
+func TestGetNumericBatchNumber(t *testing.T) {
+	s := mocks.NewStateMock(t)
+	e := mocks.NewEthermanMock(t)
+
+	type testCase struct {
+		name                string
+		bn                  *BatchNumber
+		expectedBatchNumber uint64
+		expectedError       Error
+		setupMocks          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			name:                "BatchNumber nil",
+			bn:                  nil,
+			expectedBatchNumber: 40,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				s.
+					On("GetLastClosedBatchNumber", context.Background(), d).
+					Return(uint64(40), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BatchNumber LatestBatchNumber",
+			bn:                  ptr(LatestBatchNumber),
+			expectedBatchNumber: 50,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				s.
+					On("GetLastClosedBatchNumber", context.Background(), d).
+					Return(uint64(50), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BatchNumber PendingBatchNumber",
+			bn:                  ptr(PendingBatchNumber),
+			expectedBatchNumber: 90,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				s.
+					On("GetLastBatchNumber", context.Background(), d).
+					Return(uint64(90), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BatchNumber EarliestBatchNumber",
+			bn:                  ptr(EarliestBatchNumber),
+			expectedBatchNumber: 0,
+			expectedError:       nil,
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
+		},
+		{
+			name:                "BatchNumber SafeBatchNumber",
+			bn:                  ptr(SafeBatchNumber),
+			expectedBatchNumber: 40,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				safeBlockNumber := uint64(30)
+				e.
+					On("GetSafeBlockNumber", context.Background()).
+					Return(safeBlockNumber, nil).
+					Once()
+
+				s.
+					On("GetLastVerifiedBatchNumberUntilL1Block", context.Background(), safeBlockNumber, d).
+					Return(uint64(40), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BatchNumber FinalizedBatchNumber",
+			bn:                  ptr(FinalizedBatchNumber),
+			expectedBatchNumber: 60,
+			expectedError:       nil,
+			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
+				finalizedBlockNumber := uint64(50)
+				e.
+					On("GetFinalizedBlockNumber", context.Background()).
+					Return(finalizedBlockNumber, nil).
+					Once()
+
+				s.
+					On("GetLastVerifiedBatchNumberUntilL1Block", context.Background(), finalizedBlockNumber, d).
+					Return(uint64(60), nil).
+					Once()
+			},
+		},
+		{
+			name:                "BatchNumber Positive Number",
+			bn:                  ptr(BatchNumber(int64(10))),
+			expectedBatchNumber: 10,
+			expectedError:       nil,
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
+		},
+		{
+			name:                "BatchNumber Negative Number <= -6",
+			bn:                  ptr(BatchNumber(int64(-6))),
+			expectedBatchNumber: 0,
+			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid batch number: -6"),
+			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			tc := testCase
+			dbTx := mocks.NewDBTxMock(t)
+			testCase.setupMocks(s, dbTx, &tc)
+			result, rpcErr := testCase.bn.GetNumericBatchNumber(context.Background(), s, e, dbTx)
+			assert.Equal(t, testCase.expectedBatchNumber, result)
 			if rpcErr != nil || testCase.expectedError != nil {
 				assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
 				assert.Equal(t, testCase.expectedError.Error(), rpcErr.Error())
@@ -262,11 +385,11 @@ func TestBlockNumberStringOrHex(t *testing.T) {
 		bn             *BlockNumber
 		expectedResult string
 	}{
-		{bn: bnPtr(BlockNumber(-3)), expectedResult: "pending"},
-		{bn: bnPtr(BlockNumber(-2)), expectedResult: "latest"},
-		{bn: bnPtr(BlockNumber(-1)), expectedResult: "earliest"},
-		{bn: bnPtr(BlockNumber(0)), expectedResult: "0x0"},
-		{bn: bnPtr(BlockNumber(100)), expectedResult: "0x64"},
+		{bn: ptr(BlockNumber(-3)), expectedResult: "pending"},
+		{bn: ptr(BlockNumber(-2)), expectedResult: "latest"},
+		{bn: ptr(BlockNumber(-1)), expectedResult: "earliest"},
+		{bn: ptr(BlockNumber(0)), expectedResult: "0x0"},
+		{bn: ptr(BlockNumber(100)), expectedResult: "0x64"},
 	}
 
 	for _, testCase := range testCases {
@@ -284,7 +407,7 @@ func TestBlockNumberOrHashMarshaling(t *testing.T) {
 
 	testCases := []testCase{
 		// success
-		{`{"blockNumber":"1"}`, &BlockNumberOrHash{number: bnPtr(BlockNumber(uint64(1)))}, nil},
+		{`{"blockNumber":"1"}`, &BlockNumberOrHash{number: ptr(BlockNumber(uint64(1)))}, nil},
 		{`{"blockHash":"0x1"}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1"))}, nil},
 		{`{"blockHash":"0x1", "requireCanonical":true}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1")), requireCanonical: true}, nil},
 		// float wrong value
@@ -318,8 +441,8 @@ func TestBlockNumberOrHashMarshaling(t *testing.T) {
 	}
 }
 
-func bnPtr(bn BlockNumber) *BlockNumber {
-	return &bn
+func ptr[T any](t T) *T {
+	return &t
 }
 
 func argHashPtr(hash common.Hash) *ArgHash {

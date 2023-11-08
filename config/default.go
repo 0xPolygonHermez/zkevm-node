@@ -12,7 +12,6 @@ Level = "info"
 Outputs = ["stderr"]
 
 [State]
-AccountQueue = 64
 	[State.DB]
 	User = "state_user"
 	Password = "state_password"
@@ -44,7 +43,15 @@ MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
-	[Pool.DB]
+    [Pool.EffectiveGasPrice]
+	Enabled = false
+	L1GasPriceFactor = 0.25
+	ByteGasCost = 16
+	ZeroByteGasCost = 4
+	NetProfit = 1
+	BreakEvenFactor = 1.1	
+	FinalDeviationPct = 10
+    [Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
@@ -80,6 +87,7 @@ BatchRequestsLimit = 20
 MaxLogsCount = 10000
 MaxLogsBlockRange = 10000
 MaxNativeBlockHashBlockRange = 60000
+EnableHttpLog = true
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
@@ -127,12 +135,6 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.EffectiveGasPrice]
-		MaxBreakEvenGasPriceDeviationPercentage = 10
-		L1GasPriceFactor = 0.25
-		ByteGasCost = 16
-		MarginFactor = 1
-		Enabled = false
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
@@ -144,6 +146,7 @@ LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
 MaxTxSizeForL1 = 131072
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+GasOffset = 80000
 
 [Aggregator]
 Host = "0.0.0.0"
@@ -155,6 +158,7 @@ TxProfitabilityMinReward = "1.1"
 ProofStatePollingInterval = "5s"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+GasOffset = 0
 
 [L2GasPriceSuggester]
 Type = "follower"
