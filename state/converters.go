@@ -221,31 +221,6 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToBigIntArray(responses []string) ([]*big.Int, error) {
-	results := make([]*big.Int, 0, len(responses))
-
-	for _, response := range responses {
-		if len(response)%2 != 0 {
-			response = "0" + response
-		}
-		result, ok := new(big.Int).SetString(response, hex.Base)
-		if ok {
-			results = append(results, result)
-		} else {
-			return nil, fmt.Errorf("string %s is not valid", response)
-		}
-	}
-	return results, nil
-}
-
-func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash {
-	results := make(map[common.Hash]common.Hash, len(responses))
-	for key, response := range responses {
-		results[common.HexToHash(key)] = common.HexToHash(response)
-	}
-	return results
-}
-
 func convertToFullTrace(fullTrace *executor.FullTrace) (*instrumentation.FullTrace, error) {
 	trace := new(instrumentation.FullTrace)
 	if fullTrace != nil {
@@ -285,7 +260,7 @@ func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]ins
 		step.Pc = response.Pc
 		step.Gas = response.Gas
 		step.OpCode = fakevm.OpCode(response.Op).String()
-		step.Refund = fmt.Sprint(response.GasRefund)
+		step.Refund = response.GasRefund
 		step.Op = uint64(response.Op)
 		err := executor.RomErr(response.Error)
 		if err != nil {
@@ -312,6 +287,9 @@ func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]ins
 		step.ReturnData = make([]byte, len(response.ReturnData))
 		copy(step.ReturnData, response.ReturnData)
 		results = append(results, *step)
+		for k, v := range response.Storage {
+			step.Storage[common.HexToHash(k)] = common.HexToHash(v)
+		}
 	}
 	return results, nil
 }

@@ -17,8 +17,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/js"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers/logger"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers/native"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation/tracers/structlogger"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
@@ -41,59 +41,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	receipt, err := s.GetTransactionReceipt(ctx, transactionHash, dbTx)
 	if err != nil {
 		return nil, err
-	}
-
-	// select and prepare tracer
-	var tracer tracers.Tracer
-	tracerContext := &tracers.Context{
-		BlockHash:   receipt.BlockHash,
-		BlockNumber: receipt.BlockNumber,
-		TxIndex:     int(receipt.TransactionIndex),
-		TxHash:      transactionHash,
-	}
-
-	if traceConfig.IsDefaultTracer() {
-		structLoggerCfg := &logger.Config{
-			EnableMemory:     traceConfig.EnableMemory,
-			DisableStack:     traceConfig.DisableStack,
-			DisableStorage:   traceConfig.DisableStorage,
-			EnableReturnData: traceConfig.EnableReturnData,
-			Debug:            false,
-			Limit:            0,
-		}
-		tracer = logger.NewStructLogger(structLoggerCfg)
-	} else if traceConfig.Is4ByteTracer() {
-		tracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
-		if err != nil {
-			log.Errorf("debug transaction: failed to create 4byteTracer, err: %v", err)
-			return nil, fmt.Errorf("failed to create 4byteTracer, err: %v", err)
-		}
-	} else if traceConfig.IsCallTracer() {
-		tracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
-		if err != nil {
-			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
-			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
-		}
-	} else if traceConfig.IsNoopTracer() {
-		tracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
-		if err != nil {
-			log.Errorf("debug transaction: failed to create noopTracer, err: %v", err)
-			return nil, fmt.Errorf("failed to create noopTracer, err: %v", err)
-		}
-	} else if traceConfig.IsPrestateTracer() {
-		tracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
-		if err != nil {
-			log.Errorf("debug transaction: failed to create prestateTracer, err: %v", err)
-			return nil, fmt.Errorf("failed to create prestateTracer, err: %v", err)
-		}
-	} else if traceConfig.IsJSCustomTracer() {
-		tracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
-		if err != nil {
-			log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
-			return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
-		}
-	} else {
-		return nil, fmt.Errorf("invalid tracer: %v, err: %v", traceConfig.Tracer, err)
 	}
 
 	// gets the l2 block including the transaction
@@ -267,6 +214,63 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	if !ok {
 		log.Errorf("debug transaction: failed to parse gasPrice")
 		return nil, fmt.Errorf("failed to parse gasPrice")
+	}
+
+	// select and prepare tracer
+	var tracer tracers.Tracer
+	tracerContext := &tracers.Context{
+		BlockHash:   receipt.BlockHash,
+		BlockNumber: receipt.BlockNumber,
+		TxIndex:     int(receipt.TransactionIndex),
+		TxHash:      transactionHash,
+	}
+
+	if traceConfig.IsDefaultTracer() {
+		structLoggerCfg := structlogger.Config{
+			EnableMemory:     traceConfig.EnableMemory,
+			DisableStack:     traceConfig.DisableStack,
+			DisableStorage:   traceConfig.DisableStorage,
+			EnableReturnData: traceConfig.EnableReturnData,
+		}
+		tracer := structlogger.NewStructLogger(structLoggerCfg)
+		traceResult, err := tracer.ParseTrace(result, *receipt)
+		if err != nil {
+			return nil, err
+		}
+		result.TraceResult = traceResult
+		return result, nil
+	} else if traceConfig.Is4ByteTracer() {
+		tracer, err = native.NewFourByteTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create 4byteTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create 4byteTracer, err: %v", err)
+		}
+	} else if traceConfig.IsCallTracer() {
+		tracer, err = native.NewCallTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
+		}
+	} else if traceConfig.IsNoopTracer() {
+		tracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create noopTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create noopTracer, err: %v", err)
+		}
+	} else if traceConfig.IsPrestateTracer() {
+		tracer, err = native.NewPrestateTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create prestateTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create prestateTracer, err: %v", err)
+		}
+	} else if traceConfig.IsJSCustomTracer() {
+		tracer, err = js.NewJsTracer(*traceConfig.Tracer, tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create jsTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create jsTracer, err: %v", err)
+		}
+	} else {
+		return nil, fmt.Errorf("invalid tracer: %v, err: %v", traceConfig.Tracer, err)
 	}
 
 	fakeDB := &FakeDB{State: s, stateRoot: batch.StateRoot.Bytes()}
