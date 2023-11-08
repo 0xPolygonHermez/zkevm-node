@@ -70,7 +70,7 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 	// Calculate BreakEvenGasPrice
 	totalTxPrice := (txGasUsed * l2MinGasPrice) +
 		((constBytesTx+txNonZeroBytes)*e.cfg.ByteGasCost+txZeroBytes*e.cfg.ZeroByteGasCost)*l1GasPrice
-	breakEvenGasPrice := big.NewInt(0).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
+	breakEvenGasPrice := new(big.Int).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
 
 	return breakEvenGasPrice, nil
 }
@@ -89,7 +89,7 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 	ratioPriority := new(big.Float).SetFloat64(1.0)
 
 	if bfTxGasPrice.Cmp(bfL2GasPrice) == 1 {
-		//ratioPriority := (txGasPrice / l2GasPrice)
+		//ratioPriority = (txGasPrice / l2GasPrice)
 		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
 	}
 
