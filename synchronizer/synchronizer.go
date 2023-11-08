@@ -24,8 +24,10 @@ import (
 )
 
 const (
-	forkID5        = 5
-	ParallelMode   = "parallel"
+	forkID5 = 5
+	// ParallelMode is the value for L1SynchronizationMode to run in parallel mode
+	ParallelMode = "parallel"
+	// SequentialMode is the value for L1SynchronizationMode to run in sequential mode
 	SequentialMode = "sequential"
 )
 

@@ -1255,7 +1255,7 @@ Must be one of:
 | - [RequestLastBlockMaxRetries](#Synchronizer_L1ParallelSynchronization_RequestLastBlockMaxRetries )                         | No      | integer | No         | -          | RequestLastBlockMaxRetries Max number of retries to request LastBlock On L1                                                                                                                   |
 | - [StatisticsPeriod](#Synchronizer_L1ParallelSynchronization_StatisticsPeriod )                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
 | - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [MinTimeBetweenRetriesForRollupInfo](#Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo )         | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
+| - [RollupInfoRetriesSpacing](#Synchronizer_L1ParallelSynchronization_RollupInfoRetriesSpacing )                             | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
 | - [FallbackToSequentialModeOnSynchronized](#Synchronizer_L1ParallelSynchronization_FallbackToSequentialModeOnSynchronized ) | No      | boolean | No         | -          | FallbackToSequentialModeOnSynchronized if true switch to sequential mode if the system is synchronized                                                                                        |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_MaxClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.MaxClients`
@@ -1461,15 +1461,15 @@ StatisticsPeriod="5m0s"
 TimeOutMainLoop="5m0s"
 ```
 
-#### <a name="Synchronizer_L1ParallelSynchronization_MinTimeBetweenRetriesForRollupInfo"></a>9.5.9. `Synchronizer.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo`
+#### <a name="Synchronizer_L1ParallelSynchronization_RollupInfoRetriesSpacing"></a>9.5.9. `Synchronizer.L1ParallelSynchronization.RollupInfoRetriesSpacing`
 
 **Title:** Duration
 
 **Type:** : `string`
 
-**Default:** `"0s"`
+**Default:** `"5s"`
 
-**Description:** MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1
+**Description:** RollupInfoRetriesSpacing is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1
 
 **Examples:** 
 
@@ -1481,10 +1481,10 @@ TimeOutMainLoop="5m0s"
 "300ms"
 ```
 
-**Example setting the default value** ("0s"):
+**Example setting the default value** ("5s"):
 ```
 [Synchronizer.L1ParallelSynchronization]
-MinTimeBetweenRetriesForRollupInfo="0s"
+RollupInfoRetriesSpacing="5s"
 ```
 
 #### <a name="Synchronizer_L1ParallelSynchronization_FallbackToSequentialModeOnSynchronized"></a>9.5.10. `Synchronizer.L1ParallelSynchronization.FallbackToSequentialModeOnSynchronized`

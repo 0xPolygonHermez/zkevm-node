@@ -546,11 +546,11 @@
 								"300ms"
 							]
 						},
-						"MinTimeBetweenRetriesForRollupInfo": {
+						"RollupInfoRetriesSpacing": {
 							"type": "string",
 							"title": "Duration",
-							"description": "MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
-							"default": "0s",
+							"description": "RollupInfoRetriesSpacing is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
+							"default": "5s",
 							"examples": [
 								"1m",
 								"300ms"
