@@ -24,7 +24,9 @@ import (
 )
 
 const (
-	forkID5 = 5
+	forkID5        = 5
+	ParallelMode   = "parallel"
+	SequentialMode = "sequential"
 )
 
 // Synchronizer connects L1 and L2
@@ -97,34 +99,41 @@ func NewSynchronizer(
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
 	}
-	if cfg.UseParallelModeForL1Synchronization {
+	switch cfg.L1SynchronizationMode {
+	case ParallelMode:
+		log.Info("L1SynchronizationMode is parallel")
 		var err error
 		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
 		if err != nil {
 			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
 		}
+	case SequentialMode:
+		log.Info("L1SynchronizationMode is sequential")
+	default:
+		log.Fatalf("L1SynchronizationMode is not valid. Valid values are: %s, %s", ParallelMode, SequentialMode)
 	}
+
 	return res, nil
 }
 
 var waitDuration = time.Duration(0)
 
 func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1SyncOrchestration, error) {
-	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.CapacityOfBufferingRollupInfoFromL1)
+	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
 	cfgConsumer := configConsumer{
-		numIterationsBeforeStartCheckingTimeWaitingForNewRollupInfoData: cfg.L1ParallelSynchronization.PerformanceCheck.NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo,
-		acceptableTimeWaitingForNewRollupInfoData:                       cfg.L1ParallelSynchronization.PerformanceCheck.AcceptableTimeWaitingForNewRollupInfo.Duration,
+		ApplyAfterNumRollupReceived: cfg.L1ParallelSynchronization.PerformanceWarning.ApplyAfterNumRollupReceived,
+		AceptableInacctivityTime:    cfg.L1ParallelSynchronization.PerformanceWarning.AceptableInacctivityTime.Duration,
 	}
 	L1DataProcessor := newL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)
 
 	cfgProducer := configProducer{
 		syncChunkSize:                              cfg.SyncChunkSize,
-		ttlOfLastBlockOnL1:                         cfg.L1ParallelSynchronization.TimeForCheckLastBlockOnL1Time.Duration,
-		timeoutForRequestLastBlockOnL1:             cfg.L1ParallelSynchronization.TimeoutForRequestLastBlockOnL1.Duration,
-		numOfAllowedRetriesForRequestLastBlockOnL1: cfg.L1ParallelSynchronization.MaxNumberOfRetriesForRequestLastBlockOnL1,
-		timeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.TimeForShowUpStatisticsLog.Duration,
+		ttlOfLastBlockOnL1:                         cfg.L1ParallelSynchronization.RequestLastBlockPeriod.Duration,
+		timeoutForRequestLastBlockOnL1:             cfg.L1ParallelSynchronization.RequestLastBlockTimeout.Duration,
+		numOfAllowedRetriesForRequestLastBlockOnL1: cfg.L1ParallelSynchronization.RequestLastBlockMaxRetries,
+		timeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.StatisticsPeriod.Duration,
 		timeOutMainLoop:                            cfg.L1ParallelSynchronization.TimeOutMainLoop.Duration,
-		minTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.MinTimeBetweenRetriesForRollupInfo.Duration,
+		minTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.RollupInfoRetriesSpacing.Duration,
 	}
 	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
 	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
@@ -303,7 +312,7 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			//Sync L1Blocks
 			startL1 := time.Now()
-			if s.l1SyncOrchestration != nil && (latestSyncedBatch < latestSequencedBatchNumber || !s.cfg.L1ParallelSynchronization.SwitchToSequentialModeIfIsSynchronized) {
+			if s.l1SyncOrchestration != nil && (latestSyncedBatch < latestSequencedBatchNumber || !s.cfg.L1ParallelSynchronization.FallbackToSequentialModeOnSynchronized) {
 				log.Infof("Syncing L1 blocks in parallel lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
 				lastEthBlockSynced, err = s.syncBlocksParallel(lastEthBlockSynced)
 			} else {
