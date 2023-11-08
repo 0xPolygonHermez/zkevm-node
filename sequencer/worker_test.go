@@ -151,7 +151,7 @@ func TestWorkerAddTx(t *testing.T) {
 			},
 		},
 		{
-			name: "Invalid IP address", from: common.Address{5}, txHash: common.Hash{5}, nonce: 1,
+			name: "Invalid IP l2coinbase", from: common.Address{5}, txHash: common.Hash{5}, nonce: 1,
 			counters:    state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes:   1,
 			ip:          "invalid IP",

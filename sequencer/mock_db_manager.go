@@ -90,15 +90,29 @@ func (_m *DbManagerMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, 
 	return r0, r1
 }
 
-// CreateFirstBatch provides a mock function with given fields: ctx, sequencerAddress
-func (_m *DbManagerMock) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
-	ret := _m.Called(ctx, sequencerAddress)
+// CreateFirstBatch provides a mock function with given fields: ctx, l2coinbase
+func (_m *DbManagerMock) CreateFirstBatch(ctx context.Context, l2coinbase common.Address) state.ProcessingContext {
+	ret := _m.Called(ctx, l2coinbase)
 
 	var r0 state.ProcessingContext
 	if rf, ok := ret.Get(0).(func(context.Context, common.Address) state.ProcessingContext); ok {
-		r0 = rf(ctx, sequencerAddress)
+		r0 = rf(ctx, l2coinbase)
 	} else {
 		r0 = ret.Get(0).(state.ProcessingContext)
+	}
+
+	return r0
+}
+
+// DeleteBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *DbManagerMock) DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
 	}
 
 	return r0

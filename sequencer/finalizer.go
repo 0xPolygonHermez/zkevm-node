@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -39,7 +40,7 @@ type finalizer struct {
 	cfg                     FinalizerCfg
 	closingSignalCh         ClosingSignalCh
 	isSynced                func(ctx context.Context) bool
-	sequencerAddress        common.Address
+	l2coinbase              common.Address
 	worker                  workerInterface
 	dbManager               dbManagerInterface
 	executor                stateInterface
@@ -122,7 +123,7 @@ func newFinalizer(
 		cfg:                cfg,
 		closingSignalCh:    closingSignalCh,
 		isSynced:           isSynced,
-		sequencerAddress:   sequencerAddr,
+		l2coinbase:         sequencerAddr,
 		worker:             worker,
 		dbManager:          dbManager,
 		executor:           executor,
@@ -1014,11 +1015,29 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 			return err
 		}
 	} else {
-		f.batch, err = f.dbManager.GetWIPBatch(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get work-in-progress batch, err: %w", err)
+		if bytes.Equal(lastBatch.Coinbase.Bytes(), f.l2coinbase.Bytes()) {
+			f.batch, err = f.dbManager.GetWIPBatch(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get work-in-progress batch, err: %w", err)
+			}
+		} else {
+			oldGER := lastBatch.GlobalExitRoot
+			if err := f.dbManager.DeleteBatchByNumber(ctx, *lastBatchNum, nil); err != nil {
+				return fmt.Errorf("failed to delete last no-closed batch, err: %w", err)
+			}
+			lastBatch, err = f.dbManager.GetLastBatch(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get last batch again, err: %w", err)
+			}
+			oldStateRoot := lastBatch.StateRoot
+
+			f.batch, err = f.openWIPBatch(ctx, *lastBatchNum, oldGER, oldStateRoot)
+			if err != nil {
+				return err
+			}
 		}
 	}
+
 	log.Infof("Initial Batch: %+v", f.batch)
 	log.Infof("Initial Batch.StateRoot: %s", f.batch.stateRoot.String())
 	log.Infof("Initial Batch.GER: %s", f.batch.globalExitRoot.String())
@@ -1030,7 +1049,7 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		BatchNumber:    *lastBatchNum,
 		OldStateRoot:   f.batch.stateRoot,
 		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
+		Coinbase:       f.l2coinbase,
 		Timestamp:      f.batch.timestamp,
 		Transactions:   make([]byte, 0, 1),
 		Caller:         stateMetrics.SequencerCallerLabel,
@@ -1082,7 +1101,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		OldStateRoot:   stateRoot,
 		GlobalExitRoot: forcedBatch.GlobalExitRoot,
 		Transactions:   forcedBatch.RawTxsData,
-		Coinbase:       f.sequencerAddress,
+		Coinbase:       f.l2coinbase,
 		Timestamp:      now(),
 		Caller:         stateMetrics.SequencerCallerLabel,
 	}
@@ -1115,7 +1134,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 				BatchNumber:    request.BatchNumber,
 				Timestamp:      request.Timestamp.Unix(),
 				GlobalExitRoot: request.GlobalExitRoot,
-				Coinbase:       f.sequencerAddress,
+				Coinbase:       f.l2coinbase,
 				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(request.BatchNumber)),
 				StateRoot:      response.NewStateRoot,
 			}
@@ -1176,7 +1195,7 @@ func (f *finalizer) openWIPBatch(ctx context.Context, batchNum uint64, ger, stat
 
 	return &WipBatch{
 		batchNumber:        batchNum,
-		coinbase:           f.sequencerAddress,
+		coinbase:           f.l2coinbase,
 		initialStateRoot:   stateRoot,
 		stateRoot:          stateRoot,
 		timestamp:          openBatchResp.Timestamp,
@@ -1212,7 +1231,7 @@ func (f *finalizer) closeBatch(ctx context.Context) error {
 func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    num,
-		Coinbase:       f.sequencerAddress,
+		Coinbase:       f.l2coinbase,
 		Timestamp:      now(),
 		GlobalExitRoot: ger,
 	}

@@ -579,6 +579,15 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 	return &batch, nil
 }
 
+// DeleteBatchByNumber deletes batch with given number.
+func (p *PostgresStorage) DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	deleteBatchByNumberSQL := "DELETE FROM state.batch WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, deleteBatchByNumberSQL, batchNumber)
+	return err
+}
+
 // GetBatchByTxHash returns the batch including the given tx
 func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*Batch, error) {
 	const getBatchByTxHashSQL = `

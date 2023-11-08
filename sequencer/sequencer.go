@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -27,7 +26,7 @@ type Sequencer struct {
 	eventLog *event.EventLog
 	etherman etherman
 
-	address common.Address
+	l2coinbase common.Address
 }
 
 // L2ReorgEvent is the event that is triggered when a reorg happens in the L2
@@ -44,19 +43,14 @@ type ClosingSignalCh struct {
 
 // New init sequencer
 func New(cfg Config, batchCfg state.BatchConfig, txPool txPool, state stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
-	addr, err := etherman.TrustedSequencer()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get trusted sequencer address, err: %v", err)
-	}
-
 	sequencer := &Sequencer{
-		cfg:      cfg,
-		batchCfg: batchCfg,
-		pool:     txPool,
-		state:    state,
-		etherman: etherman,
-		address:  addr,
-		eventLog: eventLog,
+		cfg:        cfg,
+		batchCfg:   batchCfg,
+		pool:       txPool,
+		state:      state,
+		etherman:   etherman,
+		l2coinbase: cfg.L2Coinbase,
+		eventLog:   eventLog,
 	}
 
 	return sequencer, nil
@@ -107,7 +101,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		streamServer = dbManager.streamServer
 	}
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.l2coinbase, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
 	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
 	go finalizer.Start(ctx, currBatch, processingReq)
 
@@ -166,7 +160,7 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		///////////////////
 		// GENESIS Batch //
 		///////////////////
-		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
+		processingCtx := dbManager.CreateFirstBatch(ctx, s.l2coinbase)
 		timestamp := processingCtx.Timestamp
 		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
 		if err != nil {

@@ -3,6 +3,7 @@ package sequencer
 import (
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Config represents the configuration of a sequencer
@@ -22,6 +23,9 @@ type Config struct {
 
 	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
+
+	// L2Coinbase defines which addess is going to receive the fees
+	L2Coinbase common.Address `mapstructure:"L2Coinbase"`
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`

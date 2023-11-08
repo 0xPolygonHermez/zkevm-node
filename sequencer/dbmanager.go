@@ -36,6 +36,10 @@ func (d *dbManager) GetBatchByNumber(ctx context.Context, batchNumber uint64, db
 	return d.state.GetBatchByNumber(ctx, batchNumber, dbTx)
 }
 
+func (d *dbManager) DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	return d.state.DeleteBatchByNumber(ctx, batchNumber, dbTx)
+}
+
 // ClosingBatchParameters contains the necessary parameters to close a batch
 type ClosingBatchParameters struct {
 	BatchNumber          uint64
@@ -85,10 +89,10 @@ func (d *dbManager) OpenBatch(ctx context.Context, processingContext state.Proce
 }
 
 // CreateFirstBatch is using during genesis
-func (d *dbManager) CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext {
+func (d *dbManager) CreateFirstBatch(ctx context.Context, l2coinbase common.Address) state.ProcessingContext {
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    1,
-		Coinbase:       sequencerAddress,
+		Coinbase:       l2coinbase,
 		Timestamp:      time.Now(),
 		GlobalExitRoot: state.ZeroHash,
 	}
