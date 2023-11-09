@@ -458,7 +458,7 @@ func (s *State) getGasUsed(internalTxContextStack *Stack[instrumentation.Interna
 		gasUsed = previousStep.Contract.Gas - step.Gas
 	} else {
 		// otherwise we use the step gas
-		gasUsed = itCtx.RemainingGas - previousStep.Gas - previousStep.GasCost
+		gasUsed = itCtx.RemainingGas - previousStep.Gas + previousStep.GasCost
 	}
 	return gasUsed, nil
 }
