@@ -820,18 +820,11 @@ func TestGetBatchByNumber(t *testing.T) {
 }
 
 // TODO: Uncomment
-/*
+
 func TestGetLogs(t *testing.T) {
 	initOrResetDB()
 
 	ctx := context.Background()
-
-	cfg := state.Config{
-		MaxLogsCount:      8,
-		MaxLogsBlockRange: 10,
-	}
-	pgStateStorage = pgstatestorage.NewPostgresStorage(cfg, stateDb)
-	testState.PostgresStorage = pgStateStorage
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -839,7 +832,7 @@ func TestGetLogs(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()
@@ -954,19 +947,13 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 
 	ctx := context.Background()
 
-	cfg := state.Config{
-		MaxNativeBlockHashBlockRange: 10,
-	}
-	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
-	testState.PostgresStorage = pgStateStorage
-
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()
@@ -1067,4 +1054,3 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 
 	require.NoError(t, dbTx.Commit(ctx))
 }
-*/
