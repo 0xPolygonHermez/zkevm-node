@@ -1506,16 +1506,17 @@ FallbackToSequentialModeOnSynchronized=false
 **Type:** : `object`
 **Description:** Configuration of the sequencer service
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                            |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- |
-| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool |
-| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
-| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
-| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
-| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
+| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                            |
+| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- |
+| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string           | No         | -          | Duration                                                                                     |
+| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer          | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool |
+| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string           | No         | -          | Duration                                                                                     |
+| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string           | No         | -          | Duration                                                                                     |
+| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string           | No         | -          | Duration                                                                                     |
+| - [L2Coinbase](#Sequencer_L2Coinbase )                                       | No      | array of integer | No         | -          | L2Coinbase defines which addess is going to receive the fees                                 |
+| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object           | No         | -          | Finalizer's specific config properties                                                       |
+| - [DBManager](#Sequencer_DBManager )                                         | No      | object           | No         | -          | DBManager's specific config properties                                                       |
+| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object           | No         | -          | StreamServerCfg is the config for the stream server                                          |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1636,7 +1637,12 @@ TxLifetimeCheckTimeout="10m0s"
 MaxTxLifetime="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>10.6. `[Sequencer.Finalizer]`
+### <a name="Sequencer_L2Coinbase"></a>10.6. `Sequencer.L2Coinbase`
+
+**Type:** : `array of integer`
+**Description:** L2Coinbase defines which addess is going to receive the fees
+
+### <a name="Sequencer_Finalizer"></a>10.7. `[Sequencer.Finalizer]`
 
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
@@ -1656,7 +1662,7 @@ MaxTxLifetime="3h0m0s"
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.7.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1682,7 +1688,7 @@ MaxTxLifetime="3h0m0s"
 GERDeadlineTimeout="5s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.6.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.7.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1708,7 +1714,7 @@ GERDeadlineTimeout="5s"
 ForcedBatchDeadlineTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.6.3. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.7.3. `Sequencer.Finalizer.SleepDuration`
 
 **Title:** Duration
 
@@ -1734,7 +1740,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 SleepDuration="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.6.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.7.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
 
 **Type:** : `integer`
 
@@ -1748,7 +1754,7 @@ SleepDuration="100ms"
 ResourcePercentageToCloseBatch=10
 ```
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.6.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.7.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1762,7 +1768,7 @@ ResourcePercentageToCloseBatch=10
 GERFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.7.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
@@ -1788,7 +1794,7 @@ GERFinalityNumberOfBlocks=64
 ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.7.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
@@ -1814,7 +1820,7 @@ ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ClosingSignalsManagerWaitForCheckingGER="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.7.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
@@ -1840,7 +1846,7 @@ ClosingSignalsManagerWaitForCheckingGER="10s"
 ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.7.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1854,7 +1860,7 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ForcedBatchesFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.10. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.7.10. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
@@ -1880,7 +1886,7 @@ ForcedBatchesFinalityNumberOfBlocks=64
 TimestampResolution="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.7.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
 
 **Type:** : `integer`
 
@@ -1894,7 +1900,7 @@ TimestampResolution="10s"
 StopSequencerOnBatchNum=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.12. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.7.12. `Sequencer.Finalizer.SequentialReprocessFullBatch`
 
 **Type:** : `boolean`
 
@@ -1909,7 +1915,7 @@ sequential way (instead than in parallel)
 SequentialReprocessFullBatch=false
 ```
 
-### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`
+### <a name="Sequencer_DBManager"></a>10.8. `[Sequencer.DBManager]`
 
 **Type:** : `object`
 **Description:** DBManager's specific config properties
@@ -1919,7 +1925,7 @@ SequentialReprocessFullBatch=false
 | - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
 | - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
 
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
+#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.8.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
 **Title:** Duration
 
@@ -1943,7 +1949,7 @@ SequentialReprocessFullBatch=false
 PoolRetrievalInterval="500ms"
 ```
 
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.7.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
+#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.8.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
 
 **Title:** Duration
 
@@ -1967,7 +1973,7 @@ PoolRetrievalInterval="500ms"
 L2ReorgRetrievalInterval="5s"
 ```
 
-### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
+### <a name="Sequencer_StreamServer"></a>10.9. `[Sequencer.StreamServer]`
 
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
@@ -1979,7 +1985,7 @@ L2ReorgRetrievalInterval="5s"
 | - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
 | - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
 
-#### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
+#### <a name="Sequencer_StreamServer_Port"></a>10.9.1. `Sequencer.StreamServer.Port`
 
 **Type:** : `integer`
 
@@ -1993,7 +1999,7 @@ L2ReorgRetrievalInterval="5s"
 Port=0
 ```
 
-#### <a name="Sequencer_StreamServer_Filename"></a>10.8.2. `Sequencer.StreamServer.Filename`
+#### <a name="Sequencer_StreamServer_Filename"></a>10.9.2. `Sequencer.StreamServer.Filename`
 
 **Type:** : `string`
 
@@ -2007,7 +2013,7 @@ Port=0
 Filename=""
 ```
 
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.3. `Sequencer.StreamServer.Enabled`
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.9.3. `Sequencer.StreamServer.Enabled`
 
 **Type:** : `boolean`
 
@@ -2021,7 +2027,7 @@ Filename=""
 Enabled=false
 ```
 
-#### <a name="Sequencer_StreamServer_Log"></a>10.8.4. `[Sequencer.StreamServer.Log]`
+#### <a name="Sequencer_StreamServer_Log"></a>10.9.4. `[Sequencer.StreamServer.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2032,7 +2038,7 @@ Enabled=false
 | - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
 | - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
 
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.4.1. `Sequencer.StreamServer.Log.Environment`
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.9.4.1. `Sequencer.StreamServer.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2048,7 +2054,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.4.2. `Sequencer.StreamServer.Log.Level`
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.9.4.2. `Sequencer.StreamServer.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2069,7 +2075,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.4.3. `Sequencer.StreamServer.Log.Outputs`
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.9.4.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
 
@@ -2084,7 +2090,6 @@ Must be one of:
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not.                                                                                                            |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                                                                                                                               |
-| - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                                                                                                                                 |
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                             |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                                                                                                                                    |
 | - [GasOffset](#SequenceSender_GasOffset )                                                               | No      | integer          | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
@@ -2165,21 +2170,7 @@ MaxTxSizeForL1=131072
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-### <a name="SequenceSender_L2Coinbase"></a>11.5. `SequenceSender.L2Coinbase`
-
-**Type:** : `array of integer`
-
-**Default:** `"0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"`
-
-**Description:** L2Coinbase defines which address is going to receive the fees
-
-**Example setting the default value** ("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"):
-```
-[SequenceSender]
-L2Coinbase="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-```
-
-### <a name="SequenceSender_PrivateKey"></a>11.6. `[SequenceSender.PrivateKey]`
+### <a name="SequenceSender_PrivateKey"></a>11.5. `[SequenceSender.PrivateKey]`
 
 **Type:** : `object`
 **Description:** PrivateKey defines all the key store files that are going
@@ -2190,7 +2181,7 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [Path](#SequenceSender_PrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#SequenceSender_PrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-#### <a name="SequenceSender_PrivateKey_Path"></a>11.6.1. `SequenceSender.PrivateKey.Path`
+#### <a name="SequenceSender_PrivateKey_Path"></a>11.5.1. `SequenceSender.PrivateKey.Path`
 
 **Type:** : `string`
 
@@ -2204,7 +2195,7 @@ to be read in order to provide the private keys to sign the L1 txs
 Path="/pk/sequencer.keystore"
 ```
 
-#### <a name="SequenceSender_PrivateKey_Password"></a>11.6.2. `SequenceSender.PrivateKey.Password`
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.5.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
 
@@ -2218,7 +2209,7 @@ Path="/pk/sequencer.keystore"
 Password="testonly"
 ```
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.7. `SequenceSender.ForkUpgradeBatchNumber`
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.6. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2232,7 +2223,7 @@ Password="testonly"
 ForkUpgradeBatchNumber=0
 ```
 
-### <a name="SequenceSender_GasOffset"></a>11.8. `SequenceSender.GasOffset`
+### <a name="SequenceSender_GasOffset"></a>11.7. `SequenceSender.GasOffset`
 
 **Type:** : `integer`
 

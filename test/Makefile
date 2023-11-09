@@ -528,10 +528,10 @@ run-db-scripts: ## Executes scripts on the db after it has been initialized, pot
 
 .PHONY: install-mockery
 install-mockery: ## Installs mockery with the correct version to generate the mocks
-	go install github.com/vektra/mockery/v2@v2.22.1
+	go install github.com/vektra/mockery/v2@v2.32.0
 
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-jsonrpc generate-mocks-sequencer generate-mocks-synchronizer generate-mocks-etherman generate-mocks-aggregator ## Generates mocks for the tests, using mockery tool
+generate-mocks: generate-mocks-jsonrpc generate-mocks-sequencer generate-mocks-synchronizer generate-mocks-etherman generate-mocks-aggregator generate-mocks-sequencesender ## Generates mocks for the tests, using mockery tool
 
 .PHONY: generate-mocks-jsonrpc
 generate-mocks-jsonrpc: ## Generates mocks for jsonrpc , using mockery tool
@@ -586,6 +586,13 @@ generate-mocks-aggregator: ## Generates mocks for aggregator , using mockery too
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethTxManager --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=EthTxManager --filename=mock_ethtxmanager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=aggregatorTxProfitabilityChecker --dir=../aggregator --output=../aggregator/mocks --outpkg=mocks --structname=ProfitabilityCheckerMock --filename=mock_profitabilitychecker.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../aggregator/mocks --outpkg=mocks --structname=DbTxMock --filename=mock_dbtx.go
+
+.PHONY: generate-mocks-sequencesender
+generate-mocks-sequencesender: ## Generates mocks for sequencesender , using mockery tool
+	## mocks for the sequencesender tests
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=stateInterface --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --structname=stateMock --filename=mock_state.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=etherman --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --structname=ethermanMock --filename=mock_etherman.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethTxManager --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --structname=ethTxManagerMock --filename=mock_ethtxmanager.go
 
 .PHONY: run-benchmarks
 run-benchmarks: run-db ## Runs benchmars

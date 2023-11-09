@@ -49,6 +49,7 @@ type stateInterface interface {
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error)
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -107,7 +108,7 @@ type workerInterface interface {
 type dbManagerInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
+	CreateFirstBatch(ctx context.Context, l2coinbase common.Address) state.ProcessingContext
 	GetLastBatchNumber(ctx context.Context) (uint64, error)
 	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
 	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
@@ -117,6 +118,7 @@ type dbManagerInterface interface {
 	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
 	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
+	DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
 	ProcessForcedBatch(ForcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)

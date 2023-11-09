@@ -118,6 +118,20 @@ func (_m *StateMock) CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, erro
 	return r0, r1
 }
 
+// DeleteBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) DeleteBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // ExecuteBatch provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
 func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
