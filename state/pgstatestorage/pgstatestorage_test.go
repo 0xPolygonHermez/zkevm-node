@@ -819,12 +819,17 @@ func TestGetBatchByNumber(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-// TODO: Uncomment
-
 func TestGetLogs(t *testing.T) {
 	initOrResetDB()
 
 	ctx := context.Background()
+
+	cfg := state.Config{
+		MaxLogsCount:      8,
+		MaxLogsBlockRange: 10,
+	}
+
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -946,6 +951,12 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	initOrResetDB()
 
 	ctx := context.Background()
+
+	cfg := state.Config{
+		MaxNativeBlockHashBlockRange: 10,
+	}
+
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
