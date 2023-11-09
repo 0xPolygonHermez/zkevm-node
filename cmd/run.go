@@ -396,7 +396,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, eventL
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, pool, st, etherman, eventLog)
+	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, cfg.Pool, pool, st, etherman, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}
