@@ -355,78 +355,85 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
 			for _, network := range networks {
-				log.Debug("------------------------ ", network.Name, " ------------------------")
-				ethereumClient := operations.MustGetClient(network.URL)
-				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+				for true {
+					log.Debug("------------------------ ", network.Name, " ------------------------")
+					ethereumClient := operations.MustGetClient(network.URL)
+					auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
-				var customData map[string]interface{}
-				if tc.prepare != nil {
-					customData, err = tc.prepare(t, ctx, auth, ethereumClient)
+					var customData map[string]interface{}
+					if tc.prepare != nil {
+						customData, err = tc.prepare(t, ctx, auth, ethereumClient)
+						require.NoError(t, err)
+					}
+
+					signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 					require.NoError(t, err)
-				}
 
-				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
-				require.NoError(t, err)
-
-				err = ethereumClient.SendTransaction(ctx, signedTx)
-				require.NoError(t, err)
-
-				log.Debugf("tx sent: %v", signedTx.Hash().String())
-
-				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
-				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					err = ethereumClient.SendTransaction(ctx, signedTx)
 					require.NoError(t, err)
+
+					log.Debugf("tx sent: %v", signedTx.Hash().String())
+
+					err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+					if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+						require.NoError(t, err)
+					}
+
+					receipt, err := ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
+					require.NoError(t, err)
+
+					debugOptions := map[string]interface{}{
+						"tracer": "callTracer",
+						"tracerConfig": map[string]interface{}{
+							"onlyTopCall": false,
+							"withLog":     true,
+						},
+					}
+
+					var response types.Response
+					if tc.blockNumberOrHash == "number" {
+						log.Infof("debug_traceBlockByNumber %v", receipt.BlockNumber)
+						response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
+					} else {
+						log.Infof("debug_traceBlockByHash %v", receipt.BlockHash.String())
+						response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
+					}
+					require.NoError(t, err)
+					require.Nil(t, response.Error)
+					require.NotNil(t, response.Result)
+					log.Debugf("[%s/%s] response:%s", tc.name, network.Name, string(response.Result))
+					results[network.Name] = response.Result
+					referenceTransactions := []interface{}{}
+					err = json.Unmarshal(response.Result, &referenceTransactions)
+					require.NoError(t, err)
+					if len(referenceTransactions) > 1 {
+						log.Debug(response.Result)
+						log.Debugf("transactions length: %v", len(referenceTransactions))
+						panic("transactions length > 1")
+					}
 				}
-
-				receipt, err := ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
-				require.NoError(t, err)
-
-				debugOptions := map[string]interface{}{
-					"tracer": "callTracer",
-					"tracerConfig": map[string]interface{}{
-						"onlyTopCall": false,
-						"withLog":     true,
-					},
-				}
-
-				var response types.Response
-				if tc.blockNumberOrHash == "number" {
-					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByNumber", hex.EncodeBig(receipt.BlockNumber), debugOptions)
-				} else {
-					response, err = client.JSONRPCCall(network.URL, "debug_traceBlockByHash", receipt.BlockHash.String(), debugOptions)
-				}
-				require.NoError(t, err)
-				require.Nil(t, response.Error)
-				require.NotNil(t, response.Result)
-
-				results[network.Name] = response.Result
 			}
 
 			referenceTransactions := []interface{}{}
 			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
 			require.NoError(t, err)
 
-			for networkName, result := range results {
-				if networkName == l1NetworkName {
-					continue
-				}
-
-				resultTransactions := []interface{}{}
-				err = json.Unmarshal(result, &resultTransactions)
-				require.NoError(t, err)
-				log.Debugf("transactions length: L1 : %v / L2 %v", len(referenceTransactions), len(resultTransactions))
-				if len(referenceTransactions) != len(resultTransactions) {
-					log.Debug("difer length L1: ", referenceTransactions)
-					log.Debug("difer length L2: ", resultTransactions)
-					require.Fail(t, "transactions results length doesn't match")
-				}
-				for transactionIndex := range referenceTransactions {
-					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
-					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
-
-					compareCallFrame(t, referenceTransactionMap, resultTransactionMap, networkName)
-				}
+			resultTransactions := []interface{}{}
+			err = json.Unmarshal(results[l2NetworkName], &resultTransactions)
+			require.NoError(t, err)
+			log.Debugf("[%s] transactions length: L1 : %v / L2 %v", tc.name, len(referenceTransactions), len(resultTransactions))
+			if len(referenceTransactions) != len(resultTransactions) {
+				log.Debug("[%s] difer length L1: ", tc.name, results[l1NetworkName])
+				log.Debug("[%s] difer length L2: ", tc.name, results[l2NetworkName])
+				require.Fail(t, "transactions results length doesn't match")
 			}
+			for transactionIndex := range referenceTransactions {
+				referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
+				resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
+
+				compareCallFrame(t, referenceTransactionMap, resultTransactionMap, l2NetworkName)
+			}
+
 		})
 	}
 }
