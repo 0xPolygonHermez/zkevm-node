@@ -56,6 +56,7 @@ type preExecutionResponse struct {
 	usedZkCounters       state.ZKCounters
 	isExecutorLevelError bool
 	isOOC                bool
+	OOCError             error
 	isOOG                bool
 	isReverted           bool
 	txResponse           *state.ProcessTransactionResponse
@@ -208,7 +209,11 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return ErrOutOfCounters
+		err = ErrOutOfCounters
+		if preExecutionResponse.OOCError != nil {
+			err = fmt.Errorf("failed to add tx to the pool: %v", preExecutionResponse.OOCError.Error())
+		}
+		return err
 	} else if preExecutionResponse.isOOG {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -299,6 +304,9 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			return response, err
 		} else {
 			response.isOOC = isOOC
+			if isOOC {
+				response.OOCError = err
+			}
 			response.isOOG = isOOG
 			if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters

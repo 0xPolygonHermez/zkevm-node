@@ -267,3 +267,15 @@ func (r *ExecutionResult) Failed() bool {
 func (r *ExecutionResult) Reverted() bool {
 	return errors.Is(r.Err, ErrExecutionReverted)
 }
+
+// IsOutOfCounterError checks if the provided error is one
+// of the errors related to out of counters errors
+func IsOutOfCounterError(err error) bool {
+	return errors.Is(err, ErrOutOfCountersArith) ||
+		errors.Is(err, ErrOutOfCountersBinary) ||
+		errors.Is(err, ErrOutOfCountersKeccak) ||
+		errors.Is(err, ErrOutOfCountersMemory) ||
+		errors.Is(err, ErrOutOfCountersPadding) ||
+		errors.Is(err, ErrOutOfCountersPoseidon) ||
+		errors.Is(err, ErrOutOfCountersStep)
+}

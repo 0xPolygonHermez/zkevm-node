@@ -18,7 +18,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -61,8 +60,9 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 
-	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
-	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
+	zkProverURI      = testutils.GetEnv("ZKPROVER_URI", "localhost")
+	executorURI      = fmt.Sprintf("%s:50071", zkProverURI)
+	merkleTreeURI    = fmt.Sprintf("%s:50061", zkProverURI)
 	executorConfig   = executor.Config{URI: executorURI, MaxGRPCMessageSize: 100000000}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )

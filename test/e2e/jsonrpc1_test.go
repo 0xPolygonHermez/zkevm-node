@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Double"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/EmitLog"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/triggerErrors"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -533,4 +534,113 @@ func Test_Transactions(t *testing.T) {
 		_, err = instance.Double(callOpts, payload)
 		require.ErrorContains(t, err, "no contract code at given address")
 	}
+}
+
+func Test_OOCErrors(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	ctx := context.Background()
+	setup()
+	// defer teardown()
+	ethClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
+	require.NoError(t, err)
+	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+	require.NoError(t, err)
+
+	type testCase struct {
+		name          string
+		execute       func(*testing.T, context.Context, *triggerErrors.TriggerErrors, *ethclient.Client, bind.TransactOpts) string
+		expectedError string
+	}
+
+	testCases := []testCase{
+		// {
+		// 	name: "call OOC steps",
+		// 	execute: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) string {
+		// 		err := sc.OutOfCountersSteps(nil)
+		// 		return err.Error()
+		// 	},
+		// 	expectedError: "failed to execute the unsigned transaction: main execution exceeded the maximum number of steps",
+		// },
+		// {
+		// 	name: "call OOC keccaks",
+		// 	execute: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) string {
+		// 		_, err := sc.OutOfCountersKeccaks(nil)
+		// 		return err.Error()
+		// 	},
+		// 	expectedError: "failed to execute the unsigned transaction: not enough keccak counters to continue the execution",
+		// },
+		// {
+		// 	name: "call OOC poseidon",
+		// 	execute: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) string {
+		// 		a.GasLimit = 30000000
+		// 		a.NoSend = true
+		// 		tx, err := sc.OutOfCountersPoseidon(&a)
+		// 		require.NoError(t, err)
+
+		// 		err = c.SendTransaction(ctx, tx)
+		// 		return err.Error()
+		// 	},
+		// 	expectedError: "failed to add tx to the pool: not enough step counters to continue the execution",
+		// },
+		// {
+		// 	name: "estimate gas OOC poseidon",
+		// 	execute: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) string {
+		// 		a.GasLimit = 30000000
+		// 		a.NoSend = true
+		// 		tx, err := sc.OutOfCountersPoseidon(&a)
+		// 		require.NoError(t, err)
+
+		// 		_, err = c.EstimateGas(ctx, ethereum.CallMsg{
+		// 			From:     a.From,
+		// 			To:       tx.To(),
+		// 			Gas:      tx.Gas(),
+		// 			GasPrice: tx.GasPrice(),
+		// 			Value:    tx.Value(),
+		// 			Data:     tx.Data(),
+		// 		})
+		// 		return err.Error()
+		// 	},
+		// 	expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 30000000: not enough step counters to continue the execution",
+		// },
+		{
+			name: "estimate gas OOG",
+			execute: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) string {
+				a.GasLimit = 50000
+				a.NoSend = true
+				tx, err := sc.OutOfCountersPoseidon(&a)
+				require.NoError(t, err)
+
+				_, err = c.EstimateGas(ctx, ethereum.CallMsg{
+					From:     a.From,
+					To:       tx.To(),
+					Gas:      tx.Gas(),
+					GasPrice: tx.GasPrice(),
+					Value:    tx.Value(),
+					Data:     tx.Data(),
+				})
+				return err.Error()
+			},
+			expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 30000000: not enough step counters to continue the execution",
+		},
+	}
+
+	// deploy triggerErrors SC
+	_, tx, sc, err := triggerErrors.DeployTriggerErrors(auth, ethClient)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	// create TX that cause an OOC
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.execute(t, context.Background(), sc, ethClient, *auth)
+
+			assert.Equal(t, testCase.expectedError, err)
+		})
+
+	}
+
 }
