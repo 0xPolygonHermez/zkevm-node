@@ -94,7 +94,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20TransferNoWaitToBeMined, createSignedTx: createERC20TransferSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
 		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
 		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
