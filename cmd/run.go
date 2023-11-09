@@ -33,6 +33,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -463,7 +464,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(c.State, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(c.State, sqlDB)
 
 	// Executor
 	var executorClient executor.ExecutorServiceClient

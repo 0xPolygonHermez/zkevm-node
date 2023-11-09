@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -473,7 +474,7 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	}
 
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)

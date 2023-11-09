@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/urfave/cli/v2"
 )
 
@@ -113,7 +114,7 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
+	stateDB := pgstatestorage.NewPostgresStorage(state.Config{}, stateSqlDB)
 
 	dump := dumpedState{
 		Description: description,

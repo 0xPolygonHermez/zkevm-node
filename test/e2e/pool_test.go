@@ -237,7 +237,7 @@ func TestHasOpCode(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Debug("get tx EGPLog")
-	egpLog, err := opsMan.State().PostgresStorage.GetTransactionEGPLogByHash(ctx, scCallOpGasPrice.Hash(), nil)
+	egpLog, err := opsMan.State().GetTransactionEGPLogByHash(ctx, scCallOpGasPrice.Hash(), nil)
 	require.NoError(t, err)
 	require.Equal(t, egpLog.GasPriceOC, true)
 
@@ -250,7 +250,7 @@ func TestHasOpCode(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Debug("get tx EGPLog")
-	egpLog, err = opsMan.State().PostgresStorage.GetTransactionEGPLogByHash(ctx, scCallBalance.Hash(), nil)
+	egpLog, err = opsMan.State().GetTransactionEGPLogByHash(ctx, scCallBalance.Hash(), nil)
 	require.NoError(t, err)
 	require.Equal(t, egpLog.BalanceOC, true)
 }

@@ -133,7 +133,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		ForcedBatchNum: nil,
 	}
 
-	err = s.storeGenesisBatch(ctx, batch, dbTx)
+	err = s.StoreGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
 		return newRoot, err
 	}
