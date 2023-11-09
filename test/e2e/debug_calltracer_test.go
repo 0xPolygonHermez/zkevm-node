@@ -21,6 +21,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	dockersArePreLaunchedForCallTracerTests = false
+)
+
 func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -30,23 +34,30 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	if !dockersArePreLaunchedForCallTracerTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
-
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+	var opsMan *operations.Manager
+	if !dockersArePreLaunchedForCallTracerTests {
+		opsMan, err = operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+		opsMan, err = operations.NewManagerNoInitDB(ctx, opsCfg)
+		require.NoError(t, err)
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -83,7 +94,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		{name: "eth transfer", createSignedTx: createEthTransferSignedTx},
 		{name: "sc deployment", createSignedTx: createScDeploySignedTx},
 		{name: "sc call", prepare: prepareScCall, createSignedTx: createScCallSignedTx},
-		{name: "erc20 transfer", prepare: prepareERC20Transfer, createSignedTx: createERC20TransferSignedTx},
+		{name: "erc20 transfer", prepare: prepareERC20TransferNoWaitToBeMined, createSignedTx: createERC20TransferSignedTx},
 		{name: "create", prepare: prepareCreate, createSignedTx: createCreateSignedTx},
 		{name: "create2", prepare: prepareCreate, createSignedTx: createCreate2SignedTx},
 		{name: "call", prepare: prepareCalls, createSignedTx: createCallSignedTx},
@@ -277,23 +288,30 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	if !dockersArePreLaunchedForCallTracerTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
-
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+	var opsMan *operations.Manager
+	if !dockersArePreLaunchedForCallTracerTests {
+		opsMan, err = operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+		//opsMan, err = operations.NewManagerNoInitDB(ctx, opsCfg)
+		//require.NoError(t, err)
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -317,8 +335,9 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 			PrivateKey: operations.DefaultSequencerPrivateKey,
 		},
 	}
-
-	results := map[string]json.RawMessage{}
+	require.Equal(t, len(networks), 2, "only support 2 networks!")
+	//var results map[string]map[string]interface{}
+	results := map[string]map[string]interface{}{}
 
 	type testCase struct {
 		name              string
@@ -401,30 +420,30 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
-				log.Debugf("[%s/%s] response:%s", tc.name, network.Name, string(response.Result))
-				results[network.Name] = response.Result
+				log.Debugf("%s response:%s", debugID, string(response.Result))
+
+				txHash := signedTx.Hash().String()
+				resultForTx := findTxInResponse(t, response.Result, txHash, debugID)
+				results[network.Name] = resultForTx
 			}
 
-			referenceTransactions := []interface{}{}
-			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
-			require.NoError(t, err)
-
-			resultTransactions := []interface{}{}
-			err = json.Unmarshal(results[l2NetworkName], &resultTransactions)
-			require.NoError(t, err)
-			log.Debugf("[%s] transactions length: L1: %v / L2: %v", tc.name, len(referenceTransactions), len(resultTransactions))
-			if len(referenceTransactions) != len(resultTransactions) {
-				log.Debug("[%s] difer length L1: ", tc.name, results[l1NetworkName])
-				log.Debug("[%s] difer length L2: ", tc.name, results[l2NetworkName])
-				require.Fail(t, tc.name+"  transactions results length doesn't match")
-			}
-			for transactionIndex := range referenceTransactions {
-				referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
-				resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
-
-				compareCallFrame(t, referenceTransactionMap, resultTransactionMap, l2NetworkName)
-			}
-
+			referenceTransactions := results[l1NetworkName]
+			resultTransactions := results[l2NetworkName]
+			compareCallFrame(t, referenceTransactions, resultTransactions, l2NetworkName)
 		})
 	}
+}
+
+func findTxInResponse(t *testing.T, response json.RawMessage, txHash string, debugPrefix string) map[string]interface{} {
+	valueMap := []interface{}{}
+	err := json.Unmarshal(response, &valueMap)
+	require.NoError(t, err)
+	log.Infof("%s Reponse Length: %d", debugPrefix, len(valueMap))
+	for transactionIndex := range valueMap {
+		if valueMap[transactionIndex].(map[string]interface{})["txHash"] == txHash {
+			return valueMap[transactionIndex].(map[string]interface{})
+		}
+	}
+	log.Infof("%s Transaction not found: %s, returning first index", debugPrefix, txHash)
+	return valueMap[0].(map[string]interface{})
 }

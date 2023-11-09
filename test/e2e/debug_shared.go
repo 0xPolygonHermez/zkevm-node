@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/BridgeA"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/BridgeB"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/BridgeC"
@@ -109,17 +110,29 @@ func createScCallSignedTx(t *testing.T, ctx context.Context, auth *bind.Transact
 }
 
 func prepareERC20Transfer(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	return prepareERC20TransferInternal(t, ctx, auth, client, true)
+}
+
+func prepareERC20TransferNoWaitToBeMined(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client) (map[string]interface{}, error) {
+	return prepareERC20TransferInternal(t, ctx, auth, client, false)
+}
+
+func prepareERC20TransferInternal(t *testing.T, ctx context.Context, auth *bind.TransactOpts, client *ethclient.Client, waitToBeMined bool) (map[string]interface{}, error) {
 	_, tx, sc, err := ERC20.DeployERC20(auth, client, "MyToken", "MT")
 	require.NoError(t, err)
-
-	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
-	require.NoError(t, err)
+	log.Debugf("prepareERC20Transfer DeployERC20 tx: %s", tx.Hash().String())
+	if waitToBeMined {
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+	}
 
 	tx, err = sc.Mint(auth, big.NewInt(1000000000))
 	require.NoError(t, err)
-
-	err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
-	require.NoError(t, err)
+	log.Debugf("prepareERC20Transfer Mint tx: %s", tx.Hash().String())
+	if waitToBeMined {
+		err = operations.WaitTxToBeMined(ctx, client, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+	}
 
 	return map[string]interface{}{
 		"sc": sc,
