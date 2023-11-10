@@ -78,13 +78,14 @@ var (
 	}
 	poolCfg = pool.Config{
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
-			Enabled:           false,
-			L1GasPriceFactor:  0.25,
-			ByteGasCost:       16,
-			ZeroByteGasCost:   4,
-			NetProfit:         1.0,
-			BreakEvenFactor:   1.1,
-			FinalDeviationPct: 10,
+			Enabled:                   false,
+			L1GasPriceFactor:          0.25,
+			ByteGasCost:               16,
+			ZeroByteGasCost:           4,
+			NetProfit:                 1.0,
+			BreakEvenFactor:           1.1,
+			FinalDeviationPct:         10,
+			L2GasPriceSuggesterFactor: 0.5,
 		},
 		DefaultMinGasPriceAllowed: 1000000000,
 	}
