@@ -521,7 +521,7 @@ func TestDebugTraceBlock(t *testing.T) {
 		},
 	}
 
-	results := map[string]json.RawMessage{}
+	results := map[string][]interface{}{}
 
 	type testCase struct {
 		name              string
@@ -601,35 +601,33 @@ func TestDebugTraceBlock(t *testing.T) {
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
 
-				results[network.Name] = response.Result
+				resultTransactions := []interface{}{}
+				err = json.Unmarshal(response.Result, &resultTransactions)
+				require.NoError(t, err)
+
+				results[network.Name] = []interface{}{resultTransactions[receipt.TransactionIndex]}
 			}
 
-			referenceTransactions := []interface{}{}
-			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
-			require.NoError(t, err)
+			referenceTransactions := results[l1NetworkName]
 
 			for networkName, result := range results {
 				if networkName == l1NetworkName {
 					continue
 				}
 
-				resultTransactions := []interface{}{}
-				err = json.Unmarshal(result, &resultTransactions)
-				require.NoError(t, err)
-
 				for transactionIndex := range referenceTransactions {
 					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
 					referenceResultMap := referenceTransactionMap["result"].(map[string]interface{})
 					referenceStructLogsMap := referenceResultMap["structLogs"].([]interface{})
 
-					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
+					resultTransactionMap := result[transactionIndex].(map[string]interface{})
 					resultResultMap := resultTransactionMap["result"].(map[string]interface{})
 					resultStructLogsMap := resultResultMap["structLogs"].([]interface{})
 					log.Debugf("test[%s] referenceStructLogsMap : L1_len=%d L2_len=%d", tc.name, len(referenceStructLogsMap), len(resultStructLogsMap))
 					if len(referenceStructLogsMap) != len(resultStructLogsMap) {
 						log.Debugf("test[%s] referenceStructLogsMap not equal", tc.name)
 						log.Debug("L1 (referenceTransactions): ", referenceTransactions)
-						log.Debug("L2    (resultTransactions): ", resultTransactions)
+						log.Debug("L2    (resultTransactions): ", result)
 					}
 					require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
 
