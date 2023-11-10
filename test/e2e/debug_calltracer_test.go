@@ -45,9 +45,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	var opsMan *operations.Manager
 	if !dockersArePreLaunchedForCallTracerTests {
-		opsMan, err = operations.NewManager(ctx, opsCfg)
+		opsMan, err := operations.NewManager(ctx, opsCfg)
 		require.NoError(t, err)
 		err = opsMan.Setup()
 		require.NoError(t, err)
@@ -55,8 +54,6 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 		require.NoError(t, err)
 	} else {
 		log.Info("Using pre-launched dockers: no reset Database")
-		opsMan, err = operations.NewManagerNoInitDB(ctx, opsCfg)
-		require.NoError(t, err)
 	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
@@ -299,9 +296,8 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	var opsMan *operations.Manager
 	if !dockersArePreLaunchedForCallTracerTests {
-		opsMan, err = operations.NewManager(ctx, opsCfg)
+		opsMan, err := operations.NewManager(ctx, opsCfg)
 		require.NoError(t, err)
 		err = opsMan.Setup()
 		require.NoError(t, err)
@@ -309,8 +305,6 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 		require.NoError(t, err)
 	} else {
 		log.Info("Using pre-launched dockers: no reset Database")
-		//opsMan, err = operations.NewManagerNoInitDB(ctx, opsCfg)
-		//require.NoError(t, err)
 	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
