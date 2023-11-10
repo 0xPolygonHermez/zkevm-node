@@ -23,6 +23,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -1093,7 +1094,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(state.Config{}, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(state.Config{}, sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}

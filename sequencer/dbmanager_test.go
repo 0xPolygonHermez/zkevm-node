@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -65,7 +66,7 @@ func setupDBManager() {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(state.Config{}, stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(state.Config{}, stateDb), executorClient, stateTree, eventLog)
 
 	// DBManager
 	closingSignalCh := ClosingSignalCh{

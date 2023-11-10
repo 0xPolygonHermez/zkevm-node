@@ -1,23 +1,121 @@
-package state_test
+package pgstatestorage_test
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/db"
+	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
+	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 var (
-	pgStateStorage *state.PostgresStorage
+	testState  *state.State
+	stateTree  *merkletree.StateTree
+	stateDb    *pgxpool.Pool
+	err        error
+	stateDBCfg = dbutils.NewStateConfigFromEnv()
+	ctx        = context.Background()
+	stateCfg   = state.Config{
+		MaxCumulativeGasUsed: 800000,
+		ChainID:              1000,
+		MaxLogsCount:         10000,
+		MaxLogsBlockRange:    10000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          5,
+			Version:         "",
+		}},
+	}
+	forkID                             uint64 = 5
+	executorClient                     executor.ExecutorServiceClient
+	mtDBServiceClient                  hashdb.HashDBServiceClient
+	executorClientConn, mtDBClientConn *grpc.ClientConn
+	batchResources                     = state.BatchResources{
+		ZKCounters: state.ZKCounters{
+			UsedKeccakHashes: 1,
+		},
+		Bytes: 1,
+	}
+	closingReason = state.GlobalExitRootDeadlineClosingReason
+)
+
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
+}
+
+func TestMain(m *testing.M) {
+	initOrResetDB()
+
+	stateDb, err = db.NewSQLDB(stateDBCfg)
+	if err != nil {
+		panic(err)
+	}
+	defer stateDb.Close()
+
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+
+	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
+	var executorCancel context.CancelFunc
+	executorClient, executorClientConn, executorCancel = executor.NewExecutorClient(ctx, executorServerConfig)
+	s := executorClientConn.GetState()
+	log.Infof("executorClientConn state: %s", s.String())
+	defer func() {
+		executorCancel()
+		executorClientConn.Close()
+	}()
+
+	mtDBServerConfig := merkletree.Config{URI: fmt.Sprintf("%s:50061", zkProverURI)}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel = merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
+	s = mtDBClientConn.GetState()
+	log.Infof("stateDbClientConn state: %s", s.String())
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+
+	stateTree = merkletree.NewStateTree(mtDBServiceClient)
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		panic(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
+
+	result := m.Run()
+
+	os.Exit(result)
+}
+
+var (
+	pgStateStorage *pgstatestorage.PostgresStorage
 	block          = &state.Block{
 		BlockNumber: 1,
 		BlockHash:   common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
@@ -31,7 +129,7 @@ func setup() {
 		MaxLogsCount:      10000,
 		MaxLogsBlockRange: 10000,
 	}
-	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
+	pgStateStorage = pgstatestorage.NewPostgresStorage(cfg, stateDb)
 }
 
 func TestGetBatchByL2BlockNumber(t *testing.T) {
@@ -43,7 +141,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()
@@ -115,23 +213,23 @@ func TestAddAndGetSequences(t *testing.T) {
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (0)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (0)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (3)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (3)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (4)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (4)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (5)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (5)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (6)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (6)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (7)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (7)")
 	require.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (8)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (8)")
 	require.NoError(t, err)
 
 	sequence := state.Sequence{
@@ -235,7 +333,7 @@ func TestVerifiedBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
 
 	require.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
@@ -281,7 +379,7 @@ func TestAddAccumulatedInputHash(t *testing.T) {
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 
-	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	_, err = testState.Exec(ctx, `INSERT INTO state.batch
 	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
 	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
 	`)
@@ -345,7 +443,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 	initOrResetDB()
 	ctx := context.Background()
 	batchNumber := uint64(42)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1), ($2), ($3)", batchNumber, batchNumber+1, batchNumber+2)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1), ($2), ($3)", batchNumber, batchNumber+1, batchNumber+2)
 	require.NoError(err)
 	const addGeneratedProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 	// proof with `generating_since` older than interval
@@ -358,7 +456,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 		BatchNumberFinal: batchNumber,
 		GeneratingSince:  &oneHourAgo,
 	}
-	_, err := testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderProof.BatchNumber, olderProof.BatchNumberFinal, olderProof.Proof, olderProof.ProofID, olderProof.InputProver, olderProof.Prover, olderProof.ProverID, olderProof.GeneratingSince, oneHourAgo, oneHourAgo)
+	_, err := testState.Exec(ctx, addGeneratedProofSQL, olderProof.BatchNumber, olderProof.BatchNumberFinal, olderProof.Proof, olderProof.ProofID, olderProof.InputProver, olderProof.Prover, olderProof.ProverID, olderProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 	// proof with `generating_since` newer than interval
 	newerProofID := "newerProofID"
@@ -370,7 +468,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 		CreatedAt:        oneHourAgo,
 		UpdatedAt:        now,
 	}
-	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, newerProof.BatchNumber, newerProof.BatchNumberFinal, newerProof.Proof, newerProof.ProofID, newerProof.InputProver, newerProof.Prover, newerProof.ProverID, newerProof.GeneratingSince, oneHourAgo, now)
+	_, err = testState.Exec(ctx, addGeneratedProofSQL, newerProof.BatchNumber, newerProof.BatchNumberFinal, newerProof.Proof, newerProof.ProofID, newerProof.InputProver, newerProof.Prover, newerProof.ProverID, newerProof.GeneratingSince, oneHourAgo, now)
 	require.NoError(err)
 	// proof with `generating_since` nil (currently not generating)
 	olderNotGenProofID := "olderNotGenProofID"
@@ -381,13 +479,13 @@ func TestCleanupLockedProofs(t *testing.T) {
 		CreatedAt:        oneHourAgo,
 		UpdatedAt:        oneHourAgo,
 	}
-	_, err = testState.PostgresStorage.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.ProverID, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
+	_, err = testState.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.ProverID, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 
 	_, err = testState.CleanupLockedProofs(ctx, "1m", nil)
 
 	require.NoError(err)
-	rows, err := testState.PostgresStorage.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at FROM state.proof")
+	rows, err := testState.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at FROM state.proof")
 	require.NoError(err)
 	proofs := make([]state.Proof, 0, len(rows.RawValues()))
 	for rows.Next() {
@@ -433,7 +531,7 @@ func TestVirtualBatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
 
 	require.NoError(t, err)
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
@@ -570,7 +668,7 @@ func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 		batchNumber := uint64(i * 10)
 
 		// add batch
-		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+		_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 		require.NoError(t, err)
 
 		// add l2 block
@@ -635,7 +733,7 @@ func TestGetLastVerifiedBatchNumberUntilL1Block(t *testing.T) {
 		batchNumber := uint64(i * 10)
 
 		// add batch
-		_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+		_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 		require.NoError(t, err)
 
 		virtualBatch := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
@@ -702,7 +800,7 @@ func TestGetBatchByNumber(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	_, err = testState.PostgresStorage.Exec(ctx, `INSERT INTO state.batch
+	_, err = testState.Exec(ctx, `INSERT INTO state.batch
 	(batch_num, global_exit_root, local_exit_root, state_root, timestamp, coinbase, raw_txs_data)
 	VALUES(1, '0x0000000000000000000000000000000000000000000000000000000000000000', '0x0000000000000000000000000000000000000000000000000000000000000000', '0xbf34f9a52a63229e90d1016011655bc12140bba5b771817b88cbf340d08dcbde', '2022-12-19 08:17:45.000', '0x0000000000000000000000000000000000000000', NULL);
 	`)
@@ -730,8 +828,8 @@ func TestGetLogs(t *testing.T) {
 		MaxLogsCount:      8,
 		MaxLogsBlockRange: 10,
 	}
-	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
-	testState.PostgresStorage = pgStateStorage
+
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -739,7 +837,7 @@ func TestGetLogs(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()
@@ -857,8 +955,8 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	cfg := state.Config{
 		MaxNativeBlockHashBlockRange: 10,
 	}
-	pgStateStorage = state.NewPostgresStorage(cfg, stateDb)
-	testState.PostgresStorage = pgStateStorage
+
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -866,7 +964,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()

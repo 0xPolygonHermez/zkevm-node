@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	forkID5      = 5
 	double       = 2
 	ether155V    = 27
 	etherPre155V = 35
@@ -42,7 +41,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 		}
 		batchL2Data = append(batchL2Data, txData...)
 
-		if forkID >= forkID5 {
+		if forkID >= DRAGONFRUIT_FORKID {
 			effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
 			if err != nil {
 				return nil, err
@@ -151,8 +150,8 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 	effectivePercentageAsHex := fmt.Sprintf("%x", MaxEffectivePercentage)
-	// Only add EffectiveGasprice if forkID is equal or higher than 5
-	if forkID < forkID5 {
+	// Only add EffectiveGasprice if forkID is equal or higher than DRAGONFRUIT_FORKID
+	if forkID < DRAGONFRUIT_FORKID {
 		effectivePercentageAsHex = ""
 	}
 	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
@@ -205,7 +204,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 
 		endPos := pos + length + rLength + sLength + vLength + headerByteLength
 
-		if forkID >= forkID5 {
+		if forkID >= DRAGONFRUIT_FORKID {
 			endPos += efficiencyPercentageByteLength
 		}
 
@@ -234,7 +233,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 		sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
 		vData := txsData[dataStart+rLength+sLength : dataStart+rLength+sLength+vLength]
 
-		if forkID >= forkID5 {
+		if forkID >= DRAGONFRUIT_FORKID {
 			efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
 			efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
 		}
@@ -312,29 +311,6 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 	}
 
 	return receipt
-}
-
-func toPostgresInterval(duration string) (string, error) {
-	unit := duration[len(duration)-1]
-	var pgUnit string
-
-	switch unit {
-	case 's':
-		pgUnit = "second"
-	case 'm':
-		pgUnit = "minute"
-	case 'h':
-		pgUnit = "hour"
-	default:
-		return "", ErrUnsupportedDuration
-	}
-
-	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:gomnd
-	if isMoreThanOne {
-		pgUnit = pgUnit + "s"
-	}
-
-	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
 }
 
 // IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and

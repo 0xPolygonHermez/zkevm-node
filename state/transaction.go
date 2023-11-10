@@ -134,7 +134,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	}
 
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-	isBatchClosed, err := s.PostgresStorage.IsBatchClosed(ctx, batchNumber, dbTx)
+	isBatchClosed, err := s.IsBatchClosed(ctx, batchNumber, dbTx)
 	if err != nil {
 		return err
 	}
@@ -777,7 +777,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	if s.tree == nil {
 		return nil, ErrStateTreeNil
 	}
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -800,7 +800,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 		stateRoot = l2Block.Root()
 
-		latestL2BlockNumber, err := s.PostgresStorage.GetLastL2BlockNumber(ctx, dbTx)
+		latestL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
 		if err != nil {
 			return nil, err
 		}
@@ -993,7 +993,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.PostgresStorage.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
 	if err != nil {
 		return 0, nil, err
 	}
