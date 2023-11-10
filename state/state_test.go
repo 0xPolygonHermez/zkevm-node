@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
@@ -68,7 +69,7 @@ var (
 			Version:         "",
 		}},
 	}
-	forkID                             uint64 = 5
+	forkID                             uint64 = state.DRAGONFRUIT_FORKID
 	executorClient                     executor.ExecutorServiceClient
 	mtDBServiceClient                  hashdb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
@@ -120,7 +121,7 @@ func TestMain(m *testing.M) {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
 
 	result := m.Run()
 
@@ -349,7 +350,7 @@ func TestAddForcedBatch(t *testing.T) {
 	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num, forced_batch_num) VALUES (2, 2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, forced_batch_num) VALUES (2, 2)")
 	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
@@ -385,7 +386,7 @@ func TestAddVirtualBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
 	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
@@ -421,7 +422,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	err = testState.AddBlock(ctx, block2, tx)
 	assert.NoError(t, err)
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
 	assert.NoError(t, err)
 	require.NoError(t, err)
 	virtualBatch1 := state.VirtualBatch{
@@ -431,7 +432,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
 	assert.NoError(t, err)
 	virtualBatch2 := state.VirtualBatch{
 		BlockNumber: 1,
@@ -1694,7 +1695,7 @@ func TestAddGetL2Block(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.PostgresStorage.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()

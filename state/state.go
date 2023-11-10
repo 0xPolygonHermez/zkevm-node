@@ -28,7 +28,7 @@ var (
 // State is an implementation of the state
 type State struct {
 	cfg Config
-	*PostgresStorage
+	storage
 	executorClient executor.ExecutorServiceClient
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
@@ -39,7 +39,7 @@ type State struct {
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
+func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
 	var once sync.Once
 	once.Do(func() {
 		metrics.Register()
@@ -47,7 +47,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 
 	state := &State{
 		cfg:                     cfg,
-		PostgresStorage:         storage,
+		storage:                 storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
