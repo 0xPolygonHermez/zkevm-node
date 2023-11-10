@@ -302,6 +302,11 @@
 							"type": "integer",
 							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
+						},
+						"L2GasPriceSuggesterFactor": {
+							"type": "number",
+							"description": "L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the\ncalculations when the effective gas price is disabled (testing/metrics purposes)",
+							"default": 0.5
 						}
 					},
 					"additionalProperties": false,
