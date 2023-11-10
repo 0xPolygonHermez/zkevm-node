@@ -622,7 +622,7 @@ func Test_OOCErrors(t *testing.T) {
 				})
 				return err.Error()
 			},
-			expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 30000000: not enough step counters to continue the execution",
+			expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 50000: out of gas",
 		},
 	}
 
