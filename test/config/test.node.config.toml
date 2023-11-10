@@ -46,7 +46,7 @@ GlobalQueue = 1024
 		NetProfit = 1
 	    BreakEvenFactor = 1.1			
 		FinalDeviationPct = 10
-		L2GasPriceSuggesterFactor = 0.50
+		L2GasPriceSuggesterFactor = 0.5
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
