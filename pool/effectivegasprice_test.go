@@ -13,13 +13,14 @@ const (
 
 var (
 	egpCfg = EffectiveGasPriceCfg{
-		Enabled:           true,
-		L1GasPriceFactor:  0.25,
-		ByteGasCost:       16,
-		ZeroByteGasCost:   4,
-		NetProfit:         1,
-		BreakEvenFactor:   1.1,
-		FinalDeviationPct: 10,
+		Enabled:                   true,
+		L1GasPriceFactor:          0.25,
+		ByteGasCost:               16,
+		ZeroByteGasCost:           4,
+		NetProfit:                 1,
+		BreakEvenFactor:           1.1,
+		FinalDeviationPct:         10,
+		L2GasPriceSuggesterFactor: 0.5,
 	}
 )
 

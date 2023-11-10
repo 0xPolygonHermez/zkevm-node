@@ -244,7 +244,10 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 
 // ValidateBreakEvenGasPrice validates the effective gas price
 func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transaction, preExecutionGasUsed uint64, gasPrices GasPrices) error {
-	breakEvenGasPrice, err := p.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.Data(), tx.GasPrice(), preExecutionGasUsed, gasPrices.L1GasPrice)
+	// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+	txGasPrice, _ := p.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice(), gasPrices.L1GasPrice, gasPrices.L2GasPrice)
+
+	breakEvenGasPrice, err := p.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.Data(), txGasPrice, preExecutionGasUsed, gasPrices.L1GasPrice)
 	if err != nil {
 		if p.cfg.EffectiveGasPrice.Enabled {
 			log.Errorf("error calculating BreakEvenGasPrice: %v", err)
@@ -262,20 +265,20 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 	breakEvenGasPriceWithFactor := new(big.Int)
 	tmpFactor.Int(breakEvenGasPriceWithFactor)
 
-	if breakEvenGasPriceWithFactor.Cmp(tx.GasPrice()) == 1 { // breakEvenGasPriceWithMargin > tx.GasPrice()
+	if breakEvenGasPriceWithFactor.Cmp(txGasPrice) == 1 { // breakEvenGasPriceWithMargin > txGasPrice
 		// check against L2GasPrice now
 		L2GasPrice := big.NewInt(0).SetUint64(gasPrices.L2GasPrice)
-		if tx.GasPrice().Cmp(L2GasPrice) == -1 { // tx.GasPrice() < gasPrices.L2GasPrice
+		if txGasPrice.Cmp(L2GasPrice) == -1 { // txGasPrice < gasPrices.L2GasPrice
 			// reject tx
 			reject = true
 		} else {
 			// accept loss
-			loss = loss.Sub(breakEvenGasPriceWithFactor, tx.GasPrice())
+			loss = loss.Sub(breakEvenGasPriceWithFactor, txGasPrice)
 		}
 	}
 
-	log.Infof("egp-log: tx.GasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, Enabled: %t, tx: %s",
-		tx.GasPrice(), breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
+	log.Infof("egp-log: txGasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, Enabled: %t, tx: %s",
+		txGasPrice, breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
 
 	// Reject transaction if EffectiveGasPrice is enabled
 	if p.cfg.EffectiveGasPrice.Enabled && reject {
