@@ -4,12 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 )
 
 // ErrNotFound represent a not found error.
@@ -32,7 +30,7 @@ func NewStorage() *Storage {
 }
 
 // NewLogFilter persists a new log filter
-func (s *Storage) NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error) {
+func (s *Storage) NewLogFilter(wsConn *concurrentWsConn, filter LogFilter) (string, error) {
 	shouldFilterByBlockHash := filter.BlockHash != nil
 	shouldFilterByBlockRange := filter.FromBlock != nil || filter.ToBlock != nil
 
@@ -44,17 +42,17 @@ func (s *Storage) NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter Lo
 }
 
 // NewBlockFilter persists a new block log filter
-func (s *Storage) NewBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
+func (s *Storage) NewBlockFilter(wsConn *concurrentWsConn) (string, error) {
 	return s.createFilter(FilterTypeBlock, nil, wsConn)
 }
 
 // NewPendingTransactionFilter persists a new pending transaction filter
-func (s *Storage) NewPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
+func (s *Storage) NewPendingTransactionFilter(wsConn *concurrentWsConn) (string, error) {
 	return s.createFilter(FilterTypePendingTx, nil, wsConn)
 }
 
 // create persists the filter to the memory and provides the filter id
-func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *atomic.Pointer[websocket.Conn]) (string, error) {
+func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *concurrentWsConn) (string, error) {
 	lastPoll := time.Now().UTC()
 	id, err := s.generateFilterID()
 	if err != nil {
@@ -155,7 +153,7 @@ func (s *Storage) UninstallFilter(filterID string) error {
 }
 
 // UninstallFilterByWSConn deletes all filters connected to the provided web socket connection
-func (s *Storage) UninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error {
+func (s *Storage) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 	filterIDsToDelete := []string{}
 	s.filters.Range(func(key, value any) bool {
 		id := key.(string)

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -31,7 +30,7 @@ type Filter struct {
 	Type       FilterType
 	Parameters interface{}
 	LastPoll   time.Time
-	WsConn     *atomic.Pointer[websocket.Conn]
+	WsConn     *concurrentWsConn
 
 	wsDataQueue state.Queue[[]byte]
 	mutex       sync.Mutex
@@ -87,7 +86,7 @@ func (f *Filter) sendSubscriptionResponse(data []byte) {
 		return
 	}
 
-	err = f.WsConn.Load().WriteMessage(websocket.TextMessage, message)
+	err = f.WsConn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
 		return

@@ -347,12 +347,11 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	wsConn := new(atomic.Pointer[websocket.Conn])
-	wsConn.Store(innerWsConn)
+	wsConn := newConcurrentWsConn(innerWsConn)
 
 	// Defer WS closure
-	defer func(wsConn *atomic.Pointer[websocket.Conn]) {
-		err = wsConn.Load().Close()
+	defer func(wsConn *concurrentWsConn) {
+		err = wsConn.Close()
 		if err != nil {
 			log.Error(fmt.Sprintf("Unable to gracefully close WS connection, %s", err.Error()))
 		}
@@ -369,7 +368,7 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	}()
 	log.Info("Websocket connection established")
 	for {
-		msgType, message, err := wsConn.Load().ReadMessage()
+		msgType, message, err := wsConn.ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure) {
 				log.Info("Closing WS connection gracefully")
@@ -387,9 +386,9 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 			resp, err := s.handler.HandleWs(message, wsConn, req)
 			if err != nil {
 				log.Error(fmt.Sprintf("Unable to handle WS request, %s", err.Error()))
-				_ = wsConn.Load().WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
+				_ = wsConn.WriteMessage(msgType, []byte(fmt.Sprintf("WS Handle error: %s", err.Error())))
 			} else {
-				_ = wsConn.Load().WriteMessage(msgType, resp)
+				_ = wsConn.WriteMessage(msgType, resp)
 			}
 		}
 	}
@@ -427,7 +426,7 @@ func (s *Server) logConnCounters() {
 	httpConnCounter := atomic.LoadInt64(&s.httpConnCounter)
 	wsConnCounter := atomic.LoadInt64(&s.wsConnCounter)
 	totalConnCounter := httpConnCounter + wsConnCounter
-	log.Debugf("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
+	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
 }
 
 func handleError(w http.ResponseWriter, err error) {
