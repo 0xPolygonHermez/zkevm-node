@@ -32,8 +32,8 @@ type Filter struct {
 	LastPoll   time.Time
 	WsConn     *concurrentWsConn
 
-	wsDataQueue state.Queue[[]byte]
-	mutex       sync.Mutex
+	wsDataQueue *state.Queue[[]byte]
+	mutex       *sync.Mutex
 	isSending   bool
 }
 

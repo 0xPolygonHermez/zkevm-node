@@ -46,7 +46,7 @@ type Server struct {
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
 
-	connCounterMutex sync.Mutex
+	connCounterMutex *sync.Mutex
 	httpConnCounter  int64
 	wsConnCounter    int64
 }
@@ -77,9 +77,10 @@ func NewServer(
 	}
 
 	srv := &Server{
-		config:  cfg,
-		handler: handler,
-		chainID: chainID,
+		config:           cfg,
+		handler:          handler,
+		chainID:          chainID,
+		connCounterMutex: &sync.Mutex{},
 	}
 	return srv
 }

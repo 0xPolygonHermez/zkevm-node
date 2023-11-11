@@ -218,7 +218,7 @@ func (d *DebugEndpoints) TraceBatchByNumber(httpRequest *http.Request, number ty
 
 		buffer := make(chan byte, bufferSize)
 
-		mu := sync.Mutex{}
+		mu := &sync.Mutex{}
 		wg := sync.WaitGroup{}
 		wg.Add(len(receipts))
 		responses := make([]traceResponse, 0, len(receipts))

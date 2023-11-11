@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/google/uuid"
 )
 
@@ -59,11 +60,13 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 		return "", fmt.Errorf("failed to generate filter ID: %w", err)
 	}
 	s.filters.Store(id, &Filter{
-		ID:         id,
-		Type:       t,
-		Parameters: parameters,
-		LastPoll:   lastPoll,
-		WsConn:     wsConn,
+		ID:          id,
+		Type:        t,
+		Parameters:  parameters,
+		LastPoll:    lastPoll,
+		WsConn:      wsConn,
+		wsDataQueue: state.NewQueue[[]byte](),
+		mutex:       &sync.Mutex{},
 	})
 
 	return id, nil
