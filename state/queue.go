@@ -12,13 +12,14 @@ var ErrQueueEmpty = fmt.Errorf("queue is empty")
 // Queue is a generic queue implementation that implements FIFO
 type Queue[T any] struct {
 	items []T
-	mutex sync.Mutex
+	mutex *sync.Mutex
 }
 
 // NewQueue creates a new instance of queue and initializes it
 func NewQueue[T any]() *Queue[T] {
 	return &Queue[T]{
 		items: make([]T, 0),
+		mutex: &sync.Mutex{},
 	}
 }
 

@@ -9,13 +9,16 @@ import (
 // concurrentWsConn is a wrapped web socket connection
 // that provide methods to deal with concurrency
 type concurrentWsConn struct {
-	mutex  sync.Mutex
 	wsConn *websocket.Conn
+	mutex  *sync.Mutex
 }
 
 // NewConcurrentWsConn creates a new instance of concurrentWsConn
 func newConcurrentWsConn(wsConn *websocket.Conn) *concurrentWsConn {
-	return &concurrentWsConn{wsConn: wsConn}
+	return &concurrentWsConn{
+		wsConn: wsConn,
+		mutex:  &sync.Mutex{},
+	}
 }
 
 // ReadMessage reads a message from the inner web socket connection
