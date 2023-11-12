@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -28,13 +27,13 @@ type NewL2BlockEvent struct {
 // filter subscription but can be used by any other component that
 // needs to react to a new L2 block added to the state.
 func (s *State) StartToMonitorNewL2Blocks() {
-	lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+	lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
 	if errors.Is(err, ErrStateNotSynchronized) {
-		lastL2Block = types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0)})
+		lastL2BlockNumber = 0
 	} else if err != nil {
 		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
-	s.lastL2BlockSeen.Store(lastL2Block)
+	s.lastL2BlockNumberSeen = lastL2BlockNumber
 	go s.monitorNewL2Blocks()
 	go s.handleEvents()
 }
@@ -57,7 +56,7 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
-		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+		lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
 			continue
@@ -66,16 +65,15 @@ func (s *State) monitorNewL2Blocks() {
 			waitNextCycle()
 			continue
 		}
-		lastL2BlockSeen := s.lastL2BlockSeen.Load()
 
 		// not updates until now
-		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+		if s.lastL2BlockNumberSeen >= lastL2BlockNumber {
 			waitNextCycle()
 			continue
 		}
 
-		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
-		toBlockNumber := lastL2Block.NumberU64()
+		fromBlockNumber := s.lastL2BlockNumberSeen + 1
+		toBlockNumber := lastL2BlockNumber
 		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
 
 		for bn := fromBlockNumber; bn <= toBlockNumber; bn++ {
@@ -90,7 +88,7 @@ func (s *State) monitorNewL2Blocks() {
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
 			}
-			s.lastL2BlockSeen.Store(block)
+			s.lastL2BlockNumberSeen = block.NumberU64()
 			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %v to be sent", block.NumberU64(), time.Since(start))
 			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
 		}

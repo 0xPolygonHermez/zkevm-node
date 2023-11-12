@@ -315,7 +315,6 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManager 
 
 func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64, pool *pool.Pool, st *state.State, apis map[string]bool) {
 	var err error
-	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.Sequencer.MaxCumulativeGasUsed
 	if !c.IsTrustedSequencer {
 		if c.RPC.SequencerNodeURI == "" {
@@ -332,7 +331,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIEth]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIEth,
-			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, etherman, storage),
+			Service: jsonrpc.NewEthEndpoints(c.RPC, chainID, pool, st, etherman),
 		})
 	}
 
@@ -371,7 +370,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 		})
 	}
 
-	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, services).Start(); err != nil {
+	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, services).Start(); err != nil {
 		log.Fatal(err)
 	}
 }

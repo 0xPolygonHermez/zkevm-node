@@ -4,14 +4,12 @@ import (
 	"context"
 	"math/big"
 	"sync"
-	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -33,7 +31,7 @@ type State struct {
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
-	lastL2BlockSeen         atomic.Pointer[types.Block]
+	lastL2BlockNumberSeen   uint64
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
