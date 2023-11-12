@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -1023,19 +1022,20 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
-	wg := sync.WaitGroup{}
+	//wg := sync.WaitGroup{}
 
-	wg.Add(1)
-	go e.notifyNewHeads(&wg, event)
+	//FRAN: Quitar estos WG
+	//wg.Add(1)
+	go e.notifyNewHeads(event)
 
-	wg.Add(1)
-	go e.notifyNewLogs(&wg, event)
+	//wg.Add(1)
+	go e.notifyNewLogs(event)
 
-	wg.Wait()
+	//wg.Wait()
 }
 
-func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
-	defer wg.Done()
+func (e *EthEndpoints) notifyNewHeads(event state.NewL2BlockEvent) {
+	//defer wg.Done()
 	start := time.Now()
 	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
 	if err != nil {
@@ -1059,8 +1059,8 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
-func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
-	defer wg.Done()
+func (e *EthEndpoints) notifyNewLogs(event state.NewL2BlockEvent) {
+	//defer wg.Done()
 	start := time.Now()
 	logFilters, err := e.storage.GetAllLogFiltersWithWSConn()
 	if err != nil {

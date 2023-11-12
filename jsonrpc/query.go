@@ -40,30 +40,36 @@ type Filter struct {
 // EnqueueSubscriptionDataToBeSent enqueues subscription data to be sent
 // via web sockets connection
 func (f *Filter) EnqueueSubscriptionDataToBeSent(data []byte) {
+	f.mutex.Lock()
 	f.wsDataQueue.Push(data)
+	f.mutex.Unlock()
 }
 
 // SendEnqueuedSubscriptionData consumes all the enqueued subscription data
 // and sends it via web sockets connection.
 func (f *Filter) SendEnqueuedSubscriptionData() {
+	f.mutex.Lock()
 	if f.isSending {
+		f.mutex.Unlock()
 		return
 	}
 
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
 	f.isSending = true
+
 	for {
 		d, err := f.wsDataQueue.Pop()
-		if err == state.ErrQueueEmpty {
-			break
-		} else if err != nil {
-			log.Errorf("failed to pop subscription data from queue to be sent via web sockets to filter %v, %s", f.ID, err.Error())
-			break
+		if err != nil {
+			if err != state.ErrQueueEmpty {
+				log.Errorf("failed to pop subscription data from queue to be sent via web sockets to filter %v, %s", f.ID, err.Error())
+			}
+			f.isSending = false
+			f.mutex.Unlock()
+			return
 		}
+		f.mutex.Unlock()
 		f.sendSubscriptionResponse(d)
+		f.mutex.Lock()
 	}
-	f.isSending = false
 }
 
 // sendSubscriptionResponse send data as subscription response via

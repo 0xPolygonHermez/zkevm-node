@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/big"
-	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -58,7 +57,7 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
-		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+		lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
 			continue
@@ -71,13 +70,13 @@ func (s *State) monitorNewL2Blocks() {
 		lastL2BlockSeen := s.lastL2BlockSeen.Load()
 
 		// not updates until now
-		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+		if lastL2BlockNumber == 0 || lastL2BlockSeen.NumberU64() >= lastL2BlockNumber {
 			waitNextCycle()
 			continue
 		}
 
 		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
-		toBlockNumber := lastL2Block.NumberU64()
+		toBlockNumber := lastL2BlockNumber
 		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
 
 		for bn := fromBlockNumber; bn <= toBlockNumber; bn++ {
@@ -108,12 +107,13 @@ func (s *State) handleEvents() {
 			continue
 		}
 
-		wg := sync.WaitGroup{}
+		//wg := sync.WaitGroup{}
 		for _, handler := range s.newL2BlockEventHandlers {
-			wg.Add(1)
+			//FRAN: Quitar este WG
+			//wg.Add(1)
 			go func(h NewL2BlockEventHandler, e NewL2BlockEvent) {
 				defer func() {
-					wg.Done()
+					//wg.Done()
 					if r := recover(); r != nil {
 						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
 					}
@@ -124,6 +124,6 @@ func (s *State) handleEvents() {
 				log.Debugf("[handleEvents] new l2 block event handler for block %v took %v to be executed", e.Block.NumberU64(), time.Since(start))
 			}(handler, newL2BlockEvent)
 		}
-		wg.Wait()
+		//wg.Wait()
 	}
 }
