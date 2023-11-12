@@ -57,7 +57,7 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
-		lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
+		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
 			continue
@@ -66,17 +66,16 @@ func (s *State) monitorNewL2Blocks() {
 			waitNextCycle()
 			continue
 		}
-
 		lastL2BlockSeen := s.lastL2BlockSeen.Load()
 
 		// not updates until now
-		if lastL2BlockNumber == 0 || lastL2BlockSeen.NumberU64() >= lastL2BlockNumber {
+		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
 			waitNextCycle()
 			continue
 		}
 
 		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
-		toBlockNumber := lastL2BlockNumber
+		toBlockNumber := lastL2Block.NumberU64()
 		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
 
 		for bn := fromBlockNumber; bn <= toBlockNumber; bn++ {
