@@ -1026,10 +1026,10 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 
 	//FRAN: Quitar estos WG
 	//wg.Add(1)
-	go e.notifyNewHeads(event)
+	e.notifyNewHeads(event)
 
 	//wg.Add(1)
-	go e.notifyNewLogs(event)
+	e.notifyNewLogs(event)
 
 	//wg.Wait()
 }

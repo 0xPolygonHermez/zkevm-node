@@ -86,6 +86,7 @@ func (s *State) monitorNewL2Blocks() {
 			}
 			log.Debugf("[monitorNewL2Blocks] sending NewL2BlockEvent for block %v", block.NumberU64())
 			start := time.Now()
+			log.Infof("new l2 block sending: number %v, hash %v", block.NumberU64(), block.Hash().String())
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
 			}
