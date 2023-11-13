@@ -66,7 +66,7 @@ type ClientSynchronizer struct {
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
 	l1SyncOrchestration     *l1SyncOrchestration
-	l1EventExecutors        map[L1EventExecutor]L1EventExecutor
+	l1EventProcessors       map[L1EventProcessor]L1EventProcessor
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -101,7 +101,7 @@ func NewSynchronizer(
 		proverID:                "",
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
-		l1EventExecutors:        make(map[L1EventExecutor]L1EventExecutor),
+		l1EventProcessors:        make(map[L1EventProcessor]L1EventProcessor),
 	}
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -592,8 +592,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 					return err
 				}
 			case etherman.GlobalExitRootsOrder:
-				s.cmdGEREvent.Execute(blocks[i], element.Pos, dbTx)
-				err = s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
+				err = s.l1EventProcessors[GEREventForkID].Process(s.ctx, &blocks[i], element.Pos, dbTx)
+				// err = s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
 				if err != nil {
 					return err
 				}

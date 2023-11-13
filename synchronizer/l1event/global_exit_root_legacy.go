@@ -9,16 +9,16 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type stateGlobalExitRootWriter interface {
+type stateGlobalExitRootInterface interface {
 	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error
 }
 
-// GlobalExitRootLegacyCmd implements L1EventExecutor
-type GlobalExitRootLegacyCmd struct {
-	state stateGlobalExitRootWriter
+// GlobalExitRootLegacy implements L1EventProcessor
+type GlobalExitRootLegacy struct {
+	state stateGlobalExitRootInterface
 }
 
-func (g *GlobalExitRootLegacyCmd) Execute(ctx context.Context, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (g *GlobalExitRootLegacy) Process(ctx context.Context, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	globalExitRoot := l1Block.GlobalExitRoots[postion]
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,
