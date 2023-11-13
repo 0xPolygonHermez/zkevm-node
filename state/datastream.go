@@ -297,7 +297,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var entry uint64 = header.TotalEntries
-	// var l2Blocks []*DSL2Block
 	var currentGER = common.Hash{}
 
 	if entry > 0 {
