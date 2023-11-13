@@ -18,7 +18,7 @@ type GlobalExitRootLegacy struct {
 	state stateGlobalExitRootInterface
 }
 
-func (g *GlobalExitRootLegacy) Process(ctx context.Context, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (g *GlobalExitRootLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	globalExitRoot := l1Block.GlobalExitRoots[postion]
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,

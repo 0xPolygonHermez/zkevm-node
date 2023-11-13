@@ -26,9 +26,6 @@ type EthermanInterface interface {
 }
 
 // L1EventProcessor is the interface that wraps the Execute method for the incomming events from L1 SMC
-type L1EventProcessor interface {
-	Process(ctx context.Context, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error
-}
 
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {

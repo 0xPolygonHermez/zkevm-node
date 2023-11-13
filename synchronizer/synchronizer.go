@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	l1events "github.com/0xPolygonHermez/zkevm-node/synchronizer/l1events"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -66,7 +67,7 @@ type ClientSynchronizer struct {
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
 	l1SyncOrchestration     *l1SyncOrchestration
-	l1EventProcessors       map[L1EventProcessor]L1EventProcessor
+	l1EventProcessors       *l1events.L1EventProcessors
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -101,7 +102,7 @@ func NewSynchronizer(
 		proverID:                "",
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
-		l1EventProcessors:        make(map[L1EventProcessor]L1EventProcessor),
+		l1EventProcessors:       defaultsL1EventProcessors(st),
 	}
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -592,10 +593,13 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 					return err
 				}
 			case etherman.GlobalExitRootsOrder:
-				err = s.l1EventProcessors[GEREventForkID].Process(s.ctx, &blocks[i], element.Pos, dbTx)
-				// err = s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, 1, element.Name, &blocks[i], element.Pos, dbTx)
 				if err != nil {
-					return err
+					rollbackErr := dbTx.Rollback(s.ctx)
+					if rollbackErr != nil {
+						log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", globalExitRoot.BlockNumber, rollbackErr.Error(), err)
+						return rollbackErr
+					}
 				}
 			case etherman.SequenceForceBatchesOrder:
 				err = s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i], dbTx)
