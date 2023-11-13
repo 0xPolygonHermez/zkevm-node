@@ -59,15 +59,19 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 	if err != nil {
 		return "", fmt.Errorf("failed to generate filter ID: %w", err)
 	}
-	s.filters.Store(id, &Filter{
-		ID:          id,
-		Type:        t,
-		Parameters:  parameters,
-		LastPoll:    lastPoll,
-		WsConn:      wsConn,
-		wsDataQueue: state.NewQueue[[]byte](),
-		mutex:       &sync.Mutex{},
-	})
+	f := &Filter{
+		ID:            id,
+		Type:          t,
+		Parameters:    parameters,
+		LastPoll:      lastPoll,
+		WsConn:        wsConn,
+		wsQueue:       state.NewQueue[[]byte](),
+		wsQueueSignal: sync.NewCond(&sync.Mutex{}),
+	}
+
+	go state.InfiniteSafeRun(f.SendEnqueuedSubscriptionData, fmt.Sprintf("failed to send enqueued subscription data to filter %v", id), time.Second)
+
+	s.filters.Store(id, f)
 
 	return id, nil
 }

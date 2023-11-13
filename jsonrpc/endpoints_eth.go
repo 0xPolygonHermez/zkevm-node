@@ -20,7 +20,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -1010,7 +1009,7 @@ func (e *EthEndpoints) Subscribe(wsConn *concurrentWsConn, name string, logFilte
 }
 
 // Unsubscribe uninstalls the filter based on the provided filterID
-func (e *EthEndpoints) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) Unsubscribe(wsConn *concurrentWsConn, filterID string) (interface{}, types.Error) {
 	return e.UninstallFilter(filterID)
 }
 
@@ -1053,7 +1052,6 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 		}
 		for _, filter := range blockFilters {
 			filter.EnqueueSubscriptionDataToBeSent(data)
-			go filter.SendEnqueuedSubscriptionData()
 		}
 	}
 	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
@@ -1070,9 +1068,16 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 			filterParameters := filter.Parameters.(LogFilter)
 			bn := types.BlockNumber(event.Block.NumberU64())
 
-			// if from and to blocks are nil, set it to the current block to make
-			// the query faster
-			if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+			if filterParameters.BlockHash != nil {
+				// if the filter block hash is set, we check if the block is the
+				// one with the expected hash, otherwise we ignore the filter
+				bh := *filterParameters.BlockHash
+				if bh.String() != event.Block.Hash().String() {
+					continue
+				}
+			} else if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+				// in case the block hash is nil and also from and to blocks are nil, set it
+				// to the current block to make the query faster
 				filterParameters.FromBlock = &bn
 				filterParameters.ToBlock = &bn
 			} else {
@@ -1085,7 +1090,10 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf(rpcErr.Error(), filter.ID, err)
 						continue
 					}
-					if fromBlock > event.Block.NumberU64() {
+					// if the block number is smaller than the fromBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() < fromBlock {
 						continue
 					}
 					// otherwise set the from block to a fixed number
@@ -1103,7 +1111,10 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf(rpcErr.Error(), filter.ID, err)
 						continue
 					}
-					if toBlock < event.Block.NumberU64() {
+					// if the block number is greater than the toBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() > toBlock {
 						continue
 					}
 					// otherwise set the to block to a fixed number
@@ -1129,7 +1140,6 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 					}
 					filter.EnqueueSubscriptionDataToBeSent(data)
-					go filter.SendEnqueuedSubscriptionData()
 				}
 			}
 		}
