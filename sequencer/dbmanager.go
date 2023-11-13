@@ -164,7 +164,7 @@ func (d *dbManager) sendDataToStreamer() {
 		// Read data from channel
 		fullL2Block := <-d.dataToStream
 
-		l2Block := fullL2Block.L2Block
+		l2Block := fullL2Block
 		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
@@ -339,6 +339,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 
 		l2Transaction := state.DSL2Transaction{
+			L2BlockNumber:               l2Block.L2BlockNumber,
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,
 			EncodedLength:               uint32(len(binaryTxData)),
@@ -346,8 +347,8 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 
 		d.dataToStream <- state.DSL2FullBlock{
-			L2Block: l2Block,
-			Txs:     []state.DSL2Transaction{l2Transaction},
+			DSL2Block: l2Block,
+			Txs:       []state.DSL2Transaction{l2Transaction},
 		}
 	}
 
