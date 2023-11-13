@@ -330,10 +330,13 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			return err
 		}
 
-		l2Txs, err := stateDB.GetDSL2Transactions(ctx, l2Blocks[0].L2BlockNumber, l2Blocks[len(l2Blocks)-1].L2BlockNumber, nil)
-		if err != nil {
-			log.Errorf("Error getting L2 transactions for blocks starting at %d: %s", l2Blocks[0].L2BlockNumber, err.Error())
-			return err
+		l2Txs := make([]*DSL2Transaction, 0)
+		if len(l2Blocks) > 0 {
+			l2Txs, err = stateDB.GetDSL2Transactions(ctx, l2Blocks[0].L2BlockNumber, l2Blocks[len(l2Blocks)-1].L2BlockNumber, nil)
+			if err != nil {
+				log.Errorf("Error getting L2 transactions for blocks starting at %d: %s", l2Blocks[0].L2BlockNumber, err.Error())
+				return err
+			}
 		}
 
 		// TODO: FULL BATCHES
