@@ -36,8 +36,8 @@ func (s *State) StartToMonitorNewL2Blocks() {
 		log.Fatalf("failed to load the last l2 block: %v", err)
 	}
 	s.lastL2BlockSeen.Store(lastL2Block)
-	go s.monitorNewL2Blocks()
-	go s.handleEvents()
+	go InfiniteSafeRun(s.monitorNewL2Blocks, "fail to monitor new l2 blocks: %v:", time.Second)
+	go InfiniteSafeRun(s.handleEvents, "fail to handle events: %v", time.Second)
 }
 
 // RegisterNewL2BlockEventHandler add the provided handler to the list of handlers

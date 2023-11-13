@@ -1090,7 +1090,7 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 					}
 					// otherwise set the from block to a fixed number
 					// to avoid querying it again in the next step
-					fixedFromBlock := types.BlockNumber(fromBlock)
+					fixedFromBlock := types.BlockNumber(event.Block.NumberU64())
 					filterParameters.FromBlock = &fixedFromBlock
 				}
 
@@ -1103,12 +1103,12 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf(rpcErr.Error(), filter.ID, err)
 						continue
 					}
-					if toBlock > event.Block.NumberU64() {
+					if toBlock < event.Block.NumberU64() {
 						continue
 					}
 					// otherwise set the to block to a fixed number
 					// to avoid querying it again in the next step
-					fixedToBlock := types.BlockNumber(toBlock)
+					fixedToBlock := types.BlockNumber(event.Block.NumberU64())
 					filterParameters.ToBlock = &fixedToBlock
 				}
 			}
