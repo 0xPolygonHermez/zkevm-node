@@ -425,7 +425,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				}
 				currentGER = l2block.GlobalExitRoot
 			}
-			// Commit at the end of each batch
+			// Commit at the end of each batch group
 			err = streamServer.CommitAtomicOp()
 			if err != nil {
 				return err
