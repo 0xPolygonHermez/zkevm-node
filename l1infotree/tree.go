@@ -8,7 +8,7 @@ import (
 
 // L1InfoTree provides methods to compute L1InfoTree
 type L1InfoTree struct {
-	height uint8
+	height     uint8
 	zeroHashes [][32]byte
 }
 
@@ -16,13 +16,13 @@ type L1InfoTree struct {
 func NewL1InfoTree(height uint8) *L1InfoTree {
 	return &L1InfoTree{
 		zeroHashes: generateZeroHashes(height),
-		height: height,
+		height:     height,
 	}
 }
 
 func buildIntermediate(leaves [][32]byte) ([][][]byte, [][32]byte) {
 	var (
-		nodes [][][]byte
+		nodes  [][][]byte
 		hashes [][32]byte
 	)
 	for i := 0; i < len(leaves); i += 2 {
@@ -34,10 +34,11 @@ func buildIntermediate(leaves [][32]byte) ([][][]byte, [][32]byte) {
 	return nodes, hashes
 }
 
+// BuildL1InfoRoot computes the root given the leaves of the tree
 func (mt *L1InfoTree) BuildL1InfoRoot(leaves [][32]byte) (common.Hash, error) {
 	var (
 		nodes [][][][]byte
-		ns [][][]byte
+		ns    [][][]byte
 	)
 	if len(leaves) == 0 {
 		leaves = append(leaves, mt.zeroHashes[0])
@@ -53,6 +54,6 @@ func (mt *L1InfoTree) BuildL1InfoRoot(leaves [][32]byte) (common.Hash, error) {
 	if len(ns) != 1 {
 		return common.Hash{}, fmt.Errorf("error: more than one root detected: %+v", nodes)
 	}
-	
+
 	return common.BytesToHash(ns[0][0]), nil
 }

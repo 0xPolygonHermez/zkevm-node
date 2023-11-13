@@ -3,10 +3,10 @@ package l1infotree
 import (
 	"encoding/binary"
 
-	"github.com/iden3/go-iden3-crypto/keccak256"
-	"golang.org/x/crypto/sha3"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
+	"golang.org/x/crypto/sha3"
 )
 
 // Hash calculates the keccak hash of elements.

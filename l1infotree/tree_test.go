@@ -28,7 +28,7 @@ func TestComputeTreeRoot(t *testing.T) {
 		if len(leaves) != 0 {
 			root, err := mt.BuildL1InfoRoot(leaves)
 			require.NoError(t, err)
-			require.Equal(t, testVector.CurrentRoot, root)	
+			require.Equal(t, testVector.CurrentRoot, root)
 		}
 
 		leaves = append(leaves, testVector.NewLeafValue)
