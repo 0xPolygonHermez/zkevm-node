@@ -14,7 +14,7 @@ func TestHashLeaf(t *testing.T) {
 	var minTimestamp uint64 = 1697231573
 	ger := common.HexToHash("0x16994edfddddb9480667b64174fc00d3b6da7290d37b8db3a16571b4ddf0789f")
 
-	leaf := hashLeafData(ger, prevBlockHash, minTimestamp)
+	leaf := HashLeafData(ger, prevBlockHash, minTimestamp)
 
 	assert.Equal(t, expectedLeafHash, common.BytesToHash(leaf[:]))
 }
