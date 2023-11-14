@@ -423,9 +423,7 @@ func (s *Server) decreaseWsConnCounter() {
 }
 
 func (s *Server) logConnCounters() {
-	httpConnCounter := s.httpConnCounter
-	wsConnCounter := s.wsConnCounter
-	totalConnCounter := httpConnCounter + wsConnCounter
+	totalConnCounter := s.httpConnCounter + s.wsConnCounter
 	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
 }
 
