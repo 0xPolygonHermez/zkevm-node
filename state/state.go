@@ -31,7 +31,6 @@ type State struct {
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
-	lastL2BlockNumberSeen   uint64
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }

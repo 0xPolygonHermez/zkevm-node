@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -29,13 +28,6 @@ type NewL2BlockEvent struct {
 // filter subscription but can be used by any other component that
 // needs to react to a new L2 block added to the state.
 func (s *State) StartToMonitorNewL2Blocks() {
-	lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
-	if errors.Is(err, ErrStateNotSynchronized) {
-		lastL2BlockNumber = 0
-	} else if err != nil {
-		log.Fatalf("failed to load the last l2 block: %v", err)
-	}
-	atomic.StoreUint64(&s.lastL2BlockNumberSeen, lastL2BlockNumber)
 	go InfiniteSafeRun(s.monitorNewL2Blocks, "fail to monitor new l2 blocks: %v:", time.Second)
 	go InfiniteSafeRun(s.handleEvents, "fail to handle events: %v", time.Second)
 }
@@ -52,6 +44,14 @@ func (s *State) monitorNewL2Blocks() {
 		time.Sleep(newL2BlocksCheckInterval)
 	}
 
+	lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2BlockNumber = 0
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
+	}
+	lastL2BlockNumberSeen := lastL2BlockNumber
+
 	for {
 		if len(s.newL2BlockEventHandlers) == 0 {
 			waitNextCycle()
@@ -67,8 +67,6 @@ func (s *State) monitorNewL2Blocks() {
 			waitNextCycle()
 			continue
 		}
-
-		lastL2BlockNumberSeen := atomic.LoadUint64(&s.lastL2BlockNumberSeen)
 
 		// not updates until now
 		if lastL2BlockNumber == 0 || lastL2BlockNumberSeen >= lastL2BlockNumber {
@@ -91,7 +89,7 @@ func (s *State) monitorNewL2Blocks() {
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
 			}
-			atomic.StoreUint64(&s.lastL2BlockNumberSeen, block.NumberU64())
+			lastL2BlockNumberSeen = block.NumberU64()
 			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %v to be sent", block.NumberU64(), time.Since(start))
 			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
 		}

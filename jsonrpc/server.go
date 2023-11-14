@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
@@ -397,35 +396,35 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 
 func (s *Server) increaseHttpConnCounter() {
 	s.connCounterMutex.Lock()
-	atomic.AddInt64(&s.httpConnCounter, 1)
+	s.httpConnCounter++
 	s.logConnCounters()
 	s.connCounterMutex.Unlock()
 }
 
 func (s *Server) decreaseHttpConnCounter() {
 	s.connCounterMutex.Lock()
-	atomic.AddInt64(&s.httpConnCounter, -1)
+	s.httpConnCounter--
 	s.logConnCounters()
 	s.connCounterMutex.Unlock()
 }
 
 func (s *Server) increaseWsConnCounter() {
 	s.connCounterMutex.Lock()
-	atomic.AddInt64(&s.wsConnCounter, 1)
+	s.wsConnCounter++
 	s.logConnCounters()
 	s.connCounterMutex.Unlock()
 }
 
 func (s *Server) decreaseWsConnCounter() {
 	s.connCounterMutex.Lock()
-	atomic.AddInt64(&s.wsConnCounter, -1)
+	s.wsConnCounter--
 	s.logConnCounters()
 	s.connCounterMutex.Unlock()
 }
 
 func (s *Server) logConnCounters() {
-	httpConnCounter := atomic.LoadInt64(&s.httpConnCounter)
-	wsConnCounter := atomic.LoadInt64(&s.wsConnCounter)
+	httpConnCounter := s.httpConnCounter
+	wsConnCounter := s.wsConnCounter
 	totalConnCounter := httpConnCounter + wsConnCounter
 	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
 }
