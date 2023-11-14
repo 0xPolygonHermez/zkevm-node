@@ -1,29 +1,29 @@
 DOCKERCOMPOSE := docker-compose -f docker-compose.yml
-DOCKERCOMPOSEAPPSEQ := xgon-sequencer
-DOCKERCOMPOSEAPPSEQSENDER := xgon-sequence-sender
-DOCKERCOMPOSEAPPL2GASP := xgon-l2gaspricer
-DOCKERCOMPOSEAPPAGG := xgon-aggregator
-DOCKERCOMPOSEAPPRPC := xgon-json-rpc
-DOCKERCOMPOSEAPPSYNC := xgon-sync
-DOCKERCOMPOSEAPPETHTXMANAGER := xgon-eth-tx-manager
-DOCKERCOMPOSESTATEDB := xgon-state-db
-DOCKERCOMPOSEPOOLDB := xgon-pool-db
-DOCKERCOMPOSEEVENTDB := xgon-event-db
-DOCKERCOMPOSEDACDB := xgon-data-availability-db
-DOCKERCOMPOSENETWORK := xgon-mock-l1-network
-DOCKERCOMPOSEEXPLORERL1 := xgon-explorer-l1
-DOCKERCOMPOSEEXPLORERL1DB := xgon-explorer-l1-db
-DOCKERCOMPOSEEXPLORERL2 := xgon-explorer-l2
-DOCKERCOMPOSEEXPLORERL2DB := xgon-explorer-l2-db
-DOCKERCOMPOSEEXPLORERRPC := xgon-explorer-json-rpc
-DOCKERCOMPOSEDACNODE := xgon-data-availability
-DOCKERCOMPOSEZKPROVER := xgon-prover
-DOCKERCOMPOSEPERMISSIONLESSDB := xgon-permissionless-db
-DOCKERCOMPOSEPERMISSIONLESSNODE := xgon-permissionless-node
-DOCKERCOMPOSEPERMISSIONLESSNODEDAC := xgon-permissionless-node-forced-DAC
-DOCKERCOMPOSEPERMISSIONLESSZKPROVER := xgon-permissionless-prover
-DOCKERCOMPOSENODEAPPROVE := xgon-approve
-DOCKERCOMPOSEMETRICS := xgon-metrics
+DOCKERCOMPOSEAPPSEQ := x1-sequencer
+DOCKERCOMPOSEAPPSEQSENDER := x1-sequence-sender
+DOCKERCOMPOSEAPPL2GASP := x1-l2gaspricer
+DOCKERCOMPOSEAPPAGG := x1-aggregator
+DOCKERCOMPOSEAPPRPC := x1-json-rpc
+DOCKERCOMPOSEAPPSYNC := x1-sync
+DOCKERCOMPOSEAPPETHTXMANAGER := x1-eth-tx-manager
+DOCKERCOMPOSESTATEDB := x1-state-db
+DOCKERCOMPOSEPOOLDB := x1-pool-db
+DOCKERCOMPOSEEVENTDB := x1-event-db
+DOCKERCOMPOSEDACDB := x1-data-availability-db
+DOCKERCOMPOSENETWORK := x1-mock-l1-network
+DOCKERCOMPOSEEXPLORERL1 := x1-explorer-l1
+DOCKERCOMPOSEEXPLORERL1DB := x1-explorer-l1-db
+DOCKERCOMPOSEEXPLORERL2 := x1-explorer-l2
+DOCKERCOMPOSEEXPLORERL2DB := x1-explorer-l2-db
+DOCKERCOMPOSEEXPLORERRPC := x1-explorer-json-rpc
+DOCKERCOMPOSEDACNODE := x1-data-availability
+DOCKERCOMPOSEZKPROVER := x1-prover
+DOCKERCOMPOSEPERMISSIONLESSDB := x1-permissionless-db
+DOCKERCOMPOSEPERMISSIONLESSNODE := x1-permissionless-node
+DOCKERCOMPOSEPERMISSIONLESSNODEDAC := x1-permissionless-node-forced-DAC
+DOCKERCOMPOSEPERMISSIONLESSZKPROVER := x1-permissionless-prover
+DOCKERCOMPOSENODEAPPROVE := x1-approve
+DOCKERCOMPOSEMETRICS := x1-metrics
 DOCKERCOMPOSEGRAFANA := grafana
 
 RUNSTATEDB := $(DOCKERCOMPOSE) up -d $(DOCKERCOMPOSESTATEDB)
@@ -243,7 +243,7 @@ test-e2e-group-11: stop ## Runs group 11 e2e tests checking race conditions
 
 
 .PHONY: test-e2e-e2e-group-dac-1
-test-e2e-group-dac-1: stop ## Runs xgon-validium-1 e2e tests checking race conditions
+test-e2e-group-dac-1: stop ## Runs x1-validium-1 e2e tests checking race conditions
 	$(RUNSTATEDB)
 	$(RUNPOOLDB)
 	$(RUNEVENTDB)
@@ -581,8 +581,8 @@ generate-mocks: ## Generates mocks for the tests, using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=poolMock --filename=mock_pool.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=zkEVMClientInterface --dir=../synchronizer --output=../synchronizer --outpkg=synchronizer --structname=zkEVMClientMock --filename=mock_zkevmclient.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer --outpkg=synchronizer --structname=dbTxMock --filename=mock_dbtx.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientFactoryInterface --srcpkg=github.com/okx/Xgon-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientFactoryMock --filename=mock_datacommitteeclientfactory.go
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientInterface --srcpkg=github.com/okx/Xgon-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientMock --filename=mock_datacommitteeclient.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientFactoryInterface --srcpkg=github.com/okx/x1-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientFactoryMock --filename=mock_datacommitteeclientfactory.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ClientInterface --srcpkg=github.com/okx/x1-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientMock --filename=mock_datacommitteeclient.go
 
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=etherscanMock --filename=mock_etherscan.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=GasPricer --srcpkg=github.com/ethereum/go-ethereum --output=../etherman --outpkg=etherman --structname=ethGasStationMock --filename=mock_ethgasstation.go

@@ -174,6 +174,6 @@ require (
 	github.com/segmentio/kafka-go v0.4.43
 )
 
-replace github.com/0xPolygon/cdk-data-availability => github.com/okx/Xgon-data-availability v0.0.0-20231017042200-1e5db80e4477
+replace github.com/0xPolygon/cdk-data-availability => github.com/okx/x1-data-availability v0.0.0-20231113064732-3afebde141fc
 
 replace github.com/0xPolygonHermez/zkevm-node => ./

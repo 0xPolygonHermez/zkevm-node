@@ -1,27 +1,27 @@
 # Component: Sequencer
 
-## Xgon Sequencer:
+## X1 Sequencer:
 
-The Xgon Sequencer is an optional but ancillary module that proposes new batches using transactions stored in the Pool Database.
+The X1 Sequencer is an optional but ancillary module that proposes new batches using transactions stored in the Pool Database.
 
 ## Running:
 
-The preferred way to run the Xgon Sequencer component is via Docker and Docker Compose.
+The preferred way to run the X1 Sequencer component is via Docker and Docker Compose.
 
 ```bash
-docker pull okx/xgon-node
+docker pull okx/x1-node
 ```
 
-To orchestrate multiple deployments of the different Xgon Node components, a `docker-compose.yaml` file for Docker Compose can be used:
+To orchestrate multiple deployments of the different X1 Node components, a `docker-compose.yaml` file for Docker Compose can be used:
 
 ```yaml
-  xgon-sequencer:
-    container_name: xgon-sequencer
-    image: xgon-node
+  x1-sequencer:
+    container_name: x1-sequencer
+    image: x1-node
     command:
         - "/bin/sh"
         - "-c"
-        - "/app/xgon-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
+        - "/app/x1-node run --genesis /app/genesis.json --cfg /app/config.toml --components sequencer"
 ```
 
 The container alone needs some parameters configured, access to certain configuration files and the appropriate ports exposed.

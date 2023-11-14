@@ -1,19 +1,19 @@
 version: "3.5"
 networks:
   default:
-    name: xgon
+    name: x1
 services:
-  xgon-rpc:
-    container_name: xgon-rpc
+  x1-rpc:
+    container_name: x1-rpc
     restart: unless-stopped
     depends_on:
-      xgon-pool-db:
+      x1-pool-db:
         condition: service_healthy
-      xgon-state-db:
+      x1-state-db:
         condition: service_healthy
-      xgon-sync:
+      x1-sync:
         condition: service_started
-    image: xgon-node
+    image: x1-node
     deploy:
       resources:
         limits:
@@ -30,15 +30,15 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xgon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
+      - "/app/x1-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components rpc"
 
-  xgon-sync:
-    container_name: xgon-sync
+  x1-sync:
+    container_name: x1-sync
     restart: unless-stopped
     depends_on:
-      xgon-state-db:
+      x1-state-db:
         condition: service_healthy
-    image: xgon-node
+    image: x1-node
     ports:
       - 9092:9091 # needed if metrics enabled
     deploy:
@@ -54,10 +54,10 @@ services:
     command:
       - "/bin/sh"
       - "-c"
-      - "/app/xgon-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
+      - "/app/x1-node run --network ${ZKEVM_NETWORK} --cfg /app/config.toml --components synchronizer"
 
-  xgon-state-db:
-    container_name: xgon-state-db
+  x1-state-db:
+    container_name: x1-state-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -82,8 +82,8 @@ services:
       - "-c"
       - "config_file=/etc/postgresql.conf"
 
-  xgon-pool-db:
-    container_name: xgon-pool-db
+  x1-pool-db:
+    container_name: x1-pool-db
     restart: unless-stopped
     image: postgres:15
     healthcheck:
@@ -104,12 +104,12 @@ services:
       - "-N"
       - "500"
 
-  xgon-prover:
-    container_name: xgon-prover
+  x1-prover:
+    container_name: x1-prover
     restart: unless-stopped
     image: hermeznetwork/zkevm-prover:v2.2.0
     depends_on:
-      xgon-state-db:
+      x1-state-db:
         condition: service_healthy
     ports:
       - 50061:50061 # MT

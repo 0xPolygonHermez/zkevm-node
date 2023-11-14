@@ -39,7 +39,7 @@ func TestDataCommittee(t *testing.T) {
 		ksFile           = "/tmp/pkey"
 		cfgFile          = "/tmp/dacnodeconfigfile.json"
 		ksPass           = "pass"
-		dacNodeContainer = "okexchain/xgon-data-availability:origin_release_v0.1.0_20231017143653"
+		dacNodeContainer = "okexchain/x1-dac:e2e_v0.1.0_20231113"
 	)
 
 	// Setup
@@ -60,9 +60,10 @@ func TestDataCommittee(t *testing.T) {
 	defer func() {
 		require.NoError(t, opsman.StopDACDB())
 	}()
+	require.NoError(t, opsman.StartDACDB())
 	err = opsman.Setup()
 	require.NoError(t, err)
-	require.NoError(t, opsman.StartDACDB())
+
 	time.Sleep(5 * time.Second)
 	authL2, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
@@ -88,7 +89,7 @@ func TestDataCommittee(t *testing.T) {
 		membs = append(membs, member{
 			addr: crypto.PubkeyToAddress(pk.PublicKey),
 			pk:   pk,
-			url:  fmt.Sprintf("http://xgon-data-availability-%d:420%d", i, i),
+			url:  fmt.Sprintf("http://x1-data-availability-%d:420%d", i, i),
 			i:    i,
 		})
 	}
@@ -110,9 +111,9 @@ func TestDataCommittee(t *testing.T) {
 	// Spin up M DAC nodes
 	dacNodeConfig := config.Config{
 		L1: config.L1Config{
-			RpcURL:               "http://xgon-mock-l1-network:8545",
-			WsURL:                "ws://xgon-mock-l1-network:8546",
-			CDKValidiumAddress:   "0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C",
+			RpcURL:               "http://x1-mock-l1-network:8545",
+			WsURL:                "ws://x1-mock-l1-network:8546",
+			ZkEVMAddress:         "0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C",
 			DataCommitteeAddress: "0x6Ae5b0863dBF3477335c0102DBF432aFf04ceb22",
 			Timeout:              cTypes.NewDuration(time.Minute * 3),
 			RetryPeriod:          cTypes.NewDuration(time.Second * 5),
@@ -125,7 +126,7 @@ func TestDataCommittee(t *testing.T) {
 			Name:      "committee_db",
 			User:      "committee_user",
 			Password:  "committee_password",
-			Host:      "xgon-data-availability-db",
+			Host:      "x1-data-availability-db",
 			Port:      "5432",
 			EnableLog: false,
 			MaxConns:  10,
@@ -150,10 +151,10 @@ func TestDataCommittee(t *testing.T) {
 		// Stop DAC nodes
 		for i := 0; i < mMembers; i++ {
 			assert.NoError(t, exec.Command(
-				"docker", "kill", "xgon-data-availability-"+strconv.Itoa(i),
+				"docker", "kill", "x1-data-availability-"+strconv.Itoa(i),
 			).Run())
 			assert.NoError(t, exec.Command(
-				"docker", "rm", "xgon-data-availability-"+strconv.Itoa(i),
+				"docker", "rm", "x1-data-availability-"+strconv.Itoa(i),
 			).Run())
 		}
 		// Stop permissionless node
@@ -177,14 +178,15 @@ func TestDataCommittee(t *testing.T) {
 		// Run DAC node
 		cmd := exec.Command(
 			"docker", "run", "-d",
-			"--name", "xgon-data-availability-"+strconv.Itoa(m.i),
+			"--name", "x1-data-availability-"+strconv.Itoa(m.i),
 			"-v", cfgFile+":/app/config.json",
 			"-v", ksFile+":"+ksFile,
-			"--network", "xgon",
+			"--network", "x1",
 			dacNodeContainer,
 			"/bin/sh", "-c",
-			"/app/xgon-data-availability run --cfg /app/config.json",
+			"/app/x1-data-availability run --cfg /app/config.json",
 		)
+		log.Infof("cmd:%v", cmd.String())
 		out, err := cmd.CombinedOutput()
 		require.NoError(t, err, string(out))
 		log.Infof("DAC node %d started", m.i)

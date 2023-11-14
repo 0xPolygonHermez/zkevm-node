@@ -583,14 +583,14 @@ Password="pool_password"
 
 **Type:** : `string`
 
-**Default:** `"xgon-pool-db"`
+**Default:** `"x1-pool-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("xgon-pool-db"):
+**Example setting the default value** ("x1-pool-db"):
 ```
 [Pool.DB]
-Host="xgon-pool-db"
+Host="x1-pool-db"
 ```
 
 #### <a name="Pool_DB_Port"></a>7.6.5. `Pool.DB.Port`
@@ -2821,12 +2821,12 @@ Factor=0.15
 
 **Type:** : `string`
 
-**Default:** `"xgon-prover:50071"`
+**Default:** `"x1-prover:50071"`
 
-**Example setting the default value** ("xgon-prover:50071"):
+**Example setting the default value** ("x1-prover:50071"):
 ```
 [Executor]
-URI="xgon-prover:50071"
+URI="x1-prover:50071"
 ```
 
 ### <a name="Executor_MaxResourceExhaustedAttempts"></a>15.2. `Executor.MaxResourceExhaustedAttempts`
@@ -2894,14 +2894,14 @@ MaxGRPCMessageSize=100000000
 
 **Type:** : `string`
 
-**Default:** `"xgon-prover:50061"`
+**Default:** `"x1-prover:50061"`
 
 **Description:** URI is the server URI.
 
-**Example setting the default value** ("xgon-prover:50061"):
+**Example setting the default value** ("x1-prover:50061"):
 ```
 [MTClient]
-URI="xgon-prover:50061"
+URI="x1-prover:50061"
 ```
 
 ## <a name="StateDB"></a>17. `[StateDB]`
@@ -2965,14 +2965,14 @@ Password="state_password"
 
 **Type:** : `string`
 
-**Default:** `"xgon-state-db"`
+**Default:** `"x1-state-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("xgon-state-db"):
+**Example setting the default value** ("x1-state-db"):
 ```
 [StateDB]
-Host="xgon-state-db"
+Host="x1-state-db"
 ```
 
 ### <a name="StateDB_Port"></a>17.5. `StateDB.Port`
@@ -3298,14 +3298,14 @@ Password="prover_pass"
 
 **Type:** : `string`
 
-**Default:** `"xgon-state-db"`
+**Default:** `"x1-state-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("xgon-state-db"):
+**Example setting the default value** ("x1-state-db"):
 ```
 [HashDB]
-Host="xgon-state-db"
+Host="x1-state-db"
 ```
 
 ### <a name="HashDB_Port"></a>20.5. `HashDB.Port`

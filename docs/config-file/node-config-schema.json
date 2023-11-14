@@ -214,7 +214,7 @@
 						"Host": {
 							"type": "string",
 							"description": "Host address of database",
-							"default": "xgon-pool-db"
+							"default": "x1-pool-db"
 						},
 						"Port": {
 							"type": "string",
@@ -1135,7 +1135,7 @@
 			"properties": {
 				"URI": {
 					"type": "string",
-					"default": "xgon-prover:50071"
+					"default": "x1-prover:50071"
 				},
 				"MaxResourceExhaustedAttempts": {
 					"type": "integer",
@@ -1166,7 +1166,7 @@
 				"URI": {
 					"type": "string",
 					"description": "URI is the server URI.",
-					"default": "xgon-prover:50061"
+					"default": "x1-prover:50061"
 				}
 			},
 			"additionalProperties": false,
@@ -1193,7 +1193,7 @@
 				"Host": {
 					"type": "string",
 					"description": "Host address of database",
-					"default": "xgon-state-db"
+					"default": "x1-state-db"
 				},
 				"Port": {
 					"type": "string",
@@ -1321,7 +1321,7 @@
 				"Host": {
 					"type": "string",
 					"description": "Host address of database",
-					"default": "xgon-state-db"
+					"default": "x1-state-db"
 				},
 				"Port": {
 					"type": "string",

@@ -555,7 +555,7 @@ func saveTraceResultToFile(t *testing.T, name, network string, signedTx *ethType
 	if skip {
 		return
 	}
-	const path = "/Users/thiago/github.com/okx/xgon-node/dist/%v.json"
+	const path = "/Users/thiago/github.com/okx/x1-node/dist/%v.json"
 	sanitizedFileName := strings.ReplaceAll(name+"_"+network, " ", "_")
 	filePath := fmt.Sprintf(path, sanitizedFileName)
 	b, _ := signedTx.MarshalBinary()

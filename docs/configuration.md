@@ -35,7 +35,7 @@ For details about the contents you can read specifications [here](config-file/cu
 
 ### Prover Config
 
-Please check [prover repository](https://github.com/okx/xgon-prover)  for further information
+Please check [prover repository](https://github.com/okx/x1-prover)  for further information
 
 Examples: 
  - `config/environments/mainnet/prover.config.json`
