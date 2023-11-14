@@ -424,7 +424,7 @@ func (s *Server) decreaseWsConnCounter() {
 
 func (s *Server) logConnCounters() {
 	totalConnCounter := s.httpConnCounter + s.wsConnCounter
-	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", httpConnCounter, wsConnCounter, totalConnCounter)
+	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", s.httpConnCounter, s.wsConnCounter, totalConnCounter)
 }
 
 func handleError(w http.ResponseWriter, err error) {
