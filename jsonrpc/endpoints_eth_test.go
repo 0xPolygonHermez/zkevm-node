@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -3630,7 +3628,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3654,7 +3652,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3717,7 +3715,7 @@ func TestNewFilter(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
@@ -3768,7 +3766,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3779,7 +3777,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
@@ -3828,9 +3826,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "New pending transaction filter created successfully",
 		// 	ExpectedResult: "1",
 		// 	ExpectedError:  nil,
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("1", nil).
 		// 			Once()
 		// 	},
@@ -3839,9 +3837,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "failed to create new pending transaction filter",
 		// 	ExpectedResult: "",
 		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("", errors.New("failed to add new pending transaction filter")).
 		// 			Once()
 		// 	},
@@ -4898,7 +4896,7 @@ func TestSubscribeNewHeads(t *testing.T) {
 			Name: "Subscribe to new heads Successfully",
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("0x1", nil).
 					Once()
 			},
@@ -4908,7 +4906,7 @@ func TestSubscribeNewHeads(t *testing.T) {
 			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("", fmt.Errorf("failed to add filter to storage")).
 					Once()
 			},
@@ -4976,7 +4974,7 @@ func TestSubscribeNewLogs(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("0x1", nil).
 					Once()
 			},
@@ -5001,7 +4999,7 @@ func TestSubscribeNewLogs(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("", fmt.Errorf("failed to add filter to storage")).
 					Once()
 			},
