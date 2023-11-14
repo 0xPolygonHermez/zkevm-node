@@ -40,7 +40,7 @@ truncate: ## Runs the offline tool to truncate the stream file
 	go run main.go truncate -cfg config/tool.config.toml -entry $(arguments)
 
 # .PHONY: reprocess
-reprocess: ## Runs the tool to reprocess the information in the stream stream since a given l2 block
+reprocess: ## Runs the tool to reprocess the information in the stream since a given l2 block
 	go run main.go reprocess -cfg config/tool.config.toml -genesis ../test/config/test.genesis.config.json -l2block $(arguments)
 
 ## Help display.
