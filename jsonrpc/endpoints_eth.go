@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -21,7 +20,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -793,7 +791,7 @@ func (e *EthEndpoints) NewBlockFilter() (interface{}, types.Error) {
 }
 
 // internal
-func (e *EthEndpoints) newBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (interface{}, types.Error) {
+func (e *EthEndpoints) newBlockFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
 	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new block filter", err)
@@ -810,7 +808,7 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 }
 
 // internal
-func (e *EthEndpoints) newFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) newFilter(wsConn *concurrentWsConn, filter LogFilter) (interface{}, types.Error) {
 	id, err := e.storage.NewLogFilter(wsConn, filter)
 	if errors.Is(err, ErrFilterInvalidPayload) {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, err.Error(), nil)
@@ -829,7 +827,7 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 }
 
 // internal
-func (e *EthEndpoints) newPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (interface{}, types.Error) {
+func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
 	return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
 	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
 	// if err != nil {
@@ -991,7 +989,7 @@ func (e *EthEndpoints) updateFilterLastPoll(filterID string) types.Error {
 // The node will return a subscription id.
 // For each event that matches the subscription a notification with relevant
 // data is sent together with the subscription id.
-func (e *EthEndpoints) Subscribe(wsConn *atomic.Pointer[websocket.Conn], name string, logFilter *LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) Subscribe(wsConn *concurrentWsConn, name string, logFilter *LogFilter) (interface{}, types.Error) {
 	switch name {
 	case "newHeads":
 		return e.newBlockFilter(wsConn)
@@ -1011,13 +1009,13 @@ func (e *EthEndpoints) Subscribe(wsConn *atomic.Pointer[websocket.Conn], name st
 }
 
 // Unsubscribe uninstalls the filter based on the provided filterID
-func (e *EthEndpoints) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) Unsubscribe(wsConn *concurrentWsConn, filterID string) (interface{}, types.Error) {
 	return e.UninstallFilter(filterID)
 }
 
 // uninstallFilterByWSConn uninstalls the filters connected to the
 // provided web socket connection
-func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error {
+func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 	return e.storage.UninstallFilterByWSConn(wsConn)
 }
 
@@ -1054,7 +1052,6 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 		}
 		for _, filter := range blockFilters {
 			filter.EnqueueSubscriptionDataToBeSent(data)
-			go filter.SendEnqueuedSubscriptionData()
 		}
 	}
 	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
@@ -1071,9 +1068,16 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 			filterParameters := filter.Parameters.(LogFilter)
 			bn := types.BlockNumber(event.Block.NumberU64())
 
-			// if from and to blocks are nil, set it to the current block to make
-			// the query faster
-			if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+			if filterParameters.BlockHash != nil {
+				// if the filter block hash is set, we check if the block is the
+				// one with the expected hash, otherwise we ignore the filter
+				bh := *filterParameters.BlockHash
+				if bh.String() != event.Block.Hash().String() {
+					continue
+				}
+			} else if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+				// in case the block hash is nil and also from and to blocks are nil, set it
+				// to the current block to make the query faster
 				filterParameters.FromBlock = &bn
 				filterParameters.ToBlock = &bn
 			} else {
@@ -1086,12 +1090,15 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf(rpcErr.Error(), filter.ID, err)
 						continue
 					}
-					if fromBlock > event.Block.NumberU64() {
+					// if the block number is smaller than the fromBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() < fromBlock {
 						continue
 					}
 					// otherwise set the from block to a fixed number
 					// to avoid querying it again in the next step
-					fixedFromBlock := types.BlockNumber(fromBlock)
+					fixedFromBlock := types.BlockNumber(event.Block.NumberU64())
 					filterParameters.FromBlock = &fixedFromBlock
 				}
 
@@ -1104,12 +1111,15 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf(rpcErr.Error(), filter.ID, err)
 						continue
 					}
-					if toBlock > event.Block.NumberU64() {
+					// if the block number is greater than the toBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() > toBlock {
 						continue
 					}
 					// otherwise set the to block to a fixed number
 					// to avoid querying it again in the next step
-					fixedToBlock := types.BlockNumber(toBlock)
+					fixedToBlock := types.BlockNumber(event.Block.NumberU64())
 					filterParameters.ToBlock = &fixedToBlock
 				}
 			}
@@ -1130,7 +1140,6 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 					}
 					filter.EnqueueSubscriptionDataToBeSent(data)
-					go filter.SendEnqueuedSubscriptionData()
 				}
 			}
 		}

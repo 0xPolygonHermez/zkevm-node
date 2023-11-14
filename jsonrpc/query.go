@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -31,40 +30,41 @@ type Filter struct {
 	Type       FilterType
 	Parameters interface{}
 	LastPoll   time.Time
-	WsConn     *atomic.Pointer[websocket.Conn]
+	WsConn     *concurrentWsConn
 
-	wsDataQueue state.Queue[[]byte]
-	mutex       sync.Mutex
-	isSending   bool
+	wsQueue       *state.Queue[[]byte]
+	wsQueueSignal *sync.Cond
 }
 
 // EnqueueSubscriptionDataToBeSent enqueues subscription data to be sent
 // via web sockets connection
 func (f *Filter) EnqueueSubscriptionDataToBeSent(data []byte) {
-	f.wsDataQueue.Push(data)
+	f.wsQueue.Push(data)
+	f.wsQueueSignal.Broadcast()
 }
 
 // SendEnqueuedSubscriptionData consumes all the enqueued subscription data
 // and sends it via web sockets connection.
 func (f *Filter) SendEnqueuedSubscriptionData() {
-	if f.isSending {
-		return
-	}
-
-	f.mutex.Lock()
-	defer f.mutex.Unlock()
-	f.isSending = true
 	for {
-		d, err := f.wsDataQueue.Pop()
-		if err == state.ErrQueueEmpty {
-			break
-		} else if err != nil {
-			log.Errorf("failed to pop subscription data from queue to be sent via web sockets to filter %v, %s", f.ID, err.Error())
-			break
+		// wait for a signal that a new item was
+		// added to the queue
+		log.Debugf("waiting subscription data signal")
+		f.wsQueueSignal.L.Lock()
+		f.wsQueueSignal.Wait()
+		f.wsQueueSignal.L.Unlock()
+		log.Debugf("subscription data signal received, sending enqueued data")
+		for {
+			d, err := f.wsQueue.Pop()
+			if err == state.ErrQueueEmpty {
+				break
+			} else if err != nil {
+				log.Errorf("failed to pop subscription data from queue to be sent via web sockets to filter %v, %s", f.ID, err.Error())
+				break
+			}
+			f.sendSubscriptionResponse(d)
 		}
-		f.sendSubscriptionResponse(d)
 	}
-	f.isSending = false
 }
 
 // sendSubscriptionResponse send data as subscription response via
@@ -87,7 +87,7 @@ func (f *Filter) sendSubscriptionResponse(data []byte) {
 		return
 	}
 
-	err = f.WsConn.Load().WriteMessage(websocket.TextMessage, message)
+	err = f.WsConn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
 		log.Errorf(fmt.Sprintf(errMessage, f.ID, err.Error()))
 		return
