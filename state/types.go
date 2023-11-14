@@ -183,6 +183,7 @@ type TraceConfig struct {
 	EnableReturnData bool
 	Tracer           *string
 	TracerConfig     json.RawMessage
+	Limit            int
 }
 
 // IsDefaultTracer returns true when no custom tracer is set
@@ -198,6 +199,11 @@ func (t *TraceConfig) Is4ByteTracer() bool {
 // IsCallTracer returns true when should use callTracer
 func (t *TraceConfig) IsCallTracer() bool {
 	return t.Tracer != nil && *t.Tracer == "callTracer"
+}
+
+// IsFlatCallTracer returns true when should use flatCallTracer
+func (t *TraceConfig) IsFlatCallTracer() bool {
+	return t.Tracer != nil && *t.Tracer == "flatCallTracer"
 }
 
 // IsNoopTracer returns true when should use noopTracer
