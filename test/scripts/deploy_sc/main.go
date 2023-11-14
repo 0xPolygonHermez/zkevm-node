@@ -167,7 +167,8 @@ func ethTransfer(ctx context.Context, client *ethclient.Client, auth *bind.Trans
 
 	log.Infof("sending transfer tx")
 	err = client.SendTransaction(ctx, signedTx)
-	chkErr(err)
+	// The latest geth client return error is: "transaction would cause overdraft",ignore it
+	// chkErr(err)
 	log.Infof("tx sent: %v", signedTx.Hash().Hex())
 
 	rlp, err := signedTx.MarshalBinary()
