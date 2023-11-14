@@ -1,4 +1,4 @@
-package synchronizer_l1_events
+package l1events
 
 import (
 	"context"
@@ -8,5 +8,7 @@ import (
 )
 
 type L1EventProcessor interface {
+	String() string
+	SupportedForkIds() []forkIdType
 	Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error
 }

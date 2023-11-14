@@ -1,21 +1,32 @@
-package synchronizer_l1_events
+package l1events
 
 import (
 	"context"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/jackc/pgx/v4"
 )
 
-type stateGlobalExitRootInterface interface {
+type StateGlobalExitRootInterface interface {
 	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
 type GlobalExitRootLegacy struct {
-	state stateGlobalExitRootInterface
+	state StateGlobalExitRootInterface
+}
+
+func NewProcessorGlobalExitRootLegacy(state StateGlobalExitRootInterface) *GlobalExitRootLegacy {
+	return &GlobalExitRootLegacy{state: state}
+}
+
+func (g *GlobalExitRootLegacy) String() string {
+	return "GlobalExitRootLegacy"
+}
+
+func (g *GlobalExitRootLegacy) SupportedForkIds() []forkIdType {
+	return []forkIdType{1, 2, 3, 4, 5, 6}
 }
 
 func (g *GlobalExitRootLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
@@ -28,14 +39,7 @@ func (g *GlobalExitRootLegacy) Process(ctx context.Context, event etherman.Event
 	}
 	err := g.state.AddGlobalExitRoot(ctx, &ger, dbTx)
 	if err != nil {
-		log.Errorf("error storing the globalExitRoot in processGlobalExitRoot. BlockNumber: %d", globalExitRoot.BlockNumber)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", globalExitRoot.BlockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		log.Errorf("error storing the GlobalExitRoot in processGlobalExitRoot. BlockNumber: %d, error: %v", globalExitRoot.BlockNumber, err)
 		return err
 	}
-	return nil
+	return err
 }

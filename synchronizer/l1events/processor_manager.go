@@ -1,4 +1,4 @@
-package synchronizer_l1_events
+package l1events
 
 import (
 	"context"
@@ -9,12 +9,13 @@ import (
 )
 
 const (
-	defaultForkId forkIdType = 0
+	DefaultForkId forkIdType = 0
 )
 
 var (
 	// ErrNotFound is used when the object is not found
-	ErrNotFound = errors.New("not found")
+	ErrNotFound           = errors.New("not found")
+	ErrForkIdNotSupported = errors.New("forkId not supported")
 )
 
 type forkIdType uint64
@@ -30,16 +31,9 @@ func NewL1EventProcessors() *L1EventProcessors {
 	}
 }
 
-func (p *L1EventProcessors) Set(forkId forkIdType, event etherman.EventOrder, processor L1EventProcessor) {
-	if _, ok := p.processors[forkId]; !ok {
-		p.processors[forkId] = make(map[etherman.EventOrder]L1EventProcessor)
-	}
-	p.processors[forkId][event] = processor
-}
-
 func (p *L1EventProcessors) Get(forkId forkIdType, event etherman.EventOrder) L1EventProcessor {
 	if _, ok := p.processors[forkId]; !ok {
-		return p.Get(defaultForkId, event)
+		return p.Get(DefaultForkId, event)
 	}
 	return p.processors[forkId][event]
 }
