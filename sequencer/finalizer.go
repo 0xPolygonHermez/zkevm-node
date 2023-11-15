@@ -534,6 +534,31 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Take into consideration the GER
 	f.nextGERMux.Lock()
 	if f.nextGER != state.ZeroHash {
+		if f.streamServer != nil && f.lastGERHash != f.nextGER && len(f.nextForcedBatches) == 0 && f.batch.isEmpty() {
+			updateGer := state.DSUpdateGER{
+				BatchNumber:    f.batch.batchNumber,
+				Timestamp:      f.batch.timestamp.Unix(),
+				GlobalExitRoot: f.nextGER,
+				Coinbase:       f.sequencerAddress,
+				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(f.batch.batchNumber)),
+				StateRoot:      f.batch.stateRoot,
+			}
+
+			err = f.streamServer.StartAtomicOp()
+			if err != nil {
+				log.Errorf("failed to start atomic op for Update GER on batch %v: %v", f.batch.batchNumber, err)
+			}
+
+			_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
+			if err != nil {
+				log.Errorf("failed to add stream entry for Update GER on batch %v: %v", f.batch.batchNumber, err)
+			}
+
+			err = f.streamServer.CommitAtomicOp()
+			if err != nil {
+				log.Errorf("failed to commit atomic op for Update GER on batch  %v: %v", f.batch.batchNumber, err)
+			}
+		}
 		f.lastGERHash = f.nextGER
 	}
 	f.nextGER = state.ZeroHash
