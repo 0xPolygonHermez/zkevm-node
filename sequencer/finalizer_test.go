@@ -2514,7 +2514,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		batchConstraints:     bc,
 		processRequest:       state.ProcessRequest{},
 		sharedResourcesMux:   new(sync.RWMutex),
-		lastGERHash:          common.Hash{},
+		currentGERHash:       common.Hash{},
 		// closing signals
 		nextGER:                                 common.Hash{},
 		nextGERDeadline:                         0,
