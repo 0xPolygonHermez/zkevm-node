@@ -41,6 +41,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(100),
 		},
 		{
+			path:          "Synchronizer.L1SynchronizationMode",
+			expectedValue: "parallel",
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxPendingNoProcessedBlocks",
+			expectedValue: uint64(25),
+		},
+		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
@@ -488,10 +500,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "State.Batch.Constraints.MaxBinaries",
 			expectedValue: uint32(473170),
-		},
-		{
-			path:          "State.Batch.Constraints.MaxSteps",
-			expectedValue: uint32(7570538),
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

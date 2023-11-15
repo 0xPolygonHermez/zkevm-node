@@ -10,43 +10,44 @@ This is a refactor of L1 synchronization to improve speed.
 You could choose between new L1 parallel sync or sequential one (legacy): 
 ```
 [Synchronizer]
-UseParallelModeForL1Synchronization = false
+L1SynchronizationMode = "parallel"
 ```
 If you activate this feature you can configure:
-- `NumberOfParallelOfEthereumClients`: how many parallel request can be done. You must consider that 1 is just for requesting the last block on L1, and the rest for rollup info
-- `CapacityOfBufferingRollupInfoFromL1`:  buffer of data pending to be processed. This is the queue data to be executed by consumer.
+- `MaxClients`: how many parallel request can be done. You must consider that 1 is just for requesting the last block on L1, and the rest for rollup info
+- `MaxPendingNoProcessedBlocks`:  buffer of data pending to be processed. This is the queue data to be executed by consumer.
 
 For a full description of fields please check config-file documentation.
 
 Example: 
 ```
-UseParallelModeForL1Synchronization = true
+L1SynchronizationMode = parallel
 	[Synchronizer.L1ParallelSynchronization]
-		NumberOfParallelOfEthereumClients = 2
-		CapacityOfBufferingRollupInfoFromL1 = 10
-		TimeForCheckLastBlockOnL1Time = "5s"
-		TimeoutForRequestLastBlockOnL1 = "5s"
-		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
-		TimeForShowUpStatisticsLog = "5m"
-		TimeOutMainLoop = "5m"
-		MinTimeBetweenRetriesForRollupInfo = "5s"
-		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
-			AcceptableTimeWaitingForNewRollupInfo = "5s"
-			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
+		MaxClients = 10
+		MaxPendingNoProcessedBlocks = 25
+		RequestLastBlockPeriod = "5s"
+		RequestLastBlockTimeout = "5s"
+		RequestLastBlockMaxRetries = 3
+		StatisticsPeriod = "5m"
+		TimeoutMainLoop = "5m"
+		RollupInfoRetriesSpacing= "5s"
+		FallbackToSequentialModeOnSynchronized = false
+		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
+			AceptableInacctivityTime = "5s"
+			ApplyAfterNumRollupReceived = 10
 
 ```
 ## Remakable logs
 ### How to known the occupation of executor
 To check that executor are fully ocuppied you can check next log:
 ```
-INFO	synchronizer/l1_rollup_info_consumer.go:128	consumer: processing rollupInfo #1553: range:[8720385, 8720485] num_blocks [37] statistics:wasted_time_waiting_for_data [0s] last_process_time [6m2.635208117s] block_per_second [2.766837]
+consumer: processing rollupInfo #808: range:[9606297, 9606397] num_blocks [7] statistics:wasted_time_waiting_for_data [0s] last_process_time [27.557166427s] block_per_second [0.318281]
 ```
-The `wasted_time_waiting_for_data` show the waiting time between this call and the previous to executor. It could show a warning configuring `Synchronizer.L1ParallelSynchronization.PerformanceCheck`
+The `wasted_time_waiting_for_data` show the waiting time between this call and the previous to executor. It could generate a warning depending on the configuring `SSynchronizer.L1ParallelSynchronization.PerformanceWarning`
 
 ### Estimated time to be fully synchronizer with L1
-This log show the estimated time (**ETA**) to reach the block goal. You can configure the frequency with var `TimeForShowUpStatisticsLog`
+This log show the estimated time (**ETA**) to reach the block goal. You can configure the frequency with var `StatisticsPeriod`
 ```
-INFO	synchronizer/l1_rollup_info_producer.go:357	producer: Statistics:ETA: 54h7m47.594422312s percent:12.26  blocks_per_seconds:5.48 pending_block:149278/1217939 num_errors:8
+INFO	producer: Statistics: EstimatedTimeOfArrival: 1h58m42.730543611s percent:0.15  blocks_per_seconds:201.24 pending_block:2222/1435629 num_errors:0
 ```
 
 ## Flow of data
@@ -59,5 +60,3 @@ INFO	synchronizer/l1_rollup_info_producer.go:357	producer: Statistics:ETA: 54h7m
 - `l1RollupInfoConsumer`: that receive the data and execute it
 
 
-## Future changes
-- Configure multiples servers for L1 information: instead of calling the same server,it make sense to configure individually each URL to allow to have multiples sources

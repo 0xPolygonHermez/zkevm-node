@@ -580,6 +580,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		if firstTxProcess {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
 			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
+			log.Infof("tx.L1GasPrice = %d, tx.L2GasPrice = %d", tx.L1GasPrice, tx.L2GasPrice)
+			// Save values for later logging
+			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
+			tx.EGPLog.GasPrice.Set(tx.GasPrice)
+			tx.EGPLog.L1GasPrice = tx.L1GasPrice
+			tx.EGPLog.L2GasPrice = tx.L2GasPrice
+
 			// Calculate EffectiveGasPrice
 			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
 			if err != nil {
@@ -592,12 +599,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			} else {
 				tx.EffectiveGasPrice.Set(egp)
 
-				// Save initial values for later logging
+				// Save first EffectiveGasPrice for later logging
 				tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
-				tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
-				tx.EGPLog.GasPrice.Set(tx.GasPrice)
-				tx.EGPLog.L1GasPrice = tx.L1GasPrice
-				tx.EGPLog.L2GasPrice = tx.L2GasPrice
 
 				// If EffectiveGasPrice >= tx.GasPrice, we process the tx with tx.GasPrice
 				if tx.EffectiveGasPrice.Cmp(tx.GasPrice) >= 0 {
@@ -747,9 +750,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	tx.EGPLog.ValueFinal.Set(tx.EffectiveGasPrice)
 
 	// Log here the results of EGP calculation
-	log.Infof("egp-log: final: %d, first: %d, second: %d, percentage: %d, deviation: %d, maxDeviation: %d, gasUsed1: %d, gasUsed2: %d, gasPrice: %d, l1GasPrice: %d, l2GasPrice: %d, reprocess: %t, gasPriceOC: %t, balanceOC: %t, enabled: %t, txSize: %d, txHash: %s",
+	log.Infof("egp-log: final: %d, first: %d, second: %d, percentage: %d, deviation: %d, maxDeviation: %d, gasUsed1: %d, gasUsed2: %d, gasPrice: %d, l1GasPrice: %d, l2GasPrice: %d, reprocess: %t, gasPriceOC: %t, balanceOC: %t, enabled: %t, txSize: %d, txHash: %s, error: %s",
 		tx.EGPLog.ValueFinal, tx.EGPLog.ValueFirst, tx.EGPLog.ValueSecond, tx.EGPLog.Percentage, tx.EGPLog.FinalDeviation, tx.EGPLog.MaxDeviation, tx.EGPLog.GasUsedFirst, tx.EGPLog.GasUsedSecond,
-		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr)
+		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
 	txToStore := transactionToStore{
 		hash:          tx.Hash,

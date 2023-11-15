@@ -33,6 +33,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer"
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -300,8 +301,8 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 
 	etherManForL1 := []synchronizer.EthermanInterface{}
 	// If synchronizer are using sequential mode, we only need one etherman client
-	if cfg.Synchronizer.UseParallelModeForL1Synchronization {
-		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.NumberOfParallelOfEthereumClients); i++ {
+	if cfg.Synchronizer.L1SynchronizationMode == synchronizer.ParallelMode {
+		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.MaxClients+1); i++ {
 			eth, err := newEtherman(cfg)
 			if err != nil {
 				log.Fatal(err)
@@ -392,7 +393,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, eventL
 		log.Fatal(err)
 	}
 
-	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, pool, st, etherman, eventLog)
+	seq, err := sequencer.New(cfg.Sequencer, cfg.State.Batch, cfg.Pool, pool, st, etherman, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -459,7 +460,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(c.State, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(c.State, sqlDB)
 
 	// Executor
 	var executorClient executor.ExecutorServiceClient

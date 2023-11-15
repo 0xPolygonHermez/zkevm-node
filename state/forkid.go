@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	// BLUEBERRY_FORKID is the fork id 4
+	BLUEBERRY_FORKID = 4
+	// DRAGONFRUIT_FORKID is the fork id 5
+	DRAGONFRUIT_FORKID = 5
+	// INCABERRY_FORKID is the fork id 6
+	INCABERRY_FORKID = 6
+	// ETROG_FORKID is the fork id 7
+	ETROG_FORKID = 7
+)
+
 // ForkIDInterval is a fork id interval
 type ForkIDInterval struct {
 	FromBatchNumber uint64

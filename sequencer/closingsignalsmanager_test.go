@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
@@ -73,7 +74,7 @@ func setupTest(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
-	localState = state.NewState(stateCfg, state.NewPostgresStorage(stateCfg, localStateDb), localExecutorClient, localStateTree, eventLog)
+	localState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, localStateDb), localExecutorClient, localStateTree, eventLog)
 
 	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
@@ -119,7 +120,7 @@ func prepareForcedBatches(t *testing.T) {
 
 	for x := 0; x < numberOfForcesBatches; x++ {
 		forcedBatchNum := int64(x)
-		_, err := localState.PostgresStorage.Exec(localCtx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
+		_, err := localState.Exec(localCtx, sql, forcedBatchNum, testGER.String(), time.Now(), testRawData, testAddr.String(), 0)
 		assert.NoError(t, err)
 	}
 }

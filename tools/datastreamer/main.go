@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/tools/datastreamer/config"
 	"github.com/ethereum/go-ethereum/common"
@@ -190,7 +191,7 @@ func generate(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 	defer stateSqlDB.Close()
-	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
+	stateDB := pgstatestorage.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Debug("Connected to the database")
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB)

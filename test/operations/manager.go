@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
@@ -103,18 +104,21 @@ type Manager struct {
 func NewManager(ctx context.Context, cfg *Config,) (*Manager, error) {
 	// Init database instance
 	initOrResetDB()
+	return NewManagerNoInitDB(ctx, cfg)
+}
 
-	st, err := initState(*cfg.State)
-	if err != nil {
-		return nil, err
-	}
 
+func NewManagerNoInitDB(ctx context.Context, cfg *Config) (*Manager, error) {
 	opsman := &Manager{
 		cfg:  cfg,
 		ctx:  ctx,
 		wait: NewWait(),
-		st:   st,
 	}
+	st, err := initState(*cfg.State)
+	if err != nil {
+		return nil, err
+	}
+	opsman.st = st
 
 	return opsman, nil
 }
@@ -478,7 +482,7 @@ func initState(cfg state.Config) (*state.State, error) {
 	}
 
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)

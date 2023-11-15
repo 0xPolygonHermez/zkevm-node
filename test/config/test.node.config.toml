@@ -6,7 +6,6 @@ Level = "debug"
 Outputs = ["stderr"]
 
 [State]
-AccountQueue = 64
 	[State.DB]
 	User = "state_user"
 	Password = "state_password"
@@ -37,6 +36,8 @@ MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
+AccountQueue = 64
+GlobalQueue = 1024
 	[Pool.EffectiveGasPrice]
 		Enabled = false
 		L1GasPriceFactor = 0.25
@@ -77,18 +78,20 @@ EnableL2SuggestedGasPricePolling = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
-UseParallelModeForL1Synchronization = true
+L1SynchronizationMode = "parallel"
 	[Synchronizer.L1ParallelSynchronization]
-		NumberOfParallelOfEthereumClients = 5
-		CapacityOfBufferingRollupInfoFromL1 = 10
-		TimeForCheckLastBlockOnL1Time = "5s"
-		TimeoutForRequestLastBlockOnL1 = "60s"
-		MaxNumberOfRetriesForRequestLastBlockOnL1 = 3
-		TimeForShowUpStatisticsLog = "1m"
-		TimeOutMainLoop = "5m"
-		[Synchronizer.L1ParallelSynchronization.PerformanceCheck]
-			AcceptableTimeWaitingForNewRollupInfo = "5s"
-			NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo = 10
+		MaxClients = 10
+		MaxPendingNoProcessedBlocks = 25
+		RequestLastBlockPeriod = "5s"
+		RequestLastBlockTimeout = "5s"
+		RequestLastBlockMaxRetries = 3
+		StatisticsPeriod = "5m"
+		TimeoutMainLoop = "5m"
+		RollupInfoRetriesSpacing= "5s"
+		FallbackToSequentialModeOnSynchronized = false
+		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
+			AceptableInacctivityTime = "5s"
+			ApplyAfterNumRollupReceived = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
