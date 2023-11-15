@@ -114,32 +114,26 @@ func (s *Storage) generateFilterID() (string, error) {
 	return id, nil
 }
 
+// Lock locks the internal mutex
+func (s *Storage) Lock() {
+	s.mutex.Lock()
+}
+
+// Unlock unlocks the internal mutex
+func (s *Storage) Unlock() {
+	s.mutex.Unlock()
+}
+
 // GetAllBlockFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new blocks
-func (s *Storage) GetAllBlockFiltersWithWSConn() ([]*Filter, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	filters := []*Filter{}
-	for _, filter := range s.blockFiltersWithWSConn {
-		f := filter
-		filters = append(filters, f)
-	}
-	return filters, nil
+func (s *Storage) GetAllBlockFiltersWithWSConn() map[string]*Filter {
+	return s.blockFiltersWithWSConn
 }
 
 // GetAllLogFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new logs
-func (s *Storage) GetAllLogFiltersWithWSConn() ([]*Filter, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	filters := []*Filter{}
-	for _, filter := range s.logFiltersWithWSConn {
-		f := filter
-		filters = append(filters, f)
-	}
-	return filters, nil
+func (s *Storage) GetAllLogFiltersWithWSConn() map[string]*Filter {
+	return s.logFiltersWithWSConn
 }
 
 // GetFilter gets a filter by its id
