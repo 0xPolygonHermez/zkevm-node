@@ -72,8 +72,8 @@ func (g *ProcessorSequenceBatchesLegacy) String() string {
 	return "ProcessorSequenceBatchesLegacy"
 }
 
-func (g *ProcessorSequenceBatchesLegacy) SupportedForkIds() []forkIdType {
-	return []forkIdType{1, 2, 3, 4, 5, 6}
+func (g *ProcessorSequenceBatchesLegacy) SupportedForkIds() []ForkIdType {
+	return []ForkIdType{1, 2, 3, 4, 5, 6}
 }
 
 func (g *ProcessorSequenceBatchesLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {

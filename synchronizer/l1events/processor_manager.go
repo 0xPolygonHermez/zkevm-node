@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultForkId forkIdType = 0
+	DefaultForkId ForkIdType = 0
 )
 
 var (
@@ -18,27 +18,28 @@ var (
 	ErrForkIdNotSupported = errors.New("forkId not supported")
 )
 
-type forkIdType uint64
+type ForkIdType uint64
 
 type L1EventProcessors struct {
 	// forkId -> event -> processor
-	processors map[forkIdType]map[etherman.EventOrder]L1EventProcessor
+	processors map[ForkIdType]map[etherman.EventOrder]L1EventProcessor
 }
 
 func NewL1EventProcessors() *L1EventProcessors {
 	return &L1EventProcessors{
-		processors: make(map[forkIdType]map[etherman.EventOrder]L1EventProcessor),
+		processors: make(map[ForkIdType]map[etherman.EventOrder]L1EventProcessor),
 	}
 }
 
-func (p *L1EventProcessors) Get(forkId forkIdType, event etherman.EventOrder) L1EventProcessor {
+// Get returns the processor, if not found returns nil
+func (p *L1EventProcessors) Get(forkId ForkIdType, event etherman.EventOrder) L1EventProcessor {
 	if _, ok := p.processors[forkId]; !ok {
 		return p.Get(DefaultForkId, event)
 	}
 	return p.processors[forkId][event]
 }
 
-func (p *L1EventProcessors) Process(ctx context.Context, forkId forkIdType, event etherman.EventOrder, block *etherman.Block, position int, dbTx pgx.Tx) error {
+func (p *L1EventProcessors) Process(ctx context.Context, forkId ForkIdType, event etherman.EventOrder, block *etherman.Block, position int, dbTx pgx.Tx) error {
 	processor := p.Get(forkId, event)
 	if processor == nil {
 		return ErrNotFound

@@ -32,7 +32,7 @@ func (p *L1EventProcessorsBuilder) Add(event etherman.EventOrder, processor L1Ev
 // Set add a L1EventProcessor. If param panicIfExists is true, will panic if already exists the object
 //
 //	the only use to panicIfExists=false is to override a processor in a unitttest
-func (p *L1EventProcessorsBuilder) Set(forkID forkIdType, event etherman.EventOrder, processor L1EventProcessor, panicIfExists bool) {
+func (p *L1EventProcessorsBuilder) Set(forkID ForkIdType, event etherman.EventOrder, processor L1EventProcessor, panicIfExists bool) {
 	p.createResultIfNeeded()
 	if _, ok := p.result.processors[forkID]; !ok {
 		p.result.processors[forkID] = make(map[etherman.EventOrder]L1EventProcessor)

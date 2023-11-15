@@ -9,6 +9,6 @@ import (
 
 type L1EventProcessor interface {
 	String() string
-	SupportedForkIds() []forkIdType
+	SupportedForkIds() []ForkIdType
 	Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error
 }
