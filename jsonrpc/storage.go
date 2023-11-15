@@ -185,7 +185,7 @@ func (s *Storage) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 
 	filters, found := s.allFiltersWithWSConn[wsConn]
 	if !found {
-		return ErrNotFound
+		return nil
 	}
 
 	for _, filter := range filters {
