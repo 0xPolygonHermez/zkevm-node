@@ -36,19 +36,22 @@ var (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	cfg                     FinalizerCfg
-	effectiveGasPriceCfg    EffectiveGasPriceCfg
-	closingSignalCh         ClosingSignalCh
-	isSynced                func(ctx context.Context) bool
-	sequencerAddress        common.Address
-	worker                  workerInterface
-	dbManager               dbManagerInterface
-	executor                stateInterface
-	batch                   *WipBatch
-	batchConstraints        batchConstraints
-	processRequest          state.ProcessRequest
-	sharedResourcesMux      *sync.RWMutex
-	lastGERHash             common.Hash
+	cfg                  FinalizerCfg
+	effectiveGasPriceCfg EffectiveGasPriceCfg
+	closingSignalCh      ClosingSignalCh
+	isSynced             func(ctx context.Context) bool
+	sequencerAddress     common.Address
+	worker               workerInterface
+	dbManager            dbManagerInterface
+	executor             stateInterface
+	batch                *WipBatch
+	batchConstraints     batchConstraints
+	processRequest       state.ProcessRequest
+	sharedResourcesMux   *sync.RWMutex
+	// GER of the current WIP batch
+	currentGERHash common.Hash
+	// GER of the batch previous to the current WIP batch
+	previousGERHash         common.Hash
 	reprocessFullBatchError atomic.Bool
 	// closing signals
 	nextGER                 common.Hash
@@ -133,7 +136,8 @@ func newFinalizer(
 		batchConstraints:     batchConstraints,
 		processRequest:       state.ProcessRequest{},
 		sharedResourcesMux:   new(sync.RWMutex),
-		lastGERHash:          state.ZeroHash,
+		currentGERHash:       state.ZeroHash,
+		previousGERHash:      state.ZeroHash,
 		// closing signals
 		nextGER:                 common.Hash{},
 		nextGERDeadline:         0,
@@ -519,6 +523,33 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
+	// Check if the batch is empty and sending a GER Update to the stream is needed
+	if f.streamServer != nil && f.batch.isEmpty() && f.currentGERHash != f.previousGERHash {
+		updateGer := state.DSUpdateGER{
+			BatchNumber:    f.batch.batchNumber,
+			Timestamp:      f.batch.timestamp.Unix(),
+			GlobalExitRoot: f.currentGERHash,
+			Coinbase:       f.sequencerAddress,
+			ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(f.batch.batchNumber)),
+			StateRoot:      f.batch.stateRoot,
+		}
+
+		err = f.streamServer.StartAtomicOp()
+		if err != nil {
+			log.Errorf("failed to start atomic op for Update GER on batch %v: %v", f.batch.batchNumber, err)
+		}
+
+		_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
+		if err != nil {
+			log.Errorf("failed to add stream entry for Update GER on batch %v: %v", f.batch.batchNumber, err)
+		}
+
+		err = f.streamServer.CommitAtomicOp()
+		if err != nil {
+			log.Errorf("failed to commit atomic op for Update GER on batch  %v: %v", f.batch.batchNumber, err)
+		}
+	}
+
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
 	lastBatchNumber := f.batch.batchNumber
@@ -534,13 +565,14 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Take into consideration the GER
 	f.nextGERMux.Lock()
 	if f.nextGER != state.ZeroHash {
-		f.lastGERHash = f.nextGER
+		f.previousGERHash = f.currentGERHash
+		f.currentGERHash = f.nextGER
 	}
 	f.nextGER = state.ZeroHash
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
 
-	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.currentGERHash, stateRoot)
 	if err == nil {
 		f.processRequest.Timestamp = batch.timestamp
 		f.processRequest.BatchNumber = batch.batchNumber
@@ -1025,7 +1057,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
 	} else {
-		if f.lastGERHash != forcedBatch.GlobalExitRoot && f.streamServer != nil {
+		if f.streamServer != nil && f.currentGERHash != forcedBatch.GlobalExitRoot {
 			updateGer := state.DSUpdateGER{
 				BatchNumber:    request.BatchNumber,
 				Timestamp:      request.Timestamp.Unix(),
@@ -1053,7 +1085,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	}
 
 	f.nextGERMux.Lock()
-	f.lastGERHash = forcedBatch.GlobalExitRoot
+	f.currentGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1
