@@ -21,7 +21,7 @@ var ErrFilterInvalidPayload = errors.New("invalid argument 0: cannot specify bot
 // related to the json rpc server
 type Storage struct {
 	allFilters                 map[string]*Filter
-	allFiltersWithWSConn       map[*concurrentWsConn]*Filter
+	allFiltersWithWSConn       map[*concurrentWsConn]map[string]*Filter
 	blockFiltersWithWSConn     map[string]*Filter
 	logFiltersWithWSConn       map[string]*Filter
 	pendingTxFiltersWithWSConn map[string]*Filter
@@ -32,7 +32,7 @@ type Storage struct {
 func NewStorage() *Storage {
 	return &Storage{
 		allFilters:                 make(map[string]*Filter),
-		allFiltersWithWSConn:       make(map[*concurrentWsConn]*Filter),
+		allFiltersWithWSConn:       make(map[*concurrentWsConn]map[string]*Filter),
 		blockFiltersWithWSConn:     make(map[string]*Filter),
 		logFiltersWithWSConn:       make(map[string]*Filter),
 		pendingTxFiltersWithWSConn: make(map[string]*Filter),
@@ -87,7 +87,11 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 
 	s.allFilters[id] = f
 	if f.WsConn != nil {
-		s.allFiltersWithWSConn[f.WsConn] = f
+		if _, found := s.allFiltersWithWSConn[f.WsConn]; !found {
+			s.allFiltersWithWSConn[f.WsConn] = make(map[string]*Filter)
+		}
+
+		s.allFiltersWithWSConn[f.WsConn][id] = f
 		if t == FilterTypeBlock {
 			s.blockFiltersWithWSConn[id] = f
 		} else if t == FilterTypeLog {
@@ -182,12 +186,15 @@ func (s *Storage) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	filter, found := s.allFiltersWithWSConn[wsConn]
+	filters, found := s.allFiltersWithWSConn[wsConn]
 	if !found {
 		return ErrNotFound
 	}
 
-	s.deleteFilter(filter)
+	for _, filter := range filters {
+		s.deleteFilter(filter)
+	}
+
 	return nil
 }
 
@@ -202,7 +209,10 @@ func (s *Storage) deleteFilter(filter *Filter) {
 	}
 
 	if filter.WsConn != nil {
-		delete(s.allFiltersWithWSConn, filter.WsConn)
+		delete(s.allFiltersWithWSConn[filter.WsConn], filter.ID)
+		if len(s.allFiltersWithWSConn[filter.WsConn]) == 0 {
+			delete(s.allFiltersWithWSConn, filter.WsConn)
+		}
 	}
 
 	delete(s.allFilters, filter.ID)

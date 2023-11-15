@@ -1460,7 +1460,7 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 
 // AddL2Block adds a new L2 block to the State Store
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, effectivePercentage uint8, dbTx pgx.Tx) error {
-	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
+	log.Infof("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
 	e := p.getExecQuerier(dbTx)
 
@@ -1525,7 +1525,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			}
 		}
 	}
-	log.Debugf("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
+	log.Infof("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
 	return nil
 }
 
