@@ -1056,7 +1056,8 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
-	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	log.Infof("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	start := time.Now()
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
@@ -1066,6 +1067,7 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	go e.notifyNewLogs(&wg, event)
 
 	wg.Wait()
+	log.Infof("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
@@ -1082,12 +1084,22 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 		log.Errorf("failed to marshal block response to subscription: %v", err)
 		return
 	}
-	e.storage.Lock()
-	defer e.storage.Unlock()
+
 	filters := e.storage.GetAllBlockFiltersWithWSConn()
+	log.Infof("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
+	enqueueWg := sync.WaitGroup{}
 	for _, filter := range filters {
-		filter.EnqueueSubscriptionDataToBeSent(data)
+		f := filter
+		enqueueWg.Add(1)
+		go func(f *Filter) {
+			defer enqueueWg.Done()
+			start := time.Now()
+			f.EnqueueSubscriptionDataToBeSent(data)
+			log.Infof("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
+		}(f)
 	}
+	enqueueWg.Wait()
+
 	log.Infof("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
@@ -1095,87 +1107,103 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 	defer wg.Done()
 	start := time.Now()
 
-	e.storage.Lock()
-	defer e.storage.Unlock()
 	filters := e.storage.GetAllLogFiltersWithWSConn()
+	log.Infof("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
+	enqueueWg := sync.WaitGroup{}
 	for _, filter := range filters {
-		filterParameters := filter.Parameters.(LogFilter)
-		bn := types.BlockNumber(event.Block.NumberU64())
+		f := filter
+		enqueueWg.Add(1)
+		go func(f *Filter) {
+			defer enqueueWg.Done()
+			start := time.Now()
 
-		if filterParameters.BlockHash != nil {
-			// if the filter block hash is set, we check if the block is the
-			// one with the expected hash, otherwise we ignore the filter
-			bh := *filterParameters.BlockHash
-			if bh.String() != event.Block.Hash().String() {
-				continue
-			}
-		} else if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
-			// in case the block hash is nil and also from and to blocks are nil, set it
-			// to the current block to make the query faster
-			filterParameters.FromBlock = &bn
-			filterParameters.ToBlock = &bn
-		} else {
-			// if the filter has a fromBlock value set
-			// and the event block number is smaller than the
-			// from block, skip this filter
-			if filterParameters.FromBlock != nil {
-				fromBlock, rpcErr := filterParameters.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-				if rpcErr != nil {
-					log.Errorf("failed to get numeric block number for FromBlock field for filter %v: %v", filter.ID, rpcErr)
-					continue
+			filterParameters := f.Parameters.(LogFilter)
+			bn := types.BlockNumber(event.Block.NumberU64())
+
+			if filterParameters.BlockHash != nil {
+				// if the filter block hash is set, we check if the block is the
+				// one with the expected hash, otherwise we ignore the filter
+				bh := *filterParameters.BlockHash
+				if bh.String() != event.Block.Hash().String() {
+					return
 				}
-				// if the block number is smaller than the fromBlock value
-				// this means this block is out of the block range for this
-				// filter, so we skip it
-				if event.Block.NumberU64() < fromBlock {
-					continue
+			} else if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
+				// in case the block hash is nil and also from and to blocks are nil, set it
+				// to the current block to make the query faster
+				filterParameters.FromBlock = &bn
+				filterParameters.ToBlock = &bn
+			} else {
+				// if the filter has a fromBlock value set
+				// and the event block number is smaller than the
+				// from block, skip this filter
+				if filterParameters.FromBlock != nil {
+					fromBlock, rpcErr := filterParameters.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+					if rpcErr != nil {
+						log.Errorf("failed to get numeric block number for FromBlock field for filter %v: %v", f.ID, rpcErr)
+						return
+					}
+					// if the block number is smaller than the fromBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() < fromBlock {
+						return
+					}
+					// otherwise set the from block to a fixed number
+					// to avoid querying it again in the next step
+					fixedFromBlock := types.BlockNumber(event.Block.NumberU64())
+					filterParameters.FromBlock = &fixedFromBlock
 				}
-				// otherwise set the from block to a fixed number
-				// to avoid querying it again in the next step
-				fixedFromBlock := types.BlockNumber(event.Block.NumberU64())
-				filterParameters.FromBlock = &fixedFromBlock
+
+				// if the filter has a toBlock value set
+				// and the event block number is greater than the
+				// to block, skip this filter
+				if filterParameters.ToBlock != nil {
+					toBlock, rpcErr := filterParameters.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+					if rpcErr != nil {
+						log.Errorf("failed to get numeric block number for ToBlock field for filter %v: %v", f.ID, rpcErr)
+						return
+					}
+					// if the block number is greater than the toBlock value
+					// this means this block is out of the block range for this
+					// filter, so we skip it
+					if event.Block.NumberU64() > toBlock {
+						return
+					}
+					// otherwise set the to block to a fixed number
+					// to avoid querying it again in the next step
+					fixedToBlock := types.BlockNumber(event.Block.NumberU64())
+					filterParameters.ToBlock = &fixedToBlock
+				}
 			}
 
-			// if the filter has a toBlock value set
-			// and the event block number is greater than the
-			// to block, skip this filter
-			if filterParameters.ToBlock != nil {
-				toBlock, rpcErr := filterParameters.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-				if rpcErr != nil {
-					log.Errorf("failed to get numeric block number for ToBlock field for filter %v: %v", filter.ID, rpcErr)
-					continue
-				}
-				// if the block number is greater than the toBlock value
-				// this means this block is out of the block range for this
-				// filter, so we skip it
-				if event.Block.NumberU64() > toBlock {
-					continue
-				}
-				// otherwise set the to block to a fixed number
-				// to avoid querying it again in the next step
-				fixedToBlock := types.BlockNumber(event.Block.NumberU64())
-				filterParameters.ToBlock = &fixedToBlock
-			}
-		}
+			log.Infof("[notifyNewLogs] took %v to prepare filter parameters", time.Since(start))
+			start = time.Now()
 
-		// get new logs for this specific filter
-		changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
-		if err != nil {
-			log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", filter.ID, err)
-			continue
-		}
-
-		// if there are new logs for the filter, send it
-		if changes != nil {
-			ethLogs := changes.([]types.Log)
-			for _, ethLog := range ethLogs {
-				data, err := json.Marshal(ethLog)
-				if err != nil {
-					log.Errorf("failed to marshal ethLog response to subscription: %v", err)
-				}
-				filter.EnqueueSubscriptionDataToBeSent(data)
+			// get new logs for this specific filter
+			changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
+			if err != nil {
+				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", f.ID, err)
+				return
 			}
-		}
+
+			log.Infof("[notifyNewLogs] took %v to run internalGetLogs", time.Since(start))
+			start = time.Now()
+
+			// if there are new logs for the filter, send it
+			if changes != nil {
+				ethLogs := changes.([]types.Log)
+				for _, ethLog := range ethLogs {
+					data, err := json.Marshal(ethLog)
+					if err != nil {
+						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
+					}
+					f.EnqueueSubscriptionDataToBeSent(data)
+				}
+			}
+
+			log.Infof("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
+		}(f)
 	}
+	enqueueWg.Wait()
 	log.Infof("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
 }

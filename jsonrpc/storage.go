@@ -25,7 +25,10 @@ type Storage struct {
 	blockFiltersWithWSConn     map[string]*Filter
 	logFiltersWithWSConn       map[string]*Filter
 	pendingTxFiltersWithWSConn map[string]*Filter
-	mutex                      *sync.Mutex
+
+	blockMutex     *sync.Mutex
+	logMutex       *sync.Mutex
+	pendingTxMutex *sync.Mutex
 }
 
 // NewStorage creates and initializes an instance of Storage
@@ -36,7 +39,9 @@ func NewStorage() *Storage {
 		blockFiltersWithWSConn:     make(map[string]*Filter),
 		logFiltersWithWSConn:       make(map[string]*Filter),
 		pendingTxFiltersWithWSConn: make(map[string]*Filter),
-		mutex:                      &sync.Mutex{},
+		blockMutex:                 &sync.Mutex{},
+		logMutex:                   &sync.Mutex{},
+		pendingTxMutex:             &sync.Mutex{},
 	}
 }
 
@@ -67,8 +72,12 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 		return "", fmt.Errorf("failed to generate filter ID: %w", err)
 	}
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.blockMutex.Lock()
+	s.logMutex.Lock()
+	s.pendingTxMutex.Lock()
+	defer s.blockMutex.Unlock()
+	defer s.logMutex.Unlock()
+	defer s.pendingTxMutex.Unlock()
 
 	f := &Filter{
 		ID:            id,
@@ -115,32 +124,42 @@ func (s *Storage) generateFilterID() (string, error) {
 	return id, nil
 }
 
-// Lock locks the internal mutex
-func (s *Storage) Lock() {
-	s.mutex.Lock()
-}
-
-// Unlock unlocks the internal mutex
-func (s *Storage) Unlock() {
-	s.mutex.Unlock()
-}
-
 // GetAllBlockFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new blocks
-func (s *Storage) GetAllBlockFiltersWithWSConn() map[string]*Filter {
-	return s.blockFiltersWithWSConn
+func (s *Storage) GetAllBlockFiltersWithWSConn() []*Filter {
+	s.blockMutex.Lock()
+	defer s.blockMutex.Unlock()
+
+	filters := []*Filter{}
+	for _, filter := range s.blockFiltersWithWSConn {
+		f := filter
+		filters = append(filters, f)
+	}
+	return filters
 }
 
 // GetAllLogFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new logs
-func (s *Storage) GetAllLogFiltersWithWSConn() map[string]*Filter {
-	return s.logFiltersWithWSConn
+func (s *Storage) GetAllLogFiltersWithWSConn() []*Filter {
+	s.logMutex.Lock()
+	defer s.logMutex.Unlock()
+
+	filters := []*Filter{}
+	for _, filter := range s.logFiltersWithWSConn {
+		f := filter
+		filters = append(filters, f)
+	}
+	return filters
 }
 
 // GetFilter gets a filter by its id
 func (s *Storage) GetFilter(filterID string) (*Filter, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.blockMutex.Lock()
+	s.logMutex.Lock()
+	s.pendingTxMutex.Lock()
+	defer s.blockMutex.Unlock()
+	defer s.logMutex.Unlock()
+	defer s.pendingTxMutex.Unlock()
 
 	filter, found := s.allFilters[filterID]
 	if !found {
@@ -152,8 +171,12 @@ func (s *Storage) GetFilter(filterID string) (*Filter, error) {
 
 // UpdateFilterLastPoll updates the last poll to now
 func (s *Storage) UpdateFilterLastPoll(filterID string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.blockMutex.Lock()
+	s.logMutex.Lock()
+	s.pendingTxMutex.Lock()
+	defer s.blockMutex.Unlock()
+	defer s.logMutex.Unlock()
+	defer s.pendingTxMutex.Unlock()
 
 	filter, found := s.allFilters[filterID]
 	if !found {
@@ -166,8 +189,12 @@ func (s *Storage) UpdateFilterLastPoll(filterID string) error {
 
 // UninstallFilter deletes a filter by its id
 func (s *Storage) UninstallFilter(filterID string) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.blockMutex.Lock()
+	s.logMutex.Lock()
+	s.pendingTxMutex.Lock()
+	defer s.blockMutex.Unlock()
+	defer s.logMutex.Unlock()
+	defer s.pendingTxMutex.Unlock()
 
 	filter, found := s.allFilters[filterID]
 	if !found {
@@ -180,8 +207,12 @@ func (s *Storage) UninstallFilter(filterID string) error {
 
 // UninstallFilterByWSConn deletes all filters connected to the provided web socket connection
 func (s *Storage) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	s.blockMutex.Lock()
+	s.logMutex.Lock()
+	s.pendingTxMutex.Lock()
+	defer s.blockMutex.Unlock()
+	defer s.logMutex.Unlock()
+	defer s.pendingTxMutex.Unlock()
 
 	filters, found := s.allFiltersWithWSConn[wsConn]
 	if !found {

@@ -10,15 +10,15 @@ type storageMock struct {
 }
 
 // GetAllBlockFiltersWithWSConn provides a mock function with given fields:
-func (_m *storageMock) GetAllBlockFiltersWithWSConn() map[string]*Filter {
+func (_m *storageMock) GetAllBlockFiltersWithWSConn() []*Filter {
 	ret := _m.Called()
 
-	var r0 map[string]*Filter
-	if rf, ok := ret.Get(0).(func() map[string]*Filter); ok {
+	var r0 []*Filter
+	if rf, ok := ret.Get(0).(func() []*Filter); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*Filter)
+			r0 = ret.Get(0).([]*Filter)
 		}
 	}
 
@@ -26,15 +26,15 @@ func (_m *storageMock) GetAllBlockFiltersWithWSConn() map[string]*Filter {
 }
 
 // GetAllLogFiltersWithWSConn provides a mock function with given fields:
-func (_m *storageMock) GetAllLogFiltersWithWSConn() map[string]*Filter {
+func (_m *storageMock) GetAllLogFiltersWithWSConn() []*Filter {
 	ret := _m.Called()
 
-	var r0 map[string]*Filter
-	if rf, ok := ret.Get(0).(func() map[string]*Filter); ok {
+	var r0 []*Filter
+	if rf, ok := ret.Get(0).(func() []*Filter); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]*Filter)
+			r0 = ret.Get(0).([]*Filter)
 		}
 	}
 
@@ -65,11 +65,6 @@ func (_m *storageMock) GetFilter(filterID string) (*Filter, error) {
 	}
 
 	return r0, r1
-}
-
-// Lock provides a mock function with given fields:
-func (_m *storageMock) Lock() {
-	_m.Called()
 }
 
 // NewBlockFilter provides a mock function with given fields: wsConn
@@ -170,11 +165,6 @@ func (_m *storageMock) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 	}
 
 	return r0
-}
-
-// Unlock provides a mock function with given fields:
-func (_m *storageMock) Unlock() {
-	_m.Called()
 }
 
 // UpdateFilterLastPoll provides a mock function with given fields: filterID
