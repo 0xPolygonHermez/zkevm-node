@@ -20,13 +20,23 @@ var ErrFilterInvalidPayload = errors.New("invalid argument 0: cannot specify bot
 // Storage uses memory to store the data
 // related to the json rpc server
 type Storage struct {
-	filters sync.Map
+	allFilters                 map[string]*Filter
+	allFiltersWithWSConn       map[*concurrentWsConn]*Filter
+	blockFiltersWithWSConn     map[string]*Filter
+	logFiltersWithWSConn       map[string]*Filter
+	pendingTxFiltersWithWSConn map[string]*Filter
+	mutex                      *sync.Mutex
 }
 
 // NewStorage creates and initializes an instance of Storage
 func NewStorage() *Storage {
 	return &Storage{
-		filters: sync.Map{},
+		allFilters:                 make(map[string]*Filter),
+		allFiltersWithWSConn:       make(map[*concurrentWsConn]*Filter),
+		blockFiltersWithWSConn:     make(map[string]*Filter),
+		logFiltersWithWSConn:       make(map[string]*Filter),
+		pendingTxFiltersWithWSConn: make(map[string]*Filter),
+		mutex:                      &sync.Mutex{},
 	}
 }
 
@@ -56,6 +66,10 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 	if err != nil {
 		return "", fmt.Errorf("failed to generate filter ID: %w", err)
 	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	f := &Filter{
 		ID:            id,
 		Type:          t,
@@ -68,8 +82,17 @@ func (s *Storage) createFilter(t FilterType, parameters interface{}, wsConn *con
 
 	go state.InfiniteSafeRun(f.SendEnqueuedSubscriptionData, fmt.Sprintf("failed to send enqueued subscription data to filter %v", id), time.Second)
 
-	s.filters.Store(id, f)
-
+	s.allFilters[id] = f
+	if f.WsConn != nil {
+		s.allFiltersWithWSConn[f.WsConn] = f
+		if t == FilterTypeBlock {
+			s.blockFiltersWithWSConn[id] = f
+		} else if t == FilterTypeLog {
+			s.logFiltersWithWSConn[id] = f
+		} else if t == FilterTypePendingTx {
+			s.pendingTxFiltersWithWSConn[id] = f
+		}
+	}
 	return id, nil
 }
 
@@ -91,86 +114,99 @@ func (s *Storage) generateFilterID() (string, error) {
 // GetAllBlockFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new blocks
 func (s *Storage) GetAllBlockFiltersWithWSConn() ([]*Filter, error) {
-	filtersWithWSConn := []*Filter{}
-	s.filters.Range(func(key, value any) bool {
-		filter := value.(*Filter)
-		if filter.WsConn == nil || filter.Type != FilterTypeBlock {
-			return true
-		}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
+	filters := []*Filter{}
+	for _, filter := range s.blockFiltersWithWSConn {
 		f := filter
-		filtersWithWSConn = append(filtersWithWSConn, f)
-		return true
-	})
-
-	return filtersWithWSConn, nil
+		filters = append(filters, f)
+	}
+	return filters, nil
 }
 
 // GetAllLogFiltersWithWSConn returns an array with all filter that have
 // a web socket connection and are filtering by new logs
 func (s *Storage) GetAllLogFiltersWithWSConn() ([]*Filter, error) {
-	filtersWithWSConn := []*Filter{}
-	s.filters.Range(func(key, value any) bool {
-		filter := value.(*Filter)
-		if filter.WsConn == nil || filter.Type != FilterTypeLog {
-			return true
-		}
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
+	filters := []*Filter{}
+	for _, filter := range s.logFiltersWithWSConn {
 		f := filter
-		filtersWithWSConn = append(filtersWithWSConn, f)
-		return true
-	})
-
-	return filtersWithWSConn, nil
+		filters = append(filters, f)
+	}
+	return filters, nil
 }
 
 // GetFilter gets a filter by its id
 func (s *Storage) GetFilter(filterID string) (*Filter, error) {
-	filter, found := s.filters.Load(filterID)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	filter, found := s.allFilters[filterID]
 	if !found {
 		return nil, ErrNotFound
 	}
 
-	return filter.(*Filter), nil
+	return filter, nil
 }
 
 // UpdateFilterLastPoll updates the last poll to now
 func (s *Storage) UpdateFilterLastPoll(filterID string) error {
-	filterValue, found := s.filters.Load(filterID)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	filter, found := s.allFilters[filterID]
 	if !found {
 		return ErrNotFound
 	}
-	filter := filterValue.(*Filter)
 	filter.LastPoll = time.Now().UTC()
-	s.filters.Store(filterID, filter)
+	s.allFilters[filterID] = filter
 	return nil
 }
 
 // UninstallFilter deletes a filter by its id
 func (s *Storage) UninstallFilter(filterID string) error {
-	_, found := s.filters.Load(filterID)
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	filter, found := s.allFilters[filterID]
 	if !found {
 		return ErrNotFound
 	}
-	s.filters.Delete(filterID)
+
+	s.deleteFilter(filter)
 	return nil
 }
 
 // UninstallFilterByWSConn deletes all filters connected to the provided web socket connection
 func (s *Storage) UninstallFilterByWSConn(wsConn *concurrentWsConn) error {
-	filterIDsToDelete := []string{}
-	s.filters.Range(func(key, value any) bool {
-		id := key.(string)
-		filter := value.(*Filter)
-		if filter.WsConn == wsConn {
-			filterIDsToDelete = append(filterIDsToDelete, id)
-		}
-		return true
-	})
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	for _, filterID := range filterIDsToDelete {
-		s.filters.Delete(filterID)
+	filter, found := s.allFiltersWithWSConn[wsConn]
+	if !found {
+		return ErrNotFound
 	}
 
+	s.deleteFilter(filter)
 	return nil
+}
+
+// deleteFilter deletes a filter from all the maps
+func (s *Storage) deleteFilter(filter *Filter) {
+	if filter.Type == FilterTypeBlock {
+		delete(s.blockFiltersWithWSConn, filter.ID)
+	} else if filter.Type == FilterTypeLog {
+		delete(s.logFiltersWithWSConn, filter.ID)
+	} else if filter.Type == FilterTypePendingTx {
+		delete(s.pendingTxFiltersWithWSConn, filter.ID)
+	}
+
+	if filter.WsConn != nil {
+		delete(s.allFiltersWithWSConn, filter.WsConn)
+	}
+
+	delete(s.allFilters, filter.ID)
 }
