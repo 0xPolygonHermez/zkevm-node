@@ -1580,7 +1580,6 @@ func Test_processTransaction(t *testing.T) {
 			executorMock.On("ProcessBatch", tc.ctx, mock.Anything, true).Return(tc.expectedResponse, tc.executorErr).Once()
 			if tc.executorErr == nil {
 				workerMock.On("DeleteTx", tc.tx.Hash, tc.tx.From).Return().Once()
-				dbManagerMock.On("GetForkIDByBatchNumber", mock.Anything).Return(forkId5)
 			}
 			if tc.expectedErr == nil {
 				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.tx.From, tc.expectedResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
