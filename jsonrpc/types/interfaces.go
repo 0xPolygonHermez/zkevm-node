@@ -15,7 +15,7 @@ import (
 
 // PoolInterface contains the methods required to interact with the tx pool.
 type PoolInterface interface {
-	AddTx(ctx context.Context, tx types.Transaction, ip string, forkID uint64) error
+	AddTx(ctx context.Context, tx types.Transaction, ip string) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetNonce(ctx context.Context, address common.Address) (uint64, error)
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)

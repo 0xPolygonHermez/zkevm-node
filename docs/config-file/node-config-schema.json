@@ -312,6 +312,11 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
+				},
+				"ForkID": {
+					"type": "integer",
+					"description": "ForkID is the current fork ID of the chain",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -744,6 +749,10 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"ForkID": {
+							"type": "integer",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,

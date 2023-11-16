@@ -128,7 +128,7 @@ func start(cliCtx *cli.Context) error {
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 	// If the aggregator is restarted before the end of the sync process, this currentForkID could be wrong
 	c.Aggregator.ForkId = currentForkID
-	c.RPC.ForkID = currentForkID
+	c.Pool.ForkID = currentForkID
 	c.Sequencer.DBManager.ForkID = currentForkID
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.State.DB)

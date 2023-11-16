@@ -425,6 +425,7 @@ MaxGasPriceLimit=0
 | - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 | - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
+| - [ForkID](#Pool_ForkID )                                                       | No      | integer | No         | -          | ForkID is the current fork ID of the chain                                                           |
 
 ### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>7.1. `Pool.IntervalToRefreshBlockedAddresses`
 
@@ -841,6 +842,20 @@ calculations when the effective gas price is disabled (testing/metrics purposes)
 ```
 [Pool.EffectiveGasPrice]
 L2GasPriceSuggesterFactor=0.5
+```
+
+### <a name="Pool_ForkID"></a>7.12. `Pool.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ForkID is the current fork ID of the chain
+
+**Example setting the default value** (0):
+```
+[Pool]
+ForkID=0
 ```
 
 ## <a name="RPC"></a>8. `[RPC]`
@@ -1930,10 +1945,11 @@ SequentialReprocessFullBatch=false
 **Type:** : `object`
 **Description:** DBManager's specific config properties
 
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
+| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string  | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string  | No         | -          | Duration          |
+| - [ForkID](#Sequencer_DBManager_ForkID )                                     | No      | integer | No         | -          | -                 |
 
 #### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
@@ -1981,6 +1997,18 @@ PoolRetrievalInterval="500ms"
 ```
 [Sequencer.DBManager]
 L2ReorgRetrievalInterval="5s"
+```
+
+#### <a name="Sequencer_DBManager_ForkID"></a>10.7.3. `Sequencer.DBManager.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[Sequencer.DBManager]
+ForkID=0
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`

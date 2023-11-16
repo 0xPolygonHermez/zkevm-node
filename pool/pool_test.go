@@ -132,7 +132,7 @@ func Test_AddTxEGPAceptedBecauseGasPriceIsTheSuggested(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = data.pool.AddTx(ctx, *signedTx, ip, forkID6)
+	err = data.pool.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 }
 
@@ -227,7 +227,7 @@ func Test_AddTx(t *testing.T) {
 	require.NoError(t, err)
 	tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
-	err = p.AddTx(ctx, *tx, ip, forkID6)
+	err = p.AddTx(ctx, *tx, ip)
 	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status, used_steps FROM pool.transaction")
@@ -312,7 +312,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.EqualError(t, err, pool.ErrOversizedData.Error())
 }
 
@@ -376,7 +376,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 
 	tx := txs[0]
 
-	err = p.AddTx(ctx, tx, ip, forkID6)
+	err = p.AddTx(ctx, tx, ip)
 	require.NoError(t, err)
 
 	rows, err := poolSqlDB.Query(ctx, "SELECT hash, encoded, decoded, status FROM pool.transaction")
@@ -451,7 +451,7 @@ func Test_GetPendingTxs(t *testing.T) {
 		tx := ethTypes.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 	}
 
@@ -511,7 +511,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 		tx := ethTypes.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 	}
 
@@ -570,7 +570,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 		tx := ethTypes.NewTransaction(uint64(i), common.Address{}, big.NewInt(10), gasLimit, big.NewInt(gasPrice.Int64()+int64(i)), []byte{})
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 	}
 
@@ -626,13 +626,13 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	tx1 := ethTypes.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx1, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx1, ip)
 	require.NoError(t, err)
 
 	tx2 := ethTypes.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx2, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx2, ip)
 	require.NoError(t, err)
 
 	expectedFailedReason := "failed"
@@ -716,7 +716,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	tx := ethTypes.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	if err := p.AddTx(ctx, *signedTx, ip, forkID6); err != nil {
+	if err := p.AddTx(ctx, *signedTx, ip); err != nil {
 		t.Error(err)
 	}
 	expectedFailedReason := "failed"
@@ -863,7 +863,7 @@ func TestGetPendingTxSince(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 		txsAddedTime = append(txsAddedTime, time.Now())
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 		txsAddedHashes = append(txsAddedHashes, signedTx.Hash())
 		time.Sleep(1 * time.Second)
@@ -946,13 +946,13 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	tx1 := ethTypes.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx1, err := auth.Signer(auth.From, tx1)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx1, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx1, ip)
 	require.NoError(t, err)
 
 	tx2 := ethTypes.NewTransaction(uint64(1), common.Address{}, big.NewInt(10), gasLimit, gasPrice, []byte{})
 	signedTx2, err := auth.Signer(auth.From, tx2)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx2, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx2, ip)
 	require.NoError(t, err)
 
 	err = p.DeleteTransactionsByHashes(ctx, []common.Hash{signedTx1.Hash(), signedTx2.Hash()})
@@ -1086,7 +1086,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			incompatibleTx := testCase.createIncompatibleTx()
 			p := setupPool(t, cfg, bc, s, st, incompatibleTx.ChainId().Uint64(), ctx, eventLog)
-			err = p.AddTx(ctx, incompatibleTx, ip, forkID6)
+			err = p.AddTx(ctx, incompatibleTx, ip)
 			assert.Equal(t, testCase.expectedError, err)
 		})
 	}
@@ -1169,7 +1169,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1183,7 +1183,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1197,7 +1197,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 
 	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
@@ -1210,7 +1210,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1224,7 +1224,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err)
 	assert.Equal(t, err.Error(), pool.ErrIntrinsicGas.Error())
 
@@ -1238,7 +1238,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	})
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 
 	txs, err := p.GetPendingTxs(ctx, 0)
@@ -1348,7 +1348,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			signedTx, err := auth.Signer(auth.From, tx)
 			require.NoError(t, err)
 
-			err = p.AddTx(ctx, *signedTx, ip, forkID6)
+			err = p.AddTx(ctx, *signedTx, ip)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 			} else {
@@ -1409,7 +1409,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 
 	txs, err := p.GetPendingTxs(ctx, 0)
@@ -1499,7 +1499,7 @@ func Test_BlockedAddress(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 
 	// block address
@@ -1520,7 +1520,7 @@ func Test_BlockedAddress(t *testing.T) {
 	signedTx, err = auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Equal(t, pool.ErrBlockedSender, err)
 
 	// remove block
@@ -1531,7 +1531,7 @@ func Test_BlockedAddress(t *testing.T) {
 	time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
 
 	// allowed to add tx again
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.NoError(t, err)
 }
 
@@ -1623,7 +1623,7 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 			signedTx, err := auth.Signer(auth.From, tx)
 			require.NoError(t, err)
 
-			err = p.AddTx(ctx, *signedTx, ip, forkID6)
+			err = p.AddTx(ctx, *signedTx, ip)
 			if tc.expectedError != nil {
 				require.ErrorIs(t, err, tc.expectedError)
 			} else {
@@ -1699,7 +1699,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 		nonce++
 	}
@@ -1714,7 +1714,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err, pool.ErrNonceTooHigh)
 }
 
@@ -1795,7 +1795,7 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 		signedTx, err := auth.Signer(auth.From, tx)
 		require.NoError(t, err)
 
-		err = p.AddTx(ctx, *signedTx, ip, forkID6)
+		err = p.AddTx(ctx, *signedTx, ip)
 		require.NoError(t, err)
 	}
 
@@ -1815,7 +1815,7 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err, pool.ErrTxPoolOverflow)
 }
 
@@ -1884,7 +1884,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	err = p.AddTx(ctx, *signedTx, ip, forkID6)
+	err = p.AddTx(ctx, *signedTx, ip)
 	require.Error(t, err, pool.ErrNonceTooHigh)
 }
 
@@ -1945,7 +1945,7 @@ func Test_AddTx_IPValidation(t *testing.T) {
 			require.NoError(t, err)
 			tx.UnmarshalBinary(b) //nolint:gosec,errcheck
 
-			err = p.AddTx(context.Background(), *tx, tc.ip, forkID6)
+			err = p.AddTx(context.Background(), *tx, tc.ip)
 
 			if tc.expected != nil {
 				assert.ErrorIs(t, err, tc.expected)
