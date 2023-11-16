@@ -9,28 +9,23 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateGlobalExitRootInterface interface {
+type StateProcessorGlobalExitRootInterface interface {
 	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type GlobalExitRootLegacy struct {
-	state StateGlobalExitRootInterface
+type ProcessorGlobalExitRoot struct {
+	ProcessorBase[ProcessorGlobalExitRoot]
+	state StateProcessorGlobalExitRootInterface
 }
 
-func NewProcessorGlobalExitRootLegacy(state StateGlobalExitRootInterface) *GlobalExitRootLegacy {
-	return &GlobalExitRootLegacy{state: state}
+func NewProcessorGlobalExitRoot(state StateProcessorGlobalExitRootInterface) *ProcessorGlobalExitRoot {
+	return &ProcessorGlobalExitRoot{
+		ProcessorBase: ProcessorBase[ProcessorGlobalExitRoot]{supportedEvent: etherman.GlobalExitRootsOrder},
+		state:         state}
 }
 
-func (g *GlobalExitRootLegacy) String() string {
-	return "GlobalExitRootLegacy"
-}
-
-func (g *GlobalExitRootLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (g *GlobalExitRootLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (p *ProcessorGlobalExitRoot) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	globalExitRoot := l1Block.GlobalExitRoots[postion]
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,
@@ -38,7 +33,7 @@ func (g *GlobalExitRootLegacy) Process(ctx context.Context, event etherman.Event
 		RollupExitRoot:  globalExitRoot.RollupExitRoot,
 		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
 	}
-	err := g.state.AddGlobalExitRoot(ctx, &ger, dbTx)
+	err := p.state.AddGlobalExitRoot(ctx, &ger, dbTx)
 	if err != nil {
 		log.Errorf("error storing the GlobalExitRoot in processGlobalExitRoot. BlockNumber: %d, error: %v", l1Block.BlockNumber, err)
 		rollbackErr := dbTx.Rollback(ctx)

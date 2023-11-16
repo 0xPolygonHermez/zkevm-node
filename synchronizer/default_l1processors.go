@@ -8,16 +8,16 @@ import (
 func defaultsL1EventProcessors(sync *ClientSynchronizer) *l1events.L1EventProcessors {
 	p := l1events.L1EventProcessorsBuilder{}
 	p.Add(etherman.GlobalExitRootsOrder,
-		l1events.NewProcessorGlobalExitRootLegacy(sync.state))
-	p.Add(etherman.GlobalExitRootsOrder,
-		l1events.NewProcessorSequenceBatchesLegacy(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
+		l1events.NewProcessorGlobalExitRoot(sync.state))
+	p.Add(etherman.SequenceBatchesOrder,
+		l1events.NewProcessorSequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
 	p.Add(etherman.ForcedBatchesOrder,
-		l1events.NewProcessForcedBatchesLegacy(sync.state))
+		l1events.NewProcessForcedBatches(sync.state))
 	p.Add(etherman.SequenceForceBatchesOrder,
-		l1events.NewProcessSequenceForcedBatchesLegacy(sync.state, sync))
+		l1events.NewProcessSequenceForcedBatches(sync.state, sync))
 	p.Add(etherman.TrustedVerifyBatchOrder,
-		l1events.NewProcessorTrustedVerifyBatchLegacy(sync.state))
+		l1events.NewProcessorTrustedVerifyBatch(sync.state))
 	p.Add(etherman.ForkIDsOrder,
-		l1events.NewProcessorForkIdLegacy(sync.state, sync))
+		l1events.NewProcessorForkId(sync.state, sync))
 	return p.Build()
 }

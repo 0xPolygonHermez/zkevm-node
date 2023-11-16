@@ -9,36 +9,27 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessForcedBatchesLegacyInterface interface {
+type StateProcessForcedBatchesInterface interface {
 	AddForcedBatch(ctx context.Context, forcedBatch *state.ForcedBatch, dbTx pgx.Tx) error
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type ProcessForcedBatchesLegacy struct {
-	state StateProcessForcedBatchesLegacyInterface
+type ProcessForcedBatches struct {
+	ProcessorBase[ProcessForcedBatches]
+	state StateProcessForcedBatchesInterface
 }
 
-func NewProcessForcedBatchesLegacy(state StateProcessForcedBatchesLegacyInterface) *ProcessForcedBatchesLegacy {
-	return &ProcessForcedBatchesLegacy{state: state}
+func NewProcessForcedBatches(state StateProcessForcedBatchesInterface) *ProcessForcedBatches {
+	return &ProcessForcedBatches{
+		ProcessorBase: ProcessorBase[ProcessForcedBatches]{supportedEvent: etherman.ForcedBatchesOrder},
+		state:         state}
 }
 
-func (g *ProcessForcedBatchesLegacy) String() string {
-	return "ProcessForcedBatchesLegacy"
+func (p *ProcessForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+	return p.processForcedBatch(ctx, l1Block.ForcedBatches[postion], dbTx)
 }
 
-func (p *ProcessForcedBatchesLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (p *ProcessForcedBatchesLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	err := p.processForcedBatch(ctx, l1Block.ForcedBatches[postion], dbTx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (p *ProcessForcedBatchesLegacy) processForcedBatch(ctx context.Context, forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) error {
+func (p *ProcessForcedBatches) processForcedBatch(ctx context.Context, forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) error {
 	// Store forced batch into the db
 	forcedB := state.ForcedBatch{
 		BlockNumber:       forcedBatch.BlockNumber,

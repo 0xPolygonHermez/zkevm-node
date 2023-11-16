@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessSequenceForcedBatchesLegacyInterface interface {
+type StateProcessSequenceForcedBatchesInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
@@ -22,35 +22,31 @@ type StateProcessSequenceForcedBatchesLegacyInterface interface {
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 }
 
-type syncProcessSequenceForcedBatchesLegacyInterface interface {
+type syncProcessSequenceForcedBatchesInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CleanTrustedState()
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type ProcessSequenceForcedBatchesLegacy struct {
-	state StateProcessSequenceForcedBatchesLegacyInterface
-	sync  syncProcessSequenceForcedBatchesLegacyInterface
+type ProcessSequenceForcedBatches struct {
+	ProcessorBase[ProcessSequenceForcedBatches]
+	state StateProcessSequenceForcedBatchesInterface
+	sync  syncProcessSequenceForcedBatchesInterface
 }
 
-func NewProcessSequenceForcedBatchesLegacy(state StateProcessSequenceForcedBatchesLegacyInterface,
-	sync syncProcessSequenceForcedBatchesLegacyInterface) *ProcessSequenceForcedBatchesLegacy {
-	return &ProcessSequenceForcedBatchesLegacy{state: state, sync: sync}
+func NewProcessSequenceForcedBatches(state StateProcessSequenceForcedBatchesInterface,
+	sync syncProcessSequenceForcedBatchesInterface) *ProcessSequenceForcedBatches {
+	return &ProcessSequenceForcedBatches{
+		ProcessorBase: ProcessorBase[ProcessSequenceForcedBatches]{supportedEvent: etherman.SequenceForceBatchesOrder},
+		state:         state,
+		sync:          sync}
 }
 
-func (g *ProcessSequenceForcedBatchesLegacy) String() string {
-	return "ProcessSequenceForcedBatchesLegacy"
-}
-
-func (p *ProcessSequenceForcedBatchesLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (p *ProcessSequenceForcedBatchesLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (p *ProcessSequenceForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	return p.processSequenceForceBatch(ctx, l1Block.SequencedForceBatches[postion], *l1Block, dbTx)
 }
 
-func (s *ProcessSequenceForcedBatchesLegacy) processSequenceForceBatch(ctx context.Context, sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
+func (s *ProcessSequenceForcedBatches) processSequenceForceBatch(ctx context.Context, sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
 	if len(sequenceForceBatch) == 0 {
 		log.Warn("Empty sequenceForceBatch array detected, ignoring...")
 		return nil

@@ -12,43 +12,37 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessorForkIdLegacyInterface interface {
+type StateProcessorForkIdInterface interface {
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error)
 	AddForkIDInterval(ctx context.Context, newForkID state.ForkIDInterval, dbTx pgx.Tx) error
 	ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 }
 
-type syncProcessorForkIdLegacyInterface interface {
-	//PendingFlushID(flushID uint64, proverID string)
+type syncProcessorForkIdInterface interface {
 	IsTrustedSequencer() bool
-	//CleanTrustedState()
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorForkIdLegacy struct {
-	state StateProcessorForkIdLegacyInterface
-	sync  syncProcessorForkIdLegacyInterface
+type ProcessorForkId struct {
+	ProcessorBase[ProcessorForkId]
+	state StateProcessorForkIdInterface
+	sync  syncProcessorForkIdInterface
 }
 
-func NewProcessorForkIdLegacy(state StateProcessorForkIdLegacyInterface,
-	sync syncProcessorForkIdLegacyInterface) *ProcessorForkIdLegacy {
-	return &ProcessorForkIdLegacy{state: state, sync: sync}
+func NewProcessorForkId(state StateProcessorForkIdInterface,
+	sync syncProcessorForkIdInterface) *ProcessorForkId {
+	return &ProcessorForkId{
+		ProcessorBase: ProcessorBase[ProcessorForkId]{supportedEvent: etherman.ForkIDsOrder},
+		state:         state,
+		sync:          sync}
 }
 
-func (p *ProcessorForkIdLegacy) String() string {
-	return "ProcessorGlobalExitRootLegacy"
-}
-
-func (p *ProcessorForkIdLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (p *ProcessorForkIdLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (p *ProcessorForkId) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	return p.processForkID(ctx, l1Block.ForkIDs[postion], l1Block.BlockNumber, dbTx)
 }
 
-func (s *ProcessorForkIdLegacy) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
+func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
 	fID := state.ForkIDInterval{
 		FromBatchNumber: forkID.BatchNumber + 1,
 		ToBatchNumber:   math.MaxUint64,

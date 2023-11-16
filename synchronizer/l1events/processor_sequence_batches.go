@@ -37,51 +37,45 @@ type ethermanProcessSequenceBatches interface {
 	GetLatestBatchNumber() (uint64, error)
 }
 
-type poolInterface interface {
+type poolProcessSequenceBatchesInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*ethTypes.Transaction) error
 	StoreTx(ctx context.Context, tx ethTypes.Transaction, ip string, isWIP bool) error
 }
 
-type syncStuff interface {
+type syncProcessSequenceBatchesInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	IsTrustedSequencer() bool
 	CleanTrustedState()
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorSequenceBatchesLegacy struct {
+type ProcessorSequenceBatches struct {
+	ProcessorBase[ProcessorSequenceBatches]
 	state    stateProcessSequenceBatches
-	etherman ethermanProcessSequenceBatches
-	pool     poolInterface
+	etherMan ethermanProcessSequenceBatches
+	pool     poolProcessSequenceBatchesInterface
 	eventLog *event.EventLog
-	sync     syncStuff
+	sync     syncProcessSequenceBatchesInterface
 }
 
-func NewProcessorSequenceBatchesLegacy(state stateProcessSequenceBatches,
-	etherman ethermanProcessSequenceBatches, pool poolInterface, eventLog *event.EventLog, sync syncStuff) *ProcessorSequenceBatchesLegacy {
-	return &ProcessorSequenceBatchesLegacy{
-		state:    state,
-		etherman: etherman,
-		pool:     pool,
-		eventLog: eventLog,
-		sync:     sync,
+func NewProcessorSequenceBatches(state stateProcessSequenceBatches,
+	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorSequenceBatches {
+	return &ProcessorSequenceBatches{
+		ProcessorBase: ProcessorBase[ProcessorSequenceBatches]{supportedEvent: etherman.SequenceBatchesOrder},
+		state:         state,
+		etherMan:      etherMan,
+		pool:          pool,
+		eventLog:      eventLog,
+		sync:          sync,
 	}
 }
 
-func (g *ProcessorSequenceBatchesLegacy) String() string {
-	return "ProcessorSequenceBatchesLegacy"
-}
-
-func (g *ProcessorSequenceBatchesLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (g *ProcessorSequenceBatchesLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (g *ProcessorSequenceBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[postion], l1Block.BlockNumber, dbTx)
 	return err
 }
 
-func (g *ProcessorSequenceBatchesLegacy) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
+func (g *ProcessorSequenceBatches) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
@@ -299,8 +293,8 @@ func (g *ProcessorSequenceBatchesLegacy) processSequenceBatches(ctx context.Cont
 	return nil
 }
 
-func (g *ProcessorSequenceBatchesLegacy) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
-	latestBatchNum, err := g.etherman.GetLatestBatchNumber()
+func (g *ProcessorSequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
+	latestBatchNum, err := g.etherMan.GetLatestBatchNumber()
 	if err != nil {
 		log.Error("error getting the latestBatchNumber virtualized in the smc. Error: ", err)
 		return err
@@ -336,7 +330,7 @@ func (g *ProcessorSequenceBatchesLegacy) reorgPool(ctx context.Context, dbTx pgx
 	return nil
 }
 
-func (g *ProcessorSequenceBatchesLegacy) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
+func (g *ProcessorSequenceBatches) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
 	var reorgReasons strings.Builder
 	if newRoot != tBatch.StateRoot {
@@ -386,7 +380,7 @@ func (g *ProcessorSequenceBatchesLegacy) checkTrustedState(ctx context.Context, 
 }
 
 // halt halts the Synchronizer
-func (g *ProcessorSequenceBatchesLegacy) halt(ctx context.Context, err error) {
+func (g *ProcessorSequenceBatches) halt(ctx context.Context, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,

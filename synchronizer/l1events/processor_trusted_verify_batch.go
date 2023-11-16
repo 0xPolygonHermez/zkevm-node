@@ -10,34 +10,29 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateTrustedVerifyBatchLegacyInterface interface {
+type StateTrustedVerifyBatchInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 }
 
 // GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorTrustedVerifyBatchLegacy struct {
-	state StateTrustedVerifyBatchLegacyInterface
+type ProcessorTrustedVerifyBatch struct {
+	ProcessorBase[ProcessorTrustedVerifyBatch]
+	state StateTrustedVerifyBatchInterface
 }
 
-func NewProcessorTrustedVerifyBatchLegacy(state StateTrustedVerifyBatchLegacyInterface) *ProcessorTrustedVerifyBatchLegacy {
-	return &ProcessorTrustedVerifyBatchLegacy{state: state}
+func NewProcessorTrustedVerifyBatch(state StateTrustedVerifyBatchInterface) *ProcessorTrustedVerifyBatch {
+	return &ProcessorTrustedVerifyBatch{
+		ProcessorBase: ProcessorBase[ProcessorTrustedVerifyBatch]{supportedEvent: etherman.TrustedVerifyBatchOrder},
+		state:         state}
 }
 
-func (p *ProcessorTrustedVerifyBatchLegacy) String() string {
-	return "ProcessorTrustedVerifyBatchLegacy"
-}
-
-func (p *ProcessorTrustedVerifyBatchLegacy) SupportedForkIds() []ForkIdType {
-	return []ForkIdType{1, 2, 3, 4, 5, 6}
-}
-
-func (p *ProcessorTrustedVerifyBatchLegacy) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
+func (p *ProcessorTrustedVerifyBatch) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
 	return p.processTrustedVerifyBatches(ctx, l1Block.VerifiedBatches[postion], dbTx)
 }
 
-func (p *ProcessorTrustedVerifyBatchLegacy) processTrustedVerifyBatches(ctx context.Context, lastVerifiedBatch etherman.VerifiedBatch, dbTx pgx.Tx) error {
+func (p *ProcessorTrustedVerifyBatch) processTrustedVerifyBatches(ctx context.Context, lastVerifiedBatch etherman.VerifiedBatch, dbTx pgx.Tx) error {
 	lastVBatch, err := p.state.GetLastVerifiedBatch(ctx, dbTx)
 	if err != nil {
 		log.Errorf("error getting lastVerifiedBatch stored in db in processTrustedVerifyBatches. Processing synced blockNumber: %d", lastVerifiedBatch.BlockNumber)
