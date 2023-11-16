@@ -1056,7 +1056,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	filters := e.storage.GetAllBlockFiltersWithWSConn()
 	log.Infof("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
 
-	const maxWorkers = 16
+	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
 		for _, filter := range filters {
 			f := filter
@@ -1076,7 +1076,7 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 	filters := e.storage.GetAllLogFiltersWithWSConn()
 	log.Infof("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
 
-	const maxWorkers = 16
+	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
 		for _, filter := range filters {
 			f := filter
