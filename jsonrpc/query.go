@@ -94,7 +94,7 @@ func (f *Filter) sendSubscriptionResponse(data []byte) {
 		return
 	}
 	log.Debugf("WS message sent: %v", string(message))
-	log.Debugf("[SendSubscriptionResponse] took %v", time.Since(start))
+	log.Infof("[SendSubscriptionResponse] took %v", time.Since(start))
 }
 
 // FilterType express the type of the filter, block, logs, pending transactions
