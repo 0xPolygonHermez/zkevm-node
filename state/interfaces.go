@@ -126,4 +126,5 @@ type storage interface {
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
+	GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error)
 }

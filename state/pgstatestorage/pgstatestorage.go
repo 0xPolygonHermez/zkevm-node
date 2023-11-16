@@ -119,6 +119,25 @@ func (p *PostgresStorage) GetStateRootByBatchNumber(ctx context.Context, batchNu
 	return common.HexToHash(stateRootStr), nil
 }
 
+// GetLogsByBlockNumber get all the logs from a specific block ordered by log index
+func (p *PostgresStorage) GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error) {
+	const query = `
+      SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+        FROM state.log l
+       INNER JOIN state.transaction t ON t.hash = l.tx_hash
+       INNER JOIN state.l2block b ON b.block_num = t.l2_block_num
+       WHERE b.block_num = $1
+       ORDER BY l.log_index ASC`
+
+	q := p.getExecQuerier(dbTx)
+	rows, err := q.Query(ctx, query, blockNumber)
+	if err != nil {
+		return nil, err
+	}
+
+	return scanLogs(rows)
+}
+
 // GetLogs returns the logs that match the filter
 func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error) {
 	// query parts

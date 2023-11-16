@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -5053,4 +5054,131 @@ func TestSubscribeNewLogs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFilterLogs(t *testing.T) {
+	logs := []*ethTypes.Log{{
+		Address: common.HexToAddress("0x1"),
+		Topics: []common.Hash{
+			common.HexToHash("0xA"),
+			common.HexToHash("0xB"),
+		},
+	}}
+
+	// empty filter
+	filteredLogs := filterLogs(logs, &Filter{Parameters: LogFilter{}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address and another random address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by unknown address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by topic0
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by topic0 but allows any topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by any topic0 but forces topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to be any of the values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to wrong values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by forcing topic0 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 by forcing topic1 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 and topic1 but forcing topic2 that doesn't exist
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+}
+
+func TestContains(t *testing.T) {
+	items := []int{1, 2, 3}
+	assert.Equal(t, false, contains(items, 0))
+	assert.Equal(t, true, contains(items, 1))
+	assert.Equal(t, true, contains(items, 2))
+	assert.Equal(t, true, contains(items, 3))
+	assert.Equal(t, false, contains(items, 4))
+}
+
+func TestParalelize(t *testing.T) {
+	items := []int{
+		1, 2, 3, 4, 5, 6, 7, 8, 9,
+		10, 11, 12, 13, 14, 15, 16,
+	}
+
+	results := map[int][]int{}
+	mu := &sync.Mutex{}
+
+	parallelize(7, items, func(worker int, items []int) {
+		mu.Lock()
+		results[worker] = items
+		mu.Unlock()
+	})
+
+	assert.ElementsMatch(t, []int{1, 2, 3}, results[0])
+	assert.ElementsMatch(t, []int{4, 5, 6}, results[1])
+	assert.ElementsMatch(t, []int{7, 8, 9}, results[2])
+	assert.ElementsMatch(t, []int{10, 11, 12}, results[3])
+	assert.ElementsMatch(t, []int{13, 14, 15}, results[4])
+	assert.ElementsMatch(t, []int{16}, results[5])
 }
