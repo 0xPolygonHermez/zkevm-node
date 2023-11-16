@@ -20,6 +20,7 @@ type NewL2BlockEventHandler func(e NewL2BlockEvent)
 // when a new l2 block is detected with data related to this new l2 block.
 type NewL2BlockEvent struct {
 	Block types.Block
+	Logs  []*types.Log
 }
 
 // StartToMonitorNewL2Blocks starts 2 go routines that will
@@ -84,10 +85,17 @@ func (s *State) monitorNewL2Blocks() {
 				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
 				break
 			}
+			logs, err := s.GetLogsByBlockNumber(context.Background(), bn, nil)
+			if err != nil {
+				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
+				break
+			}
+
 			log.Debugf("[monitorNewL2Blocks] sending NewL2BlockEvent for block %v", block.NumberU64())
 			start := time.Now()
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
+				Logs:  logs,
 			}
 			lastL2BlockNumberSeen = block.NumberU64()
 			log.Infof("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %v to be sent", block.NumberU64(), time.Since(start))

@@ -28,6 +28,9 @@ const (
 	// to communicate with the state for eth_EstimateGas and eth_Call when
 	// the From field is not specified because it is optional
 	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+
+	// maxTopics is the max number of topics a log can have
+	maxTopics = 4
 )
 
 // EthEndpoints contains implementations for the "eth" RPC endpoints
@@ -1180,25 +1183,13 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 			start = time.Now()
 
 			// get new logs for this specific filter
-			changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
-			if err != nil {
-				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", f.ID, err)
-				return
-			}
-
-			log.Infof("[notifyNewLogs] took %v to run internalGetLogs", time.Since(start))
-			start = time.Now()
-
-			// if there are new logs for the filter, send it
-			if changes != nil {
-				ethLogs := changes.([]types.Log)
-				for _, ethLog := range ethLogs {
-					data, err := json.Marshal(ethLog)
-					if err != nil {
-						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
-					}
-					f.EnqueueSubscriptionDataToBeSent(data)
+			logs := filterLogs(event.Logs, filterParameters)
+			for _, l := range logs {
+				data, err := json.Marshal(l)
+				if err != nil {
+					log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 				}
+				f.EnqueueSubscriptionDataToBeSent(data)
 			}
 
 			log.Infof("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
@@ -1206,4 +1197,72 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 	}
 	enqueueWg.Wait()
 	log.Infof("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
+}
+
+// filterLogs will filter the provided logsToFilter accordingly to the filters provided
+func filterLogs(logsToFilter []*ethTypes.Log, filter LogFilter) []types.Log {
+	logs := make([]types.Log, 0)
+	for _, l := range logsToFilter {
+		// check address filter
+		if len(filter.Addresses) > 0 {
+			// if the log address doesn't match any address in the filter, skip this log
+			if !contains(filter.Addresses, l.Address) {
+				continue
+			}
+		}
+
+		// check topics
+		match := true
+		if len(filter.Topics) > 0 {
+		out:
+			// check all topics
+			for i := 0; i < maxTopics; i++ {
+				// check if the filter contains information
+				// to filter this topic position
+				checkTopic := len(filter.Topics) > i
+				if !checkTopic {
+					// if we shouldn't check this topic, we can assume
+					// no more topics needs to be checked, because there
+					// will be no more topic filters, so we can break out
+					break out
+				}
+
+				// check if the topic filter allows any topic
+				acceptAnyTopic := len(filter.Topics[i]) == 0
+				if acceptAnyTopic {
+					// since any topic is allowed, we continue to the next topic filters
+					continue
+				}
+
+				// check if the log has the required topic set
+				logHasTopic := len(l.Topics) > i
+				if !logHasTopic {
+					// if the log doesn't have the required topic set, skip this log
+					match = false
+					break out
+				}
+
+				// check if the any topic in the filter matches the log topic
+				if !contains(filter.Topics[i], l.Topics[i]) {
+					match = false
+					// if the log topic doesn't match any topic in the filter, skip this log
+					break out
+				}
+			}
+		}
+		if match {
+			logs = append(logs, types.NewLog(*l))
+		}
+	}
+	return logs
+}
+
+// contains check if the item can be found in the items
+func contains[T comparable](items []T, itemsToFind T) bool {
+	for _, item := range items {
+		if item == itemsToFind {
+			return true
+		}
+	}
+	return false
 }
