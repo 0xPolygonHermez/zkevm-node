@@ -1055,18 +1055,16 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 
 	filters := e.storage.GetAllBlockFiltersWithWSConn()
 	log.Infof("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
-	enqueueWg := sync.WaitGroup{}
-	for _, filter := range filters {
-		f := filter
-		enqueueWg.Add(1)
-		go func(f *Filter) {
-			defer enqueueWg.Done()
+
+	const maxWorkers = 16
+	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
+		for _, filter := range filters {
+			f := filter
 			start := time.Now()
 			f.EnqueueSubscriptionDataToBeSent(data)
 			log.Infof("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
-		}(f)
-	}
-	enqueueWg.Wait()
+		}
+	})
 
 	log.Infof("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
@@ -1077,78 +1075,23 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 
 	filters := e.storage.GetAllLogFiltersWithWSConn()
 	log.Infof("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
-	enqueueWg := sync.WaitGroup{}
-	for _, filter := range filters {
-		f := filter
-		enqueueWg.Add(1)
-		go func(f *Filter) {
-			defer enqueueWg.Done()
+
+	const maxWorkers = 16
+	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
+		for _, filter := range filters {
+			f := filter
 			start := time.Now()
-
-			filterParameters := f.Parameters.(LogFilter)
-			bn := types.BlockNumber(event.Block.NumberU64())
-
-			if filterParameters.BlockHash != nil {
-				// if the filter block hash is set, we check if the block is the
-				// one with the expected hash, otherwise we ignore the filter
-				bh := *filterParameters.BlockHash
-				if bh.String() != event.Block.Hash().String() {
-					return
-				}
-			} else if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
-				// in case the block hash is nil and also from and to blocks are nil, set it
-				// to the current block to make the query faster
-				filterParameters.FromBlock = &bn
-				filterParameters.ToBlock = &bn
-			} else {
-				// if the filter has a fromBlock value set
-				// and the event block number is smaller than the
-				// from block, skip this filter
-				if filterParameters.FromBlock != nil {
-					fromBlock, rpcErr := filterParameters.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-					if rpcErr != nil {
-						log.Errorf("failed to get numeric block number for FromBlock field for filter %v: %v", f.ID, rpcErr)
-						return
-					}
-					// if the block number is smaller than the fromBlock value
-					// this means this block is out of the block range for this
-					// filter, so we skip it
-					if event.Block.NumberU64() < fromBlock {
-						return
-					}
-					// otherwise set the from block to a fixed number
-					// to avoid querying it again in the next step
-					fixedFromBlock := types.BlockNumber(event.Block.NumberU64())
-					filterParameters.FromBlock = &fixedFromBlock
-				}
-
-				// if the filter has a toBlock value set
-				// and the event block number is greater than the
-				// to block, skip this filter
-				if filterParameters.ToBlock != nil {
-					toBlock, rpcErr := filterParameters.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-					if rpcErr != nil {
-						log.Errorf("failed to get numeric block number for ToBlock field for filter %v: %v", f.ID, rpcErr)
-						return
-					}
-					// if the block number is greater than the toBlock value
-					// this means this block is out of the block range for this
-					// filter, so we skip it
-					if event.Block.NumberU64() > toBlock {
-						return
-					}
-					// otherwise set the to block to a fixed number
-					// to avoid querying it again in the next step
-					fixedToBlock := types.BlockNumber(event.Block.NumberU64())
-					filterParameters.ToBlock = &fixedToBlock
-				}
+			if e.shouldSkipLogFilter(event, filter) {
+				return
 			}
+			log.Infof("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
 
-			log.Infof("[notifyNewLogs] took %v to prepare filter parameters", time.Since(start))
 			start = time.Now()
-
 			// get new logs for this specific filter
-			logs := filterLogs(event.Logs, filterParameters)
+			logs := filterLogs(event.Logs, filter)
+			log.Infof("[notifyNewLogs] took %v to filter logs", time.Since(start))
+
+			start = time.Now()
 			for _, l := range logs {
 				data, err := json.Marshal(l)
 				if err != nil {
@@ -1156,35 +1099,87 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 				}
 				f.EnqueueSubscriptionDataToBeSent(data)
 			}
-
 			log.Infof("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
-		}(f)
-	}
-	enqueueWg.Wait()
+		}
+	})
+
 	log.Infof("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
 }
 
+// shouldSkipLogFilter checks if the log filter can be skipped while notifying new logs.
+// it checks the log filter information against the block in the event to decide if the
+// information in the event is required by the filter or can be ignored to save resources.
+func (e *EthEndpoints) shouldSkipLogFilter(event state.NewL2BlockEvent, filter *Filter) bool {
+	logFilter := filter.Parameters.(LogFilter)
+
+	if logFilter.BlockHash != nil {
+		// if the filter block hash is set, we check if the block is the
+		// one with the expected hash, otherwise we ignore the filter
+		bh := *logFilter.BlockHash
+		if bh.String() != event.Block.Hash().String() {
+			return true
+		}
+	} else {
+		// if the filter has a fromBlock value set
+		// and the event block number is smaller than the
+		// from block, skip this filter
+		if logFilter.FromBlock != nil {
+			fromBlock, rpcErr := logFilter.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+			if rpcErr != nil {
+				log.Errorf("failed to get numeric block number for FromBlock field for filter %v: %v", filter.ID, rpcErr)
+				return true
+			}
+			// if the block number is smaller than the fromBlock value
+			// this means this block is out of the block range for this
+			// filter, so we skip it
+			if event.Block.NumberU64() < fromBlock {
+				return true
+			}
+		}
+
+		// if the filter has a toBlock value set
+		// and the event block number is greater than the
+		// to block, skip this filter
+		if logFilter.ToBlock != nil {
+			toBlock, rpcErr := logFilter.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+			if rpcErr != nil {
+				log.Errorf("failed to get numeric block number for ToBlock field for filter %v: %v", filter.ID, rpcErr)
+				return true
+			}
+			// if the block number is greater than the toBlock value
+			// this means this block is out of the block range for this
+			// filter, so we skip it
+			if event.Block.NumberU64() > toBlock {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // filterLogs will filter the provided logsToFilter accordingly to the filters provided
-func filterLogs(logsToFilter []*ethTypes.Log, filter LogFilter) []types.Log {
+func filterLogs(logsToFilter []*ethTypes.Log, filter *Filter) []types.Log {
+	logFilter := filter.Parameters.(LogFilter)
+
 	logs := make([]types.Log, 0)
 	for _, l := range logsToFilter {
 		// check address filter
-		if len(filter.Addresses) > 0 {
+		if len(logFilter.Addresses) > 0 {
 			// if the log address doesn't match any address in the filter, skip this log
-			if !contains(filter.Addresses, l.Address) {
+			if !contains(logFilter.Addresses, l.Address) {
 				continue
 			}
 		}
 
 		// check topics
 		match := true
-		if len(filter.Topics) > 0 {
+		if len(logFilter.Topics) > 0 {
 		out:
 			// check all topics
 			for i := 0; i < maxTopics; i++ {
 				// check if the filter contains information
 				// to filter this topic position
-				checkTopic := len(filter.Topics) > i
+				checkTopic := len(logFilter.Topics) > i
 				if !checkTopic {
 					// if we shouldn't check this topic, we can assume
 					// no more topics needs to be checked, because there
@@ -1193,7 +1188,7 @@ func filterLogs(logsToFilter []*ethTypes.Log, filter LogFilter) []types.Log {
 				}
 
 				// check if the topic filter allows any topic
-				acceptAnyTopic := len(filter.Topics[i]) == 0
+				acceptAnyTopic := len(logFilter.Topics[i]) == 0
 				if acceptAnyTopic {
 					// since any topic is allowed, we continue to the next topic filters
 					continue
@@ -1208,7 +1203,7 @@ func filterLogs(logsToFilter []*ethTypes.Log, filter LogFilter) []types.Log {
 				}
 
 				// check if the any topic in the filter matches the log topic
-				if !contains(filter.Topics[i], l.Topics[i]) {
+				if !contains(logFilter.Topics[i], l.Topics[i]) {
 					match = false
 					// if the log topic doesn't match any topic in the filter, skip this log
 					break out
@@ -1230,4 +1225,54 @@ func contains[T comparable](items []T, itemsToFind T) bool {
 		}
 	}
 	return false
+}
+
+// parallelize split the items into workers accordingly
+// to the max number of workers and the number of items,
+// allowing the fn to be executed in concurrently for different
+// chunks of items.
+func parallelize[T any](maxWorkers int, items []T, fn func(worker int, items []T)) {
+	if len(items) == 0 {
+		return
+	}
+
+	var workersCount = maxWorkers
+	if workersCount > len(items) {
+		workersCount = len(items)
+	}
+
+	var jobSize = len(items) / workersCount
+	var rest = len(items) % workersCount
+	if rest > 0 {
+		jobSize++
+	}
+
+	wg := sync.WaitGroup{}
+	for worker := 0; worker < workersCount; worker++ {
+		rangeStart := worker * jobSize
+		rangeEnd := ((worker + 1) * jobSize)
+
+		if rangeStart > len(items) {
+			continue
+		}
+
+		if rangeEnd > len(items) {
+			rangeEnd = len(items)
+		}
+
+		jobItems := items[rangeStart:rangeEnd]
+
+		wg.Add(1)
+		go func(worker int, filteredItems []T, fn func(worker int, items []T)) {
+			defer func() {
+				wg.Done()
+				err := recover()
+				if err != nil {
+					fmt.Println(err)
+				}
+			}()
+			fn(worker, filteredItems)
+		}(worker, jobItems, fn)
+	}
+	wg.Wait()
 }
