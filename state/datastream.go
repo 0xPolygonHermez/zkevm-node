@@ -33,10 +33,16 @@ type DSBatch struct {
 	ForkID uint16
 }
 
+// DSFullBatch represents a data stream batch ant its L2 blocks
+type DSFullBatch struct {
+	DSBatch
+	L2Blocks []DSL2FullBlock
+}
+
 // DSL2FullBlock represents a data stream L2 full block and its transactions
 type DSL2FullBlock struct {
-	L2Block DSL2Block
-	Txs     []DSL2Transaction
+	DSL2Block
+	Txs []DSL2Transaction
 }
 
 // DSL2Block is a full l2 block
@@ -86,6 +92,7 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 
 // DSL2Transaction represents a data stream L2 transaction
 type DSL2Transaction struct {
+	L2BlockNumber               uint64 // Not included in the encoded data
 	EffectiveGasPricePercentage uint8  // 1 byte
 	IsValid                     uint8  // 1 byte
 	EncodedLength               uint32 // 4 bytes
@@ -192,9 +199,9 @@ func (g DSUpdateGER) Decode(data []byte) DSUpdateGER {
 // DSState gathers the methods required to interact with the data stream state.
 type DSState interface {
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error)
-	GetDSBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*DSBatch, error)
-	GetDSL2Blocks(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
-	GetDSL2Transactions(ctx context.Context, minL2Block, maxL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
+	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error)
+	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
+	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
@@ -290,7 +297,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var entry uint64 = header.TotalEntries
-	var l2blocks []*DSL2Block
 	var currentGER = common.Hash{}
 
 	if entry > 0 {
@@ -302,11 +308,13 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 	var err error
 
+	const limit = 10000
+
 	for err == nil {
 		log.Debugf("Current entry number: %d", entry)
 		log.Debugf("Current batch number: %d", currentBatchNumber)
 		// Get Next Batch
-		batch, err := stateDB.GetDSBatch(ctx, currentBatchNumber, nil)
+		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, nil)
 		if err != nil {
 			if err == ErrStateNotSynchronized {
 				break
@@ -315,106 +323,167 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			return err
 		}
 
-		l2blocks, err = stateDB.GetDSL2Blocks(ctx, currentBatchNumber, nil)
+		// Finished?
+		if len(batches) == 0 {
+			break
+		}
+
+		l2Blocks, err := stateDB.GetDSL2Blocks(ctx, batches[0].BatchNumber, batches[len(batches)-1].BatchNumber, nil)
 		if err != nil {
-			log.Errorf("Error getting L2 blocks for batch %d: %s", currentBatchNumber, err.Error())
+			log.Errorf("Error getting L2 blocks for batches starting at %d: %s", batches[0].BatchNumber, err.Error())
 			return err
 		}
 
-		currentBatchNumber++
+		l2Txs := make([]*DSL2Transaction, 0)
+		if len(l2Blocks) > 0 {
+			l2Txs, err = stateDB.GetDSL2Transactions(ctx, l2Blocks[0].L2BlockNumber, l2Blocks[len(l2Blocks)-1].L2BlockNumber, nil)
+			if err != nil {
+				log.Errorf("Error getting L2 transactions for blocks starting at %d: %s", l2Blocks[0].L2BlockNumber, err.Error())
+				return err
+			}
+		}
 
-		if len(l2blocks) == 0 {
-			// Empty batch
-			// Check if there is a GER update
-			if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
-				updateGer := DSUpdateGER{
-					BatchNumber:    batch.BatchNumber,
-					Timestamp:      batch.Timestamp.Unix(),
-					GlobalExitRoot: batch.GlobalExitRoot,
-					Coinbase:       batch.Coinbase,
-					ForkID:         batch.ForkID,
-					StateRoot:      batch.StateRoot,
+		// Gererate full batches
+		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
+		log.Debugf("Full batches: %+v", fullBatches)
+
+		currentBatchNumber += limit
+
+		for _, batch := range fullBatches {
+			if len(batch.L2Blocks) == 0 {
+				// Empty batch
+				// Check if there is a GER update
+				if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
+					updateGer := DSUpdateGER{
+						BatchNumber:    batch.BatchNumber,
+						Timestamp:      batch.Timestamp.Unix(),
+						GlobalExitRoot: batch.GlobalExitRoot,
+						Coinbase:       batch.Coinbase,
+						ForkID:         batch.ForkID,
+						StateRoot:      batch.StateRoot,
+					}
+
+					err = streamServer.StartAtomicOp()
+					if err != nil {
+						return err
+					}
+
+					entry, err = streamServer.AddStreamEntry(EntryTypeUpdateGER, updateGer.Encode())
+					if err != nil {
+						return err
+					}
+
+					err = streamServer.CommitAtomicOp()
+					if err != nil {
+						return err
+					}
+
+					currentGER = batch.GlobalExitRoot
+				}
+				continue
+			}
+
+			err = streamServer.StartAtomicOp()
+			if err != nil {
+				return err
+			}
+
+			for _, l2block := range batch.L2Blocks {
+				blockStart := DSL2BlockStart{
+					BatchNumber:    l2block.BatchNumber,
+					L2BlockNumber:  l2block.L2BlockNumber,
+					Timestamp:      l2block.Timestamp,
+					GlobalExitRoot: l2block.GlobalExitRoot,
+					Coinbase:       l2block.Coinbase,
+					ForkID:         l2block.ForkID,
 				}
 
-				err = streamServer.StartAtomicOp()
+				bookMark := DSBookMark{
+					Type:          BookMarkTypeL2Block,
+					L2BlockNumber: blockStart.L2BlockNumber,
+				}
+
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 				if err != nil {
 					return err
 				}
 
-				entry, err = streamServer.AddStreamEntry(EntryTypeUpdateGER, updateGer.Encode())
+				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
 				if err != nil {
 					return err
 				}
 
-				err = streamServer.CommitAtomicOp()
+				for _, tx := range l2block.Txs {
+					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
+					if err != nil {
+						return err
+					}
+				}
+
+				blockEnd := DSL2BlockEnd{
+					L2BlockNumber: l2block.L2BlockNumber,
+					BlockHash:     l2block.BlockHash,
+					StateRoot:     l2block.StateRoot,
+				}
+
+				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
 				if err != nil {
 					return err
 				}
-
-				currentGER = batch.GlobalExitRoot
+				currentGER = l2block.GlobalExitRoot
 			}
-			continue
-		}
-
-		// Get transactions for all the retrieved l2 blocks
-		l2Transactions, err := stateDB.GetDSL2Transactions(ctx, l2blocks[0].L2BlockNumber, l2blocks[len(l2blocks)-1].L2BlockNumber, nil)
-		if err != nil {
-			return err
-		}
-
-		err = streamServer.StartAtomicOp()
-		if err != nil {
-			return err
-		}
-
-		for x, l2block := range l2blocks {
-			blockStart := DSL2BlockStart{
-				BatchNumber:    l2block.BatchNumber,
-				L2BlockNumber:  l2block.L2BlockNumber,
-				Timestamp:      l2block.Timestamp,
-				GlobalExitRoot: l2block.GlobalExitRoot,
-				Coinbase:       l2block.Coinbase,
-				ForkID:         l2block.ForkID,
-			}
-
-			bookMark := DSBookMark{
-				Type:          BookMarkTypeL2Block,
-				L2BlockNumber: blockStart.L2BlockNumber,
-			}
-
-			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			// Commit at the end of each batch group
+			err = streamServer.CommitAtomicOp()
 			if err != nil {
 				return err
 			}
-
-			_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
-			if err != nil {
-				return err
-			}
-
-			entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, l2Transactions[x].Encode())
-			if err != nil {
-				return err
-			}
-
-			blockEnd := DSL2BlockEnd{
-				L2BlockNumber: l2block.L2BlockNumber,
-				BlockHash:     l2block.BlockHash,
-				StateRoot:     l2block.StateRoot,
-			}
-
-			_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
-			if err != nil {
-				return err
-			}
-			currentGER = l2block.GlobalExitRoot
-		}
-		// Commit at the end of each batch
-		err = streamServer.CommitAtomicOp()
-		if err != nil {
-			return err
 		}
 	}
 
 	return err
+}
+
+// computeFullBatches computes the full batches
+func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction) []*DSFullBatch {
+	currentL2Block := 0
+	currentL2Tx := 0
+
+	fullBatches := make([]*DSFullBatch, 0)
+
+	for _, batch := range batches {
+		fullBatch := &DSFullBatch{
+			DSBatch: *batch,
+		}
+
+		for i := currentL2Block; i < len(l2Blocks); i++ {
+			l2Block := l2Blocks[i]
+			if l2Block.BatchNumber == batch.BatchNumber {
+				fullBlock := DSL2FullBlock{
+					DSL2Block: *l2Block,
+				}
+
+				for j := currentL2Tx; j < len(l2Txs); j++ {
+					l2Tx := l2Txs[j]
+					if l2Tx.L2BlockNumber == l2Block.L2BlockNumber {
+						fullBlock.Txs = append(fullBlock.Txs, *l2Tx)
+						currentL2Tx++
+					}
+					if l2Tx.L2BlockNumber > l2Block.L2BlockNumber {
+						break
+					}
+				}
+
+				fullBatch.L2Blocks = append(fullBatch.L2Blocks, fullBlock)
+				currentL2Block++
+			}
+
+			if l2Block.BatchNumber > batch.BatchNumber {
+				break
+			}
+		}
+
+		fullBatches = append(fullBatches, fullBatch)
+	}
+
+	return fullBatches
 }
