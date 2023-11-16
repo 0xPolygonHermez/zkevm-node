@@ -140,7 +140,7 @@ func (d *dbManager) loadFromPool() {
 		}
 
 		for _, tx := range poolTransactions {
-			err := d.addTxToWorker(tx, d.cfg.ForkID)
+			err := d.addTxToWorker(tx)
 			if err != nil {
 				log.Errorf("error adding transaction to worker: %v", err)
 			}
@@ -229,8 +229,8 @@ func (d *dbManager) sendDataToStreamer() {
 	}
 }
 
-func (d *dbManager) addTxToWorker(tx pool.Transaction, forkID uint64) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP, forkID)
+func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP, d.cfg.ForkID)
 	if err != nil {
 		return err
 	}
