@@ -29,16 +29,17 @@ type TxTracker struct {
 	EGPLog            state.EffectiveGasPriceLog
 	L1GasPrice        uint64
 	L2GasPrice        uint64
+	ForkID            uint64
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, forkID uint64) (*TxTracker, error) {
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err
 	}
 
-	rawTx, err := state.EncodeTransactionWithoutEffectivePercentage(tx)
+	rawTx, err := state.EncodeTransaction(tx, 0xFF, forkID) //nolint: gomnd
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		GasPrice: tx.GasPrice(),
 		Cost:     tx.Cost(),
 		BatchResources: state.BatchResources{
-			Bytes:      tx.Size(),
+			Bytes:      uint64(len(rawTx)),
 			ZKCounters: counters,
 		},
 		RawTx:             rawTx,
@@ -68,6 +69,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 			MaxDeviation:   new(big.Int).SetUint64(0),
 			GasPrice:       new(big.Int).SetUint64(0),
 		},
+		ForkID: forkID,
 	}
 
 	return txTracker, nil

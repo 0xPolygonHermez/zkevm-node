@@ -887,7 +887,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 			ip = strings.Split(ips, ",")[0]
 		}
 
-		return e.tryToAddTxToPool(input, ip)
+		return e.tryToAddTxToPool(input, ip, e.cfg.ForkID)
 	}
 }
 
@@ -906,13 +906,13 @@ func (e *EthEndpoints) relayTxToSequencerNode(input string) (interface{}, types.
 	return txHash, nil
 }
 
-func (e *EthEndpoints) tryToAddTxToPool(input, ip string) (interface{}, types.Error) {
+func (e *EthEndpoints) tryToAddTxToPool(input, ip string, forkID uint64) (interface{}, types.Error) {
 	tx, err := hexToTx(input)
 	if err != nil {
 		return RPCErrorResponse(types.InvalidParamsErrorCode, "invalid tx input", err, false)
 	}
 	log.Infof("adding TX to the pool: %v", tx.Hash().Hex())
-	if err := e.pool.AddTx(context.Background(), *tx, ip); err != nil {
+	if err := e.pool.AddTx(context.Background(), *tx, ip, forkID); err != nil {
 		// it's not needed to log the error here, because we check and log if needed
 		// for each specific case during the "pool.AddTx" internal steps
 		return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, false)

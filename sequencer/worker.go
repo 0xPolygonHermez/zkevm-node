@@ -37,8 +37,8 @@ func NewWorker(state stateInterface, constraints state.BatchConstraintsCfg) *Wor
 }
 
 // NewTxTracker creates and inits a TxTracker
-func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
-	return newTxTracker(tx, counters, ip)
+func (w *Worker) NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string, forkID uint64) (*TxTracker, error) {
+	return newTxTracker(tx, counters, ip, forkID)
 }
 
 // AddTxTracker adds a new Tx to the Worker

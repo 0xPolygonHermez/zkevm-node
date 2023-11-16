@@ -62,6 +62,9 @@ type Config struct {
 	// EnableHttpLog allows the user to enable or disable the logs related to the HTTP
 	// requests to be captured by the server.
 	EnableHttpLog bool `mapstructure:"EnableHttpLog"`
+
+	// ForkID is the current fork ID of the chain
+	ForkID uint64 `mapstructure:"ForkID"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

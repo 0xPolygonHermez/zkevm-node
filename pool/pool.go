@@ -169,9 +169,9 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 }
 
 // AddTx adds a transaction to the pool with the pending state
-func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
+func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string, forkID uint64) error {
 	poolTx := NewTransaction(tx, ip, false)
-	if err := p.validateTx(ctx, *poolTx); err != nil {
+	if err := p.validateTx(ctx, *poolTx, forkID); err != nil {
 		return err
 	}
 
@@ -392,7 +392,7 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 	return p.storage.IsTxPending(ctx, hash)
 }
 
-func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+func (p *Pool) validateTx(ctx context.Context, poolTx Transaction, forkID uint64) error {
 	// Make sure the IP is valid.
 	if poolTx.IP != "" && !IsValidIP(poolTx.IP) {
 		return ErrInvalidIP
@@ -426,7 +426,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions over defined size to prevent DOS attacks
-	if poolTx.Size() > p.cfg.MaxTxBytesSize {
+	decodedTx, err := state.EncodeTransaction(poolTx.Transaction, 0xFF, forkID) //nolint: gomnd
+	if err != nil {
+		return ErrTxTypeNotSupported
+	}
+
+	if uint64(len(decodedTx)) > p.cfg.MaxTxBytesSize {
 		log.Infof("%v: %v", ErrOversizedData.Error(), from.String())
 		return ErrOversizedData
 	}
