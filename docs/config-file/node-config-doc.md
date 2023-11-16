@@ -1945,11 +1945,10 @@ SequentialReprocessFullBatch=false
 **Type:** : `object`
 **Description:** DBManager's specific config properties
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string  | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string  | No         | -          | Duration          |
-| - [ForkID](#Sequencer_DBManager_ForkID )                                     | No      | integer | No         | -          | -                 |
+| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
 
 #### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
@@ -1997,18 +1996,6 @@ PoolRetrievalInterval="500ms"
 ```
 [Sequencer.DBManager]
 L2ReorgRetrievalInterval="5s"
-```
-
-#### <a name="Sequencer_DBManager_ForkID"></a>10.7.3. `Sequencer.DBManager.ForkID`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[Sequencer.DBManager]
-ForkID=0
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`

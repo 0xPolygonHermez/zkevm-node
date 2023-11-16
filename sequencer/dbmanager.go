@@ -230,7 +230,7 @@ func (d *dbManager) sendDataToStreamer() {
 }
 
 func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP, d.cfg.ForkID)
+	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}

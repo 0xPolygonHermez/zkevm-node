@@ -129,7 +129,6 @@ func start(cliCtx *cli.Context) error {
 	// If the aggregator is restarted before the end of the sync process, this currentForkID could be wrong
 	c.Aggregator.ForkId = currentForkID
 	c.Pool.ForkID = currentForkID
-	c.Sequencer.DBManager.ForkID = currentForkID
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.State.DB)
 	if err != nil {

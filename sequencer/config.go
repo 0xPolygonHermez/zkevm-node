@@ -89,5 +89,4 @@ type FinalizerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
-	ForkID                   uint64         `mapstructure:"ForkID"`
 }
