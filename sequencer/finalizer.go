@@ -676,7 +676,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			return nil, err
 		}
 
-		if tx.ForkID >= forkId5 {
+		forkId := f.dbManager.GetForkIDByBatchNumber(f.processRequest.BatchNumber)
+		if forkId >= forkId5 {
 			f.processRequest.Transactions = append(f.processRequest.Transactions, effectivePercentageAsDecodedHex...)
 		}
 	} else {
