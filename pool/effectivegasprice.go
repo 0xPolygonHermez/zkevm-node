@@ -40,6 +40,18 @@ func (e *EffectiveGasPrice) GetFinalDeviation() uint64 {
 	return e.cfg.FinalDeviationPct
 }
 
+// GetTxAndL2GasPrice return the tx gas price and l2 suggested gas price to use in egp calculations
+// If egp is disabled we will use a "simulated" tx and l2 gas price, that is calculated using the L2GasPriceSuggesterFactor config param
+func (e *EffectiveGasPrice) GetTxAndL2GasPrice(txGasPrice *big.Int, l1GasPrice uint64, l2GasPrice uint64) (egpTxGasPrice *big.Int, egpL2GasPrice uint64) {
+	if !e.cfg.Enabled {
+		// If egp is not enabled we use the L2GasPriceSuggesterFactor to calculate the "simulated" suggested L2 gas price
+		gp := new(big.Int).SetUint64(uint64(e.cfg.L2GasPriceSuggesterFactor * float64(l1GasPrice)))
+		return gp, gp.Uint64()
+	} else {
+		return txGasPrice, l2GasPrice
+	}
+}
+
 // CalculateBreakEvenGasPrice calculates the break even gas price for a transaction
 func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
 	const (
