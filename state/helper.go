@@ -19,15 +19,17 @@ const (
 	// MaxEffectivePercentage is the maximum value that can be used as effective percentage
 	MaxEffectivePercentage = uint8(255)
 	// Decoding constants
-	headerByteLength               uint64 = 1
-	sLength                        uint64 = 32
-	rLength                        uint64 = 32
-	vLength                        uint64 = 1
-	c0                             uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
-	ff                             uint64 = 255 // max value of rlp header
-	shortRlp                       uint64 = 55  // length of the short rlp codification
-	f7                             uint64 = 247 // 192 + 55 = c0 + shortRlp
-	efficiencyPercentageByteLength uint64 = 1
+	headerByteLength uint64 = 1
+	sLength          uint64 = 32
+	rLength          uint64 = 32
+	vLength          uint64 = 1
+	c0               uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
+	ff               uint64 = 255 // max value of rlp header
+	shortRlp         uint64 = 55  // length of the short rlp codification
+	f7               uint64 = 247 // 192 + 55 = c0 + shortRlp
+
+	// EfficiencyPercentageByteLength is the length of the effective percentage in bytes
+	EfficiencyPercentageByteLength uint64 = 1
 )
 
 // EncodeTransactions RLP encodes the given transactions
@@ -205,7 +207,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 		endPos := pos + length + rLength + sLength + vLength + headerByteLength
 
 		if forkID >= DRAGONFRUIT_FORKID {
-			endPos += efficiencyPercentageByteLength
+			endPos += EfficiencyPercentageByteLength
 		}
 
 		if endPos > txDataLength {
