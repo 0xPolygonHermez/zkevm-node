@@ -42,7 +42,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Synchronizer.L1SynchronizationMode",
-			expectedValue: "parallel",
+			expectedValue: "sequential",
 		},
 		{
 			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
