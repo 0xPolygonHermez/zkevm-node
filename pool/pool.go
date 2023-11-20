@@ -426,7 +426,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions over defined size to prevent DOS attacks
-	if poolTx.Size() > p.cfg.MaxTxBytesSize {
+	decodedTx, err := state.EncodeTransaction(poolTx.Transaction, 0xFF, p.cfg.ForkID) //nolint: gomnd
+	if err != nil {
+		return ErrTxTypeNotSupported
+	}
+
+	if uint64(len(decodedTx)) > p.cfg.MaxTxBytesSize {
 		log.Infof("%v: %v", ErrOversizedData.Error(), from.String())
 		return ErrOversizedData
 	}
