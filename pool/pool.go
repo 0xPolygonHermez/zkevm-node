@@ -382,9 +382,14 @@ func (p *Pool) GetGasPrices(ctx context.Context) (GasPrices, error) {
 }
 
 // CountPendingTransactions get number of pending transactions
-// used in bench tests
+// used in bench tests and txpool_status
 func (p *Pool) CountPendingTransactions(ctx context.Context) (uint64, error) {
 	return p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
+}
+
+// CountQueuedTransactions get number of queued transactions
+func (p *Pool) CountQueuedTransactions(ctx context.Context) (uint64, error) {
+	return p.storage.CountTransactionsByStatus(ctx, TxStatusSelected)
 }
 
 // IsTxPending check if tx is still pending

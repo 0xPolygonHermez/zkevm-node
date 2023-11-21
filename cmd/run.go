@@ -369,7 +369,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APITxPool]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APITxPool,
-			Service: &jsonrpc.TxPoolEndpoints{},
+			Service: jsonrpc.NewTxPoolEndpoints(pool),
 		})
 	}
 
