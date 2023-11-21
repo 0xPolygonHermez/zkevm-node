@@ -86,5 +86,5 @@ in `.github/workflows/test-e2e.yml`
 *NOTE*: Usually groups should be as packed as possible so that we can optimize
 the number of test lanes and the total execution time. If, for instance, we have
 a group with one single test that takes 10min we should try to add tests to the
-other groups with an total excution time (adding the execution time of each test
+other groups with a total execution time (adding the execution time of each test
 in the group) with up to 10min.
