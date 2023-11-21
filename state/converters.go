@@ -17,20 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// ConvertToCounters extracts ZKCounters from a ProcessBatchResponse
-func ConvertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
-	return ZKCounters{
-		CumulativeGasUsed:    resp.CumulativeGasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-	}
-}
-
 // TestConvertToProcessBatchResponse for test purposes
 func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	return s.convertToProcessBatchResponse(response)
