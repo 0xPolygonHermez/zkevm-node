@@ -249,19 +249,9 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	var txHashToGenerateCallTrace []byte
-	var txHashToGenerateExecuteTrace []byte
-
-	if traceConfig.IsDefaultTracer() {
-		txHashToGenerateExecuteTrace = transactionHash.Bytes()
-	} else {
-		txHashToGenerateCallTrace = transactionHash.Bytes()
-	}
-
 	// Create Batch
 	traceConfigRequest := &executor.TraceConfig{
-		TxHashToGenerateCallTrace:    txHashToGenerateCallTrace,
-		TxHashToGenerateExecuteTrace: txHashToGenerateExecuteTrace,
+		TxHashToGenerateFullTrace: transactionHash.Bytes(),
 		// set the defaults to the maximum information we can have.
 		// this is needed to process custom tracers later
 		DisableStorage:   cFalse,

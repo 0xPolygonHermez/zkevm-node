@@ -14,8 +14,12 @@ var (
 	ErrROMUnspecified = fmt.Errorf("unspecified ROM error")
 	// ErrExecutorUnknown indicates an unknown executor error
 	ErrExecutorUnknown = fmt.Errorf("unknown executor error")
+	// ErrCodeExecutorUnknown
+	ErrCodeExecutorUnknown = ExecutorError(math.MaxInt32)
 	// ErrROMUnknown indicates an unknown ROM error
 	ErrROMUnknown = fmt.Errorf("unknown ROM error")
+	// ErrCodeROMUnknown
+	ErrCodeROMUnknown = RomError(math.MaxInt32)
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -82,7 +86,7 @@ func RomErr(errorCode RomError) error {
 	case RomError_ROM_ERROR_INVALID_RLP:
 		return runtime.ErrInvalidRLP
 	}
-	return fmt.Errorf("unknown error")
+	return ErrROMUnknown
 }
 
 // RomErrorCode returns the error code for a given error
@@ -147,7 +151,7 @@ func RomErrorCode(err error) RomError {
 	case runtime.ErrInvalidRLP:
 		return RomError_ROM_ERROR_INVALID_RLP
 	}
-	return math.MaxInt32
+	return ErrCodeROMUnknown
 }
 
 // IsROMOutOfCountersError indicates if the error is an ROM OOC
@@ -160,9 +164,9 @@ func IsROMOutOfGasError(error RomError) bool {
 	return error == RomError_ROM_ERROR_OUT_OF_GAS
 }
 
-// IsExecutorOutOfCountersError indicates if the error is an ROM OOC
-func IsExecutorOutOfCountersError(error ExecutorError) bool {
-	return error >= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS && error <= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON
+// IsExecutorCountersOverflowError indicates if the error is OOC detected by the executor
+func IsExecutorCountersOverflowError(error ExecutorError) bool {
+	return (error >= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS && error <= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON) || error == ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256
 }
 
 // IsExecutorUnspecifiedError indicates an unspecified error in the executor
@@ -518,5 +522,5 @@ func ExecutorErrorCode(err error) ExecutorError {
 	case runtime.ErrExecutorErrorInvalidGetKey:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
 	}
-	return math.MaxInt32
+	return ErrCodeExecutorUnknown
 }

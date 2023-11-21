@@ -41,6 +41,7 @@ type ProcessBatchResponse struct {
 	FlushID              uint64
 	StoredFlushID        uint64
 	ProverID             string
+	ForkID               uint64
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

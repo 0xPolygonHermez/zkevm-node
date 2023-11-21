@@ -81,6 +81,7 @@ func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchRes
 		IsExecutorLevelError: isExecutorLevelError,
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
+		ForkID:               response.ForkId,
 	}, nil
 }
 
