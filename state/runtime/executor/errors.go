@@ -14,11 +14,11 @@ var (
 	ErrROMUnspecified = fmt.Errorf("unspecified ROM error")
 	// ErrExecutorUnknown indicates an unknown executor error
 	ErrExecutorUnknown = fmt.Errorf("unknown executor error")
-	// ErrCodeExecutorUnknown
+	// ErrCodeExecutorUnknown indicates an unknown executor error
 	ErrCodeExecutorUnknown = ExecutorError(math.MaxInt32)
 	// ErrROMUnknown indicates an unknown ROM error
 	ErrROMUnknown = fmt.Errorf("unknown ROM error")
-	// ErrCodeROMUnknown
+	// ErrCodeROMUnknown indicates an unknown ROM error
 	ErrCodeROMUnknown = RomError(math.MaxInt32)
 )
 

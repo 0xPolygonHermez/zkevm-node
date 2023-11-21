@@ -127,11 +127,6 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for _, response := range responses {
-		trace, err := convertToStructLogArray(response.ExecutionTrace)
-		if err != nil {
-			return nil, err
-		}
-
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.Type = response.Type
@@ -144,12 +139,11 @@ func (s *State) convertToProcessTransactionResponse(responses []*executor.Proces
 		result.StateRoot = common.BytesToHash(response.StateRoot)
 		result.Logs = convertToLog(response.Logs)
 		result.ChangesStateRoot = IsStateRootChanged(response.Error)
-		result.ExecutionTrace = *trace
-		callTrace, err := convertToExecutorTrace(response.CallTrace)
+		fullTrace, err := convertToFullTrace(response.FullTrace)
 		if err != nil {
 			return nil, err
 		}
-		result.CallTrace = *callTrace
+		result.FullTrace = *fullTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
 		result.EffectivePercentage = response.EffectivePercentage
 		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
@@ -230,64 +224,11 @@ func convertToTopics(responses [][]byte) []common.Hash {
 	return results
 }
 
-func convertToStructLogArray(responses []*executor.ExecutionTraceStep) (*[]instrumentation.StructLog, error) {
-	results := make([]instrumentation.StructLog, 0, len(responses))
-
-	for _, response := range responses {
-		convertedStack, err := convertToBigIntArray(response.Stack)
-		if err != nil {
-			return nil, err
-		}
-		result := new(instrumentation.StructLog)
-		result.Pc = response.Pc
-		result.Op = response.Op
-		result.Gas = response.RemainingGas
-		result.GasCost = response.GasCost
-		result.Memory = response.Memory
-		result.MemorySize = int(response.MemorySize)
-		result.MemoryOffset = int(response.MemoryOffset)
-		result.Stack = convertedStack
-		result.ReturnData = response.ReturnData
-		result.Storage = convertToProperMap(response.Storage)
-		result.Depth = int(response.Depth)
-		result.RefundCounter = response.GasRefund
-		result.Err = executor.RomErr(response.Error)
-
-		results = append(results, *result)
-	}
-	return &results, nil
-}
-
-func convertToBigIntArray(responses []string) ([]*big.Int, error) {
-	results := make([]*big.Int, 0, len(responses))
-
-	for _, response := range responses {
-		if len(response)%2 != 0 {
-			response = "0" + response
-		}
-		result, ok := new(big.Int).SetString(response, hex.Base)
-		if ok {
-			results = append(results, result)
-		} else {
-			return nil, fmt.Errorf("string %s is not valid", response)
-		}
-	}
-	return results, nil
-}
-
-func convertToProperMap(responses map[string]string) map[common.Hash]common.Hash {
-	results := make(map[common.Hash]common.Hash, len(responses))
-	for key, response := range responses {
-		results[common.HexToHash(key)] = common.HexToHash(response)
-	}
-	return results
-}
-
-func convertToExecutorTrace(callTrace *executor.CallTrace) (*instrumentation.ExecutorTrace, error) {
-	trace := new(instrumentation.ExecutorTrace)
-	if callTrace != nil {
-		trace.Context = convertToContext(callTrace.Context)
-		steps, err := convertToInstrumentationSteps(callTrace.Steps)
+func convertToFullTrace(fullTrace *executor.FullTrace) (*instrumentation.FullTrace, error) {
+	trace := new(instrumentation.FullTrace)
+	if fullTrace != nil {
+		trace.Context = convertToContext(fullTrace.Context)
+		steps, err := convertToInstrumentationSteps(fullTrace.Steps)
 		if err != nil {
 			return nil, err
 		}
@@ -322,7 +263,7 @@ func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]ins
 		step.Pc = response.Pc
 		step.Gas = response.Gas
 		step.OpCode = fakevm.OpCode(response.Op).String()
-		step.Refund = fmt.Sprint(response.GasRefund)
+		step.Refund = response.GasRefund
 		step.Op = uint64(response.Op)
 		err := executor.RomErr(response.Error)
 		if err != nil {
@@ -348,6 +289,12 @@ func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]ins
 		copy(step.Memory, response.Memory)
 		step.ReturnData = make([]byte, len(response.ReturnData))
 		copy(step.ReturnData, response.ReturnData)
+		step.Storage = make(map[common.Hash]common.Hash, len(response.Storage))
+		for k, v := range response.Storage {
+			addr := common.BytesToHash(hex.DecodeBig(k).Bytes())
+			value := common.BytesToHash(hex.DecodeBig(v).Bytes())
+			step.Storage[addr] = value
+		}
 		results = append(results, *step)
 	}
 	return results, nil
