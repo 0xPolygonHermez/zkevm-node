@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestProcessorForcedBatchesName(t *testing.T) {
-	sut := NewProcessForcedBatches(nil)
+	sut := NewProcessL1ForcedBatches(nil)
 	name := sut.Name()
-	require.Equal(t, "ProcessForcedBatches", name)
+	require.Equal(t, "ProcessL1ForcedBatches", name)
 }

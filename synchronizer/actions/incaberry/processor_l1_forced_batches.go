@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -9,27 +9,29 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessForcedBatchesInterface interface {
+type stateProcessL1ForcedBatchesInterface interface {
 	AddForcedBatch(ctx context.Context, forcedBatch *state.ForcedBatch, dbTx pgx.Tx) error
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
-type ProcessForcedBatches struct {
-	ProcessorBase[ProcessForcedBatches]
-	state StateProcessForcedBatchesInterface
+// ProcessL1ForcedBatches implements L1EventProcessor
+type ProcessL1ForcedBatches struct {
+	ProcessorBase[ProcessL1ForcedBatches]
+	state stateProcessL1ForcedBatchesInterface
 }
 
-func NewProcessForcedBatches(state StateProcessForcedBatchesInterface) *ProcessForcedBatches {
-	return &ProcessForcedBatches{
-		ProcessorBase: ProcessorBase[ProcessForcedBatches]{supportedEvent: etherman.ForcedBatchesOrder},
+// NewProcessL1ForcedBatches returns instance of a processor for ForcedBatchesOrder
+func NewProcessL1ForcedBatches(state stateProcessL1ForcedBatchesInterface) *ProcessL1ForcedBatches {
+	return &ProcessL1ForcedBatches{
+		ProcessorBase: ProcessorBase[ProcessL1ForcedBatches]{supportedEvent: etherman.ForcedBatchesOrder},
 		state:         state}
 }
 
-func (p *ProcessForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	return p.processForcedBatch(ctx, l1Block.ForcedBatches[postion], dbTx)
+// Process process event
+func (p *ProcessL1ForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	return p.processForcedBatch(ctx, l1Block.ForcedBatches[position], dbTx)
 }
 
-func (p *ProcessForcedBatches) processForcedBatch(ctx context.Context, forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) error {
+func (p *ProcessL1ForcedBatches) processForcedBatch(ctx context.Context, forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) error {
 	// Store forced batch into the db
 	forcedB := state.ForcedBatch{
 		BlockNumber:       forcedBatch.BlockNumber,

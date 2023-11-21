@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessSequenceForcedBatchesInterface interface {
+type stateProcessL1SequenceForcedBatchesInterface interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
@@ -22,31 +22,33 @@ type StateProcessSequenceForcedBatchesInterface interface {
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 }
 
-type syncProcessSequenceForcedBatchesInterface interface {
+type syncProcessL1SequenceForcedBatchesInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CleanTrustedState()
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
-type ProcessSequenceForcedBatches struct {
-	ProcessorBase[ProcessSequenceForcedBatches]
-	state StateProcessSequenceForcedBatchesInterface
-	sync  syncProcessSequenceForcedBatchesInterface
+// ProcessL1SequenceForcedBatches implements L1EventProcessor
+type ProcessL1SequenceForcedBatches struct {
+	ProcessorBase[ProcessL1SequenceForcedBatches]
+	state stateProcessL1SequenceForcedBatchesInterface
+	sync  syncProcessL1SequenceForcedBatchesInterface
 }
 
-func NewProcessSequenceForcedBatches(state StateProcessSequenceForcedBatchesInterface,
-	sync syncProcessSequenceForcedBatchesInterface) *ProcessSequenceForcedBatches {
-	return &ProcessSequenceForcedBatches{
-		ProcessorBase: ProcessorBase[ProcessSequenceForcedBatches]{supportedEvent: etherman.SequenceForceBatchesOrder},
+// NewProcessL1SequenceForcedBatches returns instance of a processor for SequenceForceBatchesOrder
+func NewProcessL1SequenceForcedBatches(state stateProcessL1SequenceForcedBatchesInterface,
+	sync syncProcessL1SequenceForcedBatchesInterface) *ProcessL1SequenceForcedBatches {
+	return &ProcessL1SequenceForcedBatches{
+		ProcessorBase: ProcessorBase[ProcessL1SequenceForcedBatches]{supportedEvent: etherman.SequenceForceBatchesOrder},
 		state:         state,
 		sync:          sync}
 }
 
-func (p *ProcessSequenceForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	return p.processSequenceForceBatch(ctx, l1Block.SequencedForceBatches[postion], *l1Block, dbTx)
+// Process process event
+func (p *ProcessL1SequenceForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	return p.processSequenceForceBatch(ctx, l1Block.SequencedForceBatches[position], *l1Block, dbTx)
 }
 
-func (s *ProcessSequenceForcedBatches) processSequenceForceBatch(ctx context.Context, sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
+func (s *ProcessL1SequenceForcedBatches) processSequenceForceBatch(ctx context.Context, sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
 	if len(sequenceForceBatch) == 0 {
 		log.Warn("Empty sequenceForceBatch array detected, ignoring...")
 		return nil

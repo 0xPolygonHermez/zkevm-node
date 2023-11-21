@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -9,24 +9,27 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessorGlobalExitRootInterface interface {
+// stateProcessorL1GlobalExitRootInterface interface required from state
+type stateProcessorL1GlobalExitRootInterface interface {
 	AddGlobalExitRoot(ctx context.Context, exitRoot *state.GlobalExitRoot, dbTx pgx.Tx) error
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorGlobalExitRoot struct {
-	ProcessorBase[ProcessorGlobalExitRoot]
-	state StateProcessorGlobalExitRootInterface
+// ProcessorL1GlobalExitRoot implements L1EventProcessor for GlobalExitRootsOrder
+type ProcessorL1GlobalExitRoot struct {
+	ProcessorBase[ProcessorL1GlobalExitRoot]
+	state stateProcessorL1GlobalExitRootInterface
 }
 
-func NewProcessorGlobalExitRoot(state StateProcessorGlobalExitRootInterface) *ProcessorGlobalExitRoot {
-	return &ProcessorGlobalExitRoot{
-		ProcessorBase: ProcessorBase[ProcessorGlobalExitRoot]{supportedEvent: etherman.GlobalExitRootsOrder},
+// NewProcessorL1GlobalExitRoot new processor for GlobalExitRootsOrder
+func NewProcessorL1GlobalExitRoot(state stateProcessorL1GlobalExitRootInterface) *ProcessorL1GlobalExitRoot {
+	return &ProcessorL1GlobalExitRoot{
+		ProcessorBase: ProcessorBase[ProcessorL1GlobalExitRoot]{supportedEvent: etherman.GlobalExitRootsOrder},
 		state:         state}
 }
 
-func (p *ProcessorGlobalExitRoot) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	globalExitRoot := l1Block.GlobalExitRoots[postion]
+// Process process event
+func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	globalExitRoot := l1Block.GlobalExitRoots[position]
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,
 		MainnetExitRoot: globalExitRoot.MainnetExitRoot,

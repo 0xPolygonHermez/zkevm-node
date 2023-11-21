@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -48,9 +48,9 @@ type syncProcessSequenceBatchesInterface interface {
 	CleanTrustedState()
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorSequenceBatches struct {
-	ProcessorBase[ProcessorSequenceBatches]
+// ProcessorL1SequenceBatches implements L1EventProcessor
+type ProcessorL1SequenceBatches struct {
+	ProcessorBase[ProcessorL1SequenceBatches]
 	state    stateProcessSequenceBatches
 	etherMan ethermanProcessSequenceBatches
 	pool     poolProcessSequenceBatchesInterface
@@ -58,10 +58,11 @@ type ProcessorSequenceBatches struct {
 	sync     syncProcessSequenceBatchesInterface
 }
 
-func NewProcessorSequenceBatches(state stateProcessSequenceBatches,
-	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorSequenceBatches {
-	return &ProcessorSequenceBatches{
-		ProcessorBase: ProcessorBase[ProcessorSequenceBatches]{supportedEvent: etherman.SequenceBatchesOrder},
+// NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
+func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
+	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
+	return &ProcessorL1SequenceBatches{
+		ProcessorBase: ProcessorBase[ProcessorL1SequenceBatches]{supportedEvent: etherman.SequenceBatchesOrder},
 		state:         state,
 		etherMan:      etherMan,
 		pool:          pool,
@@ -70,12 +71,13 @@ func NewProcessorSequenceBatches(state stateProcessSequenceBatches,
 	}
 }
 
-func (g *ProcessorSequenceBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[postion], l1Block.BlockNumber, dbTx)
+// Process process event
+func (g *ProcessorL1SequenceBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[position], l1Block.BlockNumber, dbTx)
 	return err
 }
 
-func (g *ProcessorSequenceBatches) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
@@ -293,7 +295,7 @@ func (g *ProcessorSequenceBatches) processSequenceBatches(ctx context.Context, s
 	return nil
 }
 
-func (g *ProcessorSequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
 	latestBatchNum, err := g.etherMan.GetLatestBatchNumber()
 	if err != nil {
 		log.Error("error getting the latestBatchNumber virtualized in the smc. Error: ", err)
@@ -330,7 +332,7 @@ func (g *ProcessorSequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx) e
 	return nil
 }
 
-func (g *ProcessorSequenceBatches) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
+func (g *ProcessorL1SequenceBatches) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
 	var reorgReasons strings.Builder
 	if newRoot != tBatch.StateRoot {
@@ -380,7 +382,7 @@ func (g *ProcessorSequenceBatches) checkTrustedState(ctx context.Context, batch 
 }
 
 // halt halts the Synchronizer
-func (g *ProcessorSequenceBatches) halt(ctx context.Context, err error) {
+func (g *ProcessorL1SequenceBatches) halt(ctx context.Context, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,

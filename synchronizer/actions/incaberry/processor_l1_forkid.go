@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -9,10 +9,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/jackc/pgx/v4"
 )
 
-type StateProcessorForkIdInterface interface {
+type stateProcessorForkIdInterface interface {
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error)
 	AddForkIDInterval(ctx context.Context, newForkID state.ForkIDInterval, dbTx pgx.Tx) error
@@ -23,23 +24,29 @@ type syncProcessorForkIdInterface interface {
 	IsTrustedSequencer() bool
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
+// ProcessorForkId implements L1EventProcessor
 type ProcessorForkId struct {
 	ProcessorBase[ProcessorForkId]
-	state StateProcessorForkIdInterface
+	state stateProcessorForkIdInterface
 	sync  syncProcessorForkIdInterface
 }
 
-func NewProcessorForkId(state StateProcessorForkIdInterface,
+// NewProcessorForkId returns instance of a processor for ForkIDsOrder
+func NewProcessorForkId(state stateProcessorForkIdInterface,
 	sync syncProcessorForkIdInterface) *ProcessorForkId {
 	return &ProcessorForkId{
-		ProcessorBase: ProcessorBase[ProcessorForkId]{supportedEvent: etherman.ForkIDsOrder},
-		state:         state,
-		sync:          sync}
+		ProcessorBase: ProcessorBase[ProcessorForkId]{
+			supportedEvent: etherman.ForkIDsOrder,
+			// It support all forkIds!
+			supportedForkdIds: &[]actions.ForkIdType{actions.WildcardForkId},
+		},
+		state: state,
+		sync:  sync}
 }
 
-func (p *ProcessorForkId) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	return p.processForkID(ctx, l1Block.ForkIDs[postion], l1Block.BlockNumber, dbTx)
+// Process process event
+func (p *ProcessorForkId) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	return p.processForkID(ctx, l1Block.ForkIDs[position], l1Block.BlockNumber, dbTx)
 }
 
 func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {

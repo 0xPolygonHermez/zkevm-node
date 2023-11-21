@@ -2,22 +2,23 @@ package synchronizer
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	l1events "github.com/0xPolygonHermez/zkevm-node/synchronizer/l1events"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/incaberry"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
 )
 
-func defaultsL1EventProcessors(sync *ClientSynchronizer) *l1events.L1EventProcessors {
-	p := l1events.L1EventProcessorsBuilder{}
-	p.Add(etherman.GlobalExitRootsOrder,
-		l1events.NewProcessorGlobalExitRoot(sync.state))
-	p.Add(etherman.SequenceBatchesOrder,
-		l1events.NewProcessorSequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
-	p.Add(etherman.ForcedBatchesOrder,
-		l1events.NewProcessForcedBatches(sync.state))
-	p.Add(etherman.SequenceForceBatchesOrder,
-		l1events.NewProcessSequenceForcedBatches(sync.state, sync))
-	p.Add(etherman.TrustedVerifyBatchOrder,
-		l1events.NewProcessorTrustedVerifyBatch(sync.state))
-	p.Add(etherman.ForkIDsOrder,
-		l1events.NewProcessorForkId(sync.state, sync))
+func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1EventProcessors {
+	p := processor_manager.NewL1EventProcessorsBuilder()
+	p.AddEventProcessor(etherman.GlobalExitRootsOrder,
+		incaberry.NewProcessorL1GlobalExitRoot(sync.state))
+	p.AddEventProcessor(etherman.SequenceBatchesOrder,
+		incaberry.NewProcessorL1SequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
+	p.AddEventProcessor(etherman.ForcedBatchesOrder,
+		incaberry.NewProcessL1ForcedBatches(sync.state))
+	p.AddEventProcessor(etherman.SequenceForceBatchesOrder,
+		incaberry.NewProcessL1SequenceForcedBatches(sync.state, sync))
+	p.AddEventProcessor(etherman.TrustedVerifyBatchOrder,
+		incaberry.NewProcessorL1TrustedVerifyBatch(sync.state))
+	p.AddEventProcessor(etherman.ForkIDsOrder,
+		incaberry.NewProcessorForkId(sync.state, sync))
 	return p.Build()
 }

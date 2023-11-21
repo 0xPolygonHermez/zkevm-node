@@ -1,4 +1,4 @@
-package l1events
+package incaberry
 
 import (
 	"context"
@@ -10,29 +10,31 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-type StateTrustedVerifyBatchInterface interface {
+type stateL1TrustedVerifyBatchInterface interface {
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	AddVerifiedBatch(ctx context.Context, verifiedBatch *state.VerifiedBatch, dbTx pgx.Tx) error
 }
 
-// GlobalExitRootLegacy implements L1EventProcessor
-type ProcessorTrustedVerifyBatch struct {
-	ProcessorBase[ProcessorTrustedVerifyBatch]
-	state StateTrustedVerifyBatchInterface
+// ProcessorL1TrustedVerifyBatch implements L1EventProcessor
+type ProcessorL1TrustedVerifyBatch struct {
+	ProcessorBase[ProcessorL1TrustedVerifyBatch]
+	state stateL1TrustedVerifyBatchInterface
 }
 
-func NewProcessorTrustedVerifyBatch(state StateTrustedVerifyBatchInterface) *ProcessorTrustedVerifyBatch {
-	return &ProcessorTrustedVerifyBatch{
-		ProcessorBase: ProcessorBase[ProcessorTrustedVerifyBatch]{supportedEvent: etherman.TrustedVerifyBatchOrder},
+// NewProcessorL1TrustedVerifyBatch returns instance of a processor for TrustedVerifyBatchOrder
+func NewProcessorL1TrustedVerifyBatch(state stateL1TrustedVerifyBatchInterface) *ProcessorL1TrustedVerifyBatch {
+	return &ProcessorL1TrustedVerifyBatch{
+		ProcessorBase: ProcessorBase[ProcessorL1TrustedVerifyBatch]{supportedEvent: etherman.TrustedVerifyBatchOrder},
 		state:         state}
 }
 
-func (p *ProcessorTrustedVerifyBatch) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, postion int, dbTx pgx.Tx) error {
-	return p.processTrustedVerifyBatches(ctx, l1Block.VerifiedBatches[postion], dbTx)
+// Process process event
+func (p *ProcessorL1TrustedVerifyBatch) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+	return p.processTrustedVerifyBatches(ctx, l1Block.VerifiedBatches[position], dbTx)
 }
 
-func (p *ProcessorTrustedVerifyBatch) processTrustedVerifyBatches(ctx context.Context, lastVerifiedBatch etherman.VerifiedBatch, dbTx pgx.Tx) error {
+func (p *ProcessorL1TrustedVerifyBatch) processTrustedVerifyBatches(ctx context.Context, lastVerifiedBatch etherman.VerifiedBatch, dbTx pgx.Tx) error {
 	lastVBatch, err := p.state.GetLastVerifiedBatch(ctx, dbTx)
 	if err != nil {
 		log.Errorf("error getting lastVerifiedBatch stored in db in processTrustedVerifyBatches. Processing synced blockNumber: %d", lastVerifiedBatch.BlockNumber)

@@ -120,6 +120,10 @@ func TestForcedBatch(t *testing.T) {
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.
+				On("GetForkIDByBatchNumber", mock.Anything).
+				Return(uint64(1), nil).
+				Maybe()
+			m.State.
 				On("GetLastBlock", ctx, m.DbTx).
 				Return(lastBlock, nil).
 				Once()
@@ -365,6 +369,14 @@ func TestSequenceForcedBatch(t *testing.T) {
 			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
 			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
+			m.State.
+				On("GetForkIDByBatchNumber", mock.Anything).
+				Return(uint64(1), nil).
+				Maybe()
+			m.State.
+				On("GetForkIDByBlockNumber", mock.Anything).
+				Return(uint64(1), nil).
+				Maybe()
 
 			m.State.
 				On("GetLastBlock", ctx, m.DbTx).
