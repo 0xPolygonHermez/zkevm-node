@@ -28,8 +28,8 @@ func NewProcessorL1GlobalExitRoot(state stateProcessorL1GlobalExitRootInterface)
 }
 
 // Process process event
-func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
-	globalExitRoot := l1Block.GlobalExitRoots[position]
+func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	globalExitRoot := l1Block.GlobalExitRoots[order.Pos]
 	ger := state.GlobalExitRoot{
 		BlockNumber:     globalExitRoot.BlockNumber,
 		MainnetExitRoot: globalExitRoot.MainnetExitRoot,

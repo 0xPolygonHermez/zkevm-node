@@ -30,7 +30,7 @@ func (p *ProcessorStub) SupportedForkIds() []actions.ForkIdType {
 	return p.supportedForkIds
 }
 
-func (p *ProcessorStub) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
+func (p *ProcessorStub) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	return p.responseProcess
 }
 
@@ -97,12 +97,12 @@ func TestL1EventProcessors_Process(t *testing.T) {
 	builder.Register(&processorConcreteEvent2)
 	sut := builder.Build()
 
-	result := sut.Process(context.Background(), forkId1, event1, nil, 0, nil)
+	result := sut.Process(context.Background(), forkId1, etherman.Order{Name: event1, Pos: 0}, nil, nil)
 	require.Equal(t, processorConcrete.responseProcess, result, "must return concrete processor response")
 
-	result = sut.Process(context.Background(), forkId1, event2, nil, 0, nil)
+	result = sut.Process(context.Background(), forkId1, etherman.Order{Name: event2, Pos: 0}, nil, nil)
 	require.Equal(t, processorConcreteEvent2.responseProcess, result, "must return concrete processor response")
 
-	result = sut.Process(context.Background(), actions.ForkIdType(2), event1, nil, 0, nil)
+	result = sut.Process(context.Background(), actions.ForkIdType(2), etherman.Order{Name: event1, Pos: 0}, nil, nil)
 	require.ErrorIs(t, result, ErrCantProcessThisEvent, "must return not found error")
 }

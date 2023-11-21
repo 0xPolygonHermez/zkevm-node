@@ -26,7 +26,7 @@ import (
 const (
 	// dockersArePreLaunched is a flag that indicates if dockers are pre-launched, used for local development
 	// avoiding launch time and reset database time at end (so you can check the database after the test)
-	dockersArePreLaunched = false
+	dockersArePreLaunched = true
 	gerFinalityBlocks     = uint64(9223372036854775807) // The biggeset uint64
 )
 

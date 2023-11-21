@@ -32,8 +32,7 @@ type ProcessorForkId struct {
 }
 
 // NewProcessorForkId returns instance of a processor for ForkIDsOrder
-func NewProcessorForkId(state stateProcessorForkIdInterface,
-	sync syncProcessorForkIdInterface) *ProcessorForkId {
+func NewProcessorForkId(state stateProcessorForkIdInterface, sync syncProcessorForkIdInterface) *ProcessorForkId {
 	return &ProcessorForkId{
 		ProcessorBase: ProcessorBase[ProcessorForkId]{
 			supportedEvent: etherman.ForkIDsOrder,
@@ -45,8 +44,8 @@ func NewProcessorForkId(state stateProcessorForkIdInterface,
 }
 
 // Process process event
-func (p *ProcessorForkId) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
-	return p.processForkID(ctx, l1Block.ForkIDs[position], l1Block.BlockNumber, dbTx)
+func (p *ProcessorForkId) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	return p.processForkID(ctx, l1Block.ForkIDs[order.Pos], l1Block.BlockNumber, dbTx)
 }
 
 func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {

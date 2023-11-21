@@ -52,8 +52,8 @@ func (p *L1EventProcessors) Get(forkId actions.ForkIdType, event etherman.EventO
 }
 
 // Process execute the event for the forkId and event
-func (p *L1EventProcessors) Process(ctx context.Context, forkId actions.ForkIdType, event etherman.EventOrder, block *etherman.Block, position int, dbTx pgx.Tx) error {
-	processor := p.Get(forkId, event)
+func (p *L1EventProcessors) Process(ctx context.Context, forkId actions.ForkIdType, order etherman.Order, block *etherman.Block, dbTx pgx.Tx) error {
+	processor := p.Get(forkId, order.Name)
 	if processor == nil {
 		var strBlockNumber string
 		if block != nil {
@@ -61,7 +61,7 @@ func (p *L1EventProcessors) Process(ctx context.Context, forkId actions.ForkIdTy
 		} else {
 			strBlockNumber = "nil"
 		}
-		return fmt.Errorf("can't process blocknumber:%s event:%s, forkid:%d because: %w", strBlockNumber, event, forkId, ErrCantProcessThisEvent)
+		return fmt.Errorf("can't process blocknumber:%s event:%s, forkid:%d because: %w", strBlockNumber, order.Name, forkId, ErrCantProcessThisEvent)
 	}
-	return processor.Process(ctx, event, block, position, dbTx)
+	return processor.Process(ctx, order, block, dbTx)
 }

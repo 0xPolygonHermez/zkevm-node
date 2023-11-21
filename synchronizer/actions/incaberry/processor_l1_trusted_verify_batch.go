@@ -30,8 +30,8 @@ func NewProcessorL1TrustedVerifyBatch(state stateL1TrustedVerifyBatchInterface) 
 }
 
 // Process process event
-func (p *ProcessorL1TrustedVerifyBatch) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
-	return p.processTrustedVerifyBatches(ctx, l1Block.VerifiedBatches[position], dbTx)
+func (p *ProcessorL1TrustedVerifyBatch) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	return p.processTrustedVerifyBatches(ctx, l1Block.VerifiedBatches[order.Pos], dbTx)
 }
 
 func (p *ProcessorL1TrustedVerifyBatch) processTrustedVerifyBatches(ctx context.Context, lastVerifiedBatch etherman.VerifiedBatch, dbTx pgx.Tx) error {

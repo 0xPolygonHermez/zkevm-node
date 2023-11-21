@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -72,8 +73,11 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 }
 
 // Process process event
-func (g *ProcessorL1SequenceBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
-	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[position], l1Block.BlockNumber, dbTx)
+func (g *ProcessorL1SequenceBatches) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
+		return actions.ErrInvalidParams
+	}
+	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, dbTx)
 	return err
 }
 

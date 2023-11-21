@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/jackc/pgx/v4"
@@ -15,6 +16,11 @@ const (
 	WildcardForkId ForkIdType = 0
 )
 
+var (
+	// ErrCantProcessThisEvent is used when the object is not found
+	ErrInvalidParams = errors.New("invalid params")
+)
+
 // L1EventProcessor is the interface for a processor of L1 events
 // The main function is Process that must execute the event
 type L1EventProcessor interface {
@@ -25,5 +31,5 @@ type L1EventProcessor interface {
 	// SupportedEvents list of events that support (typically one)
 	SupportedEvents() []etherman.EventOrder
 	// Process a incomming event
-	Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error
+	Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error
 }

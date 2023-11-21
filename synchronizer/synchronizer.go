@@ -239,7 +239,7 @@ func (s *ClientSynchronizer) Sync() error {
 				log.Fatal(err)
 			}
 			//err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
-			err = s.l1EventProcessors.Process(s.ctx, 1, etherman.ForkIDsOrder, &blocks[0], 0, dbTx)
+			err = s.l1EventProcessors.Process(s.ctx, 1, etherman.Order{Name: etherman.ForkIDsOrder, Pos: 0}, &blocks[0], dbTx)
 
 			if err != nil {
 				log.Error("error storing genesis forkID: ", err)
@@ -605,8 +605,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			}
 			return err
 		}
+
 		for _, element := range order[blocks[i].BlockHash] {
-			// TODO: Make sanse to interpret the orders depending on block of forkid???
 			batchSequence := l1event_orders.GetSequenceFromL1EventOrder(element.Name, &blocks[i], element.Pos)
 			var forkId uint64
 			if batchSequence != nil {
@@ -620,17 +620,17 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			var err error
 			switch element.Name {
 			case etherman.SequenceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.ForcedBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.GlobalExitRootsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.SequenceForceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.TrustedVerifyBatchOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.ForkIDsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			}
 			if err != nil {
 				// If any goes wrong we ensure that the state is rollbacked

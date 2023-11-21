@@ -44,8 +44,8 @@ func NewProcessL1SequenceForcedBatches(state stateProcessL1SequenceForcedBatches
 }
 
 // Process process event
-func (p *ProcessL1SequenceForcedBatches) Process(ctx context.Context, event etherman.EventOrder, l1Block *etherman.Block, position int, dbTx pgx.Tx) error {
-	return p.processSequenceForceBatch(ctx, l1Block.SequencedForceBatches[position], *l1Block, dbTx)
+func (p *ProcessL1SequenceForcedBatches) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	return p.processSequenceForceBatch(ctx, l1Block.SequencedForceBatches[order.Pos], *l1Block, dbTx)
 }
 
 func (s *ProcessL1SequenceForcedBatches) processSequenceForceBatch(ctx context.Context, sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
