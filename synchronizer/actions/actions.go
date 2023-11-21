@@ -17,7 +17,7 @@ const (
 )
 
 var (
-	// ErrCantProcessThisEvent is used when the object is not found
+	// ErrInvalidParams is used when the object is not found
 	ErrInvalidParams = errors.New("invalid params")
 )
 
