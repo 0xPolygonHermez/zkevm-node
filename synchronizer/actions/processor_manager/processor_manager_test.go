@@ -104,5 +104,5 @@ func TestL1EventProcessors_Process(t *testing.T) {
 	require.Equal(t, processorConcreteEvent2.responseProcess, result, "must return concrete processor response")
 
 	result = sut.Process(context.Background(), actions.ForkIdType(2), event1, nil, 0, nil)
-	require.ErrorIs(t, result, ErrNotFound, "must return not found error")
+	require.ErrorIs(t, result, ErrCantProcessThisEvent, "must return not found error")
 }

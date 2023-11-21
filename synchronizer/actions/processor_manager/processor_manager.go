@@ -3,6 +3,7 @@ package processor_manager
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
@@ -10,8 +11,8 @@ import (
 )
 
 var (
-	// ErrNotFound is used when the object is not found
-	ErrNotFound = errors.New("not found")
+	// ErrCantProcessThisEvent is used when the object is not found
+	ErrCantProcessThisEvent = errors.New("not a processor for this event/forkid")
 )
 
 // L1EventProcessors is a manager of L1EventProcessor, it have processor for each forkId and event
@@ -54,7 +55,13 @@ func (p *L1EventProcessors) Get(forkId actions.ForkIdType, event etherman.EventO
 func (p *L1EventProcessors) Process(ctx context.Context, forkId actions.ForkIdType, event etherman.EventOrder, block *etherman.Block, position int, dbTx pgx.Tx) error {
 	processor := p.Get(forkId, event)
 	if processor == nil {
-		return ErrNotFound
+		var strBlockNumber string
+		if block != nil {
+			strBlockNumber = fmt.Sprintf("%d", block.BlockNumber)
+		} else {
+			strBlockNumber = "nil"
+		}
+		return fmt.Errorf("can't process blocknumber:%s event:%s, forkid:%d because: %w", strBlockNumber, event, forkId, ErrCantProcessThisEvent)
 	}
 	return processor.Process(ctx, event, block, position, dbTx)
 }

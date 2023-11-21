@@ -633,6 +633,12 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element.Name, &blocks[i], element.Pos, dbTx)
 			}
 			if err != nil {
+				// If any goes wrong we ensure that the state is rollbacked
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+					log.Warnf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[i].BlockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
 				return err
 			}
 		}

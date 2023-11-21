@@ -32,6 +32,6 @@ func (p *ProcessorBase[T]) SupportedForkIds() []actions.ForkIdType {
 	if p.supportedForkdIds != nil {
 		return *p.supportedForkdIds
 	}
-	// returns default forkIds
-	return []actions.ForkIdType{1, 2, 3, 4, 5}
+	// returns default forkIds till incaberry forkId
+	return []actions.ForkIdType{1, 2, 3, 4, 5, 6}
 }
