@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -30,7 +31,7 @@ type mocks struct {
 	State        *stateMock
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
-	DbTx         *dbTxMock
+	DbTx         *syncMocks.DbTxMock
 	ZKEVMClient  *zkEVMClientMock
 	//EventLog     *eventLogMock
 }
@@ -101,7 +102,7 @@ func TestForcedBatch(t *testing.T) {
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
@@ -352,7 +353,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
@@ -603,7 +604,7 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 		//EventLog:    newEventLogMock(t),
 	}
