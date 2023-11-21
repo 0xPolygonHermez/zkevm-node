@@ -43,7 +43,7 @@ check-docker:
 # Check for Docker-compose
 .PHONY: check-docker-compose
 check-docker-compose:
-	@which docker-compose > /dev/null || (echo "Error: docker-compose is not installed" && exit 1)
+	@which docker compose > /dev/null || (echo "Error: docker compose is not installed" && exit 1)
 
 # Check for Protoc
 .PHONY: check-protoc
@@ -88,17 +88,17 @@ build-docker-nc: ## Builds a docker image with the node binary - but without bui
 
 .PHONY: run-rpc
 run-rpc: ## Runs all the services needed to run a local zkEVM RPC node
-	docker-compose up -d zkevm-state-db zkevm-pool-db
+	docker compose up -d zkevm-state-db zkevm-pool-db
 	sleep 2
-	docker-compose up -d zkevm-prover
+	docker compose up -d zkevm-prover
 	sleep 5
-	docker-compose up -d zkevm-sync
+	docker compose up -d zkevm-sync
 	sleep 2
-	docker-compose up -d zkevm-rpc
+	docker compose up -d zkevm-rpc
 
 .PHONY: stop
 stop: ## Stops all services
-	docker-compose down
+	docker compose down
 
 .PHONY: install-linter
 install-linter: ## Installs the linter
