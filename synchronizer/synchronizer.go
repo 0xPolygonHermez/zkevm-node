@@ -1268,6 +1268,7 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
 		RollupExitRoot:  globalExitRoot.RollupExitRoot,
 		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
+		Timestamp:       globalExitRoot.Timestamp,
 	}
 	err := s.state.AddGlobalExitRoot(s.ctx, &ger, dbTx)
 	if err != nil {
