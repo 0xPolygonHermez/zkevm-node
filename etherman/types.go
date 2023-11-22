@@ -13,7 +13,7 @@ type Block struct {
 	BlockHash             common.Hash
 	ParentHash            common.Hash
 	GlobalExitRoots       []GlobalExitRoot
-	L1InfoTree            []L1InfoRoot // etrog
+	L1InfoTree            []L1InfoTree
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
@@ -30,6 +30,7 @@ type GlobalExitRoot struct {
 	GlobalExitRoot  common.Hash
 }
 
+// L1InfoTree struct (etrog)
 type L1InfoTree struct {
 	GlobalExitRoot
 	PreviousBlockHash common.Hash

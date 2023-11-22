@@ -14,6 +14,6 @@ func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1Ev
 	p.Register(incaberry.NewProcessL1SequenceForcedBatches(sync.state, sync))
 	p.Register(incaberry.NewProcessorL1TrustedVerifyBatch(sync.state))
 	p.Register(incaberry.NewProcessorForkId(sync.state, sync))
-	p.Register(etrog.NewProcessorL1GlobalExitRoot(sync.state))
+	p.Register(etrog.NewProcessorL1InfoTreeUpdate(sync.state))
 	return p.Build()
 }

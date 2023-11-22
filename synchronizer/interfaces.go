@@ -65,6 +65,7 @@ type stateInterface interface {
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
+	AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *state.L1InfoTreeLeaf, dbTx pgx.Tx) error
 }
 
 type ethTxManager interface {
