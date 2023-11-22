@@ -6,6 +6,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // TxPoolEndpoints is the txpool jsonrpc endpoint
@@ -16,11 +17,6 @@ type TxPoolEndpoints struct{
 type contentResponse struct {
 	Pending map[common.Address]map[uint64]*txPoolTransaction `json:"pending"`
 	Queued  map[common.Address]map[uint64]*txPoolTransaction `json:"queued"`
-}
-
-type statusResponse struct {
-	Pending uint64 `json:"pending"`
-	Queued  uint64 `json:"queued"`
 }
 
 type txPoolTransaction struct {
@@ -69,9 +65,9 @@ func (e *TxPoolEndpoints) Status() (interface{}, types.Error) {
 		return RPCErrorResponse(types.DefaultErrorCode, "Failed to count queued txs from pool", err, false)
     }
 
-	resp := statusResponse{
-		Pending: txPendingCount,
-		Queued:  txQueuedCount,
+	resp := map[string]hexutil.Uint{
+		"pending": hexutil.Uint(txPendingCount),
+		"queued":  hexutil.Uint(txQueuedCount),
 	}
 
 	return resp, nil
