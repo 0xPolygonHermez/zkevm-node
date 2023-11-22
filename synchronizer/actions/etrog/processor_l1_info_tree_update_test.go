@@ -67,8 +67,11 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 	// Add block information
 	err = testState.AddBlock(ctx, &stateBlock, dbTx)
 	require.NoError(t, err)
-	defer dbTx.Rollback(ctx)
+
 	// Test invalid call, no sequenced batches
 	err = sut.Process(ctx, etherman.Order{Name: sut.SupportedEvents()[0], Pos: 0}, l1Block, dbTx)
+	require.NoError(t, err)
+
+	err = dbTx.Rollback(ctx)
 	require.NoError(t, err)
 }

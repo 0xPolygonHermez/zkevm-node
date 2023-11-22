@@ -80,7 +80,6 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, err)
 	assert.Equal(t, prevBlockHash, currentPrevBlockHash)
 	assert.Equal(t, l1InfoRoot, currentL1InfoRoot)
-
 }
 
 func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -89,7 +88,6 @@ func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	err := db.QueryRow(sqlSelect).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, count)
-
 }
 
 func TestMigration0013(t *testing.T) {

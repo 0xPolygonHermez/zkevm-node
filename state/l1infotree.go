@@ -9,23 +9,26 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// GlobalExitRoot struct
+// L1InfoTreeLeaf leaf of the L1InfoTree
 type L1InfoTreeLeaf struct {
 	GlobalExitRoot
 	PreviousBlockHash common.Hash
 }
 
+// L1InfoTreeExitRootStorageEntry entry of the Database
 type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeLeaf
 	L1InfoTreeRoot  common.Hash
 	L1InfoTreeIndex uint64
 }
 
-// TODO: Implement Hash function
+// Hash returns the hash of the leaf
 func (l *L1InfoTreeLeaf) Hash() common.Hash {
-	return common.Hash{}
+	timestamp := uint64(l.Timestamp.Unix())
+	return l1infotree.HashLeafData(l.GlobalExitRoot.GlobalExitRoot, l.PreviousBlockHash, timestamp)
 }
 
+// AddL1InfoTreeLeaf adds a new leaf to the L1InfoTree and returns the entry and error
 func (s *State) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *L1InfoTreeLeaf, dbTx pgx.Tx) (*L1InfoTreeExitRootStorageEntry, error) {
 	allLeaves, err := s.GetAllL1InfoRootEntries(ctx, dbTx)
 	if err != nil {
@@ -51,7 +54,7 @@ func (s *State) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *L1InfoTre
 }
 
 func buildL1InfoTree(allLeaves []L1InfoTreeExitRootStorageEntry) (common.Hash, error) {
-	mt := l1infotree.NewL1InfoTree(uint8(32))
+	mt := l1infotree.NewL1InfoTree(uint8(32)) //nolint:gomnd
 	var leaves [][32]byte
 	for _, leaf := range allLeaves {
 		leaves = append(leaves, leaf.Hash())
