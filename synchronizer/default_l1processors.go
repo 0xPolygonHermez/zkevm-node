@@ -13,6 +13,7 @@ func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1Ev
 	p.AddEventProcessor(etherman.ForcedBatchesOrder, incaberry.NewProcessL1ForcedBatches(sync.state))
 	p.AddEventProcessor(etherman.SequenceForceBatchesOrder, incaberry.NewProcessL1SequenceForcedBatches(sync.state, sync))
 	p.AddEventProcessor(etherman.TrustedVerifyBatchOrder, incaberry.NewProcessorL1VerifyBatch(sync.state))
+	p.AddEventProcessor(etherman.VerifyBatchOrder, incaberry.NewProcessorL1VerifyBatch(sync.state))
 	p.AddEventProcessor(etherman.ForkIDsOrder, incaberry.NewProcessorForkId(sync.state, sync))
 	return p.Build()
 }
