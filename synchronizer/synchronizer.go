@@ -1,5 +1,14 @@
 package synchronizer
 
+// All this function must be deleted becaue have been move to a l1_executor:
+// - pendingFlushID
+// - halt
+// - reorgPool
+// - processSequenceForceBatch
+// - processSequenceBatches
+// - processForkID
+// - checkTrustedState
+
 import (
 	"context"
 	"errors"
@@ -17,6 +26,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -66,6 +78,7 @@ type ClientSynchronizer struct {
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
 	l1SyncOrchestration     *l1SyncOrchestration
+	l1EventProcessors       *processor_manager.L1EventProcessors
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -100,7 +113,9 @@ func NewSynchronizer(
 		proverID:                "",
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
+		l1EventProcessors:       nil,
 	}
+	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
 		log.Info("L1SynchronizationMode is parallel")
@@ -145,6 +160,17 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		externalControl.start()
 	}
 	return l1SyncOrchestration, nil
+}
+
+// CleanTrustedState Clean cache of TrustedBatches and StateRoot
+func (s *ClientSynchronizer) CleanTrustedState() {
+	s.trustedState.lastTrustedBatches = nil
+	s.trustedState.lastStateRoot = nil
+}
+
+// IsTrustedSequencer returns true is a running in a trusted sequencer
+func (s *ClientSynchronizer) IsTrustedSequencer() bool {
+	return s.isTrustedSequencer
 }
 
 // Sync function will read the last state synced and will continue from that point.
@@ -219,7 +245,9 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
+			//err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
+			err = s.l1EventProcessors.Process(s.ctx, 1, etherman.Order{Name: etherman.ForkIDsOrder, Pos: 0}, &blocks[0], dbTx)
+
 			if err != nil {
 				log.Error("error storing genesis forkID: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -614,43 +642,43 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			}
 			return err
 		}
+
 		for _, element := range order[blocks[i].BlockHash] {
+			batchSequence := l1event_orders.GetSequenceFromL1EventOrder(element.Name, &blocks[i], element.Pos)
+			var forkId uint64
+			if batchSequence != nil {
+				forkId = s.state.GetForkIDByBatchNumber(batchSequence.FromBatchNumber)
+				log.Debug("EventOrder:", element.Name, "Batch Sequence: ", batchSequence, "forkId:", forkId)
+			} else {
+				forkId = s.state.GetForkIDByBlockNumber(blocks[i].BlockNumber)
+				log.Debug("EventOrder:", element.Name, "BlockNumber: ", blocks[i].BlockNumber, "forkId:", forkId)
+			}
+			forkIdTyped := actions.ForkIdType(forkId)
+			var err error
 			switch element.Name {
 			case etherman.SequenceBatchesOrder:
-				err = s.processSequenceBatches(blocks[i].SequencedBatches[element.Pos], blocks[i].BlockNumber, dbTx)
-				if err != nil {
-					return err
-				}
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.ForcedBatchesOrder:
-				err = s.processForcedBatch(blocks[i].ForcedBatches[element.Pos], dbTx)
-				if err != nil {
-					return err
-				}
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.GlobalExitRootsOrder:
-				err = s.processGlobalExitRoot(blocks[i].GlobalExitRoots[element.Pos], dbTx)
-				if err != nil {
-					return err
-				}
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.SequenceForceBatchesOrder:
-				err = s.processSequenceForceBatch(blocks[i].SequencedForceBatches[element.Pos], blocks[i], dbTx)
-				if err != nil {
-					return err
-				}
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.TrustedVerifyBatchOrder:
-				err = s.processVerifyBatches(blocks[i].VerifiedBatches[element.Pos], true, dbTx)
-				if err != nil {
-					return err
-				}
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.VerifyBatchOrder:
-				err = s.processVerifyBatches(blocks[i].VerifiedBatches[element.Pos], false, dbTx) // TODO Arreglar que pueden ser trusted o no estas verificaciones con lo nuevo
-				if err != nil {
-					return err
+			    err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
+            case etherman.ForkIDsOrder:
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
+			}
+			if err != nil {
+				// If any goes wrong we ensure that the state is rollbacked
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+					log.Warnf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[i].BlockNumber, rollbackErr.Error(), err)
+					return rollbackErr
 				}
-			case etherman.ForkIDsOrder:
-				err = s.processForkID(blocks[i].ForkIDs[element.Pos], blocks[i].BlockNumber, dbTx)
-				if err != nil {
-					return err
-				}
+				return err
 			}
 		}
 		log.Debug("Checking FlushID to commit L1 data to db")
@@ -797,6 +825,9 @@ func (s *ClientSynchronizer) Stop() {
 	s.cancelCtx()
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
 	var reorgReasons strings.Builder
@@ -846,6 +877,9 @@ func (s *ClientSynchronizer) checkTrustedState(batch state.Batch, tBatch *state.
 	return false
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
 	fID := state.ForkIDInterval{
 		FromBatchNumber: forkID.BatchNumber + 1,
@@ -926,6 +960,9 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
@@ -1145,6 +1182,9 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 	return nil
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []etherman.SequencedForceBatch, block etherman.Block, dbTx pgx.Tx) error {
 	if len(sequenceForceBatch) == 0 {
 		log.Warn("Empty sequenceForceBatch array detected, ignoring...")
@@ -1278,6 +1318,9 @@ func (s *ClientSynchronizer) processSequenceForceBatch(sequenceForceBatch []ethe
 	return nil
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch, dbTx pgx.Tx) error {
 	// Store forced batch into the db
 	forcedB := state.ForcedBatch{
@@ -1303,6 +1346,9 @@ func (s *ClientSynchronizer) processForcedBatch(forcedBatch etherman.ForcedBatch
 	return nil
 }
 
+// deprecated: this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.GlobalExitRoot, dbTx pgx.Tx) error {
 	// Store GlobalExitRoot
 	ger := state.GlobalExitRoot{
@@ -1325,6 +1371,9 @@ func (s *ClientSynchronizer) processGlobalExitRoot(globalExitRoot etherman.Globa
 	return nil
 }
 
+// deprecated this function is not used anymore, instead use a L1EventProcessor
+//
+//nolint:unused
 func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.VerifiedBatch, isTrusted bool, dbTx pgx.Tx) error {
 	lastVBatch, err := s.state.GetLastVerifiedBatch(s.ctx, dbTx)
 	if err != nil {
@@ -1374,7 +1423,7 @@ func (s *ClientSynchronizer) processVerifyBatches(lastVerifiedBatch etherman.Ver
 			TxHash:      lastVerifiedBatch.TxHash,
 			IsTrusted:   isTrusted,
 		}
-		log.Infof("processTrustedVerifyBatches: Storing verifiedB. BlockNumber: %d, BatchNumber: %d", verifiedB.BlockNumber, verifiedB.BatchNumber)
+		log.Infof("processVerifyBatches: Storing verifiedB. BlockNumber: %d, BatchNumber: %d, isTrusted: %v", verifiedB.BlockNumber, verifiedB.BatchNumber, isTrusted)
 		err = s.state.AddVerifiedBatch(s.ctx, &verifiedB, dbTx)
 		if err != nil {
 			log.Errorf("error storing the verifiedB in processVerifyBatches. verifiedBatch: %+v, lastVerifiedBatch: %+v", verifiedB, lastVerifiedBatch)
@@ -1610,6 +1659,10 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	return batches, &processBatchResp.NewStateRoot, nil
 }
 
+// deprecated: this function have to be removed.
+// it's only used by processSequenceBatches have have been moved to l1events/processor_sequence_batches.go
+//
+//nolint:unused
 func (s *ClientSynchronizer) reorgPool(dbTx pgx.Tx) error {
 	latestBatchNum, err := s.etherMan.GetLatestBatchNumber()
 	if err != nil {
@@ -1653,7 +1706,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
 		return nil, err
 	}
-	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
+	s.PendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
 	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
 	if processBatchResp.IsExecutorLevelError {
@@ -1764,7 +1817,8 @@ func (s *ClientSynchronizer) getCurrentBatches(batches []*state.Batch, trustedBa
 	return batches, nil
 }
 
-func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
+// PendingFlushID is called when a flushID is pending to be stored in the db
+func (s *ClientSynchronizer) PendingFlushID(flushID uint64, proverID string) {
 	log.Infof("pending flushID: %d", flushID)
 	if flushID == 0 {
 		log.Fatal("flushID is 0. Please check that prover/executor config parameter dbReadOnly is false")
@@ -1772,6 +1826,13 @@ func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
 	s.latestFlushID = flushID
 	s.latestFlushIDIsFulfilled = false
 	s.updateAndCheckProverID(proverID)
+}
+
+// deprecated: use PendingFlushID instead
+//
+//nolint:unused
+func (s *ClientSynchronizer) pendingFlushID(flushID uint64, proverID string) {
+	s.PendingFlushID(flushID, proverID)
 }
 
 func (s *ClientSynchronizer) updateAndCheckProverID(proverID string) {
@@ -1841,7 +1902,10 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 	return nil
 }
 
-// halt halts the Synchronizer
+// deprecated: this function have to be removed.
+// it's only used by processSequenceBatches have have been moved to l1events/processor_sequence_batches.go
+//
+//nolint:unused
 func (s *ClientSynchronizer) halt(ctx context.Context, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),

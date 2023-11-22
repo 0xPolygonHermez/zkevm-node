@@ -25,6 +25,8 @@ type EthermanInterface interface {
 	GetLatestVerifiedBatchNum() (uint64, error)
 }
 
+// L1EventProcessor is the interface that wraps the Execute method for the incomming events from L1 SMC
+
 // stateInterface gathers the methods required to interact with the state.
 type stateInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
@@ -61,6 +63,7 @@ type stateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 }
 

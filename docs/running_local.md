@@ -78,7 +78,7 @@ If you need sample data already deployed to the network, we have the following s
 make deploy-sc
 ```
 
-**To deploy a full a uniswap environment:**
+**To deploy a full uniswap environment:**
 
 ```bash
 make deploy-uniswap

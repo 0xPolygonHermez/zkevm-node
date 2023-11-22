@@ -36,18 +36,21 @@ var (
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	cfg                     FinalizerCfg
-	closingSignalCh         ClosingSignalCh
-	isSynced                func(ctx context.Context) bool
-	sequencerAddress        common.Address
-	worker                  workerInterface
-	dbManager               dbManagerInterface
-	executor                stateInterface
-	batch                   *WipBatch
-	batchConstraints        state.BatchConstraintsCfg
-	processRequest          state.ProcessRequest
-	sharedResourcesMux      *sync.RWMutex
-	lastGERHash             common.Hash
+	cfg                FinalizerCfg
+	closingSignalCh    ClosingSignalCh
+	isSynced           func(ctx context.Context) bool
+	sequencerAddress   common.Address
+	worker             workerInterface
+	dbManager          dbManagerInterface
+	executor           stateInterface
+	batch              *WipBatch
+	batchConstraints   state.BatchConstraintsCfg
+	processRequest     state.ProcessRequest
+	sharedResourcesMux *sync.RWMutex
+	// GER of the current WIP batch
+	currentGERHash common.Hash
+	// GER of the batch previous to the current WIP batch
+	previousGERHash         common.Hash
 	reprocessFullBatchError atomic.Bool
 	// closing signals
 	nextGER                 common.Hash
@@ -130,7 +133,8 @@ func newFinalizer(
 		batchConstraints:   batchConstraints,
 		processRequest:     state.ProcessRequest{},
 		sharedResourcesMux: new(sync.RWMutex),
-		lastGERHash:        state.ZeroHash,
+		currentGERHash:     state.ZeroHash,
+		previousGERHash:    state.ZeroHash,
 		// closing signals
 		nextGER:                 common.Hash{},
 		nextGERDeadline:         0,
@@ -520,6 +524,33 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		return nil, fmt.Errorf("failed to close batch, err: %w", err)
 	}
 
+	// Check if the batch is empty and sending a GER Update to the stream is needed
+	if f.streamServer != nil && f.batch.isEmpty() && f.currentGERHash != f.previousGERHash {
+		updateGer := state.DSUpdateGER{
+			BatchNumber:    f.batch.batchNumber,
+			Timestamp:      f.batch.timestamp.Unix(),
+			GlobalExitRoot: f.currentGERHash,
+			Coinbase:       f.sequencerAddress,
+			ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(f.batch.batchNumber)),
+			StateRoot:      f.batch.stateRoot,
+		}
+
+		err = f.streamServer.StartAtomicOp()
+		if err != nil {
+			log.Errorf("failed to start atomic op for Update GER on batch %v: %v", f.batch.batchNumber, err)
+		}
+
+		_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
+		if err != nil {
+			log.Errorf("failed to add stream entry for Update GER on batch %v: %v", f.batch.batchNumber, err)
+		}
+
+		err = f.streamServer.CommitAtomicOp()
+		if err != nil {
+			log.Errorf("failed to commit atomic op for Update GER on batch  %v: %v", f.batch.batchNumber, err)
+		}
+	}
+
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
 	lastBatchNumber := f.batch.batchNumber
@@ -535,13 +566,14 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Take into consideration the GER
 	f.nextGERMux.Lock()
 	if f.nextGER != state.ZeroHash {
-		f.lastGERHash = f.nextGER
+		f.previousGERHash = f.currentGERHash
+		f.currentGERHash = f.nextGER
 	}
 	f.nextGER = state.ZeroHash
 	f.nextGERDeadline = 0
 	f.nextGERMux.Unlock()
 
-	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.lastGERHash, stateRoot)
+	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.currentGERHash, stateRoot)
 	if err == nil {
 		f.processRequest.Timestamp = batch.timestamp
 		f.processRequest.BatchNumber = batch.batchNumber
@@ -576,19 +608,23 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		f.processRequest.Transactions = tx.RawTx
 		hashStr = tx.HashStr
 
+		txGasPrice := tx.GasPrice
+
 		// If it is the first time we process this tx then we calculate the EffectiveGasPrice
 		if firstTxProcess {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
 			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
-			log.Infof("tx.L1GasPrice = %d, tx.L2GasPrice = %d", tx.L1GasPrice, tx.L2GasPrice)
+			// Get the tx and l2 gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+			txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
+
 			// Save values for later logging
-			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
-			tx.EGPLog.GasPrice.Set(tx.GasPrice)
 			tx.EGPLog.L1GasPrice = tx.L1GasPrice
-			tx.EGPLog.L2GasPrice = tx.L2GasPrice
+			tx.EGPLog.L2GasPrice = txL2GasPrice
+			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
+			tx.EGPLog.GasPrice.Set(txGasPrice)
 
 			// Calculate EffectiveGasPrice
-			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
+			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, txL2GasPrice)
 			if err != nil {
 				if f.effectiveGasPrice.IsEnabled() {
 					return nil, err
@@ -602,14 +638,14 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 				// Save first EffectiveGasPrice for later logging
 				tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
 
-				// If EffectiveGasPrice >= tx.GasPrice, we process the tx with tx.GasPrice
-				if tx.EffectiveGasPrice.Cmp(tx.GasPrice) >= 0 {
-					tx.EffectiveGasPrice.Set(tx.GasPrice)
+				// If EffectiveGasPrice >= txGasPrice, we process the tx with tx.GasPrice
+				if tx.EffectiveGasPrice.Cmp(txGasPrice) >= 0 {
+					tx.EffectiveGasPrice.Set(txGasPrice)
 
-					loss := new(big.Int).Sub(tx.EffectiveGasPrice, tx.GasPrice)
+					loss := new(big.Int).Sub(tx.EffectiveGasPrice, txGasPrice)
 					// If loss > 0 the warning message indicating we loss fee for thix tx
 					if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
-						log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s", tx.GasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+						log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, txHash: %s", txGasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
 					}
 
 					tx.IsLastExecution = true
@@ -617,7 +653,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			}
 		}
 
-		effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice)
+		effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
 		if err != nil {
 			if f.effectiveGasPrice.IsEnabled() {
 				return nil, err
@@ -709,7 +745,10 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	if !tx.IsLastExecution {
 		tx.IsLastExecution = true
 
-		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, result.Responses[0].GasUsed, tx.L1GasPrice, tx.L2GasPrice)
+		// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+		txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
+
+		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, result.Responses[0].GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if egpEnabled {
 				log.Errorf("failed to calculate EffectiveGasPrice with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
@@ -727,7 +766,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 			// If EffectiveGasPrice is disabled we will calculate the percentage and save it for later logging
 			if !egpEnabled {
-				effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice)
+				effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
 				if err != nil {
 					log.Warnf("EffectiveGasPrice is disabled, but failed to CalculateEffectiveGasPricePercentage#2: %s", err)
 					tx.EGPLog.Error = fmt.Sprintf("%s, CalculateEffectiveGasPricePercentage#2: %s", tx.EGPLog.Error, err)
@@ -828,6 +867,9 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 // It returns ErrEffectiveGasPriceReprocess if the tx needs to be reprocessed with
 // the tx.EffectiveGasPrice updated, otherwise it returns nil
 func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracker, newEffectiveGasPrice *big.Int, hasGasPriceOC bool, hasBalanceOC bool) error {
+	// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+	txGasPrice, _ := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
+
 	// Compute the absolute difference between tx.EffectiveGasPrice - newEffectiveGasPrice
 	diff := new(big.Int).Abs(new(big.Int).Sub(tx.EffectiveGasPrice, newEffectiveGasPrice))
 	// Compute max deviation allowed of newEffectiveGasPrice
@@ -839,20 +881,20 @@ func (f *finalizer) CompareTxEffectiveGasPrice(ctx context.Context, tx *TxTracke
 
 	// if (diff > finalDeviation)
 	if diff.Cmp(maxDeviation) == 1 {
-		// if newEfectiveGasPrice < tx.GasPrice
-		if newEffectiveGasPrice.Cmp(tx.GasPrice) == -1 {
+		// if newEfectiveGasPrice < txGasPrice
+		if newEffectiveGasPrice.Cmp(txGasPrice) == -1 {
 			if hasGasPriceOC || hasBalanceOC {
-				tx.EffectiveGasPrice.Set(tx.GasPrice)
+				tx.EffectiveGasPrice.Set(txGasPrice)
 			} else {
 				tx.EffectiveGasPrice.Set(newEffectiveGasPrice)
 			}
 		} else {
-			tx.EffectiveGasPrice.Set(tx.GasPrice)
+			tx.EffectiveGasPrice.Set(txGasPrice)
 
-			loss := new(big.Int).Sub(newEffectiveGasPrice, tx.GasPrice)
+			loss := new(big.Int).Sub(newEffectiveGasPrice, txGasPrice)
 			// If loss > 0 the warning message indicating we loss fee for thix tx
 			if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
-				log.Warnf("egp-loss: gasPrice: %d, EffectiveGasPrice2: %d, loss: %d, txHash: %s", tx.GasPrice, newEffectiveGasPrice, loss, tx.HashStr)
+				log.Warnf("egp-loss: gasPrice: %d, EffectiveGasPrice2: %d, loss: %d, txHash: %s", txGasPrice, newEffectiveGasPrice, loss, tx.HashStr)
 			}
 		}
 
@@ -1113,7 +1155,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 
 		f.handleForcedTxsProcessResp(ctx, request, response, stateRoot)
 	} else {
-		if f.lastGERHash != forcedBatch.GlobalExitRoot && f.streamServer != nil {
+		if f.streamServer != nil && f.currentGERHash != forcedBatch.GlobalExitRoot {
 			updateGer := state.DSUpdateGER{
 				BatchNumber:    request.BatchNumber,
 				Timestamp:      request.Timestamp.Unix(),
@@ -1141,7 +1183,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	}
 
 	f.nextGERMux.Lock()
-	f.lastGERHash = forcedBatch.GlobalExitRoot
+	f.currentGERHash = forcedBatch.GlobalExitRoot
 	f.nextGERMux.Unlock()
 	stateRoot = response.NewStateRoot
 	lastBatchNumberInState += 1

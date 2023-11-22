@@ -425,6 +425,7 @@ MaxGasPriceLimit=0
 | - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 | - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
+| - [ForkID](#Pool_ForkID )                                                       | No      | integer | No         | -          | ForkID is the current fork ID of the chain                                                           |
 
 ### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>7.1. `Pool.IntervalToRefreshBlockedAddresses`
 
@@ -719,15 +720,16 @@ GlobalQueue=1024
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the effective gas price calculation
 
-| Property                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                            |
-| ----------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                     | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                  |
-| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )   | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                             |
-| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )             | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                           |
-| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )     | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                           |
-| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                 | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                  |
-| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )     | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx |
-| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct ) | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                |
+| Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                                     | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                                                                                          |
+| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )                   | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                                                                                     |
+| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )                             | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                                                                                                   |
+| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )                     | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                                                                                                   |
+| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                                 | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                                                                                          |
+| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )                     | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx                                                                         |
+| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct )                 | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                                                                                        |
+| - [L2GasPriceSuggesterFactor](#Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor ) | No      | number  | No         | -          | L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the<br />calculations when the effective gas price is disabled (testing/metrics purposes) |
 
 #### <a name="Pool_EffectiveGasPrice_Enabled"></a>7.11.1. `Pool.EffectiveGasPrice.Enabled`
 
@@ -825,6 +827,21 @@ BreakEvenFactor=1.1
 ```
 [Pool.EffectiveGasPrice]
 FinalDeviationPct=10
+```
+
+#### <a name="Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor"></a>7.11.8. `Pool.EffectiveGasPrice.L2GasPriceSuggesterFactor`
+
+**Type:** : `number`
+
+**Default:** `0.5`
+
+**Description:** L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the
+calculations when the effective gas price is disabled (testing/metrics purposes)
+
+**Example setting the default value** (0.5):
+```
+[Pool.EffectiveGasPrice]
+L2GasPriceSuggesterFactor=0.5
 ```
 
 ## <a name="RPC"></a>8. `[RPC]`
