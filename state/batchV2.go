@@ -17,7 +17,7 @@ import (
 // ProcessSequencerBatchV2 is used by the sequencers to process transactions into an open batch for forkID >= ETROG
 func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponseV2, error) {
 	log.Debugf("*******************************************")
-	log.Debugf("ProcessSequencerBatch start")
+	log.Debugf("ProcessSequencerBatchV2 start")
 
 	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, caller, dbTx)
 	if err != nil {
@@ -28,7 +28,7 @@ func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64,
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("ProcessSequencerBatch end")
+	log.Debugf("ProcessSequencerBatchV2 end")
 	log.Debugf("*******************************************")
 	return result, nil
 }
@@ -36,7 +36,7 @@ func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64,
 // ProcessBatchV2 processes a batch for forkID >= ETROG
 func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, updateMerkleTree bool) (*ProcessBatchResponseV2, error) {
 	log.Debugf("*******************************************")
-	log.Debugf("ProcessBatch start")
+	log.Debugf("ProcessBatchV2 start")
 
 	updateMT := uint32(cFalse)
 	if updateMerkleTree {
@@ -70,7 +70,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		return nil, err
 	}
 
-	log.Debugf("ProcessBatch end")
+	log.Debugf("ProcessBatchV2 end")
 	log.Debugf("*******************************************")
 
 	return result, nil
@@ -215,9 +215,9 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {
-		log.Errorf("Error s.executorClient.ProcessBatch: %v", err)
-		log.Errorf("Error s.executorClient.ProcessBatch: %s", err.Error())
-		log.Errorf("Error s.executorClient.ProcessBatch response: %v", res)
+		log.Errorf("Error s.executorClient.ProcessBatchV2: %v", err)
+		log.Errorf("Error s.executorClient.ProcessBatchV2: %s", err.Error())
+		log.Errorf("Error s.executorClient.ProcessBatchV2 response: %v", res)
 	} else if res.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, res.Error, processBatchRequest)
@@ -237,7 +237,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
 	BatchL2Data := processingCtx.BatchL2Data
 	if BatchL2Data == nil {
-		log.Warnf("Batch %v: ProcessAndStoreClosedBatch: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
+		log.Warnf("Batch %v: ProcessAndStoreClosedBatchV2: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
 		var BatchL2DataEmpty []byte
 		BatchL2Data = &BatchL2DataEmpty
 	}
