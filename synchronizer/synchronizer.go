@@ -667,8 +667,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 			case etherman.TrustedVerifyBatchOrder:
 				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.VerifyBatchOrder:
-			    err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-            case etherman.ForkIDsOrder:
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
+			case etherman.ForkIDsOrder:
 				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			}
 			if err != nil {

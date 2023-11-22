@@ -32,7 +32,7 @@ func NewProcessorL1VerifyBatch(state stateL1VerifyBatchInterface) *ProcessorL1Ve
 // Process process event
 func (p *ProcessorL1VerifyBatch) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	var isTrusted bool
-	if order.Name == etherman.VerifyBatchOrder{
+	if order.Name == etherman.VerifyBatchOrder {
 		isTrusted = true
 	}
 	return p.processVerifyBatches(ctx, l1Block.VerifiedBatches[order.Pos], isTrusted, dbTx)
