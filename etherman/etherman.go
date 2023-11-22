@@ -54,7 +54,7 @@ var (
 	onSequenceBatchesSignatureHash                 = crypto.Keccak256Hash([]byte("OnSequenceBatches(uint32,uint64)"))
 	updateRollupSignatureHash                      = crypto.Keccak256Hash([]byte("UpdateRollup(uint32,uint32,uint64)"))
 	addExistingRollupSignatureHash                 = crypto.Keccak256Hash([]byte("AddExistingRollup(uint32,uint64,address,uint64,uint8)"))
-	createNewRollupSignatureHash                   = crypto.Keccak256Hash([]byte("CreateNewRollup(uint32,uint32,address,uint64,address,uint32)"))
+	createNewRollupSignatureHash                   = crypto.Keccak256Hash([]byte("CreateNewRollup(uint32,uint32,address,uint64,address)"))
 	obsoleteRollupTypeSignatureHash                = crypto.Keccak256Hash([]byte("ObsoleteRollupType(uint32)"))
 	addNewRollupTypeSignatureHash                  = crypto.Keccak256Hash([]byte("AddNewRollupType(uint32,address,address,uint64,uint8,bytes32,string)"))
 
@@ -69,6 +69,7 @@ var (
 	sequenceForceBatchesSignatureHash   = crypto.Keccak256Hash([]byte("SequenceForceBatches(uint64)"))             // Used in oldZkEvm as well
 	forceBatchSignatureHash             = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)")) // Used in oldZkEvm as well
 	sequenceBatchesSignatureHash        = crypto.Keccak256Hash([]byte("SequenceBatches(uint64)"))                  // Used in oldZkEvm as well
+	initialSequenceBatchesSignatureHash = crypto.Keccak256Hash([]byte("InitialSequenceBatches(bytes,bytes32,address)"))
 
 	// Extra RollupManager
 	initializedSignatureHash               = crypto.Keccak256Hash([]byte("Initialized(uint64)"))                       // Initializable. Used in RollupBase as well
@@ -77,6 +78,9 @@ var (
 	roleRevokedSignatureHash               = crypto.Keccak256Hash([]byte("RoleRevoked(bytes32,address,address)"))      // IAccessControlUpgradeable
 	emergencyStateActivatedSignatureHash   = crypto.Keccak256Hash([]byte("EmergencyStateActivated()"))                 // EmergencyManager. Used in oldZkEvm as well
 	emergencyStateDeactivatedSignatureHash = crypto.Keccak256Hash([]byte("EmergencyStateDeactivated()"))               // EmergencyManager. Used in oldZkEvm as well
+
+	// New Ger event
+	updateL1InfoTreeSignatureHash = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
 
 	// Old zkevm events
 	updateGlobalExitRootSignatureHash              = crypto.Keccak256Hash([]byte("UpdateGlobalExitRoot(bytes32,bytes32)"))
@@ -449,8 +453,13 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	case updateGlobalExitRootSignatureHash:
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
+	case updateL1InfoTreeSignatureHash:
+		return etherMan.updateL1InfoTreeEvent(ctx, vLog, blocks, blocksOrder)
 	case forceBatchSignatureHash:
 		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
+	case initialSequenceBatchesSignatureHash:
+		log.Debug("initialSequenceBatches event detected. Ignoring...")
+		return nil
 	case verifyBatchesTrustedAggregatorSignatureHash:
 		log.Debug("VerifyBatchesTrustedAggregator event detected. Ignoring...")
 		return nil
@@ -566,7 +575,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		log.Debug("SetBatchFee event detected. Ignoring...")
 		return nil
 	}
-	log.Warn("Event not registered: ", vLog)
+	log.Warnf("Event not registered: %+v", vLog)
 	return nil
 }
 
@@ -643,11 +652,20 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 	if err != nil {
 		return err
 	}
+	return etherMan.processUpdateGlobalExitRootEvent(ctx, globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot, vLog, blocks, blocksOrder)
+}
+
+func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("UpdateL1InfoTree event detected")
+	return etherMan.processUpdateGlobalExitRootEvent(ctx, vLog.Topics[1], vLog.Topics[2], vLog, blocks, blocksOrder)
+}
+
+func (etherMan *Client) processUpdateGlobalExitRootEvent(ctx context.Context, mainnetExitRoot, rollupExitRoot common.Hash, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	var gExitRoot GlobalExitRoot
-	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
-	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
+	gExitRoot.MainnetExitRoot = mainnetExitRoot
+	gExitRoot.RollupExitRoot = rollupExitRoot
 	gExitRoot.BlockNumber = vLog.BlockNumber
-	gExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
+	gExitRoot.GlobalExitRoot = hash(mainnetExitRoot, rollupExitRoot)
 
 	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
 		fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)

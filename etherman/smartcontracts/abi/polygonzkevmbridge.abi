@@ -393,6 +393,35 @@
 	{
 		"inputs": [
 			{
+				"internalType": "uint32",
+				"name": "originNetwork",
+				"type": "uint32"
+			},
+			{
+				"internalType": "address",
+				"name": "originTokenAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			}
+		],
+		"name": "calculateTokenWrapperAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "bytes32[32]",
 				"name": "smtProofLocalExitRoot",
 				"type": "bytes32[32]"
@@ -570,6 +599,19 @@
 	},
 	{
 		"inputs": [],
+		"name": "gasTokenMetadata",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "gasTokenNetwork",
 		"outputs": [
 			{
@@ -646,6 +688,25 @@
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			}
+		],
+		"name": "getTokenMetadata",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
 				"internalType": "uint32",
 				"name": "originNetwork",
 				"type": "uint32"
@@ -706,6 +767,11 @@
 				"internalType": "address",
 				"name": "_polygonRollupManager",
 				"type": "address"
+			},
+			{
+				"internalType": "bytes",
+				"name": "_gasTokenMetadata",
+				"type": "bytes"
 			}
 		],
 		"name": "initialize",

@@ -407,7 +407,7 @@ func TestGetForks(t *testing.T) {
 	forks, err := etherman.GetForks(ctx, 0, 132)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(forks))
-	assert.Equal(t, uint64(5), forks[0].ForkId)
+	assert.Equal(t, uint64(6), forks[0].ForkId)
 	assert.Equal(t, uint64(1), forks[0].FromBatchNumber)
 	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
 	assert.Equal(t, "", forks[0].Version)
@@ -423,7 +423,7 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, 0, order[blocks[0].BlockHash][0].Pos)
 	assert.Equal(t, ForkIDsOrder, order[blocks[0].BlockHash][0].Name)
 	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
-	assert.Equal(t, uint64(5), blocks[0].ForkIDs[0].ForkID)
+	assert.Equal(t, uint64(6), blocks[0].ForkIDs[0].ForkID)
 	assert.Equal(t, "", blocks[0].ForkIDs[0].Version)
 }
 

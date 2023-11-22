@@ -37,32 +37,12 @@
     },
     {
         "inputs": [],
-        "name": "BatchAlreadyVerified",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "BatchFeeOutOfRange",
         "type": "error"
     },
     {
         "inputs": [],
-        "name": "BatchNotSequencedOrNotSequenceEnd",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "ChainIDAlreadyExist",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "ConsensusAlreadyExist",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "ConsensusDoesNotExist",
         "type": "error"
     },
     {
@@ -83,16 +63,6 @@
     {
         "inputs": [],
         "name": "FinalPendingStateNumInvalid",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "ForceBatchNotAllowed",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "ForceBatchesAlreadyActive",
         "type": "error"
     },
     {
@@ -127,11 +97,6 @@
     },
     {
         "inputs": [],
-        "name": "InvalidRangeForceBatchTimeout",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "InvalidRangeMultiplierBatchFee",
         "type": "error"
     },
@@ -152,22 +117,12 @@
     },
     {
         "inputs": [],
-        "name": "NewSequencedBatchMustBeBigger",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "NewStateRootNotInsidePrime",
         "type": "error"
     },
     {
         "inputs": [],
         "name": "NewTrustedAggregatorTimeoutMustBeLower",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "NotSupportedCurrently",
         "type": "error"
     },
     {
@@ -192,16 +147,6 @@
     },
     {
         "inputs": [],
-        "name": "OnlyPendingGovernance",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "OnlyTrustedAggregator",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "PendingStateDoesNotExist",
         "type": "error"
     },
@@ -213,11 +158,6 @@
     {
         "inputs": [],
         "name": "PendingStateNotConsolidable",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "PendingStateTimeoutExceedHaltAggregationTimeout",
         "type": "error"
     },
     {
@@ -247,11 +187,6 @@
     },
     {
         "inputs": [],
-        "name": "TrustedAggregatorTimeoutExceedHaltAggregationTimeout",
-        "type": "error"
-    },
-    {
-        "inputs": [],
         "name": "TrustedAggregatorTimeoutNotExpired",
         "type": "error"
     },
@@ -263,26 +198,6 @@
     {
         "inputs": [],
         "name": "UpdateToSameRollupTypeID",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "VerifierAlreadyExist",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "VerifierDoesNotExist",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "VerifierMustBeDifferent",
-        "type": "error"
-    },
-    {
-        "inputs": [],
-        "name": "VerifiersMustHaveSameGenesis",
         "type": "error"
     },
     {
@@ -440,12 +355,6 @@
                 "internalType": "address",
                 "name": "gasTokenAddress",
                 "type": "address"
-            },
-            {
-                "indexed": false,
-                "internalType": "uint32",
-                "name": "gasTokenNetwork",
-                "type": "uint32"
             }
         ],
         "name": "CreateNewRollup",
@@ -1001,11 +910,6 @@
                 "internalType": "address",
                 "name": "gasTokenAddress",
                 "type": "address"
-            },
-            {
-                "internalType": "uint32",
-                "name": "gasTokenNetwork",
-                "type": "uint32"
             },
             {
                 "internalType": "string",
@@ -1575,19 +1479,6 @@
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32[]",
-                "name": "localExitRoots",
-                "type": "bytes32[]"
-            }
-        ],
-        "name": "prepareMockCalculateRoot",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
