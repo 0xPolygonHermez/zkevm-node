@@ -631,6 +631,8 @@ func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order ma
 				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			case etherman.ForkIDsOrder:
 				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
+			case etherman.L1InfoTreeOrder:
+				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			}
 			if err != nil {
 				// If any goes wrong we ensure that the state is rollbacked

@@ -1,4 +1,4 @@
-package incaberry
+package etrog
 
 import (
 	"context"
@@ -25,19 +25,19 @@ type ProcessorL1GlobalExitRoot struct {
 func NewProcessorL1GlobalExitRoot(state stateProcessorL1GlobalExitRootInterface) *ProcessorL1GlobalExitRoot {
 	return &ProcessorL1GlobalExitRoot{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1GlobalExitRoot]{
-			SupportedEvent:    etherman.GlobalExitRootsOrder,
-			SupportedForkdIds: &actions.ForksIdToIncaberry},
+			SupportedEvent:    etherman.L1InfoTreeOrder,
+			SupportedForkdIds: &ForksIdOnlyEtrog},
 		state: state}
 }
 
 // Process process event
 func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
-	globalExitRoot := l1Block.GlobalExitRoots[order.Pos]
+	l1InfoTree := l1Block.L1InfoTree[order.Pos]
 	ger := state.GlobalExitRoot{
-		BlockNumber:     globalExitRoot.BlockNumber,
-		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
-		RollupExitRoot:  globalExitRoot.RollupExitRoot,
-		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
+		BlockNumber:     l1InfoTree.BlockNumber,
+		MainnetExitRoot: l1InfoTree.MainnetExitRoot,
+		RollupExitRoot:  l1InfoTree.RollupExitRoot,
+		GlobalExitRoot:  l1InfoTree.GlobalExitRoot.GlobalExitRoot,
 	}
 	err := p.state.AddGlobalExitRoot(ctx, &ger, dbTx)
 	if err != nil {

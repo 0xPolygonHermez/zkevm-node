@@ -7,6 +7,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -18,15 +19,17 @@ type stateL1TrustedVerifyBatchInterface interface {
 
 // ProcessorL1TrustedVerifyBatch implements L1EventProcessor
 type ProcessorL1TrustedVerifyBatch struct {
-	ProcessorBase[ProcessorL1TrustedVerifyBatch]
+	actions.ProcessorBase[ProcessorL1TrustedVerifyBatch]
 	state stateL1TrustedVerifyBatchInterface
 }
 
 // NewProcessorL1TrustedVerifyBatch returns instance of a processor for TrustedVerifyBatchOrder
 func NewProcessorL1TrustedVerifyBatch(state stateL1TrustedVerifyBatchInterface) *ProcessorL1TrustedVerifyBatch {
 	return &ProcessorL1TrustedVerifyBatch{
-		ProcessorBase: ProcessorBase[ProcessorL1TrustedVerifyBatch]{supportedEvent: etherman.TrustedVerifyBatchOrder},
-		state:         state}
+		ProcessorBase: actions.ProcessorBase[ProcessorL1TrustedVerifyBatch]{
+			SupportedEvent:    etherman.TrustedVerifyBatchOrder,
+			SupportedForkdIds: &actions.ForksIdToIncaberry},
+		state: state}
 }
 
 // Process process event

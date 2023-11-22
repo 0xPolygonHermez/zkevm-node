@@ -61,6 +61,7 @@ var (
 	acceptAdminRoleSignatureHash                   = crypto.Keccak256Hash([]byte("AcceptAdminRole(address)"))
 	proveNonDeterministicPendingStateSignatureHash = crypto.Keccak256Hash([]byte("ProveNonDeterministicPendingState(bytes32,bytes32)"))
 	overridePendingStateSignatureHash              = crypto.Keccak256Hash([]byte("OverridePendingState(uint64,bytes32,address)"))
+	updateUpdateL1InfoTreeSignatureHash            = crypto.Keccak256Hash([]byte("UpdateL1InfoTree(bytes32,bytes32)"))
 
 	// Proxy events
 	initializedSignatureHash    = crypto.Keccak256Hash([]byte("Initialized(uint8)"))
@@ -89,6 +90,8 @@ type EventOrder string
 const (
 	// GlobalExitRootsOrder identifies a GlobalExitRoot event
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
+	// L1InfoTreesOrder identifies a L1InTree event
+	L1InfoTreeOrder EventOrder = "L1InfoTreeOrder"
 	// SequenceBatchesOrder identifies a VerifyBatch event
 	SequenceBatchesOrder EventOrder = "SequenceBatches"
 	// ForcedBatchesOrder identifies a ForcedBatches event
@@ -343,6 +346,9 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		return etherMan.sequencedBatchesEvent(ctx, vLog, blocks, blocksOrder)
 	case updateGlobalExitRootSignatureHash:
 		return etherMan.updateGlobalExitRootEvent(ctx, vLog, blocks, blocksOrder)
+	case updateUpdateL1InfoTreeSignatureHash: // etrog
+		log.Debug("UpdateL1InfoTree event detected")
+		return etherMan.updateL1InfoTreeEvent(ctx, vLog, blocks, blocksOrder)
 	case forcedBatchSignatureHash:
 		return etherMan.forcedBatchEvent(ctx, vLog, blocks, blocksOrder)
 	case verifyBatchesTrustedAggregatorSignatureHash:
@@ -455,6 +461,58 @@ func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, 
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
+}
+
+func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("updateL1InfoTree event detected")
+
+	// TODO: Change for real SMC
+	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
+	if err != nil {
+		return err
+	}
+	var gExitRoot L1InfoTree
+	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
+	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
+	gExitRoot.BlockNumber = vLog.BlockNumber
+	gExitRoot.GlobalExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
+	var block *Block
+	if isLastBlock(blocks, vLog.BlockHash, vLog.BlockNumber) {
+		// If it's the last block, I just get the pointer
+		block = &(*blocks)[len(*blocks)-1]
+	} else {
+		// Need to add, doesnt mind if inside the blocks because I have to respect the order so insert at end
+		block, err = etherMan.retrieveFullBlockForEvent(ctx, vLog)
+		if err != nil {
+			return err
+		}
+		*blocks = append(*blocks, *block)
+	}
+	gExitRoot.PreviousBlockHash = block.ParentHash
+	// Add the event to the block
+	block.L1InfoTree = append(block.L1InfoTree, gExitRoot)
+	order := Order{
+		Name: L1InfoTreeOrder,
+		Pos:  len(block.L1InfoTree) - 1,
+	}
+	(*blocksOrder)[block.BlockHash] = append((*blocksOrder)[block.BlockHash], order)
+	return nil
+}
+
+func (etherMan *Client) retrieveFullBlockForEvent(ctx context.Context, vLog types.Log) (*Block, error) {
+	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
+	if err != nil {
+		return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+	}
+	t := time.Unix(int64(fullBlock.Time()), 0)
+	block := prepareBlock(vLog, t, fullBlock)
+	return &block, nil
+}
+
+func isLastBlock(blocks *[]Block, blockHash common.Hash, blockNumber uint64) bool {
+	// Check last item on array blocks if match Hash and Number
+	isNot := len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != blockHash || (*blocks)[len(*blocks)-1].BlockNumber != blockNumber)
+	return !isNot
 }
 
 func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {

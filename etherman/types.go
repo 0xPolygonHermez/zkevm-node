@@ -13,6 +13,7 @@ type Block struct {
 	BlockHash             common.Hash
 	ParentHash            common.Hash
 	GlobalExitRoots       []GlobalExitRoot
+	L1InfoTree            []L1InfoRoot // etrog
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
@@ -27,6 +28,11 @@ type GlobalExitRoot struct {
 	MainnetExitRoot common.Hash
 	RollupExitRoot  common.Hash
 	GlobalExitRoot  common.Hash
+}
+
+type L1InfoTree struct {
+	GlobalExitRoot
+	PreviousBlockHash common.Hash
 }
 
 // SequencedBatch represents virtual batch
