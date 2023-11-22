@@ -378,7 +378,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 
 	f = setupFinalizer(true)
 	f.processRequest.Caller = stateMetrics.SequencerCallerLabel
-	f.processRequest.Timestamp = now()
+	f.processRequest.SignificantTimestamp = uint64(now().Unix())
 	f.processRequest.Transactions = decodedBatchL2Data
 
 	stateRootErr := errors.New("state root must have value to close batch")
@@ -522,7 +522,7 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			f.processRequest.GlobalExitRoot = oldHash
+			f.processRequest.SignificantRoot = oldHash
 			f.processRequest.OldStateRoot = oldHash
 			f.processRequest.BatchNumber = f.batch.batchNumber
 			f.nextForcedBatches = tc.forcedBatches
@@ -972,13 +972,13 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 
 					internalBatchNumber += 1
 					processRequest := state.ProcessRequest{
-						BatchNumber:    internalBatchNumber,
-						OldStateRoot:   stateRootHashes[i],
-						GlobalExitRoot: forcedBatch.GlobalExitRoot,
-						Transactions:   forcedBatch.RawTxsData,
-						Coinbase:       f.sequencerAddress,
-						Timestamp:      now(),
-						Caller:         stateMetrics.SequencerCallerLabel,
+						BatchNumber:          internalBatchNumber,
+						OldStateRoot:         stateRootHashes[i],
+						SignificantRoot:      forcedBatch.GlobalExitRoot,
+						Transactions:         forcedBatch.RawTxsData,
+						Coinbase:             f.sequencerAddress,
+						SignificantTimestamp: uint64(now().Unix()),
+						Caller:               stateMetrics.SequencerCallerLabel,
 					}
 					var currResp *state.ProcessBatchResponse
 					if tc.expectedStoredTx == nil {
@@ -1701,11 +1701,11 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		{
 			name: "Handle forced batch process response with successful transactions",
 			request: state.ProcessRequest{
-				Transactions: tx1Plustx2,
-				BatchNumber:  1,
-				Coinbase:     seqAddr,
-				Timestamp:    now(),
-				OldStateRoot: oldHash,
+				Transactions:         tx1Plustx2,
+				BatchNumber:          1,
+				Coinbase:             seqAddr,
+				SignificantTimestamp: uint64(now().Unix()),
+				OldStateRoot:         oldHash,
 			},
 			result:       successfulBatchResp,
 			oldStateRoot: oldHash,
@@ -1737,10 +1737,10 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		{
 			name: "Handle forced batch process response with reverted transactions",
 			request: state.ProcessRequest{
-				BatchNumber:  1,
-				Coinbase:     seqAddr,
-				Timestamp:    now(),
-				OldStateRoot: oldHash,
+				BatchNumber:          1,
+				Coinbase:             seqAddr,
+				SignificantTimestamp: uint64(now().Unix()),
+				OldStateRoot:         oldHash,
 			},
 			result:       revertedBatchResp,
 			oldStateRoot: oldHash,
@@ -1760,10 +1760,10 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		{
 			name: "Handle forced batch process response with intrinsic ROM err",
 			request: state.ProcessRequest{
-				BatchNumber:  1,
-				Coinbase:     seqAddr,
-				Timestamp:    now(),
-				OldStateRoot: oldHash,
+				BatchNumber:          1,
+				Coinbase:             seqAddr,
+				SignificantTimestamp: uint64(now().Unix()),
+				OldStateRoot:         oldHash,
 			},
 
 			result:       intrinsicErrBatchResp,

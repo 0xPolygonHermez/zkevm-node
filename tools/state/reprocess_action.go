@@ -93,14 +93,14 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 	}
 
 	request := state.ProcessRequest{
-		BatchNumber:     batch2.BatchNumber,
-		OldStateRoot:    oldStateRoot,
-		OldAccInputHash: oldAccInputHash,
-		Coinbase:        batch2.Coinbase,
-		Timestamp:       batch2.Timestamp,
+		BatchNumber:          batch2.BatchNumber,
+		OldStateRoot:         oldStateRoot,
+		OldAccInputHash:      oldAccInputHash,
+		Coinbase:             batch2.Coinbase,
+		SignificantTimestamp: uint64(batch2.Timestamp.Unix()),
 
-		GlobalExitRoot: batch2.GlobalExitRoot,
-		Transactions:   batch2.BatchL2Data,
+		SignificantRoot: batch2.GlobalExitRoot,
+		Transactions:    batch2.BatchL2Data,
 	}
 	log.Debugf("Processing batch %d: ntx:%d StateRoot:%s", batch2.BatchNumber, len(batch2.BatchL2Data), batch2.StateRoot)
 	forkID := r.st.GetForkIDByBatchNumber(batch2.BatchNumber)

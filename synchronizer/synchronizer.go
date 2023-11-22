@@ -1382,11 +1382,11 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	}
 
 	request := state.ProcessRequest{
-		BatchNumber:     uint64(trustedBatch.Number),
-		OldStateRoot:    *s.trustedState.lastStateRoot,
-		OldAccInputHash: batches[1].AccInputHash,
-		Coinbase:        common.HexToAddress(trustedBatch.Coinbase.String()),
-		Timestamp:       time.Unix(int64(trustedBatch.Timestamp), 0),
+		BatchNumber:          uint64(trustedBatch.Number),
+		OldStateRoot:         *s.trustedState.lastStateRoot,
+		OldAccInputHash:      batches[1].AccInputHash,
+		Coinbase:             common.HexToAddress(trustedBatch.Coinbase.String()),
+		SignificantTimestamp: uint64(trustedBatch.Timestamp),
 	}
 	// check if batch needs to be synchronized
 	if batches[0] != nil {
@@ -1414,7 +1414,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Error("error openning batch. Error: ", err)
 				return nil, nil, err
 			}
-			request.GlobalExitRoot = trustedBatch.GlobalExitRoot
+			request.SignificantRoot = trustedBatch.GlobalExitRoot
 			request.Transactions = trustedBatchL2Data
 		} else {
 			// Only new txs need to be processed
@@ -1514,7 +1514,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			log.Error("error openning batch. Error: ", err)
 			return nil, nil, err
 		}
-		request.GlobalExitRoot = trustedBatch.GlobalExitRoot
+		request.SignificantRoot = trustedBatch.GlobalExitRoot
 		request.Transactions = trustedBatchL2Data
 	}
 

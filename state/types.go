@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -15,16 +14,17 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber     uint64
-	GlobalExitRoot  common.Hash
+	BatchNumber uint64
+	// Global Exit Root or L1 Info Root depending on the forkID
+	SignificantRoot common.Hash
 	OldStateRoot    common.Hash
 	OldAccInputHash common.Hash
 	Transactions    []byte
 	Coinbase        common.Address
-	Timestamp       time.Time
-	Caller          metrics.CallerLabel
-	L1InfoRoot      common.Hash
-	ForkID          uint64
+	// Timestamp or Timestamp limit depending on the forkID
+	SignificantTimestamp uint64
+	Caller               metrics.CallerLabel
+	ForkID               uint64
 }
 
 // ProcessBatchResponse represents the response of a batch process.

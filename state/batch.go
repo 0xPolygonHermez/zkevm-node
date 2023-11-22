@@ -177,9 +177,9 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
-		GlobalExitRoot:   request.GlobalExitRoot.Bytes(),
+		GlobalExitRoot:   request.SignificantRoot.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		EthTimestamp:     uint64(request.Timestamp.Unix()),
+		EthTimestamp:     request.SignificantTimestamp,
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
@@ -263,12 +263,6 @@ func (s *State) ExecuteBatch(ctx context.Context, batch Batch, updateMerkleTree 
 
 	return processBatchResponse, err
 }
-
-/*
-func uint32ToBool(value uint32) bool {
-	return value != 0
-}
-*/
 
 func (s *State) processBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
 	if dbTx == nil {

@@ -575,10 +575,10 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 
 	batch, err := f.openWIPBatch(ctx, lastBatchNumber+1, f.currentGERHash, stateRoot)
 	if err == nil {
-		f.processRequest.Timestamp = batch.timestamp
+		f.processRequest.SignificantTimestamp = uint64(batch.timestamp.Unix())
 		f.processRequest.BatchNumber = batch.batchNumber
 		f.processRequest.OldStateRoot = stateRoot
-		f.processRequest.GlobalExitRoot = batch.globalExitRoot
+		f.processRequest.SignificantRoot = batch.globalExitRoot
 		f.processRequest.Transactions = make([]byte, 0, 1)
 	}
 
@@ -598,9 +598,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}()
 
 	if f.batch.isEmpty() {
-		f.processRequest.GlobalExitRoot = f.batch.globalExitRoot
+		f.processRequest.SignificantRoot = f.batch.globalExitRoot
 	} else {
-		f.processRequest.GlobalExitRoot = state.ZeroHash
+		f.processRequest.SignificantRoot = state.ZeroHash
 	}
 
 	hashStr := "nil"
@@ -680,7 +680,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		f.processRequest.Transactions = []byte{}
 	}
 
-	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.GlobalExitRoot.String())
+	log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.batch.batchNumber, f.processRequest.BatchNumber, f.processRequest.OldStateRoot, hashStr, f.processRequest.SignificantRoot.String())
 	processBatchResponse, err := f.executor.ProcessBatch(ctx, f.processRequest, true)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
@@ -837,7 +837,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 			response:      txResp,
 			batchResponse: result,
 			batchNumber:   request.BatchNumber,
-			timestamp:     request.Timestamp,
+			timestamp:     time.Unix(int64(request.SignificantTimestamp), 0),
 			coinbase:      request.Coinbase,
 			oldStateRoot:  oldStateRoot,
 			isForcedBatch: true,
@@ -1062,13 +1062,13 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	log.Infof("Initial Batch.localExitRoot: %s", f.batch.localExitRoot.String())
 
 	f.processRequest = state.ProcessRequest{
-		BatchNumber:    *lastBatchNum,
-		OldStateRoot:   f.batch.stateRoot,
-		GlobalExitRoot: f.batch.globalExitRoot,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      f.batch.timestamp,
-		Transactions:   make([]byte, 0, 1),
-		Caller:         stateMetrics.SequencerCallerLabel,
+		BatchNumber:          *lastBatchNum,
+		OldStateRoot:         f.batch.stateRoot,
+		SignificantRoot:      f.batch.globalExitRoot,
+		Coinbase:             f.sequencerAddress,
+		SignificantTimestamp: uint64(f.batch.timestamp.Unix()),
+		Transactions:         make([]byte, 0, 1),
+		Caller:               stateMetrics.SequencerCallerLabel,
 	}
 
 	log.Infof("synced with state, lastBatchNum: %d. State root: %s", *lastBatchNum, f.batch.initialStateRoot.Hex())
@@ -1113,13 +1113,13 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 
 func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
 	request := state.ProcessRequest{
-		BatchNumber:    lastBatchNumberInState + 1,
-		OldStateRoot:   stateRoot,
-		GlobalExitRoot: forcedBatch.GlobalExitRoot,
-		Transactions:   forcedBatch.RawTxsData,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      now(),
-		Caller:         stateMetrics.SequencerCallerLabel,
+		BatchNumber:          lastBatchNumberInState + 1,
+		OldStateRoot:         stateRoot,
+		SignificantRoot:      forcedBatch.GlobalExitRoot,
+		Transactions:         forcedBatch.RawTxsData,
+		Coinbase:             f.sequencerAddress,
+		SignificantTimestamp: uint64(now().Unix()),
+		Caller:               stateMetrics.SequencerCallerLabel,
 	}
 
 	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, request)
@@ -1148,8 +1148,8 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		if f.streamServer != nil && f.currentGERHash != forcedBatch.GlobalExitRoot {
 			updateGer := state.DSUpdateGER{
 				BatchNumber:    request.BatchNumber,
-				Timestamp:      request.Timestamp.Unix(),
-				GlobalExitRoot: request.GlobalExitRoot,
+				Timestamp:      int64(request.SignificantTimestamp),
+				GlobalExitRoot: request.SignificantRoot,
 				Coinbase:       f.sequencerAddress,
 				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(request.BatchNumber)),
 				StateRoot:      response.NewStateRoot,
@@ -1274,13 +1274,13 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		caller = stateMetrics.SequencerCallerLabel
 	}
 	processRequest := state.ProcessRequest{
-		BatchNumber:    batch.BatchNumber,
-		GlobalExitRoot: batch.GlobalExitRoot,
-		OldStateRoot:   initialStateRoot,
-		Transactions:   batch.BatchL2Data,
-		Coinbase:       batch.Coinbase,
-		Timestamp:      batch.Timestamp,
-		Caller:         caller,
+		BatchNumber:          batch.BatchNumber,
+		SignificantRoot:      batch.GlobalExitRoot,
+		OldStateRoot:         initialStateRoot,
+		Transactions:         batch.BatchL2Data,
+		Coinbase:             batch.Coinbase,
+		SignificantTimestamp: uint64(batch.Timestamp.Unix()),
+		Caller:               caller,
 	}
 
 	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
