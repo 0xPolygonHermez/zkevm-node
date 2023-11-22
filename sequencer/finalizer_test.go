@@ -163,7 +163,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
-				CumulativeGasUsed: 500,
+				GasUsed: 500,
 			},
 		},
 		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
@@ -176,7 +176,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		GasUsed:   100000,
 	}
 	batchResponse := &state.ProcessBatchResponse{
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponse,
 		},
 	}
@@ -204,7 +204,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		{
 			name: "Successful transaction",
 			executorResponse: &state.ProcessBatchResponse{
-				Responses: []*state.ProcessTransactionResponse{
+				TransactionResponses: []*state.ProcessTransactionResponse{
 					txResponse,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
@@ -237,9 +237,9 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			name: "Batch resources underflow err",
 			executorResponse: &state.ProcessBatchResponse{
 				UsedZkCounters: state.ZKCounters{
-					CumulativeGasUsed: f.batch.remainingResources.ZKCounters.CumulativeGasUsed + 1,
+					GasUsed: f.batch.remainingResources.ZKCounters.GasUsed + 1,
 				},
-				Responses: []*state.ProcessTransactionResponse{
+				TransactionResponses: []*state.ProcessTransactionResponse{
 					txResponse,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
@@ -259,9 +259,9 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			executorResponse: &state.ProcessBatchResponse{
 				IsRomOOCError: false,
 				UsedZkCounters: state.ZKCounters{
-					CumulativeGasUsed: 1,
+					GasUsed: 1,
 				},
-				Responses: []*state.ProcessTransactionResponse{
+				TransactionResponses: []*state.ProcessTransactionResponse{
 					txResponseIntrinsicError,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
@@ -283,7 +283,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				UsedZkCounters: state.ZKCounters{
 					UsedKeccakHashes: bc.MaxKeccakHashes + 1,
 				},
-				Responses: []*state.ProcessTransactionResponse{
+				TransactionResponses: []*state.ProcessTransactionResponse{
 					txResponseOOCError,
 				},
 			},
@@ -829,15 +829,15 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 		Tx:        *signedTx2,
 	}
 	batchResponse1 := &state.ProcessBatchResponse{
-		NewBatchNumber: f.batch.batchNumber + 1,
-		Responses:      []*state.ProcessTransactionResponse{txResp1},
-		NewStateRoot:   newHash,
+		NewBatchNumber:       f.batch.batchNumber + 1,
+		TransactionResponses: []*state.ProcessTransactionResponse{txResp1},
+		NewStateRoot:         newHash,
 	}
 
 	batchResponse2 := &state.ProcessBatchResponse{
-		NewBatchNumber: f.batch.batchNumber + 2,
-		Responses:      []*state.ProcessTransactionResponse{txResp2},
-		NewStateRoot:   newHash2,
+		NewBatchNumber:       f.batch.batchNumber + 2,
+		TransactionResponses: []*state.ProcessTransactionResponse{txResp2},
+		NewStateRoot:         newHash2,
 	}
 	forcedBatch1 := state.ForcedBatch{
 		ForcedBatchNumber: 2,
@@ -1309,11 +1309,11 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 	ctx = context.Background()
 	txResponse := &state.ProcessTransactionResponse{TxHash: oldHash}
 	result := &state.ProcessBatchResponse{
-		UsedZkCounters: state.ZKCounters{CumulativeGasUsed: 1000},
-		Responses:      []*state.ProcessTransactionResponse{txResponse},
+		UsedZkCounters:       state.ZKCounters{GasUsed: 1000},
+		TransactionResponses: []*state.ProcessTransactionResponse{txResponse},
 	}
 	remainingResources := state.BatchResources{
-		ZKCounters: state.ZKCounters{CumulativeGasUsed: 9000},
+		ZKCounters: state.ZKCounters{GasUsed: 9000},
 		Bytes:      10000,
 	}
 	f.batch.remainingResources = remainingResources
@@ -1343,7 +1343,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		{
 			name: "ZkCounter Resource Exceeded",
 			remaining: state.BatchResources{
-				ZKCounters: state.ZKCounters{CumulativeGasUsed: 0},
+				ZKCounters: state.ZKCounters{GasUsed: 0},
 			},
 			expectedErr:          state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
 			expectedWorkerUpdate: true,
@@ -1440,7 +1440,7 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					senderAddr: {Nonce: &nonce, Balance: big.NewInt(0)},
 				},
-				Responses: []*state.ProcessTransactionResponse{
+				TransactionResponses: []*state.ProcessTransactionResponse{
 					{
 						RomError: executor.RomErr(tc.err),
 					},
@@ -1480,7 +1480,7 @@ func Test_processTransaction(t *testing.T) {
 		BatchResources: state.BatchResources{
 			Bytes: 1000,
 			ZKCounters: state.ZKCounters{
-				CumulativeGasUsed: 500,
+				GasUsed: 500,
 			},
 		},
 		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
@@ -1492,7 +1492,7 @@ func Test_processTransaction(t *testing.T) {
 	}
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			successfulTxResponse,
 		},
 		ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
@@ -1503,7 +1503,7 @@ func Test_processTransaction(t *testing.T) {
 	}
 	outOfCountersErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: oldHash,
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			{
 				StateRoot: oldHash,
 				RomError:  runtime.ErrOutOfCountersKeccak,
@@ -1661,7 +1661,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	}
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponseOne,
 			txResponseTwo,
 		},
@@ -1673,7 +1673,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		StateRoot: newHash,
 	}
 	revertedBatchResp := &state.ProcessBatchResponse{
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponseReverted,
 		},
 	}
@@ -1685,7 +1685,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	}
 	intrinsicErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		Responses: []*state.ProcessTransactionResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponseOne,
 			txResponseIntrinsicErr,
 		},
@@ -2230,7 +2230,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxCumulativeGasUsed",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.CumulativeGasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1
+				resources.ZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -2238,7 +2238,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxCumulativeGasUsed",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.CumulativeGasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) + 1
+				resources.ZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -2425,7 +2425,7 @@ func TestFinalizer_getRemainingResources(t *testing.T) {
 	remainingResources := getMaxRemainingResources(bc)
 
 	// assert
-	assert.Equal(t, remainingResources.ZKCounters.CumulativeGasUsed, bc.MaxCumulativeGasUsed)
+	assert.Equal(t, remainingResources.ZKCounters.GasUsed, bc.MaxCumulativeGasUsed)
 	assert.Equal(t, remainingResources.ZKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
 	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
 	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)

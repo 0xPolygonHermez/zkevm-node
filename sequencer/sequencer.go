@@ -270,7 +270,7 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,
+			GasUsed:              constraints.MaxCumulativeGasUsed,
 			UsedKeccakHashes:     constraints.MaxKeccakHashes,
 			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
 			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,

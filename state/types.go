@@ -23,6 +23,8 @@ type ProcessRequest struct {
 	Coinbase        common.Address
 	Timestamp       time.Time
 	Caller          metrics.CallerLabel
+	L1InfoRoot      common.Hash
+	ForkID          uint64
 }
 
 // ProcessBatchResponse represents the response of a batch process.
@@ -32,7 +34,7 @@ type ProcessBatchResponse struct {
 	NewLocalExitRoot     common.Hash
 	NewBatchNumber       uint64
 	UsedZkCounters       ZKCounters
-	Responses            []*ProcessTransactionResponse
+	TransactionResponses []*ProcessTransactionResponse
 	ExecutorError        error
 	ReadWriteAddresses   map[common.Address]*InfoReadWrite
 	IsRomLevelError      bool
@@ -111,7 +113,7 @@ type StoreTxEGPData struct {
 
 // ZKCounters counters for the tx
 type ZKCounters struct {
-	CumulativeGasUsed    uint64
+	GasUsed              uint64
 	UsedKeccakHashes     uint32
 	UsedPoseidonHashes   uint32
 	UsedPoseidonPaddings uint32
@@ -123,7 +125,7 @@ type ZKCounters struct {
 
 // SumUp sum ups zk counters with passed tx zk counters
 func (z *ZKCounters) SumUp(other ZKCounters) {
-	z.CumulativeGasUsed += other.CumulativeGasUsed
+	z.GasUsed += other.GasUsed
 	z.UsedKeccakHashes += other.UsedKeccakHashes
 	z.UsedPoseidonHashes += other.UsedPoseidonHashes
 	z.UsedPoseidonPaddings += other.UsedPoseidonPaddings
@@ -136,7 +138,7 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 // Sub subtract zk counters with passed zk counters (not safe)
 func (z *ZKCounters) Sub(other ZKCounters) error {
 	// ZKCounters
-	if other.CumulativeGasUsed > z.CumulativeGasUsed {
+	if other.GasUsed > z.GasUsed {
 		return GetZKCounterError("CumulativeGasUsed")
 	}
 	if other.UsedKeccakHashes > z.UsedKeccakHashes {
@@ -161,7 +163,7 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 		return GetZKCounterError("UsedSteps")
 	}
 
-	z.CumulativeGasUsed -= other.CumulativeGasUsed
+	z.GasUsed -= other.GasUsed
 	z.UsedKeccakHashes -= other.UsedKeccakHashes
 	z.UsedPoseidonHashes -= other.UsedPoseidonHashes
 	z.UsedPoseidonPaddings -= other.UsedPoseidonPaddings

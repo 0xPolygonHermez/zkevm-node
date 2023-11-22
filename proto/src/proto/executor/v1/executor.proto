@@ -317,7 +317,7 @@ message ProcessBatchResponseV2 {
     uint64 stored_flush_id = 16;
     string prover_id = 17;
     uint64 gas_used = 18;
-    repeated bytes nodes_keys = 19;
+    repeated bytes smt_keys = 19;
     repeated bytes program_keys = 20;
     uint64 fork_id = 21;
 }
@@ -450,7 +450,7 @@ message ProcessBlockResponseV2 {
     // The maximum gas allowed in this block
     uint64 gas_limit = 3;
     // block number
-    uint32 block_number = 4;
+    uint64 block_number = 4;
     // timestamp used in the block
     uint64 timestamp = 5;
     // global exit root l1InfoTree
@@ -802,4 +802,16 @@ enum ExecutorError {
     EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE = 95;
     // EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE indicates that the main execution SHA-256 check found read out of range
     EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE = 96;
+    // EXECUTOR_ERROR_INVALID_L1_INFO_ROOT indicates that the input parameter L1 info root value is invalid
+    EXECUTOR_ERROR_INVALID_L1_INFO_ROOT = 97;
+    // EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1 indicates that the input parameter forced blockhash L1 value is invalid
+    EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1 = 98;
+    // EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT indicates that the input parameter L1 data V2 global exit root value is invalid
+    EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT = 99;
+    // EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1 indicates that the input parameter L1 data V2 block hash L1 value is invalid
+    EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1 = 100;
+    // EXECUTOR_ERROR_INVALID_L1_SMT_PROOF indicates that the input parameter L1 data V2 SMT proof value is invalid
+    EXECUTOR_ERROR_INVALID_L1_SMT_PROOF = 101;
+    // EXECUTOR_ERROR_INVALID_BALANCE indicates that the input parameter balance value is invalid
+    EXECUTOR_ERROR_INVALID_BALANCE = 102;
 }

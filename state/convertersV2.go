@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/fakevm"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
@@ -17,66 +18,271 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// TestConvertToProcessBatchResponse for test purposes
-func (s *State) TestConvertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponse(response)
+// TestConvertToProcessBatchResponseV2 for test purposes
+func (s *State) TestConvertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponseV2, error) {
+	return s.convertToProcessBatchResponseV2(response)
 }
 
-func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
-	responses, err := s.convertToProcessTransactionResponse(response.Responses)
+func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponseV2, error) {
+	responses, isRomLevelError, isRomOOCError, err := s.convertToProcessBlockResponseV2(response.BlockResponses)
 	if err != nil {
 		return nil, err
 	}
 
-	readWriteAddresses, err := convertToReadWriteAddresses(response.ReadWriteAddresses)
+	readWriteAddresses, err := convertToReadWriteAddressesV2(response.ReadWriteAddresses)
 	if err != nil {
 		return nil, err
 	}
 
-	isExecutorLevelError := (response.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR)
-	isRomLevelError := false
-	isRomOOCError := false
-
-	if response.Responses != nil {
-		for _, resp := range response.Responses {
-			if resp.Error != executor.RomError_ROM_ERROR_NO_ERROR {
-				isRomLevelError = true
-				break
-			}
-		}
-
-		if len(response.Responses) > 0 {
-			// Check out of counters
-			errorToCheck := response.Responses[len(response.Responses)-1].Error
-			isRomOOCError = executor.IsROMOutOfCountersError(errorToCheck)
-		}
-	}
-
-	return &ProcessBatchResponse{
+	return &ProcessBatchResponseV2{
 		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
 		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
 		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
 		NewBatchNumber:       response.NewBatchNum,
-		UsedZkCounters:       convertToCounters(response),
-		TransactionResponses: responses,
+		UsedZkCounters:       convertToCountersV2(response),
+		BlockResponses:       responses,
 		ExecutorError:        executor.ExecutorErr(response.Error),
 		ReadWriteAddresses:   readWriteAddresses,
 		FlushID:              response.FlushId,
 		StoredFlushID:        response.StoredFlushId,
 		ProverID:             response.ProverId,
-		IsExecutorLevelError: isExecutorLevelError,
+		IsExecutorLevelError: (response.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
+		GasUsed:              response.GasUsed,
+		SMTKeys:              convertToKeys(response.SmtKeys),
+		ProgramKeys:          convertToKeys(response.ProgramKeys),
 		ForkID:               response.ForkId,
 	}, nil
 }
 
-// IsStateRootChanged returns true if the transaction changes the state root
-func IsStateRootChanged(err executor.RomError) bool {
-	return !executor.IsIntrinsicError(err) && !executor.IsROMOutOfCountersError(err) && err != executor.RomError_ROM_ERROR_INVALID_RLP
+func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlockResponseV2) ([]*ProcessBlockResponseV2, bool, bool, error) {
+	isRomLevelError := false
+	isRomOOCError := false
+
+	results := make([]*ProcessBlockResponseV2, 0, len(responses))
+	for _, response := range responses {
+		result := new(ProcessBlockResponseV2)
+		transactionResponses, isRomLevelError, isRomOOCError, err := s.convertToProcessTransactionResponseV2(response.Responses)
+		if err != nil {
+			return nil, isRomLevelError, isRomOOCError, err
+		}
+
+		result.ParentHash = common.BytesToHash(response.ParentHash)
+		result.Coinbase = common.HexToAddress(response.Coinbase)
+		result.GasLimit = response.GasLimit
+		result.BlockNumber = response.BlockNumber
+		result.Timestamp = response.Timestamp
+		result.GlobalExitRoot = common.Hash(response.Ger)
+		result.BlockHashL1 = common.Hash(response.BlockHashL1)
+		result.GasUsed = response.GasUsed
+		result.BlockInfoRoot = common.Hash(response.BlockInfoRoot)
+		result.BlockHash = common.Hash(response.BlockHash)
+		result.TransactionResponses = transactionResponses
+		result.Logs = convertToLogV2(response.Logs)
+
+		results = append(results, result)
+	}
+
+	return results, isRomLevelError, isRomOOCError, nil
 }
 
-func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (map[common.Address]*InfoReadWrite, error) {
+func (s *State) convertToProcessTransactionResponseV2(responses []*executor.ProcessTransactionResponseV2) ([]*ProcessTransactionResponseV2, bool, bool, error) {
+	isRomLevelError := false
+	isRomOOCError := false
+
+	results := make([]*ProcessTransactionResponseV2, 0, len(responses))
+	for _, response := range responses {
+		result := new(ProcessTransactionResponseV2)
+		result.TxHash = common.BytesToHash(response.TxHash)
+		result.Type = response.Type
+		result.ReturnValue = response.ReturnValue
+		result.GasLeft = response.GasLeft
+		result.GasUsed = response.GasUsed
+		result.GasRefunded = response.GasRefunded
+		result.RomError = executor.RomErr(response.Error)
+		result.CreateAddress = common.HexToAddress(response.CreateAddress)
+		result.StateRoot = common.BytesToHash(response.StateRoot)
+		result.Logs = convertToLogV2(response.Logs)
+		result.ChangesStateRoot = IsStateRootChanged(response.Error)
+		fullTrace, err := convertToFullTraceV2(response.FullTrace)
+		if err != nil {
+			return nil, isRomLevelError, isRomOOCError, err
+		}
+		result.FullTrace = *fullTrace
+		result.EffectiveGasPrice = response.EffectiveGasPrice
+		result.EffectivePercentage = response.EffectivePercentage
+		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
+		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
+
+		tx := new(types.Transaction)
+
+		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
+			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+			if err != nil {
+				timestamp := time.Now()
+				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+
+				event := &event.Event{
+					ReceivedAt: timestamp,
+					Source:     event.Source_Node,
+					Level:      event.Level_Error,
+					EventID:    event.EventID_ExecutorRLPError,
+					Json:       string(response.GetRlpTx()),
+				}
+
+				eventErr := s.eventLog.LogEvent(context.Background(), event)
+				if eventErr != nil {
+					log.Errorf("error storing payload: %v", err)
+				}
+
+				return nil, isRomLevelError, isRomOOCError, err
+			}
+		} else {
+			log.Warnf("ROM_ERROR_INVALID_RLP returned by the executor")
+		}
+
+		if tx != nil {
+			result.Tx = *tx
+			log.Debugf("ProcessTransactionResponseV2[TxHash]: %v", result.TxHash)
+			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
+				log.Debugf("ProcessTransactionResponseV2[Nonce]: %v", result.Tx.Nonce())
+				isRomLevelError = true
+				isRomOOCError = executor.IsROMOutOfCountersError(response.Error)
+			}
+			log.Debugf("ProcessTransactionResponseV2[StateRoot]: %v", result.StateRoot.String())
+			log.Debugf("ProcessTransactionResponseV2[Error]: %v", result.RomError)
+			log.Debugf("ProcessTransactionResponseV2[GasUsed]: %v", result.GasUsed)
+			log.Debugf("ProcessTransactionResponseV2[GasLeft]: %v", result.GasLeft)
+			log.Debugf("ProcessTransactionResponseV2[GasRefunded]: %v", result.GasRefunded)
+			log.Debugf("ProcessTransactionResponseV2[ChangesStateRoot]: %v", result.ChangesStateRoot)
+			log.Debugf("ProcessTransactionResponseV2[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
+			log.Debugf("ProcessTransactionResponseV2[EffectivePercentage]: %v", result.EffectivePercentage)
+		}
+
+		results = append(results, result)
+	}
+
+	return results, isRomLevelError, isRomOOCError, nil
+}
+
+func convertToLogV2(protoLogs []*executor.LogV2) []*types.Log {
+	logs := make([]*types.Log, 0, len(protoLogs))
+
+	for _, protoLog := range protoLogs {
+		log := new(types.Log)
+		log.Address = common.HexToAddress(protoLog.Address)
+		log.Topics = convertToTopics(protoLog.Topics)
+		log.Data = protoLog.Data
+		log.TxHash = common.BytesToHash(protoLog.TxHash)
+		log.TxIndex = uint(protoLog.TxIndex)
+		log.Index = uint(protoLog.Index)
+		logs = append(logs, log)
+	}
+
+	return logs
+}
+
+func convertToFullTraceV2(fullTrace *executor.FullTraceV2) (*instrumentation.FullTrace, error) {
+	trace := new(instrumentation.FullTrace)
+	if fullTrace != nil {
+		trace.Context = convertToContextV2(fullTrace.Context)
+		steps, err := convertToInstrumentationStepsV2(fullTrace.Steps)
+		if err != nil {
+			return nil, err
+		}
+		trace.Steps = steps
+	}
+
+	return trace, nil
+}
+
+func convertToContextV2(context *executor.TransactionContextV2) instrumentation.Context {
+	return instrumentation.Context{
+		Type:         context.Type,
+		From:         context.From,
+		To:           context.To,
+		Input:        context.Data,
+		Gas:          context.Gas,
+		Value:        hex.DecodeBig(context.Value),
+		Output:       context.Output,
+		GasPrice:     context.GasPrice,
+		OldStateRoot: common.BytesToHash(context.OldStateRoot),
+		Time:         uint64(context.ExecutionTime),
+		GasUsed:      context.GasUsed,
+	}
+}
+
+func convertToInstrumentationStepsV2(responses []*executor.TransactionStepV2) ([]instrumentation.Step, error) {
+	results := make([]instrumentation.Step, 0, len(responses))
+	for _, response := range responses {
+		step := new(instrumentation.Step)
+		step.StateRoot = common.BytesToHash(response.StateRoot)
+		step.Depth = int(response.Depth)
+		step.Pc = response.Pc
+		step.Gas = response.Gas
+		step.OpCode = fakevm.OpCode(response.Op).String()
+		step.Refund = response.GasRefund
+		step.Op = uint64(response.Op)
+		err := executor.RomErr(response.Error)
+		if err != nil {
+			step.Error = err
+		}
+		step.Contract = convertToInstrumentationContractV2(response.Contract)
+		step.GasCost = response.GasCost
+		step.Stack = make([]*big.Int, 0, len(response.Stack))
+		for _, s := range response.Stack {
+			if len(s)%2 != 0 {
+				s = "0" + s
+			}
+			bi, ok := new(big.Int).SetString(s, hex.Base)
+			if !ok {
+				log.Debugf("error while parsing stack valueBigInt")
+				return nil, ErrParsingExecutorTrace
+			}
+			step.Stack = append(step.Stack, bi)
+		}
+		step.MemorySize = response.MemorySize
+		step.MemoryOffset = response.MemoryOffset
+		step.Memory = make([]byte, len(response.Memory))
+		copy(step.Memory, response.Memory)
+		step.ReturnData = make([]byte, len(response.ReturnData))
+		copy(step.ReturnData, response.ReturnData)
+		step.Storage = make(map[common.Hash]common.Hash, len(response.Storage))
+		for k, v := range response.Storage {
+			addr := common.BytesToHash(hex.DecodeBig(k).Bytes())
+			value := common.BytesToHash(hex.DecodeBig(v).Bytes())
+			step.Storage[addr] = value
+		}
+		results = append(results, *step)
+	}
+	return results, nil
+}
+
+func convertToInstrumentationContractV2(response *executor.ContractV2) instrumentation.Contract {
+	return instrumentation.Contract{
+		Address: common.HexToAddress(response.Address),
+		Caller:  common.HexToAddress(response.Caller),
+		Value:   hex.DecodeBig(response.Value),
+		Input:   response.Data,
+		Gas:     response.Gas,
+	}
+}
+
+func convertToCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
+	return ZKCounters{
+		GasUsed:              resp.GasUsed,
+		UsedKeccakHashes:     resp.CntKeccakHashes,
+		UsedPoseidonHashes:   resp.CntPoseidonHashes,
+		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
+		UsedMemAligns:        resp.CntMemAligns,
+		UsedArithmetics:      resp.CntArithmetics,
+		UsedBinaries:         resp.CntBinaries,
+		UsedSteps:            resp.CntSteps,
+	}
+}
+
+func convertToReadWriteAddressesV2(addresses map[string]*executor.InfoReadWriteV2) (map[common.Address]*InfoReadWrite, error) {
 	results := make(map[common.Address]*InfoReadWrite, len(addresses))
 
 	for addr, addrInfo := range addresses {
@@ -110,201 +316,10 @@ func convertToReadWriteAddresses(addresses map[string]*executor.InfoReadWrite) (
 	return results, nil
 }
 
-func (s *State) convertToProcessTransactionResponse(responses []*executor.ProcessTransactionResponse) ([]*ProcessTransactionResponse, error) {
-	results := make([]*ProcessTransactionResponse, 0, len(responses))
-	for _, response := range responses {
-		result := new(ProcessTransactionResponse)
-		result.TxHash = common.BytesToHash(response.TxHash)
-		result.Type = response.Type
-		result.ReturnValue = response.ReturnValue
-		result.GasLeft = response.GasLeft
-		result.GasUsed = response.GasUsed
-		result.GasRefunded = response.GasRefunded
-		result.RomError = executor.RomErr(response.Error)
-		result.CreateAddress = common.HexToAddress(response.CreateAddress)
-		result.StateRoot = common.BytesToHash(response.StateRoot)
-		result.Logs = convertToLog(response.Logs)
-		result.ChangesStateRoot = IsStateRootChanged(response.Error)
-		fullTrace, err := convertToFullTrace(response.FullTrace)
-		if err != nil {
-			return nil, err
-		}
-		result.FullTrace = *fullTrace
-		result.EffectiveGasPrice = response.EffectiveGasPrice
-		result.EffectivePercentage = response.EffectivePercentage
-		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
-		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
-
-		tx := new(types.Transaction)
-
-		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
-			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
-			if err != nil {
-				timestamp := time.Now()
-				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
-
-				event := &event.Event{
-					ReceivedAt: timestamp,
-					Source:     event.Source_Node,
-					Level:      event.Level_Error,
-					EventID:    event.EventID_ExecutorRLPError,
-					Json:       string(response.GetRlpTx()),
-				}
-
-				eventErr := s.eventLog.LogEvent(context.Background(), event)
-				if eventErr != nil {
-					log.Errorf("error storing payload: %v", err)
-				}
-
-				return nil, err
-			}
-		} else {
-			log.Warnf("ROM_ERROR_INVALID_RLP returned by the executor")
-		}
-
-		if tx != nil {
-			result.Tx = *tx
-			log.Debugf("ProcessTransactionResponse[TxHash]: %v", result.TxHash)
-			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
-				log.Debugf("ProcessTransactionResponse[Nonce]: %v", result.Tx.Nonce())
-			}
-			log.Debugf("ProcessTransactionResponse[StateRoot]: %v", result.StateRoot.String())
-			log.Debugf("ProcessTransactionResponse[Error]: %v", result.RomError)
-			log.Debugf("ProcessTransactionResponse[GasUsed]: %v", result.GasUsed)
-			log.Debugf("ProcessTransactionResponse[GasLeft]: %v", result.GasLeft)
-			log.Debugf("ProcessTransactionResponse[GasRefunded]: %v", result.GasRefunded)
-			log.Debugf("ProcessTransactionResponse[ChangesStateRoot]: %v", result.ChangesStateRoot)
-			log.Debugf("ProcessTransactionResponse[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
-			log.Debugf("ProcessTransactionResponse[EffectivePercentage]: %v", result.EffectivePercentage)
-		}
-
-		results = append(results, result)
+func convertToKeys(keys [][]byte) []merkletree.Key {
+	result := make([]merkletree.Key, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, merkletree.Key(key))
 	}
-
-	return results, nil
-}
-
-func convertToLog(protoLogs []*executor.Log) []*types.Log {
-	logs := make([]*types.Log, 0, len(protoLogs))
-
-	for _, protoLog := range protoLogs {
-		log := new(types.Log)
-		log.Address = common.HexToAddress(protoLog.Address)
-		log.Topics = convertToTopics(protoLog.Topics)
-		log.Data = protoLog.Data
-		log.TxHash = common.BytesToHash(protoLog.TxHash)
-		log.TxIndex = uint(protoLog.TxIndex)
-		log.Index = uint(protoLog.Index)
-		logs = append(logs, log)
-	}
-
-	return logs
-}
-
-func convertToTopics(responses [][]byte) []common.Hash {
-	results := make([]common.Hash, 0, len(responses))
-
-	for _, response := range responses {
-		results = append(results, common.BytesToHash(response))
-	}
-	return results
-}
-
-func convertToFullTrace(fullTrace *executor.FullTrace) (*instrumentation.FullTrace, error) {
-	trace := new(instrumentation.FullTrace)
-	if fullTrace != nil {
-		trace.Context = convertToContext(fullTrace.Context)
-		steps, err := convertToInstrumentationSteps(fullTrace.Steps)
-		if err != nil {
-			return nil, err
-		}
-		trace.Steps = steps
-	}
-
-	return trace, nil
-}
-
-func convertToContext(context *executor.TransactionContext) instrumentation.Context {
-	return instrumentation.Context{
-		Type:         context.Type,
-		From:         context.From,
-		To:           context.To,
-		Input:        context.Data,
-		Gas:          context.Gas,
-		Value:        hex.DecodeBig(context.Value),
-		Output:       context.Output,
-		GasPrice:     context.GasPrice,
-		OldStateRoot: common.BytesToHash(context.OldStateRoot),
-		Time:         uint64(context.ExecutionTime),
-		GasUsed:      context.GasUsed,
-	}
-}
-
-func convertToInstrumentationSteps(responses []*executor.TransactionStep) ([]instrumentation.Step, error) {
-	results := make([]instrumentation.Step, 0, len(responses))
-	for _, response := range responses {
-		step := new(instrumentation.Step)
-		step.StateRoot = common.BytesToHash(response.StateRoot)
-		step.Depth = int(response.Depth)
-		step.Pc = response.Pc
-		step.Gas = response.Gas
-		step.OpCode = fakevm.OpCode(response.Op).String()
-		step.Refund = response.GasRefund
-		step.Op = uint64(response.Op)
-		err := executor.RomErr(response.Error)
-		if err != nil {
-			step.Error = err
-		}
-		step.Contract = convertToInstrumentationContract(response.Contract)
-		step.GasCost = response.GasCost
-		step.Stack = make([]*big.Int, 0, len(response.Stack))
-		for _, s := range response.Stack {
-			if len(s)%2 != 0 {
-				s = "0" + s
-			}
-			bi, ok := new(big.Int).SetString(s, hex.Base)
-			if !ok {
-				log.Debugf("error while parsing stack valueBigInt")
-				return nil, ErrParsingExecutorTrace
-			}
-			step.Stack = append(step.Stack, bi)
-		}
-		step.MemorySize = response.MemorySize
-		step.MemoryOffset = response.MemoryOffset
-		step.Memory = make([]byte, len(response.Memory))
-		copy(step.Memory, response.Memory)
-		step.ReturnData = make([]byte, len(response.ReturnData))
-		copy(step.ReturnData, response.ReturnData)
-		step.Storage = make(map[common.Hash]common.Hash, len(response.Storage))
-		for k, v := range response.Storage {
-			addr := common.BytesToHash(hex.DecodeBig(k).Bytes())
-			value := common.BytesToHash(hex.DecodeBig(v).Bytes())
-			step.Storage[addr] = value
-		}
-		results = append(results, *step)
-	}
-	return results, nil
-}
-
-func convertToInstrumentationContract(response *executor.Contract) instrumentation.Contract {
-	return instrumentation.Contract{
-		Address: common.HexToAddress(response.Address),
-		Caller:  common.HexToAddress(response.Caller),
-		Value:   hex.DecodeBig(response.Value),
-		Input:   response.Data,
-		Gas:     response.Gas,
-	}
-}
-
-func convertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
-	return ZKCounters{
-		GasUsed:              resp.CumulativeGasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-	}
+	return result
 }

@@ -614,13 +614,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
 			log.Infof("tx.L1GasPrice = %d, tx.L2GasPrice = %d", tx.L1GasPrice, tx.L2GasPrice)
 			// Save values for later logging
-			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.CumulativeGasUsed
+			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.GasUsed
 			tx.EGPLog.GasPrice.Set(tx.GasPrice)
 			tx.EGPLog.L1GasPrice = tx.L1GasPrice
 			tx.EGPLog.L2GasPrice = tx.L2GasPrice
 
 			// Calculate EffectiveGasPrice
-			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.CumulativeGasUsed, tx.L1GasPrice, tx.L2GasPrice)
+			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, tx.BatchResources.ZKCounters.GasUsed, tx.L1GasPrice, tx.L2GasPrice)
 			if err != nil {
 				if f.effectiveGasPrice.IsEnabled() {
 					return nil, err
@@ -685,7 +685,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
 		return nil, err
-	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.Responses) == 0 && tx != nil {
+	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.TransactionResponses) == 0 && tx != nil {
 		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 		f.halt(ctx, err)
 	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
@@ -705,7 +705,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}
 
 	oldStateRoot := f.batch.stateRoot
-	if len(processBatchResponse.Responses) > 0 && tx != nil {
+	if len(processBatchResponse.TransactionResponses) > 0 && tx != nil {
 		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 		if err != nil {
 			return errWg, err
@@ -723,11 +723,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 // handleProcessTransactionResponse handles the response of transaction processing.
 func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, err error) {
 	// Handle Transaction Error
-	errorCode := executor.RomErrorCode(result.Responses[0].RomError)
+	errorCode := executor.RomErrorCode(result.TransactionResponses[0].RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
-		return errWg, result.Responses[0].RomError
+		return errWg, result.TransactionResponses[0].RomError
 	}
 
 	// Check remaining resources
@@ -741,7 +741,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	if !tx.IsLastExecution {
 		tx.IsLastExecution = true
 
-		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, result.Responses[0].GasUsed, tx.L1GasPrice, tx.L2GasPrice)
+		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, tx.GasPrice, result.TransactionResponses[0].GasUsed, tx.L1GasPrice, tx.L2GasPrice)
 		if err != nil {
 			if egpEnabled {
 				log.Errorf("failed to calculate EffectiveGasPrice with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
@@ -753,9 +753,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		} else {
 			// Save new (second) gas used and second effective gas price calculation for later logging
 			tx.EGPLog.ValueSecond.Set(newEffectiveGasPrice)
-			tx.EGPLog.GasUsedSecond = result.Responses[0].GasUsed
+			tx.EGPLog.GasUsedSecond = result.TransactionResponses[0].GasUsed
 
-			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.Responses[0].HasGaspriceOpcode, result.Responses[0].HasBalanceOpcode)
+			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.TransactionResponses[0].HasGaspriceOpcode, result.TransactionResponses[0].HasBalanceOpcode)
 
 			// If EffectiveGasPrice is disabled we will calculate the percentage and save it for later logging
 			if !egpEnabled {
@@ -777,8 +777,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging
 	tx.EGPLog.Enabled = egpEnabled
-	tx.EGPLog.GasPriceOC = result.Responses[0].HasGaspriceOpcode
-	tx.EGPLog.BalanceOC = result.Responses[0].HasBalanceOpcode
+	tx.EGPLog.GasPriceOC = result.TransactionResponses[0].HasGaspriceOpcode
+	tx.EGPLog.BalanceOC = result.TransactionResponses[0].HasBalanceOpcode
 	tx.EGPLog.ValueFinal.Set(tx.EffectiveGasPrice)
 
 	// Log here the results of EGP calculation
@@ -789,7 +789,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	txToStore := transactionToStore{
 		hash:          tx.Hash,
 		from:          tx.From,
-		response:      result.Responses[0],
+		response:      result.TransactionResponses[0],
 		batchResponse: result,
 		batchNumber:   f.batch.batchNumber,
 		timestamp:     f.batch.timestamp,
@@ -814,7 +814,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 // handleForcedTxsProcessResp handles the transactions responses for the processed forced batch.
 func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request state.ProcessRequest, result *state.ProcessBatchResponse, oldStateRoot common.Hash) {
 	log.Infof("handleForcedTxsProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
-	for _, txResp := range result.Responses {
+	for _, txResp := range result.TransactionResponses {
 		// Handle Transaction Error
 		if txResp.RomError != nil {
 			romErr := executor.RomErrorCode(txResp.RomError)
@@ -938,7 +938,7 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 
 // handleProcessTransactionError handles the error of a transaction
 func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) *sync.WaitGroup {
-	txResponse := result.Responses[0]
+	txResponse := result.TransactionResponses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
@@ -1129,8 +1129,8 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		return lastBatchNumberInState, stateRoot
 	}
 
-	if len(response.Responses) > 0 && !response.IsRomOOCError {
-		for _, txResponse := range response.Responses {
+	if len(response.TransactionResponses) > 0 && !response.IsRomOOCError {
+		for _, txResponse := range response.TransactionResponses {
 			if !errors.Is(txResponse.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
 				sender, err := state.GetSender(txResponse.Tx)
 				if err != nil {
@@ -1402,7 +1402,7 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTxZKCounters(result.Responses[0].TxHash, tx.From, usedResources.ZKCounters)
+		f.worker.UpdateTxZKCounters(result.TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
@@ -1437,7 +1437,7 @@ func (f *finalizer) isBatchAlmostFull() bool {
 	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
 		resourceDesc = "MaxMemAligns"
 		result = true
-	} else if zkCounters.CumulativeGasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
+	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		resourceDesc = "MaxCumulativeGasUsed"
 		result = true
 	}
@@ -1474,7 +1474,7 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.CumulativeGasUsed,
+			GasUsed:              constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
 			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
 			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
 			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,

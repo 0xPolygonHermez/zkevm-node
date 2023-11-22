@@ -26,7 +26,7 @@ func TestIsWithinConstraints(t *testing.T) {
 		{
 			desc: "All constraints within limits",
 			counters: state.ZKCounters{
-				CumulativeGasUsed:    300,
+				GasUsed:              300,
 				UsedKeccakHashes:     50,
 				UsedPoseidonHashes:   100,
 				UsedPoseidonPaddings: 75,
@@ -40,7 +40,7 @@ func TestIsWithinConstraints(t *testing.T) {
 		{
 			desc: "All constraints exceed limits",
 			counters: state.ZKCounters{
-				CumulativeGasUsed:    600,
+				GasUsed:              600,
 				UsedKeccakHashes:     150,
 				UsedPoseidonHashes:   300,
 				UsedPoseidonPaddings: 200,

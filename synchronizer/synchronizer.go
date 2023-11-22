@@ -1613,7 +1613,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 	}
 	s.pendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
-	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.Responses), trustedBatch.Number)
+	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.TransactionResponses), trustedBatch.Number)
 	if processBatchResp.IsExecutorLevelError {
 		log.Warn("executorLevelError detected. Avoid store txs...")
 		return processBatchResp, nil
@@ -1621,7 +1621,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		log.Warn("romOOCError detected. Avoid store txs...")
 		return processBatchResp, nil
 	}
-	for _, tx := range processBatchResp.Responses {
+	for _, tx := range processBatchResp.TransactionResponses {
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			log.Infof("TrustedBatch info: %+v", processBatchResp)
 			log.Infof("Storing trusted tx %+v", tx)

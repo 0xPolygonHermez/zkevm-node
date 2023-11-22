@@ -1636,18 +1636,18 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
-	assert.Nil(t, processBatchResponse.Responses[0].RomError)
-	assert.Equal(t, scAddress, processBatchResponse.Responses[0].CreateAddress)
+	assert.Nil(t, processBatchResponse.TransactionResponses[0].RomError)
+	assert.Equal(t, scAddress, processBatchResponse.TransactionResponses[0].CreateAddress)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[1].RomError)
+	assert.Nil(t, processBatchResponse.TransactionResponses[1].RomError)
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[2].RomError)
-	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.Responses[2].ReturnValue))
+	assert.Nil(t, processBatchResponse.TransactionResponses[2].RomError)
+	assert.Equal(t, "0000000000000000000000000000000000000000000000000000000000000001", hex.EncodeToString(processBatchResponse.TransactionResponses[2].ReturnValue))
 
 	// Add txs to DB
-	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, nil, dbTx)
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.TransactionResponses, nil, dbTx)
 	require.NoError(t, err)
 	// Close batch
 	err = testState.CloseBatch(
@@ -2064,7 +2064,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 
 	convertedResponse, err := testState.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
-	log.Debugf("%v", len(convertedResponse.Responses))
+	log.Debugf("%v", len(convertedResponse.TransactionResponses))
 
 	// Store processed txs into the batch
 	dbTx, err = testState.BeginStateTransaction(ctx)
@@ -2080,7 +2080,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, nil, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.TransactionResponses, nil, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
@@ -2441,7 +2441,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	// Preparation to be able to estimate gas
 	convertedResponse, err := testState.TestConvertToProcessBatchResponse(processBatchResponse)
 	require.NoError(t, err)
-	log.Debugf("%v", len(convertedResponse.Responses))
+	log.Debugf("%v", len(convertedResponse.TransactionResponses))
 
 	// Store processed txs into the batch
 	dbTx, err = testState.BeginStateTransaction(ctx)
@@ -2457,7 +2457,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	err = testState.OpenBatch(ctx, processingContext, dbTx)
 	require.NoError(t, err)
 
-	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.Responses, nil, dbTx)
+	err = testState.StoreTransactions(ctx, processBatchRequest.OldBatchNum+1, convertedResponse.TransactionResponses, nil, dbTx)
 	require.NoError(t, err)
 
 	processingReceipt := state.ProcessingReceipt{
@@ -2701,17 +2701,17 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), 1, batchL2Data, metrics.SequencerCallerLabel, dbTx)
 	require.NoError(t, err)
 	// assert signed tx do deploy sc
-	assert.Nil(t, processBatchResponse.Responses[0].RomError)
-	assert.NotEqual(t, state.ZeroAddress, processBatchResponse.Responses[0].CreateAddress.Hex())
-	assert.Equal(t, tx1.To().Hex(), processBatchResponse.Responses[0].CreateAddress.Hex())
+	assert.Nil(t, processBatchResponse.TransactionResponses[0].RomError)
+	assert.NotEqual(t, state.ZeroAddress, processBatchResponse.TransactionResponses[0].CreateAddress.Hex())
+	assert.Equal(t, tx1.To().Hex(), processBatchResponse.TransactionResponses[0].CreateAddress.Hex())
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.Responses[1].RomError)
-	assert.Nil(t, processBatchResponse.Responses[2].RomError)
-	assert.Nil(t, processBatchResponse.Responses[3].RomError)
+	assert.Nil(t, processBatchResponse.TransactionResponses[1].RomError)
+	assert.Nil(t, processBatchResponse.TransactionResponses[2].RomError)
+	assert.Nil(t, processBatchResponse.TransactionResponses[3].RomError)
 
 	// Add txs to DB
-	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.Responses, nil, dbTx)
+	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.TransactionResponses, nil, dbTx)
 	require.NoError(t, err)
 	// Close batch
 	err = testState.CloseBatch(
@@ -2727,7 +2727,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 
 	getCountFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
 	getCountUnsignedTx := types.NewTx(&types.LegacyTx{
-		To:   &processBatchResponse.Responses[0].CreateAddress,
+		To:   &processBatchResponse.TransactionResponses[0].CreateAddress,
 		Gas:  uint64(100000),
 		Data: getCountFnSignature,
 	})

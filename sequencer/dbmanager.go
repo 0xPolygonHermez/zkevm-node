@@ -411,7 +411,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Init counters to MAX values
 	var totalBytes uint64 = d.batchConstraints.MaxBatchBytesSize
 	var batchZkCounters = state.ZKCounters{
-		CumulativeGasUsed:    d.batchConstraints.MaxCumulativeGasUsed,
+		GasUsed:              d.batchConstraints.MaxCumulativeGasUsed,
 		UsedKeccakHashes:     d.batchConstraints.MaxKeccakHashes,
 		UsedPoseidonHashes:   d.batchConstraints.MaxPoseidonHashes,
 		UsedPoseidonPaddings: d.batchConstraints.MaxPoseidonPaddings,
@@ -467,7 +467,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			}
 
 			zkCounters := &state.ZKCounters{
-				CumulativeGasUsed:    batchResponse.GetCumulativeGasUsed(),
+				GasUsed:              batchResponse.GetCumulativeGasUsed(),
 				UsedKeccakHashes:     batchResponse.CntKeccakHashes,
 				UsedPoseidonHashes:   batchResponse.CntPoseidonHashes,
 				UsedPoseidonPaddings: batchResponse.CntPoseidonPaddings,
@@ -613,7 +613,7 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 
 	// Close Batch
 	txsBytes := uint64(0)
-	for _, resp := range processBatchResponse.Responses {
+	for _, resp := range processBatchResponse.TransactionResponses {
 		if !resp.ChangesStateRoot {
 			continue
 		}

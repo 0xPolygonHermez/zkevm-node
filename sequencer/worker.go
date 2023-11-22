@@ -224,7 +224,7 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 	defer w.workerMutex.Unlock()
 
 	log.Infof("UpdateTxZKCounters tx(%s) addr(%s)", txHash.String(), addr.String())
-	log.Debugf("UpdateTxZKCounters counters.CumulativeGasUsed: %d", counters.CumulativeGasUsed)
+	log.Debugf("UpdateTxZKCounters counters.CumulativeGasUsed: %d", counters.GasUsed)
 	log.Debugf("UpdateTxZKCounters counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
 	log.Debugf("UpdateTxZKCounters counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
 	log.Debugf("UpdateTxZKCounters counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)

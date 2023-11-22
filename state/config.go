@@ -68,7 +68,7 @@ type BatchConstraintsCfg struct {
 
 // IsWithinConstraints checks if the counters are within the batch constraints
 func (c BatchConstraintsCfg) IsWithinConstraints(counters ZKCounters) bool {
-	return counters.CumulativeGasUsed <= c.MaxCumulativeGasUsed &&
+	return counters.GasUsed <= c.MaxCumulativeGasUsed &&
 		counters.UsedKeccakHashes <= c.MaxKeccakHashes &&
 		counters.UsedPoseidonHashes <= c.MaxPoseidonHashes &&
 		counters.UsedPoseidonPaddings <= c.MaxPoseidonPaddings &&
