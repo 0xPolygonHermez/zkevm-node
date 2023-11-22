@@ -40,6 +40,9 @@ type Config struct {
 
 	// EffectiveGasPrice is the config for the effective gas price calculation
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+
+	// ForkID is the current fork ID of the chain
+	ForkID uint64 `mapstructure:"ForkID"`
 }
 
 // EffectiveGasPriceCfg contains the configuration properties for the effective gas price
@@ -64,4 +67,8 @@ type EffectiveGasPriceCfg struct {
 
 	// FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
 	FinalDeviationPct uint64 `mapstructure:"FinalDeviationPct"`
+
+	// L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the
+	// calculations when the effective gas price is disabled (testing/metrics purposes)
+	L2GasPriceSuggesterFactor float64 `mapstructure:"L2GasPriceSuggesterFactor"`
 }

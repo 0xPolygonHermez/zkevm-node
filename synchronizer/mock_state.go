@@ -257,6 +257,20 @@ func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return r0
 }
 
+// GetForkIDByBlockNumber provides a mock function with given fields: blockNumber
+func (_m *stateMock) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
+	ret := _m.Called(blockNumber)
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
+		r0 = rf(blockNumber)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
 // GetForkIDs provides a mock function with given fields: ctx, dbTx
 func (_m *stateMock) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error) {
 	ret := _m.Called(ctx, dbTx)

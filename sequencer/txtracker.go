@@ -53,7 +53,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		GasPrice: tx.GasPrice(),
 		Cost:     tx.Cost(),
 		BatchResources: state.BatchResources{
-			Bytes:      tx.Size(),
+			Bytes:      uint64(len(rawTx)) + state.EfficiencyPercentageByteLength,
 			ZKCounters: counters,
 		},
 		RawTx:             rawTx,

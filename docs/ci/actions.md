@@ -84,7 +84,7 @@ so that we can review and eventually approve the changes to be included in the
 
 ### When is executed
 
-It runs as an scheduled action, every 3 hours.
+It runs as a scheduled action, every 3 hours.
 
 [golang linter]: https://golangci-lint.run/
 [linter configuration file]: ../../.golangci.yml
