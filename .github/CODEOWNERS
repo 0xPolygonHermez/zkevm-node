@@ -1,19 +1,26 @@
-*.md                    @agnusmor
-aggregator/             @agnusmor
-ci/                     @agnusmor @tclemos @ToniRamirezM @ARR552
-cmd/                    @tclemos @ToniRamirezM @ARR552
-config/                 @agnusmor @tclemos @ToniRamirezM @ARR552
-db/                     @tclemos @ToniRamirezM @ARR552
-docs/                   @agnusmor @joanestebanr
-etherman/               @ARR552 @joanestebanr
-ethtxmanager/           @tclemos
-gasprice/               @ARR552
-jsonrpc/                @tclemos
-merkletree/             @ToniRamirezM
-pool/                   @tclemos
-proto/                  @ToniRamirezM
-sequencer/              @ToniRamirezM @dpunish3r @agnusmor
-sequencesender/         @ToniRamirezM @dpunish3r @agnusmor
-state/                  @ToniRamirezM @tclemos
-synchronizer/           @ARR552 @joanestebanr
-test/                   @tclemos
+# zkevm-node-team
+**/*.md                 0xPolygonHermez/zkevm-node-team
+ci/                     0xPolygonHermez/zkevm-node-team
+cmd/                    0xPolygonHermez/zkevm-node-team
+config/                 0xPolygonHermez/zkevm-node-team
+db/                     0xPolygonHermez/zkevm-node-team
+docs/                   0xPolygonHermez/zkevm-node-team
+etherman/               0xPolygonHermez/zkevm-node-team
+proto/                  0xPolygonHermez/zkevm-node-team
+merkletree/             0xPolygonHermez/zkevm-node-team
+pool/                   0xPolygonHermez/zkevm-node-team
+state/                  0xPolygonHermez/zkevm-node-team
+test/                   0xPolygonHermez/zkevm-node-team
+
+# zkevm-agg-seq
+aggregator/             0xPolygonHermez/zkevm-agg-seq-team
+sequencer/              0xPolygonHermez/zkevm-agg-seq-team
+sequencesender/         0xPolygonHermez/zkevm-agg-seq-team
+
+# zkevm-bridge-sync-rpc
+ethtxmanager/           0xPolygonHermez/zkevm-bridge-sync-rpc-team
+gasprice/               0xPolygonHermez/zkevm-bridge-sync-rpc-team
+jsonrpc/                0xPolygonHermez/zkevm-bridge-sync-rpc-team
+l1infotree/             0xPolygonHermez/zkevm-bridge-sync-rpc-team
+synchronizer/           0xPolygonHermez/zkevm-bridge-sync-rpc-team
+
