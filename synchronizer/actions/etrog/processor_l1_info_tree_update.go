@@ -12,7 +12,7 @@ import (
 
 // stateProcessorL1InfoTreeInterface interface required from state
 type stateProcessorL1InfoTreeInterface interface {
-	AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *state.L1InfoTreeLeaf, dbTx pgx.Tx) error
+	AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *state.L1InfoTreeLeaf, dbTx pgx.Tx) (*state.L1InfoTreeExitRootStorageEntry, error)
 }
 
 // ProcessorL1InfoTreeUpdate implements L1EventProcessor for GlobalExitRootsOrder
@@ -43,9 +43,11 @@ func (p *ProcessorL1InfoTreeUpdate) Process(ctx context.Context, order etherman.
 		GlobalExitRoot:    ger,
 		PreviousBlockHash: l1InfoTree.PreviousBlockHash,
 	}
-	err := p.state.AddL1InfoTreeLeaf(ctx, &l1IntoTreeLeaf, dbTx)
+	entry, err := p.state.AddL1InfoTreeLeaf(ctx, &l1IntoTreeLeaf, dbTx)
 	if err != nil {
 		log.Errorf("error storing the l1InfoTree. BlockNumber: %d, error: %v", l1Block.BlockNumber, err)
+		return err
 	}
-	return err
+	log.Infof("L1InfoTree stored. BlockNumber: %d,GER:%s L1InfoTreeIndex: %d L1InfoRoot:%s", l1Block.BlockNumber, entry.GlobalExitRoot.GlobalExitRoot, entry.L1InfoTreeIndex, entry.L1InfoTreeRoot)
+	return nil
 }

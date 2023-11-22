@@ -7,16 +7,34 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// AddL1InfoRootToExitRoot adds a new entry in ExitRoot and returns index
-func (p *PostgresStorage) AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *state.L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error {
-	const addGlobalExitRootSQL = `INSERT INTO state.exit_root (block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7,
+/*
+const addGlobalExitRootSQL = `INSERT INTO state.exit_root
+				(block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index)
+		VALUES ($1,         $2,        $3,                $4,               $5,               $6,              $7,
 			COALESCE((SELECT MAX(l1_info_tree_index) + 1 FROM state.exit_root), 1))`
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, addGlobalExitRootSQL, exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot, exitRoot.GlobalExitRoot,
-		exitRoot.PreviousBlockHash, exitRoot.L1InfoTreeRoot)
+	_, err := e.Exec(ctx, addGlobalExitRootSQL,
+		exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot,
+		exitRoot.GlobalExitRoot, exitRoot.PreviousBlockHash, exitRoot.L1InfoTreeRoot)
 	return err
+*/
+
+// AddL1InfoRootToExitRoot adds a new entry in ExitRoot and returns index of L1InfoTree and error
+func (p *PostgresStorage) AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *state.L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) (uint64, error) {
+	const addGlobalExitRootSQL = `INSERT INTO state.exit_root
+				(block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index)
+		VALUES ($1,         $2,        $3,                $4,               $5,               $6,              $7,
+			COALESCE((SELECT MAX(l1_info_tree_index) + 1 FROM state.exit_root), 1))
+		RETURNING exit_root.l1_info_tree_index;`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, addGlobalExitRootSQL,
+		exitRoot.BlockNumber, exitRoot.Timestamp, exitRoot.MainnetExitRoot, exitRoot.RollupExitRoot,
+		exitRoot.GlobalExitRoot.GlobalExitRoot, exitRoot.PreviousBlockHash, exitRoot.L1InfoTreeRoot)
+	var l1InfoTreeIndex uint64
+	err := row.Scan(&l1InfoTreeIndex)
+	return l1InfoTreeIndex, err
 }
 
 func (p *PostgresStorage) GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error) {
