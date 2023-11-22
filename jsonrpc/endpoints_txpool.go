@@ -10,7 +10,7 @@ import (
 )
 
 // TxPoolEndpoints is the txpool jsonrpc endpoint
-type TxPoolEndpoints struct{
+type TxPoolEndpoints struct {
 	pool types.PoolInterface
 }
 
@@ -52,18 +52,18 @@ func (e *TxPoolEndpoints) Content() (interface{}, types.Error) {
 // Status creates a response for txpool_status request.
 // See https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-txpool#txpool-status
 func (e *TxPoolEndpoints) Status() (interface{}, types.Error) {
-    ctx := context.Background()
-    txPendingCount, err := e.pool.CountPendingTransactions(ctx)
-    if err != nil {
-        log.Errorf("Failed to count pending txs from pool", err)
+	ctx := context.Background()
+	txPendingCount, err := e.pool.CountPendingTransactions(ctx)
+	if err != nil {
+		log.Errorf("Failed to count pending txs from pool", err)
 		return RPCErrorResponse(types.DefaultErrorCode, "Failed to count pending txs from pool", err, false)
-    }
+	}
 
-    txQueuedCount, err := e.pool.CountQueuedTransactions(ctx)
-    if err != nil {
-        log.Errorf("Failed to count queued txs from pool", err)
+	txQueuedCount, err := e.pool.CountQueuedTransactions(ctx)
+	if err != nil {
+		log.Errorf("Failed to count queued txs from pool", err)
 		return RPCErrorResponse(types.DefaultErrorCode, "Failed to count queued txs from pool", err, false)
-    }
+	}
 
 	resp := map[string]hexutil.Uint{
 		"pending": hexutil.Uint(txPendingCount),
