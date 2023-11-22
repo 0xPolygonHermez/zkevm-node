@@ -844,6 +844,20 @@ calculations when the effective gas price is disabled (testing/metrics purposes)
 L2GasPriceSuggesterFactor=0.5
 ```
 
+### <a name="Pool_ForkID"></a>7.12. `Pool.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ForkID is the current fork ID of the chain
+
+**Example setting the default value** (0):
+```
+[Pool]
+ForkID=0
+```
+
 ## <a name="RPC"></a>8. `[RPC]`
 
 **Type:** : `object`
