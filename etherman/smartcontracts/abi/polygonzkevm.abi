@@ -12,7 +12,7 @@
                 "type": "address"
             },
             {
-                "internalType": "contract IPolygonZkEVMBridge",
+                "internalType": "contract IPolygonZkEVMBridgeV2",
                 "name": "_bridgeAddress",
                 "type": "address"
             },
@@ -93,6 +93,11 @@
     {
         "inputs": [],
         "name": "HaltTimeoutNotExpired",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "HugeTokenMetadataNotSupported",
         "type": "error"
     },
     {
@@ -305,6 +310,31 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "bytes",
+                "name": "transactions",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "lastGlobalExitRoot",
+                "type": "bytes32"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sequencer",
+                "type": "address"
+            }
+        ],
+        "name": "InitialSequenceBatches",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
                 "internalType": "uint8",
                 "name": "version",
                 "type": "uint8"
@@ -418,7 +448,33 @@
     },
     {
         "inputs": [],
-        "name": "BASE_INITIALIZE_TX_BRIDGE",
+        "name": "GLOBAL_EXIT_ROOT_MANAGER_L2",
+        "outputs": [
+            {
+                "internalType": "contract IBasePolygonZkEVMGlobalExitRoot",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_BRIDGE_LIST_LEN_LEN",
+        "outputs": [
+            {
+                "internalType": "uint8",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_BRIDGE_PARAMS",
         "outputs": [
             {
                 "internalType": "bytes",
@@ -431,12 +487,64 @@
     },
     {
         "inputs": [],
-        "name": "GLOBAL_EXIT_ROOT_MANAGER_L2",
+        "name": "INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS",
         "outputs": [
             {
-                "internalType": "contract IBasePolygonZkEVMGlobalExitRoot",
+                "internalType": "bytes",
                 "name": "",
-                "type": "address"
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_BRIDGE_PARAMS_AFTER_BRIDGE_ADDRESS_EMPTY_METADATA",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_CONSTANT_BYTES",
+        "outputs": [
+            {
+                "internalType": "uint16",
+                "name": "",
+                "type": "uint16"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_CONSTANT_BYTES_EMPTY_METADATA",
+        "outputs": [
+            {
+                "internalType": "uint16",
+                "name": "",
+                "type": "uint16"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "INITIALIZE_TX_DATA_LEN_EMPTY_METADATA",
+        "outputs": [
+            {
+                "internalType": "uint8",
+                "name": "",
+                "type": "uint8"
             }
         ],
         "stateMutability": "view",
@@ -526,7 +634,7 @@
         "name": "bridgeAddress",
         "outputs": [
             {
-                "internalType": "contract IPolygonZkEVMBridge",
+                "internalType": "contract IPolygonZkEVMBridgeV2",
                 "name": "",
                 "type": "address"
             }
@@ -639,6 +747,11 @@
                 "internalType": "uint32",
                 "name": "_gasTokenNetwork",
                 "type": "uint32"
+            },
+            {
+                "internalType": "bytes",
+                "name": "_gasTokenMetadata",
+                "type": "bytes"
             }
         ],
         "name": "generateInitializeTransaction",
@@ -649,7 +762,7 @@
                 "type": "bytes"
             }
         ],
-        "stateMutability": "pure",
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -686,11 +799,6 @@
                 "internalType": "address",
                 "name": "_gasTokenAddress",
                 "type": "address"
-            },
-            {
-                "internalType": "uint32",
-                "name": "_gasTokenNetwork",
-                "type": "uint32"
             },
             {
                 "internalType": "string",
