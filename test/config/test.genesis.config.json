@@ -6,7 +6,7 @@
         "polTokenAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "polygonZkEVMGlobalExitRootAddress": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
     },
-    "genesisBlockNumber": 123,
+    "genesisBlockNumber": 117,
     "root": "0x82a37b85ba3e7b61b14c546d47ff52afbc15e14ba0ddd82642b434f04a58aab8",
     "genesis": [
         {
