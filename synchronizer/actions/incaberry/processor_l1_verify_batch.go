@@ -27,7 +27,7 @@ type ProcessorL1VerifyBatch struct {
 func NewProcessorL1VerifyBatch(state stateL1VerifyBatchInterface) *ProcessorL1VerifyBatch {
 	return &ProcessorL1VerifyBatch{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1VerifyBatch]{
-			SupportedEvent:    etherman.VerifyBatchOrder,
+			SupportedEvent:    []etherman.EventOrder{etherman.VerifyBatchOrder, etherman.TrustedVerifyBatchOrder},
 			SupportedForkdIds: &actions.ForksIdToIncaberry},
 		state: state,
 	}

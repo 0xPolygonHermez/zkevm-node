@@ -40,7 +40,7 @@ func NewProcessL1SequenceForcedBatches(state stateProcessL1SequenceForcedBatches
 	sync syncProcessL1SequenceForcedBatchesInterface) *ProcessL1SequenceForcedBatches {
 	return &ProcessL1SequenceForcedBatches{
 		ProcessorBase: actions.ProcessorBase[ProcessL1SequenceForcedBatches]{
-			SupportedEvent:    etherman.SequenceForceBatchesOrder,
+			SupportedEvent:    []etherman.EventOrder{etherman.SequenceForceBatchesOrder},
 			SupportedForkdIds: &actions.ForksIdToIncaberry},
 		state: state,
 		sync:  sync}

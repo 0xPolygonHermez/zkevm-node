@@ -64,7 +64,7 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
 	return &ProcessorL1SequenceBatches{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatches]{
-			SupportedEvent:    etherman.SequenceBatchesOrder,
+			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
 			SupportedForkdIds: &actions.ForksIdToIncaberry},
 		state:    state,
 		etherMan: etherMan,

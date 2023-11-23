@@ -35,7 +35,7 @@ type ProcessorForkId struct {
 func NewProcessorForkId(state stateProcessorForkIdInterface, sync syncProcessorForkIdInterface) *ProcessorForkId {
 	return &ProcessorForkId{
 		ProcessorBase: actions.ProcessorBase[ProcessorForkId]{
-			SupportedEvent:    etherman.ForkIDsOrder,
+			SupportedEvent:    []etherman.EventOrder{etherman.ForkIDsOrder},
 			SupportedForkdIds: &actions.ForksIdAll,
 		},
 		state: state,

@@ -9,7 +9,7 @@ import (
 // ProcessorBase is the base struct for all the processors, if reduces the boilerplate
 // implementing the Name, SupportedEvents and SupportedForkIds functions
 type ProcessorBase[T any] struct {
-	SupportedEvent    etherman.EventOrder
+	SupportedEvent    []etherman.EventOrder
 	SupportedForkdIds *[]ForkIdType
 }
 
@@ -30,7 +30,7 @@ func (g *ProcessorBase[T]) Name() string {
 
 // SupportedEvents returns the supported events in the struct
 func (p *ProcessorBase[T]) SupportedEvents() []etherman.EventOrder {
-	return []etherman.EventOrder{p.SupportedEvent}
+	return p.SupportedEvent
 }
 
 // SupportedForkIds returns the supported forkIds in the struct or the dafault till incaberry forkId
