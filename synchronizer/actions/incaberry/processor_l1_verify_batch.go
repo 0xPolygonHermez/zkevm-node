@@ -19,16 +19,17 @@ type stateL1VerifyBatchInterface interface {
 
 // ProcessorL1VerifyBatch implements L1EventProcessor
 type ProcessorL1VerifyBatch struct {
-	ProcessorBase[ProcessorL1VerifyBatch]
+	actions.ProcessorBase[ProcessorL1VerifyBatch]
 	state stateL1VerifyBatchInterface
 }
 
 // NewProcessorL1VerifyBatch returns instance of a processor for VerifyBatchOrder
 func NewProcessorL1VerifyBatch(state stateL1VerifyBatchInterface) *ProcessorL1VerifyBatch {
 	return &ProcessorL1VerifyBatch{
-		ProcessorBase: ProcessorBase[ProcessorL1VerifyBatch]{supportedEvent: etherman.VerifyBatchOrder
+		ProcessorBase: actions.ProcessorBase[ProcessorL1VerifyBatch]{
+			SupportedEvent:    etherman.VerifyBatchOrder,
 			SupportedForkdIds: &actions.ForksIdToIncaberry},
-		state:         state,
+		state: state,
 	}
 }
 
