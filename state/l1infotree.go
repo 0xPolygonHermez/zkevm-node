@@ -22,6 +22,11 @@ type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeIndex uint64
 }
 
+var (
+	// TODO: Put the real hash of Leaf 0, pending of deploying contracts
+	leaf0Hash = [32]byte{} //nolint:gomnd
+)
+
 // Hash returns the hash of the leaf
 func (l *L1InfoTreeLeaf) Hash() common.Hash {
 	timestamp := uint64(l.Timestamp.Unix())
@@ -56,6 +61,8 @@ func (s *State) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *L1InfoTre
 func buildL1InfoTree(allLeaves []L1InfoTreeExitRootStorageEntry) (common.Hash, error) {
 	mt := l1infotree.NewL1InfoTree(uint8(32)) //nolint:gomnd
 	var leaves [][32]byte
+	// Insert the Leaf0 that is not used but compute for the Merkle Tree
+	leaves = append(leaves, leaf0Hash)
 	for _, leaf := range allLeaves {
 		leaves = append(leaves, leaf.Hash())
 	}
