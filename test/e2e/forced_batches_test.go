@@ -9,9 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
@@ -163,24 +164,24 @@ func setupEnvironmentL1(ctx context.Context, t *testing.T) *l1Stuff {
 	require.NoError(t, err)
 	authForcedBatch, err := operations.GetAuth(operations.DefaultForcedBatchesPrivateKey, operations.DefaultL1ChainID)
 	require.NoError(t, err)
-	maticSmc, err := matic.NewMatic(common.HexToAddress(operations.DefaultL1MaticSmartContract), ethClient)
+	polSmc, err := pol.NewPol(common.HexToAddress(operations.DefaultL1PolSmartContract), ethClient)
 	require.NoError(t, err)
-	maticAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
-	log.Debugf("Charging MATIC from sequencer -> forcedBatchesAddress")
-	txValue, err := maticSmc.Transfer(authSequencer, common.HexToAddress(operations.DefaultForcedBatchesAddress), maticAmount)
+	polAmount, _ := big.NewInt(0).SetString("9999999999999999999999", 0)
+	log.Debugf("Charging pol from sequencer -> forcedBatchesAddress")
+	txValue, err := polSmc.Transfer(authSequencer, common.HexToAddress(operations.DefaultForcedBatchesAddress), polAmount)
 	require.NoError(t, err)
-	log.Debugf("Waiting for tx %s to be mined (transfer of matic from sequencer -> forcedBatches)", txValue.Hash().String())
+	log.Debugf("Waiting for tx %s to be mined (transfer of pol from sequencer -> forcedBatches)", txValue.Hash().String())
 	err = operations.WaitTxToBeMined(ctx, ethClient, txValue, operations.DefaultTimeoutTxToBeMined)
 	require.NoError(t, err)
-	balance, err := maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultSequencerAddress))
+	balance, err := polSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultSequencerAddress))
 	require.NoError(t, err)
-	log.Debugf("Account (sequencer) %s MATIC balance %s", operations.DefaultSequencerAddress, balance.String())
+	log.Debugf("Account (sequencer) %s pol balance %s", operations.DefaultSequencerAddress, balance.String())
 
-	balance, err = maticSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultForcedBatchesAddress))
+	balance, err = polSmc.BalanceOf(&bind.CallOpts{Pending: false}, common.HexToAddress(operations.DefaultForcedBatchesAddress))
 	require.NoError(t, err)
-	log.Debugf("Account (force_batches) %s MATIC balance %s", operations.DefaultForcedBatchesAddress, balance.String())
-	log.Debugf("Approve to zkEVM SMC to spend %s MATIC", maticAmount.String())
-	_, err = maticSmc.Approve(authForcedBatch, common.HexToAddress(operations.DefaultL1ZkEVMSmartContract), maticAmount)
+	log.Debugf("Account (force_batches) %s pol balance %s", operations.DefaultForcedBatchesAddress, balance.String())
+	log.Debugf("Approve to zkEVM SMC to spend %s pol", polAmount.String())
+	_, err = polSmc.Approve(authForcedBatch, common.HexToAddress(operations.DefaultL1ZkEVMSmartContract), polAmount)
 	require.NoError(t, err)
 
 	zkEvmAddr := common.HexToAddress(operations.DefaultL1ZkEVMSmartContract)
@@ -213,8 +214,12 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 
 	log.Info("Number of forceBatches in the smc: ", num)
 
+	rollupManagerAddr := common.HexToAddress(operations.DefaultL1RollupManagerSmartContract)
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(rollupManagerAddr, l1.ethClient)
+	require.NoError(t, err)
+
 	// Get tip
-	tip, err := l1.zkEvm.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	tip, err := rollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	log.Infof("Foced Batch Fee:%s", tip.String())
 	managerAddress, err := l1.zkEvm.GlobalExitRootManager(&bind.CallOpts{Pending: false})
@@ -227,9 +232,9 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 	require.NoError(t, err)
 	rootInContractHash := common.BytesToHash(rootInContract[:])
 
-	disallowed, err := l1.zkEvm.IsForcedBatchDisallowed(&bind.CallOpts{Pending: false})
+	allowed, err := l1.zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
-	if disallowed {
+	if !allowed {
 		log.Infof("Forced batch is disallowed. Activating...")
 		tx, err := l1.zkEvm.ActivateForceBatches(l1.authSequencer)
 		require.NoError(t, err)
@@ -243,6 +248,9 @@ func sendForcedBatch(ctx context.Context, t *testing.T, txs []byte, opsman *oper
 
 	log.Debugf("L1: currentBlock: number:%s Time():%s ", currentBlock.Number().String(), currentBlock.Time())
 
+	allowed, err = l1.zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	require.NoError(t, err)
+	t.Log("IsForcedBatchAllowed and tip: ", allowed, tip)
 	// Send forceBatch
 	tx, err := l1.zkEvm.ForceBatch(l1.authForcedBatch, txs, tip)
 	require.NoError(t, err)
