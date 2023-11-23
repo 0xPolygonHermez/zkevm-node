@@ -76,6 +76,8 @@ var (
 	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
 	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
 	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
+	// ErrInvalidTxChangeL2Block indicates that the change l2 block transaction has triggered an error during while executing
+	ErrInvalidTxChangeL2Block = errors.New("error while executing a change l2 block transaction")
 
 	// EXECUTOR ERRORS
 	// ===============

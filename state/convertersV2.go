@@ -279,6 +279,7 @@ func convertToCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 		UsedArithmetics:      resp.CntArithmetics,
 		UsedBinaries:         resp.CntBinaries,
 		UsedSteps:            resp.CntSteps,
+		UsedSha256Hashes_V2:  resp.CntSha256Hashes,
 	}
 }
 

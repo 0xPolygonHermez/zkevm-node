@@ -127,6 +127,7 @@ type ZKCounters struct {
 	UsedArithmetics      uint32
 	UsedBinaries         uint32
 	UsedSteps            uint32
+	UsedSha256Hashes_V2  uint32
 }
 
 // SumUp sum ups zk counters with passed tx zk counters
@@ -168,6 +169,9 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	if other.UsedSteps > z.UsedSteps {
 		return GetZKCounterError("UsedSteps")
 	}
+	if other.UsedSha256Hashes_V2 > z.UsedSha256Hashes_V2 {
+		return GetZKCounterError("UsedSha256Hashes_V2")
+	}
 
 	z.GasUsed -= other.GasUsed
 	z.UsedKeccakHashes -= other.UsedKeccakHashes
@@ -177,6 +181,7 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedArithmetics -= other.UsedArithmetics
 	z.UsedBinaries -= other.UsedBinaries
 	z.UsedSteps -= other.UsedSteps
+	z.UsedSha256Hashes_V2 -= other.UsedSha256Hashes_V2
 
 	return nil
 }

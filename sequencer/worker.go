@@ -232,6 +232,7 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 	log.Debugf("UpdateTxZKCounters counters.UsedArithmetics: %d", counters.UsedArithmetics)
 	log.Debugf("UpdateTxZKCounters counters.UsedBinaries: %d", counters.UsedBinaries)
 	log.Debugf("UpdateTxZKCounters counters.UsedSteps: %d", counters.UsedSteps)
+	log.Debugf("UpdateTxZKCounters counters.UsedSha256Hashes_V2: %d", counters.UsedSha256Hashes_V2)
 
 	addrQueue, found := w.pool[addr.String()]
 

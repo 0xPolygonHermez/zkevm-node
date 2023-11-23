@@ -90,6 +90,8 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrInvalidDecodeChangeL2Block
 	case RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK:
 		return runtime.ErrInvalidNotFirstTxChangeL2Block
+	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK:
+		return runtime.ErrInvalidTxChangeL2Block
 	}
 	return ErrROMUnknown
 }
@@ -160,6 +162,8 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK
 	case runtime.ErrInvalidNotFirstTxChangeL2Block:
 		return RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK
+	case runtime.ErrInvalidTxChangeL2Block:
+		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK
 	}
 	return ErrCodeROMUnknown
 }
