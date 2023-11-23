@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
+	packagesut "github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +18,7 @@ func TestComputeTreeRoot(t *testing.T) {
 	require.NoError(t, err)
 	for _, testVector := range mtTestVectors {
 		input := testVector.PreviousLeafValues
-		mt := l1infotree.NewL1InfoTree(uint8(32))
+		mt := packagesut.NewL1InfoTree(uint8(32))
 		require.NoError(t, err)
 
 		var leaves [][32]byte
