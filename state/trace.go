@@ -153,7 +153,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	// Sanity check
-	response := convertedResponse.TransactionResponses[0]
+	response := convertedResponse.TransactionResponses_V1[0]
 	log.Debugf(response.TxHash.String())
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")

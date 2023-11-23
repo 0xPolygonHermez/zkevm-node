@@ -15,7 +15,7 @@ import (
 )
 
 // ProcessSequencerBatchV2 is used by the sequencers to process transactions into an open batch for forkID >= ETROG
-func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponseV2, error) {
+func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatchV2 start")
 
@@ -34,7 +34,7 @@ func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64,
 }
 
 // ProcessBatchV2 processes a batch for forkID >= ETROG
-func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, updateMerkleTree bool) (*ProcessBatchResponseV2, error) {
+func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, updateMerkleTree bool) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessBatchV2 start")
 
@@ -51,9 +51,9 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
-		L1InfoRoot:       request.SignificantRoot.Bytes(),
+		L1InfoRoot:       request.GlobalExitRoot_V1.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		TimestampLimit:   request.SignificantTimestamp,
+		TimestampLimit:   request.TimestampLimit_V2,
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
@@ -64,7 +64,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		return nil, err
 	}
 
-	var result *ProcessBatchResponseV2
+	var result *ProcessBatchResponse
 	result, err = s.convertToProcessBatchResponseV2(res)
 	if err != nil {
 		return nil, err
@@ -292,9 +292,9 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 
-	if len(processedBatch.TransactionResponses) > 0 {
+	if len(processedBatch.TransactionResponses_V1) > 0 {
 		// Store processed txs into the batch
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.TransactionResponses, nil, dbTx)
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.TransactionResponses_V1, nil, dbTx)
 		if err != nil {
 			return common.Hash{}, noFlushID, noProverID, err
 		}

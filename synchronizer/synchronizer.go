@@ -1434,11 +1434,11 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 	}
 
 	request := state.ProcessRequest{
-		BatchNumber:          uint64(trustedBatch.Number),
-		OldStateRoot:         *s.trustedState.lastStateRoot,
-		OldAccInputHash:      batches[1].AccInputHash,
-		Coinbase:             common.HexToAddress(trustedBatch.Coinbase.String()),
-		SignificantTimestamp: uint64(trustedBatch.Timestamp),
+		BatchNumber:     uint64(trustedBatch.Number),
+		OldStateRoot:    *s.trustedState.lastStateRoot,
+		OldAccInputHash: batches[1].AccInputHash,
+		Coinbase:        common.HexToAddress(trustedBatch.Coinbase.String()),
+		Timestamp_V1:    time.Unix(int64(trustedBatch.Timestamp), 0),
 	}
 	// check if batch needs to be synchronized
 	if batches[0] != nil {
@@ -1466,7 +1466,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 				log.Error("error openning batch. Error: ", err)
 				return nil, nil, err
 			}
-			request.SignificantRoot = trustedBatch.GlobalExitRoot
+			request.GlobalExitRoot_V1 = trustedBatch.GlobalExitRoot
 			request.Transactions = trustedBatchL2Data
 		} else {
 			// Only new txs need to be processed
@@ -1566,7 +1566,7 @@ func (s *ClientSynchronizer) processTrustedBatch(trustedBatch *types.Batch, dbTx
 			log.Error("error openning batch. Error: ", err)
 			return nil, nil, err
 		}
-		request.SignificantRoot = trustedBatch.GlobalExitRoot
+		request.GlobalExitRoot_V1 = trustedBatch.GlobalExitRoot
 		request.Transactions = trustedBatchL2Data
 	}
 
@@ -1669,7 +1669,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 	}
 	s.PendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
-	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.TransactionResponses), trustedBatch.Number)
+	log.Debugf("Storing transactions %d for batch %v", len(processBatchResp.TransactionResponses_V1), trustedBatch.Number)
 	if processBatchResp.IsExecutorLevelError {
 		log.Warn("executorLevelError detected. Avoid store txs...")
 		return processBatchResp, nil
@@ -1677,7 +1677,7 @@ func (s *ClientSynchronizer) processAndStoreTxs(trustedBatch *types.Batch, reque
 		log.Warn("romOOCError detected. Avoid store txs...")
 		return processBatchResp, nil
 	}
-	for _, tx := range processBatchResp.TransactionResponses {
+	for _, tx := range processBatchResp.TransactionResponses_V1 {
 		if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
 			log.Infof("TrustedBatch info: %+v", processBatchResp)
 			log.Infof("Storing trusted tx %+v", tx)

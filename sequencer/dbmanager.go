@@ -569,8 +569,8 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      time.Unix(int64(request.SignificantTimestamp), 0),
-		GlobalExitRoot: request.SignificantRoot,
+		Timestamp:      request.Timestamp_V1,
+		GlobalExitRoot: request.GlobalExitRoot_V1,
 		ForcedBatchNum: &ForcedBatchNumber,
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
@@ -613,7 +613,7 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 
 	// Close Batch
 	txsBytes := uint64(0)
-	for _, resp := range processBatchResponse.TransactionResponses {
+	for _, resp := range processBatchResponse.TransactionResponses_V1 {
 		if !resp.ChangesStateRoot {
 			continue
 		}

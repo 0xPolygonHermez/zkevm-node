@@ -212,7 +212,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return nil, err
 	}
 
-	r := response.TransactionResponses[0]
+	r := response.TransactionResponses_V1[0]
 	result.ReturnValue = r.ReturnValue
 	result.GasLeft = r.GasLeft
 	result.GasUsed = r.GasUsed

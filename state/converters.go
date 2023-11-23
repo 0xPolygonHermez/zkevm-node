@@ -53,21 +53,21 @@ func (s *State) convertToProcessBatchResponse(response *executor.ProcessBatchRes
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:       response.NewBatchNum,
-		UsedZkCounters:       convertToCounters(response),
-		TransactionResponses: responses,
-		ExecutorError:        executor.ExecutorErr(response.Error),
-		ReadWriteAddresses:   readWriteAddresses,
-		FlushID:              response.FlushId,
-		StoredFlushID:        response.StoredFlushId,
-		ProverID:             response.ProverId,
-		IsExecutorLevelError: isExecutorLevelError,
-		IsRomLevelError:      isRomLevelError,
-		IsRomOOCError:        isRomOOCError,
-		ForkID:               response.ForkId,
+		NewStateRoot:            common.BytesToHash(response.NewStateRoot),
+		NewAccInputHash:         common.BytesToHash(response.NewAccInputHash),
+		NewLocalExitRoot:        common.BytesToHash(response.NewLocalExitRoot),
+		NewBatchNumber:          response.NewBatchNum,
+		UsedZkCounters:          convertToCounters(response),
+		TransactionResponses_V1: responses,
+		ExecutorError:           executor.ExecutorErr(response.Error),
+		ReadWriteAddresses:      readWriteAddresses,
+		FlushID:                 response.FlushId,
+		StoredFlushID:           response.StoredFlushId,
+		ProverID:                response.ProverId,
+		IsExecutorLevelError:    isExecutorLevelError,
+		IsRomLevelError:         isRomLevelError,
+		IsRomOOCError:           isRomOOCError,
+		ForkID:                  response.ForkId,
 	}, nil
 }
 

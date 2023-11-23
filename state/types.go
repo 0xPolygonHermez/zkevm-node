@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,36 +16,40 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber uint64
-	// Global Exit Root or L1 Info Root depending on the forkID
-	SignificantRoot common.Hash
-	OldStateRoot    common.Hash
-	OldAccInputHash common.Hash
-	Transactions    []byte
-	Coinbase        common.Address
-	// Timestamp or Timestamp limit depending on the forkID
-	SignificantTimestamp uint64
-	Caller               metrics.CallerLabel
-	ForkID               uint64
+	BatchNumber       uint64
+	GlobalExitRoot_V1 common.Hash
+	L1InfoRoot_V2     common.Hash
+	OldStateRoot      common.Hash
+	OldAccInputHash   common.Hash
+	Transactions      []byte
+	Coinbase          common.Address
+	Timestamp_V1      time.Time
+	TimestampLimit_V2 uint64
+	Caller            metrics.CallerLabel
+	ForkID            uint64
 }
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot         common.Hash
-	NewAccInputHash      common.Hash
-	NewLocalExitRoot     common.Hash
-	NewBatchNumber       uint64
-	UsedZkCounters       ZKCounters
-	TransactionResponses []*ProcessTransactionResponse
-	ExecutorError        error
-	ReadWriteAddresses   map[common.Address]*InfoReadWrite
-	IsRomLevelError      bool
-	IsExecutorLevelError bool
-	IsRomOOCError        bool
-	FlushID              uint64
-	StoredFlushID        uint64
-	ProverID             string
-	ForkID               uint64
+	NewStateRoot            common.Hash
+	NewAccInputHash         common.Hash
+	NewLocalExitRoot        common.Hash
+	NewBatchNumber          uint64
+	UsedZkCounters          ZKCounters
+	TransactionResponses_V1 []*ProcessTransactionResponse
+	BlockResponses_V2       []*ProcessBlockResponseV2
+	ExecutorError           error
+	ReadWriteAddresses      map[common.Address]*InfoReadWrite
+	IsRomLevelError         bool
+	IsExecutorLevelError    bool
+	IsRomOOCError           bool
+	FlushID                 uint64
+	StoredFlushID           uint64
+	ProverID                string
+	GasUsed_V2              uint64
+	SMTKeys_V2              []merkletree.Key
+	ProgramKeys_V2          []merkletree.Key
+	ForkID                  uint64
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

@@ -78,7 +78,7 @@ func (r *reprocessAction) stepWithFlushId(i uint64, oldStateRoot common.Hash, ol
 
 // returns:
 // - state.Batch -> batch on DB
-// - *ProcessBatchResponse -> response of reprocessing batch with EXECTOR
+// - *ProcessBatchResponse -> response of reprocessing batch with EXECUTOR
 func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHash common.Hash) (*state.Batch, *state.ProcessBatchResponse, error) {
 	dbTx, err := r.st.BeginStateTransaction(r.ctx)
 	if err != nil {
@@ -93,14 +93,14 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 	}
 
 	request := state.ProcessRequest{
-		BatchNumber:          batch2.BatchNumber,
-		OldStateRoot:         oldStateRoot,
-		OldAccInputHash:      oldAccInputHash,
-		Coinbase:             batch2.Coinbase,
-		SignificantTimestamp: uint64(batch2.Timestamp.Unix()),
+		BatchNumber:     batch2.BatchNumber,
+		OldStateRoot:    oldStateRoot,
+		OldAccInputHash: oldAccInputHash,
+		Coinbase:        batch2.Coinbase,
+		Timestamp_V1:    batch2.Timestamp,
 
-		SignificantRoot: batch2.GlobalExitRoot,
-		Transactions:    batch2.BatchL2Data,
+		GlobalExitRoot_V1: batch2.GlobalExitRoot,
+		Transactions:      batch2.BatchL2Data,
 	}
 	log.Debugf("Processing batch %d: ntx:%d StateRoot:%s", batch2.BatchNumber, len(batch2.BatchL2Data), batch2.StateRoot)
 	forkID := r.st.GetForkIDByBatchNumber(batch2.BatchNumber)
@@ -115,7 +115,7 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 
 	log.Infof("id:%d len_trs:%d oldStateRoot:%s", batch2.BatchNumber, len(syncedTxs), request.OldStateRoot)
 	response, err = r.st.ProcessBatch(r.ctx, request, r.updateHasbDB)
-	for tx_i, txresponse := range response.TransactionResponses {
+	for tx_i, txresponse := range response.TransactionResponses_V1 {
 		if txresponse.RomError != nil {
 			r.output.addTransactionError(tx_i, txresponse.RomError)
 			log.Errorf("error processing batch %d. tx:%d Error: %v stateroot:%s", i, tx_i, txresponse.RomError, response.NewStateRoot)

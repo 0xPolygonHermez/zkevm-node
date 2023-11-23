@@ -174,12 +174,12 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 			log.Fatalf("failed to get old state root, err: %v", err)
 		}
 		processRequest = &state.ProcessRequest{
-			BatchNumber:          processingCtx.BatchNumber,
-			OldStateRoot:         oldStateRoot,
-			SignificantRoot:      processingCtx.GlobalExitRoot,
-			Coinbase:             processingCtx.Coinbase,
-			SignificantTimestamp: uint64(timestamp.Unix()),
-			Caller:               stateMetrics.SequencerCallerLabel,
+			BatchNumber:       processingCtx.BatchNumber,
+			OldStateRoot:      oldStateRoot,
+			GlobalExitRoot_V1: processingCtx.GlobalExitRoot,
+			Coinbase:          processingCtx.Coinbase,
+			Timestamp_V1:      timestamp,
+			Caller:            stateMetrics.SequencerCallerLabel,
 		}
 		currBatch = &WipBatch{
 			globalExitRoot:     processingCtx.GlobalExitRoot,

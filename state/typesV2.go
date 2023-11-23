@@ -1,33 +1,10 @@
 package state
 
 import (
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
-
-// ProcessBatchResponseV2 represents the response of a batch process for forkID >= ETROG
-type ProcessBatchResponseV2 struct {
-	NewStateRoot         common.Hash
-	NewAccInputHash      common.Hash
-	NewLocalExitRoot     common.Hash
-	NewBatchNumber       uint64
-	UsedZkCounters       ZKCounters
-	BlockResponses       []*ProcessBlockResponseV2
-	ExecutorError        error
-	ReadWriteAddresses   map[common.Address]*InfoReadWrite
-	IsRomLevelError      bool
-	IsExecutorLevelError bool
-	IsRomOOCError        bool
-	FlushID              uint64
-	StoredFlushID        uint64
-	ProverID             string
-	GasUsed              uint64
-	SMTKeys              []merkletree.Key
-	ProgramKeys          []merkletree.Key
-	ForkID               uint64
-}
 
 // ProcessBlockResponseV2 represents the response of a block process for forkID >= ETROG
 type ProcessBlockResponseV2 struct {

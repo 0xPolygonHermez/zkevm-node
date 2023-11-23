@@ -177,9 +177,9 @@ func (s *State) ProcessBatch(ctx context.Context, request ProcessRequest, update
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
-		GlobalExitRoot:   request.SignificantRoot.Bytes(),
+		GlobalExitRoot:   request.GlobalExitRoot_V1.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
-		EthTimestamp:     request.SignificantTimestamp,
+		EthTimestamp:     uint64(request.Timestamp_V1.Unix()),
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
@@ -452,9 +452,9 @@ func (s *State) ProcessAndStoreClosedBatch(ctx context.Context, processingCtx Pr
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 
-	if len(processedBatch.TransactionResponses) > 0 {
+	if len(processedBatch.TransactionResponses_V1) > 0 {
 		// Store processed txs into the batch
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.TransactionResponses, nil, dbTx)
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.TransactionResponses_V1, nil, dbTx)
 		if err != nil {
 			return common.Hash{}, noFlushID, noProverID, err
 		}

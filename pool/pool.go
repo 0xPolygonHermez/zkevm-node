@@ -303,16 +303,16 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		} else {
 			response.isOOC = isOOC
 			response.isOOG = isOOG
-			if processBatchResponse.TransactionResponses != nil && len(processBatchResponse.TransactionResponses) > 0 {
+			if processBatchResponse.TransactionResponses_V1 != nil && len(processBatchResponse.TransactionResponses_V1) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
-				response.txResponse = processBatchResponse.TransactionResponses[0]
+				response.txResponse = processBatchResponse.TransactionResponses_V1[0]
 			}
 			return response, nil
 		}
 	}
 
-	if processBatchResponse.TransactionResponses != nil && len(processBatchResponse.TransactionResponses) > 0 {
-		errorToCheck := processBatchResponse.TransactionResponses[0].RomError
+	if processBatchResponse.TransactionResponses_V1 != nil && len(processBatchResponse.TransactionResponses_V1) > 0 {
+		errorToCheck := processBatchResponse.TransactionResponses_V1[0].RomError
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
 		if errorToCheck != nil {
 			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
@@ -326,7 +326,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		}
 
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
-		response.txResponse = processBatchResponse.TransactionResponses[0]
+		response.txResponse = processBatchResponse.TransactionResponses_V1[0]
 	}
 
 	return response, nil

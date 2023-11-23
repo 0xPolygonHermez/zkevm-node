@@ -19,11 +19,11 @@ import (
 )
 
 // TestConvertToProcessBatchResponseV2 for test purposes
-func (s *State) TestConvertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponseV2, error) {
+func (s *State) TestConvertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
 	return s.convertToProcessBatchResponseV2(response)
 }
 
-func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponseV2, error) {
+func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
 	responses, isRomLevelError, isRomOOCError, err := s.convertToProcessBlockResponseV2(response.BlockResponses)
 	if err != nil {
 		return nil, err
@@ -34,13 +34,13 @@ func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchR
 		return nil, err
 	}
 
-	return &ProcessBatchResponseV2{
+	return &ProcessBatchResponse{
 		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
 		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
 		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
 		NewBatchNumber:       response.NewBatchNum,
 		UsedZkCounters:       convertToCountersV2(response),
-		BlockResponses:       responses,
+		BlockResponses_V2:    responses,
 		ExecutorError:        executor.ExecutorErr(response.Error),
 		ReadWriteAddresses:   readWriteAddresses,
 		FlushID:              response.FlushId,
@@ -49,9 +49,9 @@ func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchR
 		IsExecutorLevelError: (response.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
-		GasUsed:              response.GasUsed,
-		SMTKeys:              convertToKeys(response.SmtKeys),
-		ProgramKeys:          convertToKeys(response.ProgramKeys),
+		GasUsed_V2:           response.GasUsed,
+		SMTKeys_V2:           convertToKeys(response.SmtKeys),
+		ProgramKeys_V2:       convertToKeys(response.ProgramKeys),
 		ForkID:               response.ForkId,
 	}, nil
 }
