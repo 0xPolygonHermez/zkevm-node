@@ -1,31 +1,24 @@
-package l1infotree
+package l1infotree_test
 
 import (
 	"encoding/json"
 	"os"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
+	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/stretchr/testify/require"
 )
-
-// L1InfoTree holds the test vector for the merkle tree
-type VectorL1InfoTree struct {
-	PreviousLeafValues []common.Hash `json:"previousLeafValues"`
-	CurrentRoot        common.Hash   `json:"currentRoot"`
-	NewLeafValue       common.Hash   `json:"newLeafValue"`
-	NewRoot            common.Hash   `json:"newRoot"`
-}
 
 func TestComputeTreeRoot(t *testing.T) {
 	data, err := os.ReadFile("../test/vectors/src/merkle-tree/l1-info-tree/root-vectors.json")
 	require.NoError(t, err)
-	var mtTestVectors []VectorL1InfoTree
+	var mtTestVectors []vectors.L1InfoTree
 	err = json.Unmarshal(data, &mtTestVectors)
 	require.NoError(t, err)
 	for _, testVector := range mtTestVectors {
 		input := testVector.PreviousLeafValues
-		mt := NewL1InfoTree(uint8(32))
+		mt := l1infotree.NewL1InfoTree(uint8(32))
 		require.NoError(t, err)
 
 		var leaves [][32]byte
