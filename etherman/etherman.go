@@ -477,7 +477,7 @@ func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Lo
 	gExitRoot.BlockNumber = vLog.BlockNumber
 	gExitRoot.GlobalExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
 	var block *Block
-	if isLastBlock(blocks, vLog.BlockHash, vLog.BlockNumber) {
+	if isheadBlockInArray(blocks, vLog.BlockHash, vLog.BlockNumber) {
 		// If it's the last block, I just get the pointer
 		block = &(*blocks)[len(*blocks)-1]
 	} else {
@@ -510,10 +510,11 @@ func (etherMan *Client) retrieveFullBlockForEvent(ctx context.Context, vLog type
 	return &block, nil
 }
 
-func isLastBlock(blocks *[]Block, blockHash common.Hash, blockNumber uint64) bool {
+// Check if head block in blocks array is the same as blockHash / blockNumber
+func isheadBlockInArray(blocks *[]Block, blockHash common.Hash, blockNumber uint64) bool {
 	// Check last item on array blocks if match Hash and Number
-	isNot := len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != blockHash || (*blocks)[len(*blocks)-1].BlockNumber != blockNumber)
-	return !isNot
+	headBlockIsNotExpected := len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != blockHash || (*blocks)[len(*blocks)-1].BlockNumber != blockNumber)
+	return !headBlockIsNotExpected
 }
 
 func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
