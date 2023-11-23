@@ -40,7 +40,8 @@ func (p *PostgresStorage) GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.
 	var entries []state.L1InfoTreeExitRootStorageEntry
 	for rows.Next() {
 		var entry state.L1InfoTreeExitRootStorageEntry
-		err := rows.Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot, &entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
+		err := rows.Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
+			&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
 		if err != nil {
 			return nil, err
 		}

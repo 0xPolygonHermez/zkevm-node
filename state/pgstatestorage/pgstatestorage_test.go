@@ -1088,17 +1088,19 @@ func TestAddL1InfoRootToExitRootIncreaseLeafIndex(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = testState.AddBlock(ctx, block, dbTx)
+	block1 := *block
+	block1.BlockNumber = 2000
+	err = testState.AddBlock(ctx, &block1, dbTx)
 	assert.NoError(t, err)
 	block2 := *block
-	block2.BlockNumber = 2
+	block2.BlockNumber = 2001
 	err = testState.AddBlock(ctx, &block2, dbTx)
 	assert.NoError(t, err)
 
-	Leafindex, err := testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(1), dbTx)
+	Leafindex, err := testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber), dbTx)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), Leafindex, "first leave must be 1")
-	Leafindex, err = testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(2), dbTx)
+	Leafindex, err = testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber), dbTx)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), Leafindex)
 	dbTx.Rollback(ctx)
@@ -1109,21 +1111,24 @@ func TestGetAllL1InfoRootEntries(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	err = testState.AddBlock(ctx, block, dbTx)
+	block1 := *block
+	block1.BlockNumber = 2002
+	err = testState.AddBlock(ctx, &block1, dbTx)
 	assert.NoError(t, err)
 	block2 := *block
-	block2.BlockNumber = 2
+	block2.BlockNumber = 2003
 	err = testState.AddBlock(ctx, &block2, dbTx)
 	assert.NoError(t, err)
 	globalExitRoot := state.GlobalExitRoot{
-		BlockNumber:     1,
+		BlockNumber:     block1.BlockNumber,
 		MainnetExitRoot: common.HexToHash("0x00"),
 		RollupExitRoot:  common.HexToHash("0x01"),
 		GlobalExitRoot:  common.HexToHash("0x02"),
 	}
 	testState.AddGlobalExitRoot(ctx, &globalExitRoot, dbTx)
-	l1InfoTreeEntry1 := createL1InfoTreeExitRootStorageEntryForTest(1)
-	l1InfoTreeEntry2 := createL1InfoTreeExitRootStorageEntryForTest(2)
+	assert.NoError(t, err)
+	l1InfoTreeEntry1 := createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber)
+	l1InfoTreeEntry2 := createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber)
 
 	_, err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry1, dbTx)
 	require.NoError(t, err)
