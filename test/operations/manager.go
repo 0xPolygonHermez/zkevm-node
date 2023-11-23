@@ -51,10 +51,11 @@ const (
 	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
 	DefaultL1ChainID             uint64 = 1337
 
-	DefaultL2NetworkURL                 = "http://localhost:8123"
-	PermissionlessL2NetworkURL          = "http://localhost:8125"
-	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
-	DefaultL2ChainID             uint64 = 1001
+	DefaultL2NetworkURL                        = "http://localhost:8123"
+	PermissionlessL2NetworkURL                 = "http://localhost:8125"
+	DefaultL2NetworkWebSocketURL               = "ws://localhost:8133"
+	PermissionlessL2NetworkWebSocketURL        = "ws://localhost:8135"
+	DefaultL2ChainID                    uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 
@@ -67,8 +68,9 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 
-	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
-	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
+	zkProverURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1")
+	executorURI      = fmt.Sprintf("%s:50071", zkProverURI)
+	merkleTreeURI    = fmt.Sprintf("%s:50061", zkProverURI)
 	executorConfig   = executor.Config{URI: executorURI, MaxGRPCMessageSize: 100000000}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )

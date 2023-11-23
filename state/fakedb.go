@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -14,6 +15,7 @@ import (
 type FakeDB struct {
 	State     *State
 	stateRoot []byte
+	refund    uint64
 }
 
 // SetStateRoot is the stateRoot setter.
@@ -104,19 +106,21 @@ func (f *FakeDB) GetCodeSize(address common.Address) int {
 }
 
 // AddRefund not implemented
-func (f *FakeDB) AddRefund(uint64) {
-	log.Error("FakeDB: AddRefund method not implemented")
+func (f *FakeDB) AddRefund(gas uint64) {
+	f.refund += gas
 }
 
 // SubRefund not implemented
-func (f *FakeDB) SubRefund(uint64) {
-	log.Error("FakeDB: SubRefund method not implemented")
+func (f *FakeDB) SubRefund(gas uint64) {
+	if gas > f.refund {
+		log.Errorf(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, f.refund))
+	}
+	f.refund -= gas
 }
 
 // GetRefund not implemented
 func (f *FakeDB) GetRefund() uint64 {
-	log.Error("FakeDB: GetRefund method not implemented")
-	return 0
+	return f.refund
 }
 
 // GetCommittedState not implemented
