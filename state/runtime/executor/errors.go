@@ -85,6 +85,11 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrUnsupportedForkId
 	case RomError_ROM_ERROR_INVALID_RLP:
 		return runtime.ErrInvalidRLP
+	// Start of V2 errors
+	case RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK:
+		return runtime.ErrInvalidDecodeChangeL2Block
+	case RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK:
+		return runtime.ErrInvalidNotFirstTxChangeL2Block
 	}
 	return ErrROMUnknown
 }
@@ -150,6 +155,11 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_UNSUPPORTED_FORK_ID
 	case runtime.ErrInvalidRLP:
 		return RomError_ROM_ERROR_INVALID_RLP
+	// Start of V2 errors
+	case runtime.ErrInvalidDecodeChangeL2Block:
+		return RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK
+	case runtime.ErrInvalidNotFirstTxChangeL2Block:
+		return RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK
 	}
 	return ErrCodeROMUnknown
 }
@@ -354,6 +364,51 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidContractsBytecodeValue
 	case ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY:
 		return runtime.ErrExecutorErrorInvalidGetKey
+		// Start of V2 errors
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256:
+		return runtime.ErrExecutorSMMainCountersOverflowSha256
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS:
+		return runtime.ErrExecutorSMMainHashS
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSSizeOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE:
+		return runtime.ErrExecutorSMMainHashSPositionNegative
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSPositionPlusSizeOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND:
+		return runtime.ErrExecutorSMMainHashSDigestAddressNotFound
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED:
+		return runtime.ErrExecutorSMMainHashSDigestNotCompleted
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSValueMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSPaddingMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSSizeMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSLenLengthMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE:
+		return runtime.ErrExecutorSMMainHashSLenCalledTwice
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND:
+		return runtime.ErrExecutorSMMainHashSDigestNotFound
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSDigestDigestMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE:
+		return runtime.ErrExecutorSMMainHashSDigestCalledTwice
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSReadOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_ROOT:
+		return runtime.ErrExecutorErrorInvalidL1InfoRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1:
+		return runtime.ErrExecutorErrorInvalidForcedBlockhashL1
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT:
+		return runtime.ErrExecutorErrorInvalidL1DataV2GlobalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1:
+		return runtime.ErrExecutorErrorInvalidL1DataV2BlockHashL1
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_SMT_PROOF:
+		return runtime.ErrExecutorErrorInvalidL1SmtProof
+	case ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE:
+		return runtime.ErrExecutorErrorInvalidBalance
 	}
 	return ErrExecutorUnknown
 }
@@ -521,6 +576,7 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE
 	case runtime.ErrExecutorErrorInvalidGetKey:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
+		// Start of V2 errors
 	}
 	return ErrCodeExecutorUnknown
 }

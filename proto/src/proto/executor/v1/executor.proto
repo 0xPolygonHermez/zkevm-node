@@ -111,9 +111,9 @@ message OverrideAccount {
     // Fake EVM bytecode to inject into the account before executing the call.
     bytes code = 3;
     // Fake key-value mapping to override all slots in the account storage before executing the call.
-    map<string, bytes> state = 4;
+    map<string, string> state = 4;
     // Fake key-value mapping to override individual slots in the account storage before executing the call.
-    map<string, bytes> state_diff = 5;
+    map<string, string> state_diff = 5;
 }
 
 message InfoReadWrite {
@@ -350,9 +350,9 @@ message OverrideAccountV2 {
     // Fake EVM bytecode to inject into the account before executing the call.
     bytes code = 3;
     // Fake key-value mapping to override all slots in the account storage before executing the call.
-    map<string, bytes> state = 4;
+    map<string, string> state = 4;
     // Fake key-value mapping to override individual slots in the account storage before executing the call.
-    map<string, bytes> state_diff = 5;
+    map<string, string> state_diff = 5;
 }
 
 message InfoReadWriteV2 {

@@ -70,6 +70,13 @@ var (
 	// ErrInvalidRLP indicates that there has been an error while parsing the RLP
 	ErrInvalidRLP = errors.New("invalid RLP")
 
+	// Start of V2 errors
+
+	// ErrInvalidDecodeChangeL2Block indicates that there has been an error while decoding a change l2 block transaction
+	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
+	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
+	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
+
 	// EXECUTOR ERRORS
 	// ===============
 
@@ -231,6 +238,53 @@ var (
 	ErrExecutorErrorInvalidContractsBytecodeValue = errors.New("contracts_bytecode value is invalid")
 	// ErrExecutorErrorInvalidGetKey indicates that the input parameter key value is invalid
 	ErrExecutorErrorInvalidGetKey = errors.New("key is invalid")
+
+	// Start of V2 errors
+
+	// ErrExecutorSMMainCountersOverflowSha256 indicates that the sha256 counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowSha256 = errors.New("sha256 counter exceeded the maximum")
+	// ErrExecutorSMMainHashS indicates that a register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashS = errors.New("register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSSizeOutOfRange indicates that a size register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashSSizeOutOfRange = errors.New("size register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSPositionNegative indicates that a position register value is negative while calculating a Sha256 hash
+	ErrExecutorSMMainHashSPositionNegative = errors.New("position register value is negative while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSPositionPlusSizeOutOfRange indicates that a position register value plus a size register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashSPositionPlusSizeOutOfRange = errors.New("position register value plus a size register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSDigestAddressNotFound indicates that an address has not been found while calculating a Sha256 hash digest
+	ErrExecutorSMMainHashSDigestAddressNotFound = errors.New("address has not been found while calculating a Sha256 hash digest")
+	// ErrExecutorSMMainHashSDigestNotCompleted indicates that the hash has not been completed while calling a Sha256 hash digest
+	ErrExecutorSMMainHashSDigestNotCompleted = errors.New("hash has not been completed while calling a Sha256 hash digest")
+	// ErrExecutorSMMainHashSValueMismatch indicates that the Sha256 hash instruction value check failed
+	ErrExecutorSMMainHashSValueMismatch = errors.New("sha256 hash instruction value check failed")
+	// ErrExecutorSMMainHashSPaddingMismatch indicates that the Sha256 hash instruction padding check failed
+	ErrExecutorSMMainHashSPaddingMismatch = errors.New("sha256 hash instruction padding check failed")
+	// ErrExecutorSMMainHashSSizeMismatch indicates that the Sha256 hash instruction size check failed
+	ErrExecutorSMMainHashSSizeMismatch = errors.New("sha256 hash instruction size check failed")
+	// ErrExecutorSMMainHashSLenLengthMismatch indicates that the Sha256 hash length instruction length check failed
+	ErrExecutorSMMainHashSLenLengthMismatch = errors.New("sha256 hash length instruction length check failed")
+	// ErrExecutorSMMainHashSLenCalledTwice indicates that the Sha256 hash length instruction called once check failed
+	ErrExecutorSMMainHashSLenCalledTwice = errors.New("sha256 hash length instruction called once check failed")
+	// ErrExecutorSMMainHashSDigestNotFound indicates that the Sha256 hash digest instruction slot not found
+	ErrExecutorSMMainHashSDigestNotFound = errors.New("sha256 hash digest instruction slot not found")
+	// ErrExecutorSMMainHashSDigestDigestMismatch indicates that the Sha256 hash digest instruction digest check failed
+	ErrExecutorSMMainHashSDigestDigestMismatch = errors.New("sha256 hash digest instruction digest check failed")
+	// ErrExecutorSMMainHashSDigestCalledTwice indicates that the Sha256 hash digest instruction called once check failed
+	ErrExecutorSMMainHashSDigestCalledTwice = errors.New("sha256 hash digest instruction called once check failed")
+	// ErrExecutorSMMainHashSReadOutOfRange indicates that the main execution Sha256 check found read out of range
+	ErrExecutorSMMainHashSReadOutOfRange = errors.New("main execution Sha256 check found read out of range")
+	// ErrExecutorErrorInvalidL1InfoRoot indicates that the input parameter l1_info_root is invalid
+	ErrExecutorErrorInvalidL1InfoRoot = errors.New("l1_info_root is invalid")
+	// ErrExecutorErrorInvalidForcedBlockhashL1 indicates that the input parameter forced_blockhash_l1 is invalid
+	ErrExecutorErrorInvalidForcedBlockhashL1 = errors.New("forced_blockhash_l1 is invalid")
+	// ErrExecutorErrorInvalidL1DataV2GlobalExitRoot indicates that the input parameter l1_data_v2.global_exit_root is invalid
+	ErrExecutorErrorInvalidL1DataV2GlobalExitRoot = errors.New("l1_data_v2.global_exit_root is invalid")
+	// ErrExecutorErrorInvalidL1DataV2BlockHashL1 indicates that the input parameter l1_data_v2.block_hash_l1 is invalid
+	ErrExecutorErrorInvalidL1DataV2BlockHashL1 = errors.New("l1_data_v2.block_hash_l1 is invalid")
+	// ErrExecutorErrorInvalidL1SmtProof indicates that the input parameter l1_smt_proof is invalid
+	ErrExecutorErrorInvalidL1SmtProof = errors.New("l1_smt_proof is invalid")
+	// ErrExecutorErrorInvalidBalance indicates that the input parameter balance is invalid
+	ErrExecutorErrorInvalidBalance = errors.New("balance is invalid")
 
 	// GRPC ERRORS
 	// ===========
