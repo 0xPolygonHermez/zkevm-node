@@ -457,12 +457,12 @@ stop-permissionless-dependencies:  ## Stop the permissionless dependencies (db +
 	$(STOPPERMISSIONLESSZKPROVER)
 	$(STOPPERMISSIONLESSDB)
 
-.PHONY: run-approve-matic
-run-approve-matic: ## Runs approve in node container
+.PHONY: run-approve-pol
+run-approve-pol: ## Runs approve in node container
 	$(RUNAPPROVE)
 
-.PHONY: stop-approve-matic
-stop-approve-matic: ## Stops approve in node container
+.PHONY: stop-approve-pol
+stop-approve-pol: ## Stops approve in node container
 	$(STOPAPPROVE)
 
 .PHONY: run
