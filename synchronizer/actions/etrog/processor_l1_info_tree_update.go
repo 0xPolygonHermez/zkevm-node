@@ -25,7 +25,7 @@ type ProcessorL1InfoTreeUpdate struct {
 func NewProcessorL1InfoTreeUpdate(state stateProcessorL1InfoTreeInterface) *ProcessorL1InfoTreeUpdate {
 	return &ProcessorL1InfoTreeUpdate{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1InfoTreeUpdate]{
-			SupportedEvent:    etherman.L1InfoTreeOrder,
+			SupportedEvent:    []etherman.EventOrder{etherman.L1InfoTreeOrder},
 			SupportedForkdIds: &ForksIdOnlyEtrog},
 		state: state}
 }
