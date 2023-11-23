@@ -27,6 +27,7 @@ type GlobalExitRoot struct {
 	MainnetExitRoot common.Hash
 	RollupExitRoot  common.Hash
 	GlobalExitRoot  common.Hash
+	Timestamp       time.Time
 }
 
 // SequencedBatch represents virtual batch
