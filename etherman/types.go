@@ -34,6 +34,7 @@ type GlobalExitRoot struct {
 type L1InfoTree struct {
 	GlobalExitRoot
 	PreviousBlockHash common.Hash
+	MinTimestamp      time.Time
 }
 
 // SequencedBatch represents virtual batch

@@ -38,6 +38,7 @@ func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, order etherman.
 		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
 		RollupExitRoot:  globalExitRoot.RollupExitRoot,
 		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
+		Timestamp:       l1Block.ReceivedAt,
 	}
 	err := p.state.AddGlobalExitRoot(ctx, &ger, dbTx)
 	if err != nil {

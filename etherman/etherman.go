@@ -489,6 +489,7 @@ func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Lo
 		*blocks = append(*blocks, *block)
 	}
 	gExitRoot.PreviousBlockHash = block.ParentHash
+	gExitRoot.MinTimestamp = block.ReceivedAt
 	// Add the event to the block
 	block.L1InfoTree = append(block.L1InfoTree, gExitRoot)
 	order := Order{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
@@ -50,6 +51,7 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 			GlobalExitRoot:  common.HexToHash("abc"),
 		},
 		PreviousBlockHash: common.HexToHash("abc"),
+		MinTimestamp:      time.Now(),
 	}
 	l1Block := &etherman.Block{
 		BlockNumber: 123,

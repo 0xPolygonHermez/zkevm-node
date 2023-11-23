@@ -38,6 +38,7 @@ func (p *ProcessorL1InfoTreeUpdate) Process(ctx context.Context, order etherman.
 		MainnetExitRoot: l1InfoTree.MainnetExitRoot,
 		RollupExitRoot:  l1InfoTree.RollupExitRoot,
 		GlobalExitRoot:  l1InfoTree.GlobalExitRoot.GlobalExitRoot,
+		Timestamp:       l1InfoTree.MinTimestamp,
 	}
 	l1IntoTreeLeaf := state.L1InfoTreeLeaf{
 		GlobalExitRoot:    ger,
