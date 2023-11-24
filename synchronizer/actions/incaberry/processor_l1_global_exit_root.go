@@ -6,6 +6,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -16,15 +17,17 @@ type stateProcessorL1GlobalExitRootInterface interface {
 
 // ProcessorL1GlobalExitRoot implements L1EventProcessor for GlobalExitRootsOrder
 type ProcessorL1GlobalExitRoot struct {
-	ProcessorBase[ProcessorL1GlobalExitRoot]
+	actions.ProcessorBase[ProcessorL1GlobalExitRoot]
 	state stateProcessorL1GlobalExitRootInterface
 }
 
 // NewProcessorL1GlobalExitRoot new processor for GlobalExitRootsOrder
 func NewProcessorL1GlobalExitRoot(state stateProcessorL1GlobalExitRootInterface) *ProcessorL1GlobalExitRoot {
 	return &ProcessorL1GlobalExitRoot{
-		ProcessorBase: ProcessorBase[ProcessorL1GlobalExitRoot]{supportedEvent: etherman.GlobalExitRootsOrder},
-		state:         state}
+		ProcessorBase: actions.ProcessorBase[ProcessorL1GlobalExitRoot]{
+			SupportedEvent:    []etherman.EventOrder{etherman.GlobalExitRootsOrder},
+			SupportedForkdIds: &actions.ForksIdToIncaberry},
+		state: state}
 }
 
 // Process process event
@@ -35,6 +38,7 @@ func (p *ProcessorL1GlobalExitRoot) Process(ctx context.Context, order etherman.
 		MainnetExitRoot: globalExitRoot.MainnetExitRoot,
 		RollupExitRoot:  globalExitRoot.RollupExitRoot,
 		GlobalExitRoot:  globalExitRoot.GlobalExitRoot,
+		Timestamp:       l1Block.ReceivedAt,
 	}
 	err := p.state.AddGlobalExitRoot(ctx, &ger, dbTx)
 	if err != nil {

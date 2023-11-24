@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// ExecutorTrace contents executor traces.
-type ExecutorTrace struct {
+// FullTrace contents executor call trace steps.
+type FullTrace struct {
 	Context Context `json:"context"`
 	Steps   []Step  `json:"steps"`
 }
@@ -30,21 +30,22 @@ type Context struct {
 
 // Step is a trace step.
 type Step struct {
-	StateRoot    common.Hash `json:"stateRoot"`
-	Depth        int         `json:"depth"`
-	Pc           uint64      `json:"pc"`
-	Gas          uint64      `json:"gas"`
-	OpCode       string      `json:"opcode"`
-	Refund       string      `json:"refund"`
-	Op           uint64      `json:"op"`
-	Error        error       `json:"error"`
-	Contract     Contract    `json:"contract"`
-	GasCost      uint64      `json:"gasCost"`
-	Stack        []*big.Int  `json:"stack"`
-	Memory       []byte      `json:"memory"`
-	MemorySize   uint32      `json:"memorySize"`
-	MemoryOffset uint32      `json:"memoryOffset"`
-	ReturnData   []byte      `json:"returnData"`
+	StateRoot    common.Hash                 `json:"stateRoot"`
+	Depth        int                         `json:"depth"`
+	Pc           uint64                      `json:"pc"`
+	Gas          uint64                      `json:"gas"`
+	OpCode       string                      `json:"opcode"`
+	Refund       uint64                      `json:"refund"`
+	Op           uint64                      `json:"op"`
+	Error        error                       `json:"error"`
+	Contract     Contract                    `json:"contract"`
+	GasCost      uint64                      `json:"gasCost"`
+	Stack        []*big.Int                  `json:"stack"`
+	Memory       []byte                      `json:"memory"`
+	MemorySize   uint32                      `json:"memorySize"`
+	MemoryOffset uint32                      `json:"memoryOffset"`
+	ReturnData   []byte                      `json:"returnData"`
+	Storage      map[common.Hash]common.Hash `json:"storage"`
 }
 
 // Contract represents a contract in the trace.

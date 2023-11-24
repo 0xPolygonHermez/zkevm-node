@@ -13,6 +13,7 @@ type Block struct {
 	BlockHash             common.Hash
 	ParentHash            common.Hash
 	GlobalExitRoots       []GlobalExitRoot
+	L1InfoTree            []L1InfoTree
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
@@ -27,6 +28,14 @@ type GlobalExitRoot struct {
 	MainnetExitRoot common.Hash
 	RollupExitRoot  common.Hash
 	GlobalExitRoot  common.Hash
+	Timestamp       time.Time
+}
+
+// L1InfoTree struct (etrog)
+type L1InfoTree struct {
+	GlobalExitRoot
+	PreviousBlockHash common.Hash
+	MinTimestamp      time.Time
 }
 
 // SequencedBatch represents virtual batch
@@ -36,7 +45,7 @@ type SequencedBatch struct {
 	TxHash        common.Hash
 	Nonce         uint64
 	Coinbase      common.Address
-	polygonzkevm.PolygonZkEVMBatchData
+	polygonzkevm.PolygonRollupBaseBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -65,7 +74,7 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	polygonzkevm.PolygonZkEVMForcedBatchData
+	polygonzkevm.PolygonRollupBaseForcedBatchData
 }
 
 // ForkID is a sturct to track the ForkID event.

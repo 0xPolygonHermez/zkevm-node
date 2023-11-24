@@ -6,6 +6,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -15,15 +16,17 @@ type stateProcessL1ForcedBatchesInterface interface {
 
 // ProcessL1ForcedBatches implements L1EventProcessor
 type ProcessL1ForcedBatches struct {
-	ProcessorBase[ProcessL1ForcedBatches]
+	actions.ProcessorBase[ProcessL1ForcedBatches]
 	state stateProcessL1ForcedBatchesInterface
 }
 
 // NewProcessL1ForcedBatches returns instance of a processor for ForcedBatchesOrder
 func NewProcessL1ForcedBatches(state stateProcessL1ForcedBatchesInterface) *ProcessL1ForcedBatches {
 	return &ProcessL1ForcedBatches{
-		ProcessorBase: ProcessorBase[ProcessL1ForcedBatches]{supportedEvent: etherman.ForcedBatchesOrder},
-		state:         state}
+		ProcessorBase: actions.ProcessorBase[ProcessL1ForcedBatches]{
+			SupportedEvent:    []etherman.EventOrder{etherman.ForcedBatchesOrder},
+			SupportedForkdIds: &actions.ForksIdToIncaberry},
+		state: state}
 }
 
 // Process process event

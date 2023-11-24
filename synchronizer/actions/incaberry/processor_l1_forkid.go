@@ -26,7 +26,7 @@ type syncProcessorForkIdInterface interface {
 
 // ProcessorForkId implements L1EventProcessor
 type ProcessorForkId struct {
-	ProcessorBase[ProcessorForkId]
+	actions.ProcessorBase[ProcessorForkId]
 	state stateProcessorForkIdInterface
 	sync  syncProcessorForkIdInterface
 }
@@ -34,10 +34,9 @@ type ProcessorForkId struct {
 // NewProcessorForkId returns instance of a processor for ForkIDsOrder
 func NewProcessorForkId(state stateProcessorForkIdInterface, sync syncProcessorForkIdInterface) *ProcessorForkId {
 	return &ProcessorForkId{
-		ProcessorBase: ProcessorBase[ProcessorForkId]{
-			supportedEvent: etherman.ForkIDsOrder,
-			// It support all forkIds!
-			supportedForkdIds: &[]actions.ForkIdType{actions.WildcardForkId},
+		ProcessorBase: actions.ProcessorBase[ProcessorForkId]{
+			SupportedEvent:    []etherman.EventOrder{etherman.ForkIDsOrder},
+			SupportedForkdIds: &actions.ForksIdAll,
 		},
 		state: state,
 		sync:  sync}
