@@ -1,4 +1,4 @@
-package l1infotree
+package l1infotree_test
 
 import (
 	"encoding/hex"
@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/test/vectors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestComputeTreeRoot(t *testing.T) {
 	require.NoError(t, err)
 	for _, testVector := range mtTestVectors {
 		input := testVector.PreviousLeafValues
-		mt := NewL1InfoTree(uint8(32))
+		mt := l1infotree.NewL1InfoTree(uint8(32))
 		require.NoError(t, err)
 
 		var leaves [][32]byte
@@ -41,7 +42,7 @@ func TestComputeTreeRoot(t *testing.T) {
 }
 
 func TestComputeSiblings(t *testing.T) {
-	mt := NewL1InfoTree(uint8(32))
+	mt := l1infotree.NewL1InfoTree(uint8(32))
 	leaves := [][32]byte{
 		common.HexToHash("0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d"),
 		common.HexToHash("0x83fc198de31e1b2b1a8212d2430fbb7766c13d9ad305637dea3759065606475d"),

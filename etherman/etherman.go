@@ -117,6 +117,8 @@ type EventOrder string
 const (
 	// GlobalExitRootsOrder identifies a GlobalExitRoot event
 	GlobalExitRootsOrder EventOrder = "GlobalExitRoots"
+	// L1InfoTreeOrder identifies a L1InTree event
+	L1InfoTreeOrder EventOrder = "L1InfoTreeOrder"
 	// SequenceBatchesOrder identifies a VerifyBatch event
 	SequenceBatchesOrder EventOrder = "SequenceBatches"
 	// ForcedBatchesOrder identifies a ForcedBatches event
@@ -646,6 +648,58 @@ func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks
 	return nil
 }
 
+func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("updateL1InfoTree event detected")
+	var err error
+	//TODO: Check that this way os unpacking parameters are right
+	MainnetExitRoot := vLog.Topics[1]
+	RollupExitRoot := vLog.Topics[2]
+
+	var gExitRoot L1InfoTree
+	gExitRoot.MainnetExitRoot = MainnetExitRoot
+	gExitRoot.RollupExitRoot = RollupExitRoot
+	gExitRoot.BlockNumber = vLog.BlockNumber
+	gExitRoot.GlobalExitRoot.GlobalExitRoot = hash(MainnetExitRoot, RollupExitRoot)
+	var block *Block
+	if !isheadBlockInArray(blocks, vLog.BlockHash, vLog.BlockNumber) {
+		// Need to add the block, doesnt mind if inside the blocks because I have to respect the order so insert at end
+		block, err = etherMan.retrieveFullBlockForEvent(ctx, vLog)
+		if err != nil {
+			return err
+		}
+		*blocks = append(*blocks, *block)
+	}
+	// Get the block in the HEAD of the array that contain the current block
+	block = &(*blocks)[len(*blocks)-1]
+	gExitRoot.PreviousBlockHash = block.ParentHash
+	gExitRoot.MinTimestamp = block.ReceivedAt
+	// Add the event to the block
+	block.L1InfoTree = append(block.L1InfoTree, gExitRoot)
+	order := Order{
+		Name: L1InfoTreeOrder,
+		Pos:  len(block.L1InfoTree) - 1,
+	}
+	(*blocksOrder)[block.BlockHash] = append((*blocksOrder)[block.BlockHash], order)
+	return nil
+}
+
+func (etherMan *Client) retrieveFullBlockForEvent(ctx context.Context, vLog types.Log) (*Block, error) {
+	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
+	if err != nil {
+		return nil, fmt.Errorf("error getting hashParent. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+	}
+	t := time.Unix(int64(fullBlock.Time()), 0)
+	block := prepareBlock(vLog, t, fullBlock)
+	return &block, nil
+}
+
+// Check if head block in blocks array is the same as blockHash / blockNumber
+func isheadBlockInArray(blocks *[]Block, blockHash common.Hash, blockNumber uint64) bool {
+	// Check last item on array blocks if match Hash and Number
+	headBlockIsNotExpected := len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != blockHash || (*blocks)[len(*blocks)-1].BlockNumber != blockNumber)
+	return !headBlockIsNotExpected
+}
+
 func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("UpdateGlobalExitRoot event detected")
 	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
@@ -653,11 +707,6 @@ func (etherMan *Client) updateGlobalExitRootEvent(ctx context.Context, vLog type
 		return err
 	}
 	return etherMan.processUpdateGlobalExitRootEvent(ctx, globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot, vLog, blocks, blocksOrder)
-}
-
-func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("UpdateL1InfoTree event detected")
-	return etherMan.processUpdateGlobalExitRootEvent(ctx, vLog.Topics[1], vLog.Topics[2], vLog, blocks, blocksOrder)
 }
 
 func (etherMan *Client) processUpdateGlobalExitRootEvent(ctx context.Context, mainnetExitRoot, rollupExitRoot common.Hash, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {

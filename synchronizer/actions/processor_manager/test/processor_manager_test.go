@@ -1,4 +1,4 @@
-package processor_manager
+package processor_manager_test
 
 import (
 	"context"
@@ -7,32 +7,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
-	"github.com/jackc/pgx/v4"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
 	"github.com/stretchr/testify/require"
 )
-
-type ProcessorStub struct {
-	name             string
-	supportedEvents  []etherman.EventOrder
-	supportedForkIds []actions.ForkIdType
-	responseProcess  error
-}
-
-func (p *ProcessorStub) Name() string {
-	return p.name
-}
-
-func (p *ProcessorStub) SupportedEvents() []etherman.EventOrder {
-	return p.supportedEvents
-}
-
-func (p *ProcessorStub) SupportedForkIds() []actions.ForkIdType {
-	return p.supportedForkIds
-}
-
-func (p *ProcessorStub) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
-	return p.responseProcess
-}
 
 func TestL1EventProcessors_Get(t *testing.T) {
 	// Create a new instance of L1EventProcessors
@@ -60,7 +37,7 @@ func TestL1EventProcessors_Get(t *testing.T) {
 		supportedForkIds: []actions.ForkIdType{actions.WildcardForkId},
 		responseProcess:  nil,
 	}
-	builder := NewL1EventProcessorsBuilder()
+	builder := processor_manager.NewL1EventProcessorsBuilder()
 	builder.Register(&processorConcrete)
 	builder.Register(&processorWildcard)
 	builder.Register(&processorConcreteForkId2)
@@ -92,7 +69,7 @@ func TestL1EventProcessors_Process(t *testing.T) {
 		supportedForkIds: []actions.ForkIdType{forkId1},
 		responseProcess:  errors.New("error2"),
 	}
-	builder := NewL1EventProcessorsBuilder()
+	builder := processor_manager.NewL1EventProcessorsBuilder()
 	builder.Register(&processorConcrete)
 	builder.Register(&processorConcreteEvent2)
 	sut := builder.Build()
@@ -104,5 +81,5 @@ func TestL1EventProcessors_Process(t *testing.T) {
 	require.Equal(t, processorConcreteEvent2.responseProcess, result, "must return concrete processor response")
 
 	result = sut.Process(context.Background(), actions.ForkIdType(2), etherman.Order{Name: event1, Pos: 0}, nil, nil)
-	require.ErrorIs(t, result, ErrCantProcessThisEvent, "must return not found error")
+	require.ErrorIs(t, result, processor_manager.ErrCantProcessThisEvent, "must return not found error")
 }
