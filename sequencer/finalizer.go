@@ -21,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
+	ethereumTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -45,7 +46,6 @@ type finalizer struct {
 	executor                stateInterface
 	wipBatch                *WipBatch
 	batchConstraints        state.BatchConstraintsCfg
-	sharedResourcesMux      *sync.RWMutex
 	reprocessFullBatchError atomic.Bool
 	// closing signals
 	closingSignalCh ClosingSignalCh
@@ -126,14 +126,13 @@ func newFinalizer(
 	streamServer *datastreamer.StreamServer,
 ) *finalizer {
 	f := finalizer{
-		cfg:                cfg,
-		isSynced:           isSynced,
-		sequencerAddress:   sequencerAddr,
-		worker:             worker,
-		dbManager:          dbManager,
-		executor:           executor,
-		batchConstraints:   batchConstraints,
-		sharedResourcesMux: new(sync.RWMutex),
+		cfg:              cfg,
+		isSynced:         isSynced,
+		sequencerAddress: sequencerAddr,
+		worker:           worker,
+		dbManager:        dbManager,
+		executor:         executor,
+		batchConstraints: batchConstraints,
 		// closing signals
 		closingSignalCh: closingSignalCh,
 		// GER
@@ -422,7 +421,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 			firstTxProcess := true
 
-			f.sharedResourcesMux.Lock() //TODO: review if this mutex is needed (it seems that not)
 			for {
 				_, err := f.processTransaction(ctx, tx, firstTxProcess)
 				if err != nil {
@@ -437,7 +435,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				}
 				break
 			}
-			f.sharedResourcesMux.Unlock()
 		} else {
 			// wait for new txs
 			if showNotFoundTxLog {
@@ -456,10 +453,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		}
 
 		if f.isDeadlineEncountered() {
-			log.Infof("closing batch %d because deadline was encountered.", f.wipBatch.batchNumber)
 			f.finalizeBatch(ctx)
 		} else if f.maxTxsPerBatchReached() || f.isBatchResourcesFull() {
-			log.Infof("closing batch %d because it's almost full.", f.wipBatch.batchNumber)
 			f.finalizeBatch(ctx)
 		}
 
@@ -558,15 +553,12 @@ func (f *finalizer) checkIfProverRestarted(proverID string) {
 
 // closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*WipBatch, error) {
-	f.sharedResourcesMux.Lock()
-	defer f.sharedResourcesMux.Unlock()
-
 	// Wait until all processed transactions are saved
 	startWait := time.Now()
 	f.pendingTransactionsToStoreWG.Wait()
 	endWait := time.Now()
 
-	log.Info("waiting for pending transactions to be stored took: ", endWait.Sub(startWait).String())
+	log.Debugf("waiting for pending transactions to be stored took: %s", endWait.Sub(startWait).String())
 
 	var err error
 	if f.wipBatch.stateRoot == state.ZeroHash {
@@ -608,7 +600,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*WipBatch, err
 		updateGer := state.DSUpdateGER{
 			BatchNumber:    f.wipBatch.batchNumber,
 			Timestamp:      f.wipBatch.timestamp.Unix(),
-			GlobalExitRoot: f.currentGERHash, //TODO: better to use f.wipBatch.globalExitRoot
+			GlobalExitRoot: f.wipBatch.globalExitRoot,
 			Coinbase:       f.sequencerAddress,
 			ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(f.wipBatch.batchNumber)),
 			StateRoot:      f.wipBatch.stateRoot,
@@ -664,7 +656,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	if tx != nil {
 		txHash = tx.Hash.String()
 	}
+
 	log := log.WithFields("txHash", txHash, "batchNumber", f.wipBatch.batchNumber)
+
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
@@ -769,6 +763,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}
 
 	if forkID < state.FORKID_ETROG {
+		//TODO: unify log.Infof in this section in only one
 		log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.GlobalExitRoot_V1.String())
 		processBatchResponse, err := f.executor.ProcessBatch(ctx, executorBatchRequest, true)
 		if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
@@ -1290,7 +1285,7 @@ func (f *finalizer) closeWIPBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
 	}
 	for i, tx := range transactions {
-		log.Infof("closeBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.wipBatch.batchNumber, i, tx.Hash().String())
+		log.Infof("closeWIPBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.wipBatch.batchNumber, i, tx.Hash().String())
 	}
 	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
 	receipt := ClosingBatchParameters{
@@ -1323,6 +1318,16 @@ func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, 
 
 // reprocessFullBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+	reprocessError := func(batch *state.Batch, txs []ethereumTypes.Transaction) {
+		f.reprocessFullBatchError.Store(true)
+
+		// Log batch detailed info
+		log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
+		for i, tx := range txs {
+			log.Infof("reprocessFullBatch: BatchNumber: %d, Tx position %d, Tx Hash: %s", batch.BatchNumber, i, tx.Hash())
+		}
+	}
+
 	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
 		log.Errorf("reprocessFullBatch: failed to get batch %d, err: %v", batchNum, err)
@@ -1330,7 +1335,6 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		return nil, ErrGetBatchByNumber
 	}
 
-	log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
 	caller := stateMetrics.DiscardCallerLabel
 	if f.cfg.SequentialReprocessFullBatch {
 		caller = stateMetrics.SequencerCallerLabel
@@ -1351,7 +1355,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
 	if err != nil {
 		log.Errorf("reprocessFullBatch: error decoding BatchL2Data for batch %d. Error: %v", batch.BatchNumber, err)
-		f.reprocessFullBatchError.Store(true)
+		reprocessError(batch, []ethereumTypes.Transaction{})
 		return nil, ErrDecodeBatchL2Data
 	}
 	for i, tx := range txs {
@@ -1364,21 +1368,21 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		result, err = f.executor.ProcessBatch(ctx, executorBatchRequest, false)
 		if err != nil {
 			log.Errorf("reprocessFullBatch: failed to process batch %d. Error: %s", batch.BatchNumber, err)
-			f.reprocessFullBatchError.Store(true)
+			reprocessError(batch, txs)
 			return nil, ErrProcessBatch
 		}
 	} else {
 		result, err = f.executor.ProcessBatchV2(ctx, executorBatchRequest, false)
 		if err != nil {
 			log.Errorf("reprocessFullBatch: failed to process batch %d. Error: %s", batch.BatchNumber, err)
-			f.reprocessFullBatchError.Store(true)
+			reprocessError(batch, txs)
 			return nil, ErrProcessBatch
 		}
 	}
 
 	if result.IsRomOOCError {
 		log.Errorf("reprocessFullBatch: failed to process batch %d because OutOfCounters", batch.BatchNumber)
-		f.reprocessFullBatchError.Store(true)
+		reprocessError(batch, txs)
 
 		payload, err := json.Marshal(executorBatchRequest)
 		if err != nil {
@@ -1404,13 +1408,13 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 
 	if result.NewStateRoot != expectedNewStateRoot {
 		log.Errorf("reprocessFullBatch: new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
-		f.reprocessFullBatchError.Store(true)
+		reprocessError(batch, txs)
 		return nil, ErrStateRootNoMatch
 	}
 
 	if result.ExecutorError != nil {
 		log.Errorf("reprocessFullBatch: executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
-		f.reprocessFullBatchError.Store(true)
+		reprocessError(batch, txs)
 		return nil, ErrExecutorError
 	}
 
@@ -1422,18 +1426,18 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
-		log.Infof("Closing batch: %d, forced batch deadline encountered.", f.wipBatch.batchNumber)
+		log.Infof("closing batch: %d, forced batch deadline encountered.", f.wipBatch.batchNumber)
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
-		log.Infof("Closing batch: %d, Global Exit Root deadline encountered.", f.wipBatch.batchNumber)
+		log.Infof("closing batch: %d, GER deadline encountered.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.GlobalExitRootDeadlineClosingReason
 		return true
 	}
 	// Timestamp resolution deadline
 	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
-		log.Infof("Closing batch: %d, because of timestamp resolution.", f.wipBatch.batchNumber)
+		log.Infof("closing batch: %d, because of timestamp resolution.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true
 	}

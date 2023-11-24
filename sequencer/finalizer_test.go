@@ -2361,17 +2361,16 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 	return &finalizer{
-		cfg:                cfg,
-		closingSignalCh:    closingSignalCh,
-		isSynced:           isSynced,
-		sequencerAddress:   seqAddr,
-		worker:             workerMock,
-		dbManager:          dbManagerMock,
-		executor:           executorMock,
-		wipBatch:           wipBatch,
-		batchConstraints:   bc,
-		sharedResourcesMux: new(sync.RWMutex),
-		currentGERHash:     common.Hash{},
+		cfg:              cfg,
+		closingSignalCh:  closingSignalCh,
+		isSynced:         isSynced,
+		sequencerAddress: seqAddr,
+		worker:           workerMock,
+		dbManager:        dbManagerMock,
+		executor:         executorMock,
+		wipBatch:         wipBatch,
+		batchConstraints: bc,
+		currentGERHash:   common.Hash{},
 		// closing signals
 		nextGER:                      common.Hash{},
 		nextGERDeadline:              0,
