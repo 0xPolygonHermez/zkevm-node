@@ -1659,7 +1659,6 @@ func Test_processTransaction(t *testing.T) {
 	}
 }
 
-/*
 func Test_handleForcedTxsProcessResp(t *testing.T) {
 	var chainID = new(big.Int).SetInt64(400)
 	var pvtKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
@@ -1877,7 +1876,6 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		})
 	}
 }
-*/
 
 func TestFinalizer_storeProcessedTx(t *testing.T) {
 	f = setupFinalizer(false)
