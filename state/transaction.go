@@ -114,6 +114,8 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrDBTxNil
 	}
 
+	blockNumberUsed := uint64(0)
+
 	for _, processedBlock := range processedBlocks {
 		processedTxs := processedBlock.TransactionResponses
 		// check existing txs vs parameter txs
@@ -159,7 +161,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 
 			header := &types.Header{
-				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1 + blockNumberUsed),
 				ParentHash: lastL2Block.Hash(),
 				Coinbase:   processingContext.Coinbase,
 				Root:       processedTx.StateRoot,
@@ -191,6 +193,8 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				return err
 			}
 		}
+
+		blockNumberUsed++
 	}
 	return nil
 }
