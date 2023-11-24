@@ -126,10 +126,12 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	for _, processedBlock := range processedBlocks {
 		processedTxs := processedBlock.TransactionResponses
 		// check existing txs vs parameter txs
-		existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
-		if err != nil {
-			return err
-		}
+		/*
+			existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
+			if err != nil {
+				return err
+			}*/
+
 		// TODO: Refactor
 		/*
 			if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
