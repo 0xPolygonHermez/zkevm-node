@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -109,8 +108,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
-	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
-	go finalizer.Start(ctx, currBatch, processingReq)
+	currBatch := s.bootstrap(ctx, dbManager, finalizer)
+	go finalizer.Start(ctx, currBatch)
 
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
@@ -147,11 +146,29 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 	log.Info("Data streamer file updated")
 }
 
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
-	var (
-		currBatch      *WipBatch
-		processRequest *state.ProcessRequest
-	)
+func (s *Sequencer) getLastBatchNumAndOldStateRoot(ctx context.Context, dbManager dbManagerInterface) (uint64, common.Hash, error) {
+	const one = 1
+	const two = 2
+
+	var oldStateRoot common.Hash
+
+	batches, err := dbManager.GetLastNBatches(ctx, two)
+	if err != nil {
+		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
+	}
+	lastBatch := batches[0]
+
+	if len(batches) == one {
+		oldStateRoot = batches[0].StateRoot
+	} else if len(batches) == two {
+		oldStateRoot = batches[1].StateRoot
+	}
+
+	return lastBatch.BatchNumber, oldStateRoot, nil
+}
+
+func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) *WipBatch {
+	var currBatch *WipBatch
 
 	batchNum, err := dbManager.GetLastBatchNumber(ctx)
 	for err != nil {
@@ -169,17 +186,9 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		///////////////////
 		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
 		timestamp := processingCtx.Timestamp
-		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
+		_, oldStateRoot, err := s.getLastBatchNumAndOldStateRoot(ctx, dbManager) //TODO: this function is needed? there are not previous batches to query
 		if err != nil {
 			log.Fatalf("failed to get old state root, err: %v", err)
-		}
-		processRequest = &state.ProcessRequest{
-			BatchNumber:       processingCtx.BatchNumber,
-			OldStateRoot:      oldStateRoot,
-			GlobalExitRoot_V1: processingCtx.GlobalExitRoot,
-			Coinbase:          processingCtx.Coinbase,
-			Timestamp_V1:      timestamp,
-			Caller:            stateMetrics.SequencerCallerLabel,
 		}
 		currBatch = &WipBatch{
 			globalExitRoot:     processingCtx.GlobalExitRoot,
@@ -195,11 +204,10 @@ func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finaliz
 		if err != nil {
 			log.Fatalf("failed to sync with state, err: %v", err)
 		}
-		currBatch = finalizer.batch
-		processRequest = &finalizer.processRequest
+		currBatch = finalizer.wipBatch
 	}
 
-	return currBatch, processRequest
+	return currBatch
 }
 
 func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
