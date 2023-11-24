@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -37,7 +38,10 @@ type SequencedBatch struct {
 	TxHash        common.Hash
 	Nonce         uint64
 	Coinbase      common.Address
-	polygonzkevm.PolygonRollupBaseBatchData
+	// Struct used in preEtrog forks
+	oldpolygonzkevm.PolygonZkEVMBatchData
+	// Struct used in Etrog
+	polygonzkevm.PolygonRollupBaseEtrogBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -66,7 +70,7 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	polygonzkevm.PolygonRollupBaseForcedBatchData
+	polygonzkevm.PolygonRollupBaseEtrogBatchData
 }
 
 // ForkID is a sturct to track the ForkID event.
