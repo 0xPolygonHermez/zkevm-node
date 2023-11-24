@@ -82,9 +82,9 @@ func TestGEREvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v", blocks)
-	assert.Equal(t, uint64(5), blocks[0].GlobalExitRoots[0].BlockNumber)
-	assert.NotEqual(t, common.Hash{}, blocks[0].GlobalExitRoots[0].MainnetExitRoot)
-	assert.Equal(t, common.Hash{}, blocks[0].GlobalExitRoots[0].RollupExitRoot)
+	assert.Equal(t, uint64(5), blocks[0].L1InfoTree[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].L1InfoTree[0].MainnetExitRoot)
+	assert.Equal(t, common.Hash{}, blocks[0].L1InfoTree[0].RollupExitRoot)
 }
 
 func TestForcedBatchEvent(t *testing.T) {
@@ -237,7 +237,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	assert.Equal(t, uint64(1), blocks[1].VerifiedBatches[0].BatchNumber)
 	assert.NotEqual(t, common.Address{}, blocks[1].VerifiedBatches[0].Aggregator)
 	assert.NotEqual(t, common.Hash{}, blocks[1].VerifiedBatches[0].TxHash)
-	assert.Equal(t, GlobalExitRootsOrder, order[blocks[1].BlockHash][1].Name)
+	assert.Equal(t, L1InfoTreeOrder, order[blocks[1].BlockHash][1].Name)
 	assert.Equal(t, VerifyBatchOrder, order[blocks[1].BlockHash][0].Name)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][1].Pos)

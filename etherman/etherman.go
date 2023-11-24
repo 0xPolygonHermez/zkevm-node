@@ -650,29 +650,27 @@ func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks
 
 func (etherMan *Client) updateL1InfoTreeEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("updateL1InfoTree event detected")
+	var err error
+	//TODO: Check that this way os unpacking parameters are right
+	MainnetExitRoot := vLog.Topics[1]
+	RollupExitRoot := vLog.Topics[2]
 
-	// TODO: Change for real SMC
-	globalExitRoot, err := etherMan.GlobalExitRootManager.ParseUpdateGlobalExitRoot(vLog)
-	if err != nil {
-		return err
-	}
 	var gExitRoot L1InfoTree
-	gExitRoot.MainnetExitRoot = common.BytesToHash(globalExitRoot.MainnetExitRoot[:])
-	gExitRoot.RollupExitRoot = common.BytesToHash(globalExitRoot.RollupExitRoot[:])
+	gExitRoot.MainnetExitRoot = MainnetExitRoot
+	gExitRoot.RollupExitRoot = RollupExitRoot
 	gExitRoot.BlockNumber = vLog.BlockNumber
-	gExitRoot.GlobalExitRoot.GlobalExitRoot = hash(globalExitRoot.MainnetExitRoot, globalExitRoot.RollupExitRoot)
+	gExitRoot.GlobalExitRoot.GlobalExitRoot = hash(MainnetExitRoot, RollupExitRoot)
 	var block *Block
-	if isheadBlockInArray(blocks, vLog.BlockHash, vLog.BlockNumber) {
-		// If it's the last block, I just get the pointer
-		block = &(*blocks)[len(*blocks)-1]
-	} else {
-		// Need to add, doesnt mind if inside the blocks because I have to respect the order so insert at end
+	if !isheadBlockInArray(blocks, vLog.BlockHash, vLog.BlockNumber) {
+		// Need to add the block, doesnt mind if inside the blocks because I have to respect the order so insert at end
 		block, err = etherMan.retrieveFullBlockForEvent(ctx, vLog)
 		if err != nil {
 			return err
 		}
 		*blocks = append(*blocks, *block)
 	}
+	// Get the block in the HEAD of the array that contain the current block
+	block = &(*blocks)[len(*blocks)-1]
 	gExitRoot.PreviousBlockHash = block.ParentHash
 	gExitRoot.MinTimestamp = block.ReceivedAt
 	// Add the event to the block
