@@ -121,9 +121,12 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		if err != nil {
 			return err
 		}
-		if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
-			return err
-		}
+		// TODO: Refactor
+		/*
+			if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
+				return err
+			}
+		*/
 
 		// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
 		isBatchClosed, err := s.IsBatchClosed(ctx, batchNumber, dbTx)
