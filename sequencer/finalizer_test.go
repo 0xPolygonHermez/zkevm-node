@@ -29,6 +29,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	forkId5 uint64 = 5
+)
+
 var (
 	f             *finalizer
 	nilErr        error
@@ -606,201 +610,6 @@ func TestFinalizer_newWIPBatch(t *testing.T) {
 			dbManagerMock.AssertExpectations(t)
 			dbTxMock.AssertExpectations(t)
 			executorMock.AssertExpectations(t)
-		})
-	}
-}
-
-func TestFinalizer_syncWithState(t *testing.T) {
-	// arrange
-	f = setupFinalizer(true)
-	now = testNow
-	defer func() {
-		now = time.Now
-	}()
-	one := uint64(1)
-	batches := []*state.Batch{
-		{
-			BatchNumber:    1,
-			StateRoot:      oldHash,
-			GlobalExitRoot: oldHash,
-		},
-	}
-	testCases := []struct {
-		name                    string
-		batches                 []*state.Batch
-		lastBatchNum            *uint64
-		isBatchClosed           bool
-		ger                     common.Hash
-		getWIPBatchErr          error
-		openBatchErr            error
-		isBatchClosedErr        error
-		getLastBatchErr         error
-		expectedProcessingCtx   state.ProcessingContext
-		expectedBatch           *WipBatch
-		expectedErr             error
-		getLastBatchByNumberErr error
-		getLatestGERErr         error
-	}{
-		{
-			name:          "Success Closed Batch",
-			lastBatchNum:  &one,
-			isBatchClosed: true,
-			ger:           oldHash,
-			batches:       batches,
-			expectedBatch: &WipBatch{
-				batchNumber:        one + 1,
-				coinbase:           f.sequencerAddress,
-				initialStateRoot:   oldHash,
-				stateRoot:          oldHash,
-				timestamp:          testNow(),
-				globalExitRoot:     oldHash,
-				remainingResources: getMaxRemainingResources(f.batchConstraints),
-			},
-			expectedProcessingCtx: state.ProcessingContext{
-				BatchNumber:    one + 1,
-				Coinbase:       f.sequencerAddress,
-				Timestamp:      testNow(),
-				GlobalExitRoot: oldHash,
-			},
-			expectedErr: nil,
-		},
-		{
-			name:          "Success Open Batch",
-			lastBatchNum:  &one,
-			isBatchClosed: false,
-			batches:       batches,
-			ger:           common.Hash{},
-			expectedBatch: &WipBatch{
-				batchNumber:        one,
-				coinbase:           f.sequencerAddress,
-				initialStateRoot:   oldHash,
-				stateRoot:          oldHash,
-				timestamp:          testNow(),
-				globalExitRoot:     oldHash,
-				remainingResources: getMaxRemainingResources(f.batchConstraints),
-			},
-			expectedProcessingCtx: state.ProcessingContext{
-				BatchNumber:    one,
-				Coinbase:       f.sequencerAddress,
-				Timestamp:      testNow(),
-				GlobalExitRoot: oldHash,
-			},
-		},
-		{
-			name:            "Error Failed to get last batch",
-			lastBatchNum:    nil,
-			batches:         batches,
-			isBatchClosed:   true,
-			ger:             oldHash,
-			getLastBatchErr: testErr,
-			expectedErr:     fmt.Errorf("failed to get last batch, err: %w", testErr),
-		},
-		{
-			name:             "Error Failed to check if batch is closed",
-			lastBatchNum:     &one,
-			batches:          batches,
-			isBatchClosed:    true,
-			ger:              oldHash,
-			isBatchClosedErr: testErr,
-			expectedErr:      fmt.Errorf("failed to check if batch is closed, err: %w", testErr),
-		},
-		{
-			name:           "Error Failed to get work-in-progress batch",
-			lastBatchNum:   &one,
-			batches:        batches,
-			isBatchClosed:  false,
-			ger:            common.Hash{},
-			getWIPBatchErr: testErr,
-			expectedErr:    fmt.Errorf("failed to get work-in-progress batch, err: %w", testErr),
-		},
-		{
-			name:          "Error Failed to open new batch",
-			lastBatchNum:  &one,
-			batches:       batches,
-			isBatchClosed: true,
-			ger:           oldHash,
-			openBatchErr:  testErr,
-			expectedProcessingCtx: state.ProcessingContext{
-				BatchNumber:    one + 1,
-				Coinbase:       f.sequencerAddress,
-				Timestamp:      testNow(),
-				GlobalExitRoot: oldHash,
-			},
-			expectedErr: fmt.Errorf("failed to open new batch, err: %w", testErr),
-		},
-		{
-			name:          "Error Failed to get batch by number",
-			lastBatchNum:  &one,
-			batches:       batches,
-			isBatchClosed: true,
-			ger:           oldHash,
-			expectedProcessingCtx: state.ProcessingContext{
-				BatchNumber:    one + 1,
-				Coinbase:       f.sequencerAddress,
-				Timestamp:      testNow(),
-				GlobalExitRoot: oldHash,
-			},
-			expectedErr:             fmt.Errorf("failed to get last batch, err: %w", testErr),
-			getLastBatchByNumberErr: testErr,
-		},
-		{
-			name:            "Error Failed to get latest GER",
-			lastBatchNum:    &one,
-			batches:         batches,
-			isBatchClosed:   true,
-			ger:             oldHash,
-			expectedErr:     fmt.Errorf("failed to get latest ger, err: %w", testErr),
-			getLatestGERErr: testErr,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			if tc.lastBatchNum == nil {
-				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr).Once()
-			} else {
-				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
-			}
-			if tc.getLastBatchByNumberErr == nil {
-				if tc.getLastBatchErr == nil {
-					dbManagerMock.Mock.On("IsBatchClosed", ctx, *tc.lastBatchNum).Return(tc.isBatchClosed, tc.isBatchClosedErr).Once()
-				}
-				if tc.isBatchClosed {
-					if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil {
-						dbManagerMock.Mock.On("GetLatestGer", ctx, f.cfg.GERFinalityNumberOfBlocks).Return(state.GlobalExitRoot{GlobalExitRoot: tc.ger}, testNow(), tc.getLatestGERErr).Once()
-						if tc.getLatestGERErr == nil {
-							dbManagerMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nil).Once()
-							if tc.openBatchErr == nil {
-								dbTxMock.On("Commit", ctx).Return(nil).Once()
-							}
-						}
-					}
-
-					if tc.getLastBatchErr == nil && tc.isBatchClosedErr == nil && tc.getLatestGERErr == nil {
-						dbManagerMock.On("OpenBatch", ctx, tc.expectedProcessingCtx, dbTxMock).Return(tc.openBatchErr).Once()
-					}
-
-					if tc.expectedErr != nil && tc.openBatchErr != nil {
-						dbTxMock.On("Rollback", ctx).Return(nil).Once()
-					}
-				} else {
-					dbManagerMock.Mock.On("GetWIPBatch", ctx).Return(tc.expectedBatch, tc.getWIPBatchErr).Once()
-				}
-			}
-
-			// act
-			err := f.syncWithState(ctx, tc.lastBatchNum)
-
-			// assert
-			if tc.expectedErr != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr.Error())
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedBatch, f.wipBatch)
-			}
-			dbManagerMock.AssertExpectations(t)
 		})
 	}
 }
@@ -2164,6 +1973,64 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 	}
 }
 
+func TestFinalizer_getLastStateRoot(t *testing.T) {
+	f = setupFinalizer(false)
+	testCases := []struct {
+		name              string
+		mockBatches       []*state.Batch
+		mockError         error
+		expectedStateRoot common.Hash
+		expectedError     error
+	}{
+		{
+			name: "Success with two batches",
+			mockBatches: []*state.Batch{
+				{BatchNumber: 2, StateRoot: common.BytesToHash([]byte("stateRoot2"))},
+				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
+			},
+			mockError:         nil,
+			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
+			expectedError:     nil,
+		},
+		{
+			name: "Success with one batch",
+			mockBatches: []*state.Batch{
+				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
+			},
+			mockError:         nil,
+			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
+			expectedError:     nil,
+		},
+		{
+			name:              "Error while getting batches",
+			mockBatches:       nil,
+			mockError:         errors.New("database err"),
+			expectedStateRoot: common.Hash{},
+			expectedError:     errors.New("failed to get last 2 batches, err: database err"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// arrange
+			dbManagerMock.On("GetLastNBatches", context.Background(), uint(2)).Return(tc.mockBatches, tc.mockError).Once()
+
+			// act
+			stateRoot, err := f.getLastStateRoot(context.Background())
+
+			// assert
+			assert.Equal(t, tc.expectedStateRoot, stateRoot)
+			if tc.expectedError != nil {
+				assert.EqualError(t, err, tc.expectedError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+
+			dbManagerMock.AssertExpectations(t)
+		})
+	}
+}
+
 func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 	// arrange
 	testCases := []struct {
@@ -2309,7 +2176,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 			f.wipBatch.remainingResources = tc.modifyResourceFunc(maxRemainingResource)
 
 			// act
-			result := f.isBatchZKCounterFull()
+			result := f.isBatchResourcesFull()
 
 			// assert
 			assert.Equal(t, tc.expectedResult, result)

@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -108,14 +107,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
-	currBatch := s.bootstrap(ctx, dbManager, finalizer)
-	go finalizer.Start(ctx, currBatch)
+	go finalizer.Start(ctx)
 
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
-	go s.purgeOldPoolTxs(ctx)
-	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+	go s.purgeOldPoolTxs(ctx)                                                //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
+	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration) //TODO: why is this needed?
 	defer tickerProcessTxs.Stop()
 
 	// Expire too old txs in the worker
@@ -144,70 +142,6 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *da
 		log.Fatalf("failed to generate data streamer file, err: %v", err)
 	}
 	log.Info("Data streamer file updated")
-}
-
-func (s *Sequencer) getLastBatchNumAndOldStateRoot(ctx context.Context, dbManager dbManagerInterface) (uint64, common.Hash, error) {
-	const one = 1
-	const two = 2
-
-	var oldStateRoot common.Hash
-
-	batches, err := dbManager.GetLastNBatches(ctx, two)
-	if err != nil {
-		return 0, common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
-	}
-	lastBatch := batches[0]
-
-	if len(batches) == one {
-		oldStateRoot = batches[0].StateRoot
-	} else if len(batches) == two {
-		oldStateRoot = batches[1].StateRoot
-	}
-
-	return lastBatch.BatchNumber, oldStateRoot, nil
-}
-
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) *WipBatch {
-	var currBatch *WipBatch
-
-	batchNum, err := dbManager.GetLastBatchNumber(ctx)
-	for err != nil {
-		if errors.Is(err, state.ErrStateNotSynchronized) {
-			log.Warnf("state is not synchronized, trying to get last batch num once again...")
-			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
-			batchNum, err = dbManager.GetLastBatchNumber(ctx)
-		} else {
-			log.Fatalf("failed to get last batch number, err: %v", err)
-		}
-	}
-	if batchNum == 0 {
-		///////////////////
-		// GENESIS Batch //
-		///////////////////
-		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		timestamp := processingCtx.Timestamp
-		_, oldStateRoot, err := s.getLastBatchNumAndOldStateRoot(ctx, dbManager) //TODO: this function is needed? there are not previous batches to query
-		if err != nil {
-			log.Fatalf("failed to get old state root, err: %v", err)
-		}
-		currBatch = &WipBatch{
-			globalExitRoot:     processingCtx.GlobalExitRoot,
-			initialStateRoot:   oldStateRoot,
-			stateRoot:          oldStateRoot,
-			batchNumber:        processingCtx.BatchNumber,
-			coinbase:           processingCtx.Coinbase,
-			timestamp:          timestamp,
-			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
-		}
-	} else {
-		err := finalizer.syncWithState(ctx, &batchNum)
-		if err != nil {
-			log.Fatalf("failed to sync with state, err: %v", err)
-		}
-		currBatch = finalizer.wipBatch
-	}
-
-	return currBatch
 }
 
 func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
@@ -273,20 +207,4 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	}
 
 	return true
-}
-
-func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
-	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-		},
-		Bytes: constraints.MaxBatchBytesSize,
-	}
 }
