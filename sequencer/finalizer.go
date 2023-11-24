@@ -863,7 +863,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request state.ProcessRequest, result *state.ProcessBatchResponse, oldStateRoot common.Hash) {
 	log.Infof("handleForcedTxsProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
 	for _, blockResp := range result.BlockResponses {
-	txLoop:
 		for _, txResp := range blockResp.TransactionResponses {
 			// Handle Transaction Error
 			if txResp.RomError != nil {
@@ -872,7 +871,7 @@ func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request stat
 					// If we have an intrinsic error or the RLP is invalid
 					// we should continue processing the batch, but skip the transaction
 					log.Errorf("handleForcedTxsProcessResp: ROM error: %s", txResp.RomError)
-					continue txLoop
+					continue
 				}
 			}
 

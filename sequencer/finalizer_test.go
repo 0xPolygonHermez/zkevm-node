@@ -1749,6 +1749,7 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 	intrinsicErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
 		BlockResponses: []*state.ProcessBlockResponse{
+			blockResponseOne,
 			blockResponseIntrinsicErr,
 		},
 	}
