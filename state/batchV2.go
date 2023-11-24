@@ -2,14 +2,12 @@ package state
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
@@ -229,83 +227,4 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
-}
-
-// ProcessAndStoreClosedBatchV2 is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
-// the flushID (incremental value returned by executor),
-// the ProverID (executor running ID) the result of closing the batch.
-func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
-	BatchL2Data := processingCtx.BatchL2Data
-	if BatchL2Data == nil {
-		log.Warnf("Batch %v: ProcessAndStoreClosedBatchV2: processingCtx.BatchL2Data is nil, assuming is empty", processingCtx.BatchNumber)
-		var BatchL2DataEmpty []byte
-		BatchL2Data = &BatchL2DataEmpty
-	}
-	// Decode transactions
-	forkID := s.GetForkIDByBatchNumber(processingCtx.BatchNumber)
-	decodedTransactions, _, _, err := DecodeTxs(*BatchL2Data, forkID)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		log.Debugf("error decoding transactions: %v", err)
-		return common.Hash{}, noFlushID, noProverID, err
-	}
-
-	// Open the batch and process the txs
-	if dbTx == nil {
-		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
-	}
-	// Avoid writing twice to the DB the BatchL2Data that is going to be written also in the call closeBatch
-	processingCtx.BatchL2Data = nil
-	if err := s.OpenBatch(ctx, processingCtx, dbTx); err != nil {
-		return common.Hash{}, noFlushID, noProverID, err
-	}
-	processed, err := s.processBatch(ctx, processingCtx.BatchNumber, *BatchL2Data, caller, dbTx)
-	if err != nil {
-		return common.Hash{}, noFlushID, noProverID, err
-	}
-
-	// Sanity check
-	if len(decodedTransactions) != len(processed.Responses) {
-		log.Errorf("number of decoded (%d) and processed (%d) transactions do not match", len(decodedTransactions), len(processed.Responses))
-	}
-
-	// Filter unprocessed txs and decode txs to store metadata
-	// note that if the batch is not well encoded it will result in an empty batch (with no txs)
-	for i := 0; i < len(processed.Responses); i++ {
-		if !IsStateRootChanged(processed.Responses[i].Error) {
-			if executor.IsROMOutOfCountersError(processed.Responses[i].Error) {
-				processed.Responses = []*executor.ProcessTransactionResponse{}
-				break
-			}
-
-			// Remove unprocessed tx
-			if i == len(processed.Responses)-1 {
-				processed.Responses = processed.Responses[:i]
-			} else {
-				processed.Responses = append(processed.Responses[:i], processed.Responses[i+1:]...)
-			}
-			i--
-		}
-	}
-
-	processedBatch, err := s.convertToProcessBatchResponse(processed)
-	if err != nil {
-		return common.Hash{}, noFlushID, noProverID, err
-	}
-
-	if len(processedBatch.TransactionResponses_V1) > 0 {
-		// Store processed txs into the batch
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.TransactionResponses_V1, nil, dbTx)
-		if err != nil {
-			return common.Hash{}, noFlushID, noProverID, err
-		}
-	}
-
-	// Close batch
-	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, processed.ProverId, s.CloseBatchInStorage(ctx, ProcessingReceipt{
-		BatchNumber:   processingCtx.BatchNumber,
-		StateRoot:     processedBatch.NewStateRoot,
-		LocalExitRoot: processedBatch.NewLocalExitRoot,
-		AccInputHash:  processedBatch.NewAccInputHash,
-		BatchL2Data:   *BatchL2Data,
-	}, dbTx)
 }

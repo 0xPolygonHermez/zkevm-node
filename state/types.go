@@ -31,25 +31,41 @@ type ProcessRequest struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot            common.Hash
-	NewAccInputHash         common.Hash
-	NewLocalExitRoot        common.Hash
-	NewBatchNumber          uint64
-	UsedZkCounters          ZKCounters
-	TransactionResponses_V1 []*ProcessTransactionResponse
-	BlockResponses_V2       []*ProcessBlockResponseV2
-	ExecutorError           error
-	ReadWriteAddresses      map[common.Address]*InfoReadWrite
-	IsRomLevelError         bool
-	IsExecutorLevelError    bool
-	IsRomOOCError           bool
-	FlushID                 uint64
-	StoredFlushID           uint64
-	ProverID                string
-	GasUsed_V2              uint64
-	SMTKeys_V2              []merkletree.Key
-	ProgramKeys_V2          []merkletree.Key
-	ForkID                  uint64
+	NewStateRoot     common.Hash
+	NewAccInputHash  common.Hash
+	NewLocalExitRoot common.Hash
+	NewBatchNumber   uint64
+	UsedZkCounters   ZKCounters
+	// TransactionResponses_V1 []*ProcessTransactionResponse
+	BlockResponses       []*ProcessBlockResponse
+	ExecutorError        error
+	ReadWriteAddresses   map[common.Address]*InfoReadWrite
+	IsRomLevelError      bool
+	IsExecutorLevelError bool
+	IsRomOOCError        bool
+	FlushID              uint64
+	StoredFlushID        uint64
+	ProverID             string
+	GasUsed_V2           uint64
+	SMTKeys_V2           []merkletree.Key
+	ProgramKeys_V2       []merkletree.Key
+	ForkID               uint64
+}
+
+// ProcessBlockResponse represents the response of a block
+type ProcessBlockResponse struct {
+	ParentHash           common.Hash
+	Coinbase             common.Address
+	GasLimit             uint64
+	BlockNumber          uint64
+	Timestamp            uint64
+	GlobalExitRoot       common.Hash
+	BlockHashL1          common.Hash
+	GasUsed              uint64
+	BlockInfoRoot        common.Hash
+	BlockHash            common.Hash
+	TransactionResponses []*ProcessTransactionResponse
+	Logs                 []*types.Log
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

@@ -613,11 +613,13 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 
 	// Close Batch
 	txsBytes := uint64(0)
-	for _, resp := range processBatchResponse.TransactionResponses_V1 {
-		if !resp.ChangesStateRoot {
-			continue
+	for _, blockResp := range processBatchResponse.BlockResponses {
+		for _, resp := range blockResp.TransactionResponses {
+			if !resp.ChangesStateRoot {
+				continue
+			}
+			txsBytes += resp.Tx.Size()
 		}
-		txsBytes += resp.Tx.Size()
 	}
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   request.BatchNumber,

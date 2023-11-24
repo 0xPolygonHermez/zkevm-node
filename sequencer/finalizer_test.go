@@ -176,9 +176,14 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		RomError:  nil,
 		GasUsed:   100000,
 	}
-	batchResponse := &state.ProcessBatchResponse{
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
+	blockResponse := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponse,
+		},
+	}
+	batchResponse := &state.ProcessBatchResponse{
+		BlockResponses: []*state.ProcessBlockResponse{
+			blockResponse,
 		},
 	}
 	txResponseIntrinsicError := &state.ProcessTransactionResponse{
@@ -186,10 +191,20 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		StateRoot: newHash2,
 		RomError:  runtime.ErrIntrinsicInvalidNonce,
 	}
+	blockResponseIntrinsicError := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			txResponseIntrinsicError,
+		},
+	}
 	txResponseOOCError := &state.ProcessTransactionResponse{
 		TxHash:    txHash,
 		StateRoot: newHash2,
 		RomError:  runtime.ErrOutOfCountersKeccak,
+	}
+	blockResponseOOCError := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			txResponseOOCError,
+		},
 	}
 	testCases := []struct {
 		name                       string
@@ -205,8 +220,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 		{
 			name: "Successful transaction",
 			executorResponse: &state.ProcessBatchResponse{
-				TransactionResponses_V1: []*state.ProcessTransactionResponse{
-					txResponse,
+				BlockResponses: []*state.ProcessBlockResponse{
+					blockResponse,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					senderAddr: {
@@ -240,8 +255,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				UsedZkCounters: state.ZKCounters{
 					GasUsed: f.batch.remainingResources.ZKCounters.GasUsed + 1,
 				},
-				TransactionResponses_V1: []*state.ProcessTransactionResponse{
-					txResponse,
+				BlockResponses: []*state.ProcessBlockResponse{
+					blockResponse,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					senderAddr: {
@@ -262,8 +277,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				UsedZkCounters: state.ZKCounters{
 					GasUsed: 1,
 				},
-				TransactionResponses_V1: []*state.ProcessTransactionResponse{
-					txResponseIntrinsicError,
+				BlockResponses: []*state.ProcessBlockResponse{
+					blockResponseIntrinsicError,
 				},
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					senderAddr: {
@@ -284,8 +299,8 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 				UsedZkCounters: state.ZKCounters{
 					UsedKeccakHashes: bc.MaxKeccakHashes + 1,
 				},
-				TransactionResponses_V1: []*state.ProcessTransactionResponse{
-					txResponseOOCError,
+				BlockResponses: []*state.ProcessBlockResponse{
+					blockResponseOOCError,
 				},
 			},
 			oldStateRoot:           oldHash,
@@ -824,21 +839,30 @@ func TestFinalizer_processForcedBatches(t *testing.T) {
 		Tx:        *signedTx1,
 	}
 
+	blockResp1 := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{txResp1},
+	}
+
 	txResp2 := &state.ProcessTransactionResponse{
 		TxHash:    signedTx2.Hash(),
 		StateRoot: stateRootHashes[1],
 		Tx:        *signedTx2,
 	}
+
+	blockResp2 := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{txResp2},
+	}
+
 	batchResponse1 := &state.ProcessBatchResponse{
-		NewBatchNumber:          f.batch.batchNumber + 1,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{txResp1},
-		NewStateRoot:            newHash,
+		NewBatchNumber: f.batch.batchNumber + 1,
+		BlockResponses: []*state.ProcessBlockResponse{blockResp1},
+		NewStateRoot:   newHash,
 	}
 
 	batchResponse2 := &state.ProcessBatchResponse{
-		NewBatchNumber:          f.batch.batchNumber + 2,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{txResp2},
-		NewStateRoot:            newHash2,
+		NewBatchNumber: f.batch.batchNumber + 2,
+		BlockResponses: []*state.ProcessBlockResponse{blockResp2},
+		NewStateRoot:   newHash2,
 	}
 	forcedBatch1 := state.ForcedBatch{
 		ForcedBatchNumber: 2,
@@ -1309,9 +1333,12 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 	f = setupFinalizer(true)
 	ctx = context.Background()
 	txResponse := &state.ProcessTransactionResponse{TxHash: oldHash}
+	blockResponse := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{txResponse},
+	}
 	result := &state.ProcessBatchResponse{
-		UsedZkCounters:          state.ZKCounters{GasUsed: 1000},
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{txResponse},
+		UsedZkCounters: state.ZKCounters{GasUsed: 1000},
+		BlockResponses: []*state.ProcessBlockResponse{blockResponse},
 	}
 	remainingResources := state.BatchResources{
 		ZKCounters: state.ZKCounters{GasUsed: 9000},
@@ -1441,9 +1468,13 @@ func TestFinalizer_handleTransactionError(t *testing.T) {
 				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 					senderAddr: {Nonce: &nonce, Balance: big.NewInt(0)},
 				},
-				TransactionResponses_V1: []*state.ProcessTransactionResponse{
+				BlockResponses: []*state.ProcessBlockResponse{
 					{
-						RomError: executor.RomErr(tc.err),
+						TransactionResponses: []*state.ProcessTransactionResponse{
+							{
+								RomError: executor.RomErr(tc.err),
+							},
+						},
 					},
 				},
 			}
@@ -1491,10 +1522,16 @@ func Test_processTransaction(t *testing.T) {
 		StateRoot: newHash,
 		GasUsed:   gasUsed,
 	}
+	successfulBlockResponse := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			successfulTxResponse,
+		},
+	}
+
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
-			successfulTxResponse,
+		BlockResponses: []*state.ProcessBlockResponse{
+			successfulBlockResponse,
 		},
 		ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
 			senderAddr: {
@@ -1504,11 +1541,15 @@ func Test_processTransaction(t *testing.T) {
 	}
 	outOfCountersErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: oldHash,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
+		BlockResponses: []*state.ProcessBlockResponse{
 			{
-				StateRoot: oldHash,
-				RomError:  runtime.ErrOutOfCountersKeccak,
-				GasUsed:   gasUsed,
+				TransactionResponses: []*state.ProcessTransactionResponse{
+					{
+						StateRoot: oldHash,
+						RomError:  runtime.ErrOutOfCountersKeccak,
+						GasUsed:   gasUsed,
+					},
+				},
 			},
 		},
 		IsRomOOCError: true,
@@ -1660,11 +1701,21 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		RomError:  nil,
 		Tx:        *signedTx2,
 	}
+	blockResponseOne := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			txResponseOne,
+		},
+	}
+	blockResponseTwo := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			txResponseTwo,
+		},
+	}
 	successfulBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
-			txResponseOne,
-			txResponseTwo,
+		BlockResponses: []*state.ProcessBlockResponse{
+			blockResponseOne,
+			blockResponseTwo,
 		},
 	}
 	txResponseReverted := &state.ProcessTransactionResponse{
@@ -1673,9 +1724,14 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		RomError:  runtime.ErrExecutionReverted,
 		StateRoot: newHash,
 	}
-	revertedBatchResp := &state.ProcessBatchResponse{
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
+	blockResponseReverted := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
 			txResponseReverted,
+		},
+	}
+	revertedBatchResp := &state.ProcessBatchResponse{
+		BlockResponses: []*state.ProcessBlockResponse{
+			blockResponseReverted,
 		},
 	}
 	txResponseIntrinsicErr := &state.ProcessTransactionResponse{
@@ -1684,11 +1740,16 @@ func Test_handleForcedTxsProcessResp(t *testing.T) {
 		RomError:  runtime.ErrIntrinsicInvalidChainID,
 		StateRoot: newHash,
 	}
+	blockResponseIntrinsicErr := &state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{
+			txResponseIntrinsicErr,
+		},
+	}
+
 	intrinsicErrBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: newHash,
-		TransactionResponses_V1: []*state.ProcessTransactionResponse{
-			txResponseOne,
-			txResponseIntrinsicErr,
+		BlockResponses: []*state.ProcessBlockResponse{
+			blockResponseIntrinsicErr,
 		},
 	}
 

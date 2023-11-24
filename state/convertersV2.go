@@ -19,50 +19,50 @@ import (
 )
 
 // TestConvertToProcessBatchResponseV2 for test purposes
-func (s *State) TestConvertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponseV2(response)
+func (s *State) TestConvertToProcessBatchResponseV2(batchResponse *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
+	return s.convertToProcessBatchResponseV2(batchResponse)
 }
 
-func (s *State) convertToProcessBatchResponseV2(response *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
-	responses, isRomLevelError, isRomOOCError, err := s.convertToProcessBlockResponseV2(response.BlockResponses)
+func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
+	blockResponses, isRomLevelError, isRomOOCError, err := s.convertToProcessBlockResponseV2(batchResponse.BlockResponses)
 	if err != nil {
 		return nil, err
 	}
 
-	readWriteAddresses, err := convertToReadWriteAddressesV2(response.ReadWriteAddresses)
+	readWriteAddresses, err := convertToReadWriteAddressesV2(batchResponse.ReadWriteAddresses)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ProcessBatchResponse{
-		NewStateRoot:         common.BytesToHash(response.NewStateRoot),
-		NewAccInputHash:      common.BytesToHash(response.NewAccInputHash),
-		NewLocalExitRoot:     common.BytesToHash(response.NewLocalExitRoot),
-		NewBatchNumber:       response.NewBatchNum,
-		UsedZkCounters:       convertToCountersV2(response),
-		BlockResponses_V2:    responses,
-		ExecutorError:        executor.ExecutorErr(response.Error),
+		NewStateRoot:         common.BytesToHash(batchResponse.NewStateRoot),
+		NewAccInputHash:      common.BytesToHash(batchResponse.NewAccInputHash),
+		NewLocalExitRoot:     common.BytesToHash(batchResponse.NewLocalExitRoot),
+		NewBatchNumber:       batchResponse.NewBatchNum,
+		UsedZkCounters:       convertToCountersV2(batchResponse),
+		BlockResponses:       blockResponses,
+		ExecutorError:        executor.ExecutorErr(batchResponse.Error),
 		ReadWriteAddresses:   readWriteAddresses,
-		FlushID:              response.FlushId,
-		StoredFlushID:        response.StoredFlushId,
-		ProverID:             response.ProverId,
-		IsExecutorLevelError: (response.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
+		FlushID:              batchResponse.FlushId,
+		StoredFlushID:        batchResponse.StoredFlushId,
+		ProverID:             batchResponse.ProverId,
+		IsExecutorLevelError: (batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
-		GasUsed_V2:           response.GasUsed,
-		SMTKeys_V2:           convertToKeys(response.SmtKeys),
-		ProgramKeys_V2:       convertToKeys(response.ProgramKeys),
-		ForkID:               response.ForkId,
+		GasUsed_V2:           batchResponse.GasUsed,
+		SMTKeys_V2:           convertToKeys(batchResponse.SmtKeys),
+		ProgramKeys_V2:       convertToKeys(batchResponse.ProgramKeys),
+		ForkID:               batchResponse.ForkId,
 	}, nil
 }
 
-func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlockResponseV2) ([]*ProcessBlockResponseV2, bool, bool, error) {
+func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlockResponseV2) ([]*ProcessBlockResponse, bool, bool, error) {
 	isRomLevelError := false
 	isRomOOCError := false
 
-	results := make([]*ProcessBlockResponseV2, 0, len(responses))
+	results := make([]*ProcessBlockResponse, 0, len(responses))
 	for _, response := range responses {
-		result := new(ProcessBlockResponseV2)
+		result := new(ProcessBlockResponse)
 		transactionResponses, isRomLevelError, isRomOOCError, err := s.convertToProcessTransactionResponseV2(response.Responses)
 		if err != nil {
 			return nil, isRomLevelError, isRomOOCError, err
@@ -87,13 +87,13 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 	return results, isRomLevelError, isRomOOCError, nil
 }
 
-func (s *State) convertToProcessTransactionResponseV2(responses []*executor.ProcessTransactionResponseV2) ([]*ProcessTransactionResponseV2, bool, bool, error) {
+func (s *State) convertToProcessTransactionResponseV2(responses []*executor.ProcessTransactionResponseV2) ([]*ProcessTransactionResponse, bool, bool, error) {
 	isRomLevelError := false
 	isRomOOCError := false
 
-	results := make([]*ProcessTransactionResponseV2, 0, len(responses))
+	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for _, response := range responses {
-		result := new(ProcessTransactionResponseV2)
+		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.Type = response.Type
 		result.ReturnValue = response.ReturnValue

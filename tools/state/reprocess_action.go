@@ -115,11 +115,13 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 
 	log.Infof("id:%d len_trs:%d oldStateRoot:%s", batch2.BatchNumber, len(syncedTxs), request.OldStateRoot)
 	response, err = r.st.ProcessBatch(r.ctx, request, r.updateHasbDB)
-	for tx_i, txresponse := range response.TransactionResponses_V1 {
-		if txresponse.RomError != nil {
-			r.output.addTransactionError(tx_i, txresponse.RomError)
-			log.Errorf("error processing batch %d. tx:%d Error: %v stateroot:%s", i, tx_i, txresponse.RomError, response.NewStateRoot)
-			//return txresponse.RomError
+	for _, blockResponse := range response.BlockResponses {
+		for tx_i, txresponse := range blockResponse.TransactionResponses {
+			if txresponse.RomError != nil {
+				r.output.addTransactionError(tx_i, txresponse.RomError)
+				log.Errorf("error processing batch %d. tx:%d Error: %v stateroot:%s", i, tx_i, txresponse.RomError, response.NewStateRoot)
+				//return txresponse.RomError
+			}
 		}
 	}
 

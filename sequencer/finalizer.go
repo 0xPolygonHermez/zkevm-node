@@ -692,7 +692,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 			log.Errorf("failed to process transaction: %s", err)
 			return nil, err
-		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.TransactionResponses_V1) == 0 && tx != nil {
+		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
 			err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 			f.halt(ctx, err)
 		} else if processBatchResponse.IsExecutorLevelError && tx != nil {
@@ -712,7 +712,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		}
 
 		oldStateRoot := f.batch.stateRoot
-		if len(processBatchResponse.TransactionResponses_V1) > 0 && tx != nil {
+		if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
 			errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 			if err != nil {
 				return errWg, err
@@ -730,7 +730,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 			log.Errorf("failed to process transaction: %s", err)
 			return nil, err
-		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses_V2) == 0 && tx != nil {
+		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
 			err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 			f.halt(ctx, err)
 		} else if processBatchResponse.IsExecutorLevelError && tx != nil {
@@ -750,7 +750,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		}
 
 		oldStateRoot := f.batch.stateRoot
-		if len(processBatchResponse.BlockResponses_V2) > 0 && tx != nil {
+		if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
 			errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 			if err != nil {
 				return errWg, err
@@ -768,11 +768,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 // handleProcessTransactionResponse handles the response of transaction processing.
 func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, err error) {
 	// Handle Transaction Error
-	errorCode := executor.RomErrorCode(result.TransactionResponses_V1[0].RomError)
+	errorCode := executor.RomErrorCode(result.BlockResponses[0].TransactionResponses[0].RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
-		return errWg, result.TransactionResponses_V1[0].RomError
+		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
 	}
 
 	// Check remaining resources
@@ -789,7 +789,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
 		txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
 
-		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, result.TransactionResponses_V1[0].GasUsed, tx.L1GasPrice, txL2GasPrice)
+		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, result.BlockResponses[0].TransactionResponses[0].GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if egpEnabled {
 				log.Errorf("failed to calculate EffectiveGasPrice with new gasUsed for tx %s, error: %s", tx.HashStr, err.Error())
@@ -801,9 +801,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		} else {
 			// Save new (second) gas used and second effective gas price calculation for later logging
 			tx.EGPLog.ValueSecond.Set(newEffectiveGasPrice)
-			tx.EGPLog.GasUsedSecond = result.TransactionResponses_V1[0].GasUsed
+			tx.EGPLog.GasUsedSecond = result.BlockResponses[0].TransactionResponses[0].GasUsed
 
-			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.TransactionResponses_V1[0].HasGaspriceOpcode, result.TransactionResponses_V1[0].HasBalanceOpcode)
+			errCompare := f.CompareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.BlockResponses[0].TransactionResponses[0].HasGaspriceOpcode, result.BlockResponses[0].TransactionResponses[0].HasBalanceOpcode)
 
 			// If EffectiveGasPrice is disabled we will calculate the percentage and save it for later logging
 			if !egpEnabled {
@@ -825,8 +825,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging
 	tx.EGPLog.Enabled = egpEnabled
-	tx.EGPLog.GasPriceOC = result.TransactionResponses_V1[0].HasGaspriceOpcode
-	tx.EGPLog.BalanceOC = result.TransactionResponses_V1[0].HasBalanceOpcode
+	tx.EGPLog.GasPriceOC = result.BlockResponses[0].TransactionResponses[0].HasGaspriceOpcode
+	tx.EGPLog.BalanceOC = result.BlockResponses[0].TransactionResponses[0].HasBalanceOpcode
 	tx.EGPLog.ValueFinal.Set(tx.EffectiveGasPrice)
 
 	// Log here the results of EGP calculation
@@ -837,7 +837,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	txToStore := transactionToStore{
 		hash:          tx.Hash,
 		from:          tx.From,
-		response:      result.TransactionResponses_V1[0],
+		response:      result.BlockResponses[0].TransactionResponses[0],
 		batchResponse: result,
 		batchNumber:   f.batch.batchNumber,
 		timestamp:     f.batch.timestamp,
@@ -862,44 +862,46 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 // handleForcedTxsProcessResp handles the transactions responses for the processed forced batch.
 func (f *finalizer) handleForcedTxsProcessResp(ctx context.Context, request state.ProcessRequest, result *state.ProcessBatchResponse, oldStateRoot common.Hash) {
 	log.Infof("handleForcedTxsProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
-	for _, txResp := range result.TransactionResponses_V1 {
-		// Handle Transaction Error
-		if txResp.RomError != nil {
-			romErr := executor.RomErrorCode(txResp.RomError)
-			if executor.IsIntrinsicError(romErr) || romErr == executor.RomError_ROM_ERROR_INVALID_RLP {
-				// If we have an intrinsic error or the RLP is invalid
-				// we should continue processing the batch, but skip the transaction
-				log.Errorf("handleForcedTxsProcessResp: ROM error: %s", txResp.RomError)
-				continue
+	for _, blockResp := range result.BlockResponses {
+		for _, txResp := range blockResp.TransactionResponses {
+			// Handle Transaction Error
+			if txResp.RomError != nil {
+				romErr := executor.RomErrorCode(txResp.RomError)
+				if executor.IsIntrinsicError(romErr) || romErr == executor.RomError_ROM_ERROR_INVALID_RLP {
+					// If we have an intrinsic error or the RLP is invalid
+					// we should continue processing the batch, but skip the transaction
+					log.Errorf("handleForcedTxsProcessResp: ROM error: %s", txResp.RomError)
+					continue
+				}
 			}
-		}
 
-		from, err := state.GetSender(txResp.Tx)
-		if err != nil {
-			log.Warnf("handleForcedTxsProcessResp: failed to get sender for tx (%s): %v", txResp.TxHash, err)
-		}
+			from, err := state.GetSender(txResp.Tx)
+			if err != nil {
+				log.Warnf("handleForcedTxsProcessResp: failed to get sender for tx (%s): %v", txResp.TxHash, err)
+			}
 
-		txToStore := transactionToStore{
-			hash:          txResp.TxHash,
-			from:          from,
-			response:      txResp,
-			batchResponse: result,
-			batchNumber:   request.BatchNumber,
-			timestamp:     request.Timestamp_V1,
-			coinbase:      request.Coinbase,
-			oldStateRoot:  oldStateRoot,
-			isForcedBatch: true,
-			flushId:       result.FlushID,
-		}
+			txToStore := transactionToStore{
+				hash:          txResp.TxHash,
+				from:          from,
+				response:      txResp,
+				batchResponse: result,
+				batchNumber:   request.BatchNumber,
+				timestamp:     request.Timestamp_V1,
+				coinbase:      request.Coinbase,
+				oldStateRoot:  oldStateRoot,
+				isForcedBatch: true,
+				flushId:       result.FlushID,
+			}
 
-		oldStateRoot = txResp.StateRoot
+			oldStateRoot = txResp.StateRoot
 
-		f.updateLastPendingFlushID(result.FlushID)
+			f.updateLastPendingFlushID(result.FlushID)
 
-		f.addPendingTxToStore(ctx, txToStore)
+			f.addPendingTxToStore(ctx, txToStore)
 
-		if err == nil {
-			f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
+			if err == nil {
+				f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
+			}
 		}
 	}
 }
@@ -989,7 +991,7 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 
 // handleProcessTransactionError handles the error of a transaction
 func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *state.ProcessBatchResponse, tx *TxTracker) *sync.WaitGroup {
-	txResponse := result.TransactionResponses_V1[0]
+	txResponse := result.BlockResponses[0].TransactionResponses[0]
 	errorCode := executor.RomErrorCode(txResponse.RomError)
 	addressInfo := result.ReadWriteAddresses[tx.From]
 	log.Infof("handleTransactionError: error in tx: %s, errorCode: %d", tx.Hash.String(), errorCode)
@@ -1180,17 +1182,19 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		return lastBatchNumberInState, stateRoot
 	}
 
-	if len(response.TransactionResponses_V1) > 0 && !response.IsRomOOCError {
-		for _, txResponse := range response.TransactionResponses_V1 {
-			if !errors.Is(txResponse.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
-				sender, err := state.GetSender(txResponse.Tx)
-				if err != nil {
-					log.Warnf("failed trying to add forced tx (%s) to worker. Error getting sender from tx, Err: %v", txResponse.TxHash, err)
-					continue
+	if len(response.BlockResponses) > 0 && !response.IsRomOOCError {
+		for _, blockResponse := range response.BlockResponses {
+			for _, txResponse := range blockResponse.TransactionResponses {
+				if !errors.Is(txResponse.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
+					sender, err := state.GetSender(txResponse.Tx)
+					if err != nil {
+						log.Warnf("failed trying to add forced tx (%s) to worker. Error getting sender from tx, Err: %v", txResponse.TxHash, err)
+						continue
+					}
+					f.worker.AddForcedTx(txResponse.TxHash, sender)
+				} else {
+					log.Warnf("ROM_ERROR_INVALID_RLP error received from executor for forced batch %d", forcedBatch.ForcedBatchNumber)
 				}
-				f.worker.AddForcedTx(txResponse.TxHash, sender)
-			} else {
-				log.Warnf("ROM_ERROR_INVALID_RLP error received from executor for forced batch %d", forcedBatch.ForcedBatchNumber)
 			}
 		}
 
@@ -1466,7 +1470,7 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	if err != nil {
 		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
 		start := time.Now()
-		f.worker.UpdateTxZKCounters(result.TransactionResponses_V1[0].TxHash, tx.From, usedResources.ZKCounters)
+		f.worker.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
 		return err
 	}
