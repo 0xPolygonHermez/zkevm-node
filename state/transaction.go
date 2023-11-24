@@ -123,8 +123,6 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrBatchAlreadyClosed
 	}
 
-	cumulativeIndex := 0
-
 	for _, processedBlock := range processedBlocks {
 		processedTxs := processedBlock.TransactionResponses
 		// check existing txs vs parameter txs
@@ -144,9 +142,11 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			return err
 		}
 
-		firstTxToInsert := len(existingTxs) + cumulativeIndex
+		// firstTxToInsert := len(existingTxs)
 
-		for i := firstTxToInsert; i < len(processedTxs)+cumulativeIndex; i++ {
+		firstTxToInsert := 0
+
+		for i := firstTxToInsert; i < len(processedTxs); i++ {
 			processedTx := processedTxs[i]
 			// if the transaction has an intrinsic invalid tx error it means
 			// the transaction has not changed the state, so we don't store it
@@ -193,8 +193,6 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				return err
 			}
 		}
-
-		cumulativeIndex += len(processedTxs)
 	}
 	return nil
 }
