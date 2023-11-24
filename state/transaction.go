@@ -114,7 +114,16 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrDBTxNil
 	}
 
-	blockNumberUsed := uint64(0)
+	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
+	isBatchClosed, err := s.IsBatchClosed(ctx, batchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if isBatchClosed {
+		return ErrBatchAlreadyClosed
+	}
+
+	cumulativeIndex := 0
 
 	for _, processedBlock := range processedBlocks {
 		processedTxs := processedBlock.TransactionResponses
@@ -130,23 +139,14 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 		*/
 
-		// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
-		isBatchClosed, err := s.IsBatchClosed(ctx, batchNumber, dbTx)
-		if err != nil {
-			return err
-		}
-		if isBatchClosed {
-			return ErrBatchAlreadyClosed
-		}
-
 		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
 		if err != nil {
 			return err
 		}
 
-		firstTxToInsert := len(existingTxs)
+		firstTxToInsert := len(existingTxs) + cumulativeIndex
 
-		for i := firstTxToInsert; i < len(processedTxs); i++ {
+		for i := firstTxToInsert; i < len(processedTxs)+cumulativeIndex; i++ {
 			processedTx := processedTxs[i]
 			// if the transaction has an intrinsic invalid tx error it means
 			// the transaction has not changed the state, so we don't store it
@@ -161,7 +161,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 
 			header := &types.Header{
-				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1 + blockNumberUsed),
+				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 				ParentHash: lastL2Block.Hash(),
 				Coinbase:   processingContext.Coinbase,
 				Root:       processedTx.StateRoot,
@@ -194,7 +194,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 		}
 
-		blockNumberUsed++
+		cumulativeIndex += len(processedTxs)
 	}
 	return nil
 }
