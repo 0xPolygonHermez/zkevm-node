@@ -28,6 +28,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,7 +78,7 @@ type ClientSynchronizer struct {
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
 	previousExecutorFlushID uint64
-	l1SyncOrchestration     *l1SyncOrchestration
+	l1SyncOrchestration     *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors       *processor_manager.L1EventProcessors
 }
 
@@ -135,25 +136,30 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1SyncOrchestration, error) {
-	chIncommingRollupInfo := make(chan l1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
-	cfgConsumer := configConsumer{
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1_parallel_sync.L1SyncOrchestration, error) {
+	chIncommingRollupInfo := make(chan l1_parallel_sync.L1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
+	cfgConsumer := l1_parallel_sync.ConfigConsumer{
 		ApplyAfterNumRollupReceived: cfg.L1ParallelSynchronization.PerformanceWarning.ApplyAfterNumRollupReceived,
 		AceptableInacctivityTime:    cfg.L1ParallelSynchronization.PerformanceWarning.AceptableInacctivityTime.Duration,
 	}
-	L1DataProcessor := newL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)
+	L1DataProcessor := l1_parallel_sync.NewL1RollupInfoConsumer(cfgConsumer, sync, chIncommingRollupInfo)
 
-	cfgProducer := configProducer{
-		syncChunkSize:                              cfg.SyncChunkSize,
-		ttlOfLastBlockOnL1:                         cfg.L1ParallelSynchronization.RequestLastBlockPeriod.Duration,
-		timeoutForRequestLastBlockOnL1:             cfg.L1ParallelSynchronization.RequestLastBlockTimeout.Duration,
-		numOfAllowedRetriesForRequestLastBlockOnL1: cfg.L1ParallelSynchronization.RequestLastBlockMaxRetries,
-		timeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.StatisticsPeriod.Duration,
-		timeOutMainLoop:                            cfg.L1ParallelSynchronization.TimeOutMainLoop.Duration,
-		minTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.RollupInfoRetriesSpacing.Duration,
+	cfgProducer := l1_parallel_sync.ConfigProducer{
+		SyncChunkSize:                              cfg.SyncChunkSize,
+		TtlOfLastBlockOnL1:                         cfg.L1ParallelSynchronization.RequestLastBlockPeriod.Duration,
+		TimeoutForRequestLastBlockOnL1:             cfg.L1ParallelSynchronization.RequestLastBlockTimeout.Duration,
+		NumOfAllowedRetriesForRequestLastBlockOnL1: cfg.L1ParallelSynchronization.RequestLastBlockMaxRetries,
+		TimeForShowUpStatisticsLog:                 cfg.L1ParallelSynchronization.StatisticsPeriod.Duration,
+		TimeOutMainLoop:                            cfg.L1ParallelSynchronization.TimeOutMainLoop.Duration,
+		MinTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.RollupInfoRetriesSpacing.Duration,
 	}
-	l1DataRetriever := newL1DataRetriever(cfgProducer, etherManForL1, chIncommingRollupInfo)
-	l1SyncOrchestration := newL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
+	// Convert EthermanInterface to l1_sync_parallel.EthermanInterface
+	etherManForL1Converted := make([]l1_parallel_sync.L1EthermanInterface, len(etherManForL1))
+	for i, etherMan := range etherManForL1 {
+		etherManForL1Converted[i] = etherMan
+	}
+	l1DataRetriever := l1_parallel_sync.NewL1DataRetriever(cfgProducer, etherManForL1Converted, chIncommingRollupInfo)
+	l1SyncOrchestration := l1_parallel_sync.NewL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
 	if runExternalControl {
 		log.Infof("Starting external control")
 		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
@@ -385,7 +391,7 @@ func (s *ClientSynchronizer) Sync() error {
 			} else {
 				if s.l1SyncOrchestration != nil {
 					log.Infof("Switching to sequential mode, stopping parallel sync and deleting object")
-					s.l1SyncOrchestration.abort()
+					s.l1SyncOrchestration.Abort()
 					s.l1SyncOrchestration = nil
 				}
 				log.Infof("Syncing L1 blocks sequentially lastEthBlockSynced=%d", lastEthBlockSynced.BlockNumber)
@@ -401,7 +407,7 @@ func (s *ClientSynchronizer) Sync() error {
 				if s.l1SyncOrchestration != nil {
 					// If have failed execution and get starting point from DB, we must reset parallel sync to this point
 					// producer must start requesting this block
-					s.l1SyncOrchestration.reset(lastEthBlockSynced.BlockNumber)
+					s.l1SyncOrchestration.Reset(lastEthBlockSynced.BlockNumber)
 				}
 				if s.ctx.Err() != nil {
 					continue
@@ -427,17 +433,13 @@ func (s *ClientSynchronizer) syncBlocksParallel(lastEthBlockSynced *state.Block)
 		err = s.resetState(block.BlockNumber)
 		if err != nil {
 			log.Errorf("error resetting the state to a previous block. Retrying... Err: %v", err)
-			s.l1SyncOrchestration.reset(lastEthBlockSynced.BlockNumber)
+			s.l1SyncOrchestration.Reset(lastEthBlockSynced.BlockNumber)
 			return lastEthBlockSynced, fmt.Errorf("error resetting the state to a previous block")
 		}
 		return block, nil
 	}
-	if !s.l1SyncOrchestration.isProducerRunning() {
-		log.Infof("producer is not running. Resetting the state to start from  block %v (last on DB)", lastEthBlockSynced.BlockNumber)
-		s.l1SyncOrchestration.producer.Reset(lastEthBlockSynced.BlockNumber)
-	}
 	log.Infof("Starting L1 sync orchestrator in parallel block: %d", lastEthBlockSynced.BlockNumber)
-	return s.l1SyncOrchestration.start(lastEthBlockSynced)
+	return s.l1SyncOrchestration.Start(lastEthBlockSynced)
 }
 
 // This function syncs the node from a specific block to the latest
@@ -485,7 +487,7 @@ func (s *ClientSynchronizer) syncBlocksSequential(lastEthBlockSynced *state.Bloc
 			return lastEthBlockSynced, err
 		}
 		start = time.Now()
-		err = s.processBlockRange(blocks, order)
+		err = s.ProcessBlockRange(blocks, order)
 		metrics.ProcessL1DataTime(time.Since(start))
 		if err != nil {
 			return lastEthBlockSynced, err
@@ -519,7 +521,7 @@ func (s *ClientSynchronizer) syncBlocksSequential(lastEthBlockSynced *state.Bloc
 				ParentHash:  fb.ParentHash(),
 				ReceivedAt:  time.Unix(int64(fb.Time()), 0),
 			}
-			err = s.processBlockRange([]etherman.Block{b}, order)
+			err = s.ProcessBlockRange([]etherman.Block{b}, order)
 			if err != nil {
 				return lastEthBlockSynced, err
 			}
@@ -616,7 +618,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	return nil
 }
 
-func (s *ClientSynchronizer) processBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
+func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
 	// New info has to be included into the db using the state
 	for i := range blocks {
 		// Begin db transaction
@@ -747,7 +749,7 @@ func (s *ClientSynchronizer) resetState(blockNumber uint64) error {
 		return err
 	}
 	if s.l1SyncOrchestration != nil {
-		s.l1SyncOrchestration.reset(blockNumber)
+		s.l1SyncOrchestration.Reset(blockNumber)
 	}
 	return nil
 }
