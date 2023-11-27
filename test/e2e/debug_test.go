@@ -27,7 +27,7 @@ const (
 	// You can run the needed dockers with:
 	// make run
 	// make run-l2-explorer-json-rpc
-	dockersArePreLaunchedForDebugTests = true
+	dockersArePreLaunchedForDebugTests = false
 )
 
 func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
