@@ -129,5 +129,8 @@ type storage interface {
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) (uint64, error)
 	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
+	UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval)
+	AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error
+	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }

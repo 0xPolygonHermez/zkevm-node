@@ -99,13 +99,16 @@ func (p *PostgresStorage) scanL2BlockInfo(ctx context.Context, rows pgx.Row, dbT
 	uncles = []*types.Header{}
 	receivedAt = time.Time{}
 
-	err = rows.Scan(&hash, &header, &uncles, &receivedAt)
+	var hexHash string
+	err = rows.Scan(&hexHash, &header, &uncles, &receivedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, nil, time.Time{}, state.ErrNotFound
 	} else if err != nil {
 		return nil, nil, nil, time.Time{}, err
 	}
 
+	blockHash := common.HexToHash(hexHash)
+	hash = &blockHash
 	return hash, header, uncles, receivedAt, nil
 }
 
