@@ -19,7 +19,7 @@ type L1InfoTreeLeaf struct {
 type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeLeaf
 	L1InfoTreeRoot  common.Hash
-	L1InfoTreeIndex uint64
+	L1InfoTreeIndex uint32
 }
 
 var (
