@@ -56,3 +56,22 @@ func (p *PostgresStorage) UpdateForkID(ctx context.Context, forkID state.ForkIDI
 	}
 	return nil
 }
+
+// GetForkIDByBatchNumber returns the fork id for a given batch number
+func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	// If NumBatchForkIdUpgrade is defined (!=0) we are performing forkid upgrade process
+	// In this case, if the batchNumber is the next to the NumBatchForkIdUpgrade, we need to return the
+	// new "future" forkId (ForkUpgradeNewForkId)
+	if (p.cfg.ForkUpgradeBatchNumber) != 0 && (batchNumber > p.cfg.ForkUpgradeBatchNumber) {
+		return p.cfg.ForkUpgradeNewForkId
+	}
+
+	for _, interval := range p.cfg.ForkIDIntervals {
+		if batchNumber >= interval.FromBatchNumber && batchNumber <= interval.ToBatchNumber {
+			return interval.ForkId
+		}
+	}
+
+	// If not found return the last fork id
+	return p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1].ForkId
+}

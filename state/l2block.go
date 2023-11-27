@@ -4,10 +4,14 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -126,4 +130,18 @@ func (s *State) handleEvents() {
 		}
 		wg.Wait()
 	}
+}
+
+func ForceL2BlockHash(b *types.Block, h common.Hash) {
+	blockPtr := reflect.ValueOf(b).Elem()
+	hashField := blockPtr.Field(4)
+
+	hashField = reflect.NewAt(hashField.Type(), unsafe.Pointer(hashField.UnsafeAddr())).Elem()
+
+	// creates an atomic.Value to match the private hash field type
+	hashValue := atomic.Value{}
+	hashValue.Store(h)
+
+	// sets the private hash field with the new hash value
+	hashField.Set(reflect.ValueOf(hashValue))
 }
