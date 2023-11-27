@@ -74,7 +74,7 @@ func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval,
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
-	return s.GetForkIDByBatchNumber(batchNumber)
+	return s.storage.GetForkIDByBatchNumber(batchNumber)
 }
 
 // GetForkIDByBlockNumber returns the fork id for a given block number

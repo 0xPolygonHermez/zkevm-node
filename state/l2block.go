@@ -132,9 +132,15 @@ func (s *State) handleEvents() {
 	}
 }
 
+// ForceL2BlockHash forces a block to cache the provided
+// hash as the block hash to be returned when calling Hash()
 func ForceL2BlockHash(b *types.Block, h common.Hash) {
+	// hasFieldIndex is the index of the hash private field inside
+	// of the go-ethereum/core/types.Block struct
+	const hashFieldIndex = 4
+
 	blockPtr := reflect.ValueOf(b).Elem()
-	hashField := blockPtr.Field(4)
+	hashField := blockPtr.Field(hashFieldIndex)
 
 	hashField = reflect.NewAt(hashField.Type(), unsafe.Pointer(hashField.UnsafeAddr())).Elem()
 
