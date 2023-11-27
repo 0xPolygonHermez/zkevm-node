@@ -67,7 +67,7 @@ func (w *workers) String() string {
 	return result
 }
 
-func newWorkers(ethermans []L1EthermanInterface, cfg workersConfig) *workers {
+func newWorkers(ethermans []L1ParallelEthermanInterface, cfg workersConfig) *workers {
 	result := workers{chIncommingRollupInfo: make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
 		cfg: cfg}
 	if (len(ethermans)) < minimumNumberOfEthermans {

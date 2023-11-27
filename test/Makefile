@@ -562,7 +562,7 @@ generate-mocks-synchronizer: ## Generates mocks for synchronizer , using mockery
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethTxManager       		--dir=../synchronizer       			--output=../synchronizer --outpkg=synchronizer 	--structname=ethTxManagerMock 					--filename=mock_ethtxmanager.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface 			--dir=../synchronizer 					--output=../synchronizer --outpkg=synchronizer 	--structname=poolMock 							--filename=mock_pool.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=zkEVMClientInterface 		--dir=../synchronizer 					--output=../synchronizer --outpkg=synchronizer 	--structname=zkEVMClientMock 					--filename=mock_zkevmclient.go
-	for i in l1RollupProducerInterface l1RollupConsumerInterface worker synchronizerProcessBlockRangeInterface workersInterface L1EthermanInterface; do \
+	for i in l1RollupProducerInterface l1RollupConsumerInterface worker synchronizerProcessBlockRangeInterface workersInterface L1ParallelEthermanInterface; do \
 		camelcase=$$(echo $$i | sed 's/\([a-z0-9]\)\([A-Z]\)/\1_\L\2/g' | tr '[:upper:]' '[:lower:]') ; \
 		echo $$camelcase ; \
 		export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=$$i --dir=../synchronizer/l1_parallel_sync --output=../synchronizer/l1_parallel_sync/mocks --outpkg=l1_parallel_sync --structname=$$i"Mock" --filename=mock_$$camelcase.go  --inpackage ; \

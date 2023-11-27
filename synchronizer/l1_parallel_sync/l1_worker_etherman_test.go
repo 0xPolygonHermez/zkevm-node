@@ -27,7 +27,7 @@ func TestExploratoryWorker(t *testing.T) {
 		L1ChainID:                 1337,
 		ZkEVMAddr:                 common.HexToAddress("0x610178dA211FEF7D417bC0e6FeD39F05609AD788"),
 		PolAddr:                   common.HexToAddress("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-		GlobalExitRootManagerAddr: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
+		GlobalExitRootManagerAddr: common.HexToAddress("0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"),
 	}
 
 	ethermanClient, err := etherman.NewClient(cfg, l1Config)
@@ -234,7 +234,7 @@ func TestIfRollupInfoFailPreviousBlockContainBlockRange(t *testing.T) {
 	require.Equal(t, result.result.blockRange, blockRange)
 }
 
-func expectedCallsForEmptyRollupInfo(mockEtherman *L1EthermanInterfaceMock, blockRange blockRange, getRollupError error, ethBlockError error) {
+func expectedCallsForEmptyRollupInfo(mockEtherman *L1ParallelEthermanInterfaceMock, blockRange blockRange, getRollupError error, ethBlockError error) {
 	mockEtherman.
 		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).
 		Return([]etherman.Block{}, map[common.Hash][]etherman.Order{}, getRollupError).
@@ -248,8 +248,8 @@ func expectedCallsForEmptyRollupInfo(mockEtherman *L1EthermanInterfaceMock, bloc
 	}
 }
 
-func setupWorkerEthermanTest(t *testing.T) (*workerEtherman, *L1EthermanInterfaceMock, chan responseRollupInfoByBlockRange) {
-	mockEtherman := NewL1EthermanInterfaceMock(t)
+func setupWorkerEthermanTest(t *testing.T) (*workerEtherman, *L1ParallelEthermanInterfaceMock, chan responseRollupInfoByBlockRange) {
+	mockEtherman := NewL1ParallelEthermanInterfaceMock(t)
 	worker := newWorker(mockEtherman)
 	ch := make(chan responseRollupInfoByBlockRange, 2)
 	return worker, mockEtherman, ch

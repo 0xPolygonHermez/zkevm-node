@@ -97,15 +97,15 @@ func TestGivenNoSetFirstBlockWhenCallStartThenDontReturnError(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func setup(t *testing.T) (*L1RollupInfoProducer, []*L1EthermanInterfaceMock, chan L1SyncMessage) {
+func setup(t *testing.T) (*L1RollupInfoProducer, []*L1ParallelEthermanInterfaceMock, chan L1SyncMessage) {
 	sut, ethermansMock, resultChannel := setupNoResetCall(t)
 	sut.Reset(100)
 	return sut, ethermansMock, resultChannel
 }
 
-func setupNoResetCall(t *testing.T) (*L1RollupInfoProducer, []*L1EthermanInterfaceMock, chan L1SyncMessage) {
-	ethermansMock := []*L1EthermanInterfaceMock{NewL1EthermanInterfaceMock(t), NewL1EthermanInterfaceMock(t)}
-	ethermans := []L1EthermanInterface{ethermansMock[0], ethermansMock[1]}
+func setupNoResetCall(t *testing.T) (*L1RollupInfoProducer, []*L1ParallelEthermanInterfaceMock, chan L1SyncMessage) {
+	ethermansMock := []*L1ParallelEthermanInterfaceMock{NewL1ParallelEthermanInterfaceMock(t), NewL1ParallelEthermanInterfaceMock(t)}
+	ethermans := []L1ParallelEthermanInterface{ethermansMock[0], ethermansMock[1]}
 	resultChannel := make(chan L1SyncMessage, 100)
 	cfg := ConfigProducer{
 		SyncChunkSize:      100,
@@ -117,7 +117,7 @@ func setupNoResetCall(t *testing.T) (*L1RollupInfoProducer, []*L1EthermanInterfa
 	return sut, ethermansMock, resultChannel
 }
 
-func expectedForGettingL1LastBlock(t *testing.T, etherman *L1EthermanInterfaceMock, blockNumber int64) {
+func expectedForGettingL1LastBlock(t *testing.T, etherman *L1ParallelEthermanInterfaceMock, blockNumber int64) {
 	header := new(ethTypes.Header)
 	header.Number = big.NewInt(blockNumber)
 	etherman.
@@ -126,7 +126,7 @@ func expectedForGettingL1LastBlock(t *testing.T, etherman *L1EthermanInterfaceMo
 		Maybe()
 }
 
-func expectedRollupInfoCalls(t *testing.T, etherman *L1EthermanInterfaceMock, calls int) {
+func expectedRollupInfoCalls(t *testing.T, etherman *L1ParallelEthermanInterfaceMock, calls int) {
 	etherman.
 		On("GetRollupInfoByBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil, nil).

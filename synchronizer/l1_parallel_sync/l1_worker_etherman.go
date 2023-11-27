@@ -169,7 +169,7 @@ type retrieveL1LastBlockResult struct {
 
 type workerEtherman struct {
 	mutex                sync.Mutex
-	etherman             L1EthermanInterface
+	etherman             L1ParallelEthermanInterface
 	status               ethermanStatusEnum
 	typeOfCurrentRequest typeOfRequest
 	request              requestRollupInfoByBlockRange
@@ -186,7 +186,7 @@ func (w *workerEtherman) String() string {
 	return fmt.Sprintf("status:%s", w.status.String())
 }
 
-func newWorker(etherman L1EthermanInterface) *workerEtherman {
+func newWorker(etherman L1ParallelEthermanInterface) *workerEtherman {
 	return &workerEtherman{etherman: etherman, status: ethermanIdle}
 }
 

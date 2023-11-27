@@ -195,7 +195,7 @@ func (l *L1RollupInfoProducer) toStringBriefUnsafe() string {
 }
 
 // NewL1DataRetriever creates a new object
-func NewL1DataRetriever(cfg ConfigProducer, ethermans []L1EthermanInterface, outgoingChannel chan L1SyncMessage) *L1RollupInfoProducer {
+func NewL1DataRetriever(cfg ConfigProducer, ethermans []L1ParallelEthermanInterface, outgoingChannel chan L1SyncMessage) *L1RollupInfoProducer {
 	if cap(outgoingChannel) < len(ethermans) {
 		log.Warnf("producer: outgoingChannel must have a capacity (%d) of at least equal to number of ether clients (%d)", cap(outgoingChannel), len(ethermans))
 	}

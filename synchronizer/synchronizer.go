@@ -154,7 +154,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		MinTimeBetweenRetriesForRollupInfo:         cfg.L1ParallelSynchronization.RollupInfoRetriesSpacing.Duration,
 	}
 	// Convert EthermanInterface to l1_sync_parallel.EthermanInterface
-	etherManForL1Converted := make([]l1_parallel_sync.L1EthermanInterface, len(etherManForL1))
+	etherManForL1Converted := make([]l1_parallel_sync.L1ParallelEthermanInterface, len(etherManForL1))
 	for i, etherMan := range etherManForL1 {
 		etherManForL1Converted[i] = etherMan
 	}
