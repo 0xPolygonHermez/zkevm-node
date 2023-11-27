@@ -158,9 +158,9 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	t.Log("Blocks: ", blocks)
 	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
 	sequences = append(sequences, polygonzkevm.PolygonRollupBaseEtrogBatchData{
-		Transactions:       common.Hex2Bytes(rawTxs),
+		Transactions: common.Hex2Bytes(rawTxs),
 	}, polygonzkevm.PolygonRollupBaseEtrogBatchData{
-		Transactions:       common.Hex2Bytes(rawTxs),
+		Transactions: common.Hex2Bytes(rawTxs),
 	})
 	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, auth.From)
 	require.NoError(t, err)
@@ -198,7 +198,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	tx := polygonzkevm.PolygonRollupBaseEtrogBatchData{
-		Transactions:       common.Hex2Bytes(rawTxs),
+		Transactions: common.Hex2Bytes(rawTxs),
 	}
 	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, auth.From)
 	require.NoError(t, err)

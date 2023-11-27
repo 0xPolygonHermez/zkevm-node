@@ -44,12 +44,12 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 
 	sut := NewProcessorL1InfoTreeUpdate(testState)
 	l1infotree := etherman.GlobalExitRoot{
-		BlockNumber:     123,
-		MainnetExitRoot: common.HexToHash("abc"),
-		RollupExitRoot:  common.HexToHash("abc"),
-		GlobalExitRoot:  common.HexToHash("abc"),
+		BlockNumber:       123,
+		MainnetExitRoot:   common.HexToHash("abc"),
+		RollupExitRoot:    common.HexToHash("abc"),
+		GlobalExitRoot:    common.HexToHash("abc"),
 		PreviousBlockHash: common.HexToHash("abc"),
-		Timestamp:      time.Now(),
+		Timestamp:         time.Now(),
 	}
 	l1Block := &etherman.Block{
 		BlockNumber: 123,

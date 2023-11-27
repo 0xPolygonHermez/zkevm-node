@@ -438,10 +438,10 @@ func TestSequenceForcedBatch(t *testing.T) {
 				Coinbase:    common.HexToAddress("0x222"),
 				TxHash:      common.HexToHash("0x333"),
 				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
-					Transactions:       []byte{},
-					ForcedGlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					ForcedTimestamp: 1000, //ForcedBatch
-					ForcedBlockHashL1: common.HexToHash("0x444"),
+					Transactions:         []byte{},
+					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedTimestamp:      1000, //ForcedBatch
+					ForcedBlockHashL1:    common.HexToHash("0x444"),
 				},
 			}
 
