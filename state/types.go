@@ -72,6 +72,8 @@ type ProcessBlockResponse struct {
 type ProcessTransactionResponse struct {
 	// TxHash is the hash of the transaction
 	TxHash common.Hash
+	// TxHashL2_V2 is the hash of the transaction in the L2
+	TxHashL2_V2 common.Hash
 	// Type indicates legacy transaction
 	// It will be always 0 (legacy) in the executor
 	Type uint32

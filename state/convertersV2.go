@@ -95,6 +95,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 	for _, response := range responses {
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
+		result.TxHashL2_V2 = common.BytesToHash(response.TxHashL2)
 		result.Type = response.Type
 		result.ReturnValue = response.ReturnValue
 		result.GasLeft = response.GasLeft
