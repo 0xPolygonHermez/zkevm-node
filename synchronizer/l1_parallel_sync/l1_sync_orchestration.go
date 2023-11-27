@@ -67,6 +67,7 @@ func NewL1SyncOrchestration(ctx context.Context, producer l1RollupProducerInterf
 	return &res
 }
 
+// Reset set a new starting point and cancel current process if any
 func (l *L1SyncOrchestration) Reset(startingBlockNumber uint64) {
 	log.Warnf("orchestration: Reset L1 sync process to blockNumber %d", startingBlockNumber)
 	if l.isRunning {
@@ -77,6 +78,7 @@ func (l *L1SyncOrchestration) Reset(startingBlockNumber uint64) {
 	// If orchestrator is running then producer is going to be started by orchestrate() select  function when detects that producer has finished
 }
 
+// Start launch a new process to retrieve and execute data from L1
 func (l *L1SyncOrchestration) Start(lastEthBlockSynced *state.Block) (*state.Block, error) {
 	l.isRunning = true
 	l.launchProducer(l.ctxWithCancel.ctx, lastEthBlockSynced, l.chProducer, &l.wg)
@@ -84,6 +86,7 @@ func (l *L1SyncOrchestration) Start(lastEthBlockSynced *state.Block) (*state.Blo
 	return l.orchestrate(l.ctxParent, &l.wg, l.chProducer, l.chConsumer)
 }
 
+// Abort stop inmediatly the current process
 func (l *L1SyncOrchestration) Abort() {
 	l.producer.Abort()
 	l.ctxWithCancel.cancel()
@@ -91,6 +94,7 @@ func (l *L1SyncOrchestration) Abort() {
 	l.ctxWithCancel.createWithCancel(l.ctxParent)
 }
 
+// IsProducerRunning return true if producer is running
 func (l *L1SyncOrchestration) IsProducerRunning() bool {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()

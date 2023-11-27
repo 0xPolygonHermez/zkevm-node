@@ -9,6 +9,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
+// L1EthermanInterface is an interface for the etherman package
 type L1EthermanInterface interface {
 	HeaderByNumber(ctx context.Context, number *big.Int) (*ethTypes.Header, error)
 	GetRollupInfoByBlockRange(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]etherman.Block, map[common.Hash][]etherman.Order, error)

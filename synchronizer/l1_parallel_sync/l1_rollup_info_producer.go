@@ -167,6 +167,7 @@ type producerCmd struct {
 	param1 uint64
 }
 
+// L1RollupInfoProducer is the object that retrieves data from L1
 type L1RollupInfoProducer struct {
 	mutex             sync.Mutex
 	ctxParent         context.Context
@@ -216,8 +217,7 @@ func NewL1DataRetriever(cfg ConfigProducer, ethermans []L1EthermanInterface, out
 	return &result
 }
 
-// ResetAndStop: reset the object and stop the current process. Set first block to be retrieved
-// This function could be call from outside of main goroutine
+// Reset reset the object and stop the current process. Set first block to be retrieved
 func (l *L1RollupInfoProducer) Reset(startingBlockNumber uint64) {
 	log.Infof("producer: Reset(%d) queue cmd and discarding all info in channel", startingBlockNumber)
 	l.setStatusReseting()
@@ -268,12 +268,16 @@ func (l *L1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
 		}
 	}
 }
+
+// Abort stop inmediatly the current process
 func (l *L1RollupInfoProducer) Abort() {
 	l.emptyChannel()
 	l.ctxWithCancel.cancelCtx()
 	l.ctxWithCancel.createWithCancel(l.ctxParent)
 }
 
+// Stop stop the current process sending a stop command to the process queue
+// so it stops when finish to process all packages in queue
 func (l *L1RollupInfoProducer) Stop() {
 	log.Infof("producer: Stop() queue cmd")
 	l.channelCmds <- producerCmd{cmd: producerStop}
@@ -321,7 +325,7 @@ func (l *L1RollupInfoProducer) initialize(ctx context.Context) error {
 	return nil
 }
 
-// Before calling Start you must set lastBlockOnDB calling ResetAndStop
+// Start a producer
 func (l *L1RollupInfoProducer) Start(ctx context.Context) error {
 	log.Infof("producer: starting L1 sync from:%s", l.syncStatus.String())
 	err := l.initialize(ctx)

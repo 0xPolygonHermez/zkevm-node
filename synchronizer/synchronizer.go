@@ -618,6 +618,7 @@ func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
 	return nil
 }
 
+// ProcessBlockRange process the L1 events and stores the information in the db
 func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
 	// New info has to be included into the db using the state
 	for i := range blocks {
