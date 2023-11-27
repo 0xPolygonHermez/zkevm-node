@@ -76,7 +76,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 
 // ExecuteBatchV2 is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 // It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
-func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error) {
+func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -95,14 +95,16 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTre
 	}
 
 	// Create Batch
-	processBatchRequest := &executor.ProcessBatchRequest{
-		OldBatchNum:     batch.BatchNumber - 1,
-		Coinbase:        batch.Coinbase.String(),
-		BatchL2Data:     batch.BatchL2Data,
-		OldStateRoot:    previousBatch.StateRoot.Bytes(),
-		GlobalExitRoot:  batch.GlobalExitRoot.Bytes(),
+	processBatchRequest := &executor.ProcessBatchRequestV2{
+		OldBatchNum:  batch.BatchNumber - 1,
+		Coinbase:     batch.Coinbase.String(),
+		BatchL2Data:  batch.BatchL2Data,
+		OldStateRoot: previousBatch.StateRoot.Bytes(),
+		// TODO: Change this to L1InfoRoot
+		L1InfoRoot:      batch.GlobalExitRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
-		EthTimestamp:    uint64(batch.Timestamp.Unix()),
+		// TODO: Change this to TimestampLimit
+		TimestampLimit: uint64(batch.Timestamp.Unix()),
 		// Changed for new sequencer strategy
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
@@ -115,22 +117,22 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTre
 	log.Debugf("ExecuteBatchV2[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
 	log.Debugf("ExecuteBatchV2[processBatchRequest.From]: %v", processBatchRequest.From)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("ExecuteBatchV2[processBatchRequest.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequest.L1InfoRoot))
 	log.Debugf("ExecuteBatchV2[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-	log.Debugf("ExecuteBatchV2[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.TimestampLimit]: %v", processBatchRequest.TimestampLimit)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 
-	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {
 		log.Error("error executing batch: ", err)
 		return nil, err
 	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponse.Error, processBatchRequest)
 	}
 
 	return processBatchResponse, err

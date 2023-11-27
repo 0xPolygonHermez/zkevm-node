@@ -26,9 +26,6 @@ import (
 )
 
 const (
-	one                            = 1
-	two                            = 2
-	oneHundred                     = 100
 	pendingTxsBufferSizeMultiplier = 10
 )
 
@@ -191,14 +188,14 @@ func (f *finalizer) Start(ctx context.Context) {
 func (f *finalizer) getLastStateRoot(ctx context.Context) (common.Hash, error) {
 	var oldStateRoot common.Hash
 
-	batches, err := f.dbManager.GetLastNBatches(ctx, two)
+	batches, err := f.dbManager.GetLastNBatches(ctx, 2) //nolint:gomnd
 	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", two, err)
+		return common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", 2, err) //nolint:gomnd
 	}
 
-	if len(batches) == one {
+	if len(batches) == 1 { //nolint:gomnd
 		oldStateRoot = batches[0].StateRoot
-	} else if len(batches) == two {
+	} else if len(batches) == 2 { //nolint:gomnd
 		oldStateRoot = batches[1].StateRoot
 	}
 
@@ -1549,10 +1546,10 @@ func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.Batch
 
 // getConstraintThresholdUint64 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / oneHundred
+	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
 }
 
 // getConstraintThresholdUint32 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / oneHundred
+	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
 }
