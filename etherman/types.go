@@ -13,22 +13,24 @@ type Block struct {
 	BlockNumber           uint64
 	BlockHash             common.Hash
 	ParentHash            common.Hash
-	GlobalExitRoots       []GlobalExitRoot
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches [][]SequencedForceBatch
 	ForkIDs               []ForkID
 	ReceivedAt            time.Time
+	// GER data
+	GlobalExitRoots, L1InfoTree []GlobalExitRoot
 }
 
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
-	BlockNumber     uint64
-	MainnetExitRoot common.Hash
-	RollupExitRoot  common.Hash
-	GlobalExitRoot  common.Hash
-	Timestamp       time.Time
+	BlockNumber       uint64
+	MainnetExitRoot   common.Hash
+	RollupExitRoot    common.Hash
+	GlobalExitRoot    common.Hash
+	Timestamp         time.Time
+	PreviousBlockHash common.Hash
 }
 
 // SequencedBatch represents virtual batch

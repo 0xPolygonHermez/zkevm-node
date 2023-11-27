@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -29,7 +30,7 @@ type syncProcessL1SequenceForcedBatchesInterface interface {
 
 // ProcessL1SequenceForcedBatches implements L1EventProcessor
 type ProcessL1SequenceForcedBatches struct {
-	ProcessorBase[ProcessL1SequenceForcedBatches]
+	actions.ProcessorBase[ProcessL1SequenceForcedBatches]
 	state stateProcessL1SequenceForcedBatchesInterface
 	sync  syncProcessL1SequenceForcedBatchesInterface
 }
@@ -38,9 +39,11 @@ type ProcessL1SequenceForcedBatches struct {
 func NewProcessL1SequenceForcedBatches(state stateProcessL1SequenceForcedBatchesInterface,
 	sync syncProcessL1SequenceForcedBatchesInterface) *ProcessL1SequenceForcedBatches {
 	return &ProcessL1SequenceForcedBatches{
-		ProcessorBase: ProcessorBase[ProcessL1SequenceForcedBatches]{supportedEvent: etherman.SequenceForceBatchesOrder},
-		state:         state,
-		sync:          sync}
+		ProcessorBase: actions.ProcessorBase[ProcessL1SequenceForcedBatches]{
+			SupportedEvent:    []etherman.EventOrder{etherman.SequenceForceBatchesOrder},
+			SupportedForkdIds: &actions.ForksIdAll},
+		state: state,
+		sync:  sync}
 }
 
 // Process process event
@@ -104,8 +107,8 @@ func (s *ProcessL1SequenceForcedBatches) processSequenceForceBatch(ctx context.C
 		return fmt.Errorf("error number of forced batches doesn't match")
 	}
 	for i, fbatch := range sequenceForceBatch {
-		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.MinForcedTimestamp ||
-			forcedBatches[i].GlobalExitRoot != fbatch.GlobalExitRoot ||
+		if uint64(forcedBatches[i].ForcedAt.Unix()) != fbatch.ForcedTimestamp ||
+			forcedBatches[i].GlobalExitRoot != fbatch.ForcedGlobalExitRoot ||
 			common.Bytes2Hex(forcedBatches[i].RawTxsData) != common.Bytes2Hex(fbatch.Transactions) {
 			log.Warnf("ForcedBatch stored: %+v", forcedBatches)
 			log.Warnf("ForcedBatch sequenced received: %+v", fbatch)
@@ -126,7 +129,7 @@ func (s *ProcessL1SequenceForcedBatches) processSequenceForceBatch(ctx context.C
 		}
 		batch := state.ProcessingContext{
 			BatchNumber:    fbatch.BatchNumber,
-			GlobalExitRoot: fbatch.GlobalExitRoot,
+			GlobalExitRoot: fbatch.ForcedGlobalExitRoot,
 			Timestamp:      block.ReceivedAt,
 			Coinbase:       fbatch.Coinbase,
 			ForcedBatchNum: &forcedBatches[i].ForcedBatchNumber,
