@@ -107,7 +107,7 @@ services:
   zkevm-prover:
     container_name: zkevm-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:83c6275
+    image: hermeznetwork/zkevm-prover:5eb7ac7
     depends_on:
       zkevm-state-db:
         condition: service_healthy
