@@ -33,7 +33,6 @@ func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, er
 func GetL2Hash(tx types.Transaction) (common.Hash, error) {
 	sender, err := GetSender(tx)
 	if err != nil {
-		// This is normal for unsigned transactions
 		log.Debugf("error getting sender: %v", err)
 	}
 
