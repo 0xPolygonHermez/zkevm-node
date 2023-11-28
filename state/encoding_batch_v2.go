@@ -1,0 +1,171 @@
+package state
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
+)
+
+type L2BlockRaw struct {
+	DeltaTimestamp  uint32
+	IndexL1InfoTree uint32
+	Transactions    []L2Tx
+}
+
+type L2Tx struct {
+	Tx                   types.Transaction
+	EfficiencyPercentage uint8
+}
+
+const (
+	changeL2Block = uint8(0x0b)
+)
+
+var (
+	// ErrInvalidBatchV2 is returned when the batch is invalid.
+	ErrInvalidBatchV2 = errors.New("invalid batch v2")
+	// ErrInvalidRLP is returned when the rlp is invalid.
+	ErrInvalidRLP = errors.New("invalid rlp codification")
+)
+
+// DecodeBatchV2 decodes a batch of transactions from a byte slice.
+func DecodeBatchV2(txsData []byte) ([]L2BlockRaw, error) {
+	// The transactions is not RLP encoded. Is the raw bytes in this form: 1 byte for the transaction type (always 0b for changeL2Block) + 4 bytes for deltaTimestamp + for bytes for indexL1InfoTree
+	var err error
+	var blocks []L2BlockRaw
+	var currentBlock *L2BlockRaw
+	pos := int(0)
+	for pos < len(txsData) {
+		log.Debugf("pos: %d, data[]=%d pendingbytes:%d", pos, txsData[pos], len(txsData)-pos)
+		switch txsData[pos] {
+		case changeL2Block:
+			log.Debugf("pos: %d, changeL2Block", pos)
+			if currentBlock != nil {
+				blocks = append(blocks, *currentBlock)
+			}
+			pos, currentBlock, err = decodeBlockHeader(txsData, pos+1)
+			if err != nil {
+				return nil, fmt.Errorf("pos: %d can't decode new BlockHeader: %w", pos, err)
+			}
+		// by RLP definition a tx never starts with a 0x0b. So, if is not a changeL2Block
+		// is a tx
+		default:
+			log.Debugf("pos: %d, Transaction", pos)
+			var tx *L2Tx
+			pos, tx, err = decodeTxRLP(txsData, pos)
+			if err != nil {
+				return nil, fmt.Errorf("can't decode transactions: %w", err)
+			}
+			if currentBlock == nil {
+				return nil, fmt.Errorf("can't add transactions because currentBlock is nil: %w", err)
+			}
+			currentBlock.Transactions = append(currentBlock.Transactions, *tx)
+		}
+
+	}
+	if currentBlock != nil {
+		blocks = append(blocks, *currentBlock)
+	}
+	return blocks, nil
+}
+
+// decodeBlockHeader decodes a block header from a byte slice.
+//
+//	Extract: 4 bytes for deltaTimestamp + 4 bytes for indexL1InfoTree
+func decodeBlockHeader(txsData []byte, pos int) (int, *L2BlockRaw, error) {
+	var err error
+	currentBlock := &L2BlockRaw{}
+	pos, currentBlock.DeltaTimestamp, err = deserializeUint32(txsData, pos)
+	if err != nil {
+		return 0, nil, fmt.Errorf("can't get deltaTimestamp: %w", err)
+	}
+	pos, currentBlock.IndexL1InfoTree, err = deserializeUint32(txsData, pos)
+	if err != nil {
+		return 0, nil, fmt.Errorf("can't get leafIndex: %w", err)
+	}
+
+	return pos, currentBlock, nil
+}
+
+func decodeTxRLP(txsData []byte, offset int) (int, *L2Tx, error) {
+	var err error
+	length, err := decodeRLPListLengthFromOffset(txsData, offset)
+	if err != nil {
+		return 0, nil, fmt.Errorf("can't get RLP length (offset=%d): %w", offset, err)
+	}
+	log.Debugf("length: %d (offset=%d)", length, offset)
+	endPos := uint64(offset) + length + rLength + sLength + vLength + EfficiencyPercentageByteLength
+	if endPos > uint64(len(txsData)) {
+		return 0, nil, fmt.Errorf("can't get tx because not enough data (endPos=%d lenData=%d): %w",
+			endPos, len(txsData), ErrInvalidBatchV2)
+	}
+	fullDataTx := txsData[offset:endPos]
+	dataStart := uint64(offset) + length
+	txInfo := txsData[offset:dataStart]
+	rData := txsData[dataStart : dataStart+rLength]
+	sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
+	vData := txsData[dataStart+rLength+sLength : dataStart+rLength+sLength+vLength]
+	efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength]
+	var rlpFields [][]byte
+	err = rlp.DecodeBytes(txInfo, &rlpFields)
+	if err != nil {
+		log.Error("error decoding tx Bytes: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+		return 0, nil, err
+	}
+	legacyTx, err := RlpFieldsToLegacyTx(rlpFields, vData, rData, sData)
+	if err != nil {
+		log.Debug("error creating tx from rlp fields: ", err, ". fullDataTx: ", hex.EncodeToString(fullDataTx), "\n tx: ", hex.EncodeToString(txInfo), "\n Txs received: ", hex.EncodeToString(txsData))
+		return 0, nil, err
+	}
+
+	l2Tx := &L2Tx{
+		Tx:                   *types.NewTx(legacyTx),
+		EfficiencyPercentage: efficiencyPercentage,
+	}
+
+	return int(endPos), l2Tx, err
+}
+
+func deserializeUint32(txsData []byte, pos int) (int, uint32, error) {
+	if len(txsData)-pos < 4 {
+		return 0, 0, fmt.Errorf("can't get u32 because not enough data: %w", ErrInvalidBatchV2)
+	}
+	return pos + 4, uint32(txsData[pos])<<24 | uint32(txsData[pos+1])<<16 | uint32(txsData[pos+2])<<8 | uint32(txsData[pos+3]), nil
+}
+
+// It returns the length of data from the param offset
+// ex:
+// 0xc0 -> empty data -> 1 byte because it include the 0xc0
+func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
+	txDataLength := uint64(len(txsData))
+	num := uint64(txsData[offset])
+	if num < c0 { // c0 -> is a empty data
+		log.Debugf("error num < c0 : %d, %d", num, c0)
+		return 0, fmt.Errorf("first byte of tx (%x) is < 0xc0: %w", num, ErrInvalidRLP)
+	}
+	length := uint64(num - c0)
+	if length > shortRlp { // If rlp is bigger than length 55
+		// n is the length of the rlp data without the header (1 byte) for example "0xf7"
+		pos64 := uint64(offset)
+		lengthInByteOfSize := num - f7
+		if (pos64 + headerByteLength + lengthInByteOfSize) > txDataLength {
+			log.Debug("error not enough data: ")
+			return 0, fmt.Errorf("not enough data to get length: %w", ErrInvalidRLP)
+		}
+
+		n, err := strconv.ParseUint(hex.EncodeToString(txsData[pos64+1:pos64+1+lengthInByteOfSize]), hex.Base, hex.BitSize64) // +1 is the header. For example 0xf7
+		if err != nil {
+			log.Debug("error parsing length: ", err)
+			return 0, fmt.Errorf("error parsing length value: %w", err)
+		}
+		// TODO: RLP specifications says length = n ??? that is wrong??
+		length = n + num - f7 // num - f7 is the header. For example 0xf7
+	}
+	return length + headerByteLength, nil
+
+}
