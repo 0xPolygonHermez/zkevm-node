@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
@@ -579,6 +580,138 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	rpcErr := err.(rpc.Error)
 	assert.Equal(t, -32000, rpcErr.ErrorCode())
 	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
+}
+
+func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		ethereumClient, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		// deploy a smart contract
+		_, tx, sc, err := Counter.DeployCounter(auth, ethereumClient)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		gasPrice, err := ethereumClient.SuggestGasPrice(ctx)
+		require.NoError(t, err)
+
+		// prepare a tx information to be estimated
+		auth.NoSend = true // force the tx to not be sent while using the sc method
+		auth.GasLimit = 1  // force gas limit to avoid estimation while building the tx
+		txToMsg, err := sc.Increment(auth)
+		require.NoError(t, err)
+
+		type testCase struct {
+			name          string
+			address       common.Address
+			balance       *big.Int
+			forceGasPrice bool
+			expectedError rpc.Error
+		}
+
+		testCases := []testCase{
+			{
+				name:          "with gasPrice set and address with enough balance",
+				address:       auth.From,
+				balance:       nil,
+				forceGasPrice: true,
+				expectedError: nil,
+			},
+			{
+				name:          "with gasPrice set and address without enough balance",
+				address:       common.HexToAddress("0x1"),
+				balance:       big.NewInt(1000),
+				forceGasPrice: true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			{
+				name:          "with gasPrice set and address with balance zero",
+				address:       common.HexToAddress("0x2"),
+				balance:       nil,
+				forceGasPrice: true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			{
+				name:          "without gasPrice set and address with enough balance",
+				address:       auth.From,
+				balance:       nil,
+				forceGasPrice: false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and address without enough balance",
+				address:       common.HexToAddress("0x1"),
+				balance:       big.NewInt(1000),
+				forceGasPrice: false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and address with balance zero",
+				address:       common.HexToAddress("0x2"),
+				balance:       nil,
+				forceGasPrice: false,
+				expectedError: nil,
+			},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				// if balance is set, send funds to the account
+				if testCase.balance != nil {
+					nonce, err := ethereumClient.NonceAt(ctx, auth.From, nil)
+					require.NoError(t, err)
+					value := big.NewInt(1000)
+					require.NoError(t, err)
+					tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+						Nonce:    nonce,
+						To:       &testCase.address,
+						Value:    value,
+						Gas:      24000,
+						GasPrice: gasPrice,
+					})
+					signedTx, err := auth.Signer(auth.From, tx)
+					require.NoError(t, err)
+					err = ethereumClient.SendTransaction(ctx, signedTx)
+					require.NoError(t, err)
+					err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+					require.NoError(t, err)
+
+				}
+
+				msg := ethereum.CallMsg{
+					From:  testCase.address,
+					To:    txToMsg.To(),
+					Value: txToMsg.Value(),
+					Data:  txToMsg.Data(),
+				}
+				if testCase.forceGasPrice {
+					msg.GasPrice = gasPrice
+				}
+
+				_, err = ethereumClient.EstimateGas(ctx, msg)
+				if testCase.expectedError != nil {
+					rpcErr := err.(rpc.Error)
+					assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
+					assert.True(t, strings.HasPrefix(rpcErr.Error(), testCase.expectedError.Error()))
+				} else {
+					assert.Nil(t, err)
+				}
+			})
+		}
+	}
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.
