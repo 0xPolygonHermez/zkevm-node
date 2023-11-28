@@ -99,10 +99,8 @@ func TestDecodeWrongBatch(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
-
 		})
 	}
-
 }
 
 func TestDecodeBatchV2(t *testing.T) {
@@ -116,7 +114,6 @@ func TestDecodeBatchV2(t *testing.T) {
 	require.Equal(t, 2, len(decodedBatch))
 	require.Equal(t, uint32(0x73e6af6f), decodedBatch[0].DeltaTimestamp)
 	require.Equal(t, uint32(0x00000000), decodedBatch[0].IndexL1InfoTree)
-
 }
 
 func TestDecodeRLPLength(t *testing.T) {
@@ -174,7 +171,28 @@ func TestDecodeRLPLength(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tc.expectedResult, length)
 			}
-
 		})
 	}
+}
+
+func TestEncodeBatchV2(t *testing.T) {
+	block1 := L2BlockRaw{
+		DeltaTimestamp:  123,
+		IndexL1InfoTree: 456,
+		Transactions:    []L2Tx{},
+	}
+	block2 := L2BlockRaw{
+		DeltaTimestamp:  789,
+		IndexL1InfoTree: 101112,
+		Transactions:    []L2Tx{},
+	}
+	blocks := []L2BlockRaw{block1, block2}
+
+	expectedBatchData := []byte{
+		0xb, 0x0, 0x0, 0x0, 0x7b, 0x0, 0x0, 0x1, 0xc8, 0xb, 0x0, 0x0, 0x3, 0x15, 0x0, 0x1, 0x8a, 0xf8,
+	}
+
+	batchData, err := EncodeBatchV2(blocks)
+	require.NoError(t, err)
+	require.Equal(t, expectedBatchData, batchData)
 }

@@ -11,12 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// L2BlockRaw is the raw representation of a L2 block.
 type L2BlockRaw struct {
 	DeltaTimestamp  uint32
 	IndexL1InfoTree uint32
 	Transactions    []L2Tx
 }
 
+// L2Tx is the raw representation of a L2 transaction  inside a L2 block.
 type L2Tx struct {
 	Tx                   types.Transaction
 	EfficiencyPercentage uint8
@@ -33,7 +35,65 @@ var (
 	ErrInvalidRLP = errors.New("invalid rlp codification")
 )
 
+// EncodeBatchV2 encodes a batch of transactions into a byte slice.
+func EncodeBatchV2(blocks []L2BlockRaw) ([]byte, error) {
+	var err error
+	var batchData []byte
+	for _, block := range blocks {
+		batchData, err = encodeBlockHeader(batchData, block)
+		if err != nil {
+			return nil, fmt.Errorf("can't encode block header: %w", err)
+		}
+		for _, tx := range block.Transactions {
+			batchData, err = encodeTxRLP(batchData, tx)
+			if err != nil {
+				return nil, fmt.Errorf("can't encode tx: %w", err)
+			}
+		}
+	}
+	return batchData, nil
+}
+
+func encodeBlockHeader(batchData []byte, block L2BlockRaw) ([]byte, error) {
+	batchData = append(batchData, changeL2Block)
+	batchData = append(batchData, serializeUint32(block.DeltaTimestamp)...)
+	batchData = append(batchData, serializeUint32(block.IndexL1InfoTree)...)
+	return batchData, nil
+}
+
+func encodeTxRLP(batchData []byte, tx L2Tx) ([]byte, error) {
+	rlpTx, err := prepareRPLTxData(tx.Tx)
+	if err != nil {
+		return nil, fmt.Errorf("can't encode tx to RLP: %w", err)
+	}
+	batchData = append(batchData, rlpTx...)
+	batchData = append(batchData, tx.EfficiencyPercentage)
+	return batchData, nil
+}
+
+func serializeUint32(value uint32) []byte {
+	return []byte{
+		byte(value >> 24), // nolint:gomnd
+		byte(value >> 16), // nolint:gomnd
+		byte(value >> 8),  // nolint:gomnd
+		byte(value),
+	} // nolint:gomnd
+}
+
 // DecodeBatchV2 decodes a batch of transactions from a byte slice.
+// batch data format:
+// 0xb                             | 1  | changeL2Block
+// --------- L2 block Header ---------------------------------
+// 0x73e6af6f                      | 4  | deltaTimestamp
+// 0x00000012					   | 4  | indexL1InfoTree
+// -------- Transaction ---------------------------------------
+// 0x00...0x00					   | n  | transaction RLP coded
+// 0x00...0x00					   | 32 | R
+// 0x00...0x00					   | 32 | S
+// 0x00							   | 32 | V
+// 0x00							   | 1  | efficiencyPercentage
+// Repeat Transaction or changeL2Block
+// Note: RLP codification: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
 func DecodeBatchV2(txsData []byte) ([]L2BlockRaw, error) {
 	// The transactions is not RLP encoded. Is the raw bytes in this form: 1 byte for the transaction type (always 0b for changeL2Block) + 4 bytes for deltaTimestamp + for bytes for indexL1InfoTree
 	var err error
@@ -66,7 +126,6 @@ func DecodeBatchV2(txsData []byte) ([]L2BlockRaw, error) {
 			}
 			currentBlock.Transactions = append(currentBlock.Transactions, *tx)
 		}
-
 	}
 	if currentBlock != nil {
 		blocks = append(blocks, *currentBlock)
@@ -132,10 +191,10 @@ func decodeTxRLP(txsData []byte, offset int) (int, *L2Tx, error) {
 }
 
 func deserializeUint32(txsData []byte, pos int) (int, uint32, error) {
-	if len(txsData)-pos < 4 {
+	if len(txsData)-pos < 4 { // nolint:gomnd
 		return 0, 0, fmt.Errorf("can't get u32 because not enough data: %w", ErrInvalidBatchV2)
 	}
-	return pos + 4, uint32(txsData[pos])<<24 | uint32(txsData[pos+1])<<16 | uint32(txsData[pos+2])<<8 | uint32(txsData[pos+3]), nil
+	return pos + 4, uint32(txsData[pos])<<24 | uint32(txsData[pos+1])<<16 | uint32(txsData[pos+2])<<8 | uint32(txsData[pos+3]), nil // nolint:gomnd
 }
 
 // It returns the length of data from the param offset
@@ -167,5 +226,4 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 		length = n + num - f7 // num - f7 is the header. For example 0xf7
 	}
 	return length + headerByteLength, nil
-
 }
