@@ -111,9 +111,9 @@ func KeyContractStorage(ethAddr common.Address, storagePos []byte) ([]byte, erro
 	return keyEthAddr(ethAddr, LeafTypeStorage, hk0)
 }
 
-// hashContractBytecode computes the bytecode hash in order to add it to the
+// HashContractBytecode computes the bytecode hash in order to add it to the
 // state-tree.
-func hashContractBytecode(code []byte) ([]uint64, error) {
+func HashContractBytecode(code []byte) ([]uint64, error) {
 	const (
 		bytecodeElementsHash = 8
 		bytecodeBytesElement = 7
