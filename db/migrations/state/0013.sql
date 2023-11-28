@@ -6,7 +6,7 @@ ALTER TABLE state.exit_root
 CREATE INDEX IF NOT EXISTS exit_root_l1_info_tree_index ON state.exit_root (l1_info_tree_index);
 
 ALTER TABLE state.transaction
-    ADD COLUMN l2_hash VARCHAR;
+    ADD COLUMN l2_hash VARCHAR UNIQUE;
 
 CREATE INDEX IF NOT EXISTS transaction_l2_hash ON state.transaction (l2_hash);
 

@@ -17,14 +17,36 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/google/uuid"
+	"github.com/iden3/go-iden3-crypto/poseidon"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-const (
-	two uint = 2
-)
+// GetL2Hash computes the l2 hash of a transaction
+func GetL2Hash(tx types.Transaction) (common.Hash, error) {
+	var input []byte
+
+	input = append(input, big.NewInt(0).SetUint64(tx.Nonce()).Bytes()...)
+	input = append(input, tx.GasPrice().Bytes()...)
+	input = append(input, big.NewInt(0).SetUint64(tx.Gas()).Bytes()...)
+	input = append(input, common.Hex2Bytes(tx.To().Hex())...)
+	input = append(input, tx.Value().Bytes()...)
+	input = append(input, tx.Data()...)
+
+	sender, err := GetSender(tx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	input = append(input, sender.Bytes()...)
+
+	h4Hash, err := poseidon.HashBytes(input)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return common.BytesToHash(h4Hash.Bytes()), nil
+}
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
@@ -248,7 +270,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	if s.tree == nil {
 		return nil, ErrStateTreeNil
 	}
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +486,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint:gomnd
 	if err != nil {
 		return 0, nil, err
 	}
@@ -661,7 +683,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	// Start the binary search for the lowest possible gas price
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
-		mid := (lowEnd + highEnd) / uint64(two)
+		mid := (lowEnd + highEnd) / 2 // nolint:gomnd
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
