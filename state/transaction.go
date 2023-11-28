@@ -61,8 +61,10 @@ func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error)
 
 // pad20Bytes pads the given address with 0s to make it 20 bytes long
 func pad20Bytes(address string) string {
-	if len(address) < 40 {
-		address = strings.Repeat("0", 40-len(address)) + address
+	const addressLength = 40
+
+	if len(address) < addressLength {
+		address = strings.Repeat("0", addressLength-len(address)) + address
 	}
 	return address
 }
