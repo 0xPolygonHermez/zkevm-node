@@ -33,7 +33,8 @@ func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, er
 func GetL2Hash(tx types.Transaction) (common.Hash, error) {
 	sender, err := GetSender(tx)
 	if err != nil {
-		return common.Hash{}, err
+		// This is normal for unsigned transactions
+		log.Debugf("error getting sender: %v", err)
 	}
 
 	return getL2Hash(tx, sender)
@@ -49,7 +50,9 @@ func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error)
 	if len(tx.Data()) > 0 {
 		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
 	}
-	input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
+	if sender != ZeroAddress {
+		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
+	}
 
 	h4Hash, err := merkletree.HashContractBytecode(common.Hex2Bytes(input))
 	if err != nil {
