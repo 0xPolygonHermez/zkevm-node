@@ -79,7 +79,7 @@ func (m migrationTest0013) InsertDataIntoTransactionsTable(db *sql.DB) error {
 
 	const insertL2Block = `
 		INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
-		VALUES (0, '0x0001', '{}', '{}', '0x002', '0x003', now(), 0, now())`
+		VALUES (0, '0x0001', '{}', '{}', '0x0002', '0x003', now(), 0, now())`
 
 	// insert l2 block
 	_, err = db.Exec(insertL2Block)
@@ -89,7 +89,7 @@ func (m migrationTest0013) InsertDataIntoTransactionsTable(db *sql.DB) error {
 
 	const insertTx = `
 		INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, l2_hash)
-		VALUES ('0x0001', 'ABCDEF', '{}', 0, 255, '0x0002)`
+		VALUES ('0x0001', 'ABCDEF', '{}', 0, 255, '0x0002')`
 
 	// insert tx
 	_, err = db.Exec(insertTx)
