@@ -1099,10 +1099,10 @@ func TestAddL1InfoRootToExitRootIncreaseLeafIndex(t *testing.T) {
 
 	Leafindex, err := testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber), dbTx)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(1), Leafindex, "first leave must be 1")
+	assert.Equal(t, state.L1InfoTreeIndexType(1), Leafindex, "first leave must be 1")
 	Leafindex, err = testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber), dbTx)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(2), Leafindex)
+	assert.Equal(t, state.L1InfoTreeIndexType(2), Leafindex)
 	dbTx.Rollback(ctx)
 }
 

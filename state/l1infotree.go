@@ -15,11 +15,16 @@ type L1InfoTreeLeaf struct {
 	PreviousBlockHash common.Hash
 }
 
+// L1InfoTreeIndexType type of the index of the leafs of L1InfoTree
+//
+//	the leaf starts at 0
+type L1InfoTreeIndexType uint32
+
 // L1InfoTreeExitRootStorageEntry entry of the Database
 type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeLeaf
 	L1InfoTreeRoot  common.Hash
-	L1InfoTreeIndex uint64
+	L1InfoTreeIndex L1InfoTreeIndexType
 }
 
 var (
