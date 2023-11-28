@@ -57,6 +57,11 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		ForkId:           forkID,
 		ContextId:        uuid.NewString(),
 	}
+
+	if request.SkipFirstChangeL2Block_V2 {
+		processBatchRequest.SkipFirstChangeL2Block = cTrue
+	}
+
 	res, err := s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, request.Caller)
 	if err != nil {
 		return nil, err
