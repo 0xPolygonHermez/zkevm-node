@@ -1198,7 +1198,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			// Most txs don't need much higher gas limit than their gas used, and most txs don't
 			// require near the full block limit of gas, so the selection of where to bisect the
 			// range here is skewed to favor the low side.
-			mid = lowEnd * 2
+			mid = lowEnd * uint64(two)
 		}
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
