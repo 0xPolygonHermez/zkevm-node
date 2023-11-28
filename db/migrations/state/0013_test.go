@@ -51,9 +51,6 @@ func (m migrationTest0013) InsertData(db *sql.DB) error {
 	if err = m.insertRowInOldTable(db, []interface{}{124, time.Now(), mainExitRootValue, rollupExitRootValue, globalExitRootValue}); err != nil {
 		return err
 	}
-	if err = m.InsertDataIntoTransactionsTable(db); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -142,6 +139,10 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	var result int
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 1, result)
+
+	// Try to insert data into the transactions table
+	err = m.InsertDataIntoTransactionsTable(db)
+	assert.NoError(t, err)
 }
 
 func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
