@@ -775,7 +775,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.State.
 		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), mock.Anything, m.DbTx).
-		Return(&ethTypes.Header{}, nil).
+		Return(&state.L2Header{}, nil).
 		Once()
 
 	m.State.

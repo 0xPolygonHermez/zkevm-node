@@ -2,8 +2,10 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math/big"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,8 +25,8 @@ type gethBlock struct {
 // L2Header represents a block header in the L2.
 type L2Header struct {
 	*gethHeader
-	LocalExitRoot  *common.Hash
-	GlobalExitRoot *common.Hash
+	LocalExitRoot  *common.Hash `json:"localExitRoot"`
+	GlobalExitRoot *common.Hash `json:"globalExitRoot"`
 }
 
 // NewL2Header creates an instance of L2Header from a types.Header
@@ -36,6 +38,69 @@ func NewL2Header(h *types.Header) *L2Header {
 // RLP encoding.
 func (h *L2Header) Hash() common.Hash {
 	return h.gethHeader.Hash()
+}
+
+// MarshalJSON encodes a json object
+func (h *L2Header) MarshalJSON() ([]byte, error) {
+	m := map[string]interface{}{}
+
+	if h.gethHeader != nil && h.gethHeader.Header != nil {
+		b, err := json.Marshal(h.gethHeader.Header)
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(b, &m)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if h.LocalExitRoot != nil {
+		m["localExitRoot"] = h.LocalExitRoot.String()
+	}
+
+	if h.GlobalExitRoot != nil {
+		m["globalExitRoot"] = h.GlobalExitRoot.String()
+	}
+
+	b, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
+}
+
+// UnmarshalJSON decodes a json object
+func (h *L2Header) UnmarshalJSON(input []byte) error {
+	str := strings.Trim(string(input), "\"")
+	if strings.ToLower(strings.TrimSpace(str)) == "null" {
+		return nil
+	}
+
+	var header *types.Header
+	err := json.Unmarshal(input, &header)
+	if err != nil {
+		return err
+	}
+
+	m := map[string]interface{}{}
+	err = json.Unmarshal(input, &m)
+	if err != nil {
+		return err
+	}
+
+	h.gethHeader = &gethHeader{header}
+	if localExitRoot, found := m["localExitRoot"]; found {
+		root := common.HexToHash(localExitRoot.(string))
+		h.LocalExitRoot = &root
+	}
+	if globalExitRoot, found := m["globalExitRoot"]; found {
+		root := common.HexToHash(globalExitRoot.(string))
+		h.GlobalExitRoot = &root
+	}
+
+	return nil
 }
 
 // L2Block represents a block from L2
