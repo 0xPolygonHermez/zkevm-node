@@ -130,19 +130,30 @@ func sortIndexForForkdIDSortedByBlockNumber(forkIDs []state.ForkIDInterval) []in
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	log.Debugf("[storage.GetForkIDByBatchNumber] batchNumber: %v", batchNumber)
+	log.Debugf("[storage.GetForkIDByBatchNumber] p.cfg.ForkUpgradeBatchNumber: %v", p.cfg.ForkUpgradeBatchNumber)
+	log.Debugf("[storage.GetForkIDByBatchNumber] p.cfg.ForkUpgradeBatchNumber: %v", p.cfg.ForkUpgradeBatchNumber)
+	log.Debugf("[storage.GetForkIDByBatchNumber] p.cfg.ForkIDIntervals: %v", p.cfg.ForkIDIntervals)
+
 	// If NumBatchForkIdUpgrade is defined (!=0) we are performing forkid upgrade process
 	// In this case, if the batchNumber is the next to the NumBatchForkIdUpgrade, we need to return the
 	// new "future" forkId (ForkUpgradeNewForkId)
 	if (p.cfg.ForkUpgradeBatchNumber) != 0 && (batchNumber > p.cfg.ForkUpgradeBatchNumber) {
+		log.Debugf("[storage.GetForkIDByBatchNumber] returning p.cfg.ForkUpgradeNewForkId: %v", p.cfg.ForkUpgradeNewForkId)
 		return p.cfg.ForkUpgradeNewForkId
 	}
 
+	log.Debugf("[storage.GetForkIDByBatchNumber] looking for forkId in by batch interval")
 	for _, interval := range p.cfg.ForkIDIntervals {
+		log.Debugf("[storage.GetForkIDByBatchNumber] checking interval interval.FromBatchNumber: %v interval.ToBatchNumber: %v", interval.FromBatchNumber, interval.ToBatchNumber)
 		if batchNumber >= interval.FromBatchNumber && batchNumber <= interval.ToBatchNumber {
+			log.Debugf("[storage.GetForkIDByBatchNumber] forkId found in the interval: %v", interval.ForkId)
 			return interval.ForkId
 		}
 	}
 
 	// If not found return the last fork id
-	return p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1].ForkId
+	lastForkID := p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1].ForkId
+	log.Debugf("[storage.GetForkIDByBatchNumber] returning the last forkId: %v", lastForkID)
+	return lastForkID
 }
