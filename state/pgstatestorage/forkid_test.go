@@ -83,15 +83,17 @@ func TestGetForkIDByBlockNumber(t *testing.T) {
 	// Run test cases
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a new State instance with test data
-			state := state.NewState(state.Config{
+			cfg := state.Config{
 				ForkIDIntervals: []state.ForkIDInterval{
 					{BlockNumber: 10, ForkId: 1},
 					{BlockNumber: 200, ForkId: 2},
 					{BlockNumber: 400, ForkId: 3},
 					{BlockNumber: 500, ForkId: 4},
 				},
-			}, nil, nil, nil, nil)
+			}
+			storage := NewPostgresStorage(cfg, nil)
+			// Create a new State instance with test data
+			state := state.NewState(cfg, storage, nil, nil, nil)
 
 			// Call the function being tested
 			actual := state.GetForkIDByBlockNumber(tc.blockNumber)
