@@ -122,7 +122,7 @@ func (b *L2Block) WithBody(transactions []*types.Transaction, uncles []*L2Header
 
 // CopyHeader creates a deep copy of a block header.
 func CopyHeader(h *L2Header) *L2Header {
-	if h != nil {
+	if h == nil {
 		return nil
 	}
 	cpy := *h
