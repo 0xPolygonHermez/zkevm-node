@@ -122,7 +122,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint, leaves [][32]byte) ([][3
 // AddLeaf adds new leaves to the tree and computes the new root
 func (mt *L1InfoTree) AddLeaf(index uint, leaf [32]byte) (common.Hash, error) {
 	if index != mt.count {
-		return common.Hash{}, fmt.Errorf("mismatched deposit count: %d, expected: %d", index, mt.count)
+		return common.Hash{}, fmt.Errorf("mismatched leaf count: %d, expected: %d", index, mt.count)
 	}
 	cur := leaf
 	isFilledSubTree := true
