@@ -1,3 +1,33 @@
+/*
+This file provide functions to work with ETROG batches:
+- EncodeBatchV2 (equivalent to EncodeTransactions)
+- DecodeBatchV2 (equivalent to DecodeTxs)
+
+
+// batch data format:
+// 0xb                             | 1  | changeL2Block
+// --------- L2 block Header ---------------------------------
+// 0x73e6af6f                      | 4  | deltaTimestamp
+// 0x00000012					   | 4  | indexL1InfoTree
+// -------- Transaction ---------------------------------------
+// 0x00...0x00					   | n  | transaction RLP coded
+// 0x00...0x00					   | 32 | R
+// 0x00...0x00					   | 32 | S
+// 0x00							   | 32 | V
+// 0x00							   | 1  | efficiencyPercentage
+// Repeat Transaction or changeL2Block
+// Note: RLP codification: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
+
+/ forced batch data format:
+// -------- Transaction ---------------------------------------
+// 0x00...0x00					   | n  | transaction RLP coded
+// 0x00...0x00					   | 32 | R
+// 0x00...0x00					   | 32 | S
+// 0x00							   | 32 | V
+// 0x00							   | 1  | efficiencyPercentage
+// Repeat Transaction
+*/
+
 package state
 
 import (
@@ -18,6 +48,14 @@ type L2BlockRaw struct {
 	Transactions    []L2Tx
 }
 
+type BatchV2 struct {
+	Blocks []L2BlockRaw
+}
+
+type ForcedBatchV2 struct {
+	Transactions []L2Tx
+}
+
 // L2Tx is the raw representation of a L2 transaction  inside a L2 block.
 type L2Tx struct {
 	Tx                   types.Transaction
@@ -36,9 +74,16 @@ var (
 )
 
 // EncodeBatchV2 encodes a batch of transactions into a byte slice.
-func EncodeBatchV2(blocks []L2BlockRaw) ([]byte, error) {
+func EncodeBatchV2(batch *BatchV2) ([]byte, error) {
 	var err error
 	var batchData []byte
+	if batch == nil {
+		return nil, fmt.Errorf("batch is nil: %w", ErrInvalidBatchV2)
+	}
+	blocks := batch.Blocks
+	if len(blocks) == 0 {
+		return nil, fmt.Errorf("a batch need minimum a L2Block: %w", ErrInvalidBatchV2)
+	}
 	for _, block := range blocks {
 		batchData, err = encodeBlockHeader(batchData, block)
 		if err != nil {
@@ -81,20 +126,7 @@ func serializeUint32(value uint32) []byte {
 }
 
 // DecodeBatchV2 decodes a batch of transactions from a byte slice.
-// batch data format:
-// 0xb                             | 1  | changeL2Block
-// --------- L2 block Header ---------------------------------
-// 0x73e6af6f                      | 4  | deltaTimestamp
-// 0x00000012					   | 4  | indexL1InfoTree
-// -------- Transaction ---------------------------------------
-// 0x00...0x00					   | n  | transaction RLP coded
-// 0x00...0x00					   | 32 | R
-// 0x00...0x00					   | 32 | S
-// 0x00							   | 32 | V
-// 0x00							   | 1  | efficiencyPercentage
-// Repeat Transaction or changeL2Block
-// Note: RLP codification: https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
-func DecodeBatchV2(txsData []byte) ([]L2BlockRaw, error) {
+func DecodeBatchV2(txsData []byte) (*BatchV2, error) {
 	// The transactions is not RLP encoded. Is the raw bytes in this form: 1 byte for the transaction type (always 0b for changeL2Block) + 4 bytes for deltaTimestamp + for bytes for indexL1InfoTree
 	var err error
 	var blocks []L2BlockRaw
@@ -130,7 +162,28 @@ func DecodeBatchV2(txsData []byte) ([]L2BlockRaw, error) {
 	if currentBlock != nil {
 		blocks = append(blocks, *currentBlock)
 	}
-	return blocks, nil
+	return &BatchV2{blocks}, nil
+}
+
+// DecodeForcedBatchV2 decodes a forced batch V2 (Etrog)
+// Is forbidden changeL2Block, so are just the set of transactions
+func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchV2, error) {
+	txs, _, efficiencyPercentages, err := DecodeTxs(txsData, FORKID_ETROG)
+	if err != nil {
+		return nil, err
+	}
+	// This is a safeguard, never have to occour this error
+	if len(efficiencyPercentages) != len(txs) {
+		return nil, fmt.Errorf("error decoding len(efficiencyPercentages) != len(txs). len(efficiencyPercentages)=%d, len(txs)=%d : %w", len(efficiencyPercentages), len(txs), ErrInvalidRLP)
+	}
+	forcedBatch := ForcedBatchV2{}
+	for i, tx := range txs {
+		forcedBatch.Transactions = append(forcedBatch.Transactions, L2Tx{
+			Tx:                   tx,
+			EfficiencyPercentage: efficiencyPercentages[i],
+		})
+	}
+	return &forcedBatch, nil
 }
 
 // decodeBlockHeader decodes a block header from a byte slice.

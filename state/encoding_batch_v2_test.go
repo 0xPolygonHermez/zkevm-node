@@ -8,14 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	// changeL2Block + deltaTimeStamp + indexL1InfoTree
+	codedL2BlockHeader = "0b73e6af6f00000000"
+	// 2 x [ tx coded in RLP + r,s,v,efficiencyPercentage]
+	codedRLP2Txs1 = "ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff"
+	// 2 x [ tx coded in RLP + r,s,v,efficiencyPercentage]
+	codedRLP2Txs2 = "ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bffee01843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880803ee20a0764440b016c4a2ee4e7e4eb3a5a97f1e6a6c9f40bf5ecf50f95ff636d63878ddb3e997e519826c7bb26fb7c5950a208e1ec722a9f1c568c4e479b40341cff"
+	codedL2Block1 = codedL2BlockHeader + codedRLP2Txs1
+	codedL2Block2 = codedL2BlockHeader + codedRLP2Txs2
+)
+
 func TestDecodeEmptyBatchV2(t *testing.T) {
 	//batchL2Data, err := hex.DecodeString("0b73e6af6f00000000ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff")
 	batchL2Data, err := hex.DecodeString("")
 	require.NoError(t, err)
 
-	blocks, err := DecodeBatchV2(batchL2Data)
+	batch, err := DecodeBatchV2(batchL2Data)
 	require.NoError(t, err)
-	require.Equal(t, 0, len(blocks))
+	require.Equal(t, 0, len(batch.Blocks))
 }
 
 func TestDecodeShorterBatchV2(t *testing.T) {
@@ -104,16 +115,16 @@ func TestDecodeWrongBatch(t *testing.T) {
 }
 
 func TestDecodeBatchV2(t *testing.T) {
-	batchL2Data, err := hex.DecodeString("0b73e6af6f00000000ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff")
+	batchL2Data, err := hex.DecodeString(codedL2Block1)
 	require.NoError(t, err)
-	batchL2Data2, err := hex.DecodeString("0b73e6af6f00000000ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bffee01843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880803ee20a0764440b016c4a2ee4e7e4eb3a5a97f1e6a6c9f40bf5ecf50f95ff636d63878ddb3e997e519826c7bb26fb7c5950a208e1ec722a9f1c568c4e479b40341cff")
+	batchL2Data2, err := hex.DecodeString(codedL2Block2)
 	require.NoError(t, err)
 	batch := append(batchL2Data, batchL2Data2...)
 	decodedBatch, err := DecodeBatchV2(batch)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(decodedBatch))
-	require.Equal(t, uint32(0x73e6af6f), decodedBatch[0].DeltaTimestamp)
-	require.Equal(t, uint32(0x00000000), decodedBatch[0].IndexL1InfoTree)
+	require.Equal(t, 2, len(decodedBatch.Blocks))
+	require.Equal(t, uint32(0x73e6af6f), decodedBatch.Blocks[0].DeltaTimestamp)
+	require.Equal(t, uint32(0x00000000), decodedBatch.Blocks[0].IndexL1InfoTree)
 }
 
 func TestDecodeRLPLength(t *testing.T) {
@@ -192,7 +203,41 @@ func TestEncodeBatchV2(t *testing.T) {
 		0xb, 0x0, 0x0, 0x0, 0x7b, 0x0, 0x0, 0x1, 0xc8, 0xb, 0x0, 0x0, 0x3, 0x15, 0x0, 0x1, 0x8a, 0xf8,
 	}
 
-	batchData, err := EncodeBatchV2(blocks)
+	batchData, err := EncodeBatchV2(&BatchV2{Blocks: blocks})
 	require.NoError(t, err)
 	require.Equal(t, expectedBatchData, batchData)
+}
+
+func TestDecodeEncodeBatchV2(t *testing.T) {
+	batchL2Data, err := hex.DecodeString(codedL2Block1 + codedL2Block2)
+	require.NoError(t, err)
+	decodedBatch, err := DecodeBatchV2(batchL2Data)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(decodedBatch.Blocks))
+	encoded, err := EncodeBatchV2(decodedBatch)
+	require.NoError(t, err)
+	require.Equal(t, batchL2Data, encoded)
+}
+
+func TestEncodeEmptyBatchV2Fails(t *testing.T) {
+	l2Batch := BatchV2{}
+	_, err := EncodeBatchV2(&l2Batch)
+	require.ErrorIs(t, err, ErrInvalidBatchV2)
+	_, err = EncodeBatchV2(nil)
+	require.ErrorIs(t, err, ErrInvalidBatchV2)
+}
+
+func TestDecodeForcedBatchV2(t *testing.T) {
+	batchL2Data, err := hex.DecodeString(codedRLP2Txs1)
+	require.NoError(t, err)
+	decodedBatch, err := DecodeForcedBatchV2(batchL2Data)
+	require.NoError(t, err)
+	require.Equal(t, 2, len(decodedBatch.Transactions))
+}
+
+func TestDecodeForcedBatchV2WithaNonForcedBatch(t *testing.T) {
+	batchL2Data, err := hex.DecodeString(codedL2Block1)
+	require.NoError(t, err)
+	_, err = DecodeForcedBatchV2(batchL2Data)
+	require.Error(t, err)
 }
