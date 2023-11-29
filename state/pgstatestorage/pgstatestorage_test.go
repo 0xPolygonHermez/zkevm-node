@@ -128,6 +128,12 @@ func setup() {
 	cfg := state.Config{
 		MaxLogsCount:      10000,
 		MaxLogsBlockRange: 10000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          5,
+			Version:         "",
+		}},
 	}
 	pgStateStorage = pgstatestorage.NewPostgresStorage(cfg, stateDb)
 }
@@ -827,6 +833,7 @@ func TestGetLogs(t *testing.T) {
 	cfg := state.Config{
 		MaxLogsCount:      8,
 		MaxLogsBlockRange: 10,
+		ForkIDIntervals:   stateCfg.ForkIDIntervals,
 	}
 
 	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
@@ -954,6 +961,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 
 	cfg := state.Config{
 		MaxNativeBlockHashBlockRange: 10,
+		ForkIDIntervals:              stateCfg.ForkIDIntervals,
 	}
 
 	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
