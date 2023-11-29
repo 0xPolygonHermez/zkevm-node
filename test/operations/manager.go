@@ -18,14 +18,14 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -38,18 +38,18 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultForcedBatchesAddress         = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
-	DefaultForcedBatchesPrivateKey      = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
-	DefaultSequencerBalance             = 400000
-	DefaultMaxCumulativeGasUsed         = 800000
-	DefaultL1ZkEVMSmartContract         = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
-	DefaultL1RollupManagerSmartContract = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
-	DefaultL1PolSmartContract           = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-	DefaultL1NetworkURL                 = "http://localhost:8545"
-	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
-	DefaultL1ChainID             uint64 = 1337
+	DefaultSequencerAddress                    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey                 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultForcedBatchesAddress                = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+	DefaultForcedBatchesPrivateKey             = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+	DefaultSequencerBalance                    = 400000
+	DefaultMaxCumulativeGasUsed                = 800000
+	DefaultL1ZkEVMSmartContract                = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
+	DefaultL1RollupManagerSmartContract        = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
+	DefaultL1PolSmartContract                  = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+	DefaultL1NetworkURL                        = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL               = "ws://localhost:8546"
+	DefaultL1ChainID                    uint64 = 1337
 
 	DefaultL2NetworkURL                        = "http://localhost:8123"
 	PermissionlessL2NetworkURL                 = "http://localhost:8125"
@@ -103,12 +103,11 @@ type Manager struct {
 
 // NewManager returns a manager ready to be used and a potential error caused
 // during its creation (which can come from the setup of the db connection).
-func NewManager(ctx context.Context, cfg *Config,) (*Manager, error) {
+func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 	// Init database instance
 	initOrResetDB()
 	return NewManagerNoInitDB(ctx, cfg)
 }
-
 
 func NewManagerNoInitDB(ctx context.Context, cfg *Config) (*Manager, error) {
 	opsman := &Manager{
@@ -480,7 +479,8 @@ func initState(cfg state.Config) (*state.State, error) {
 
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: cfg.MaxCumulativeGasUsed,
-		ChainID: cfg.ChainID,
+		ChainID:              cfg.ChainID,
+		ForkIDIntervals:      cfg.ForkIDIntervals,
 	}
 
 	ctx := context.Background()
@@ -655,7 +655,13 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001,
+			ForkIDIntervals: []state.ForkIDInterval{{
+				FromBatchNumber: 0,
+				ToBatchNumber:   math.MaxUint64,
+				ForkId:          5,
+				Version:         "",
+			}}},
 		SequenceSender: &SequenceSenderConfig{
 			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,

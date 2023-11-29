@@ -888,7 +888,7 @@ func TestExecutorRevert(t *testing.T) {
 		Status:            types.ReceiptStatusSuccessful,
 	}
 
-	header := &types.Header{
+	header := state.NewL2Header(&types.Header{
 		Number:     big.NewInt(2),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
@@ -896,14 +896,14 @@ func TestExecutorRevert(t *testing.T) {
 		GasUsed:    receipt1.GasUsed,
 		GasLimit:   receipt1.GasUsed,
 		Time:       uint64(time.Now().Unix()),
-	}
+	})
 
 	receipts := []*types.Receipt{receipt, receipt1}
 
 	transactions := []*types.Transaction{signedTx0, signedTx1}
 
 	// Create block to be able to calculate its hash
-	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = time.Now()
 
 	receipt.BlockHash = l2Block.Hash()
@@ -1735,7 +1735,7 @@ func TestAddGetL2Block(t *testing.T) {
 		Status:            types.ReceiptStatusSuccessful,
 	}
 
-	header := &types.Header{
+	header := state.NewL2Header(&types.Header{
 		Number:     big.NewInt(1),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
@@ -1743,13 +1743,13 @@ func TestAddGetL2Block(t *testing.T) {
 		GasUsed:    1,
 		GasLimit:   10,
 		Time:       uint64(time.Unix()),
-	}
+	})
 	transactions := []*types.Transaction{tx}
 
 	receipts := []*types.Receipt{receipt}
 
 	// Create block to be able to calculate its hash
-	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()

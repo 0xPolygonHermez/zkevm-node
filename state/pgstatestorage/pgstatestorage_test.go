@@ -173,7 +173,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 		Status:            types.ReceiptStatusSuccessful,
 	}
 
-	header := &types.Header{
+	header := state.NewL2Header(&types.Header{
 		Number:     big.NewInt(1),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
@@ -181,13 +181,13 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 		GasUsed:    1,
 		GasLimit:   10,
 		Time:       uint64(time.Unix()),
-	}
+	})
 	transactions := []*types.Transaction{tx}
 
 	receipts := []*types.Receipt{receipt}
 
 	// Create block to be able to calculate its hash
-	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
 	storeTxsEGPData := []state.StoreTxEGPData{}
@@ -678,7 +678,8 @@ func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 		require.NoError(t, err)
 
 		// add l2 block
-		l2Block := types.NewBlockWithHeader(&types.Header{Number: big.NewInt(0).SetUint64(blockNumber + uint64(10))})
+		l2Header := state.NewL2Header(&types.Header{Number: big.NewInt(0).SetUint64(blockNumber + uint64(10))})
+		l2Block := state.NewL2BlockWithHeader(l2Header)
 
 		storeTxsEGPData := []state.StoreTxEGPData{}
 		for range l2Block.Transactions() {
@@ -880,7 +881,7 @@ func TestGetLogs(t *testing.T) {
 		transactions := []*types.Transaction{tx}
 		receipts := []*types.Receipt{receipt}
 
-		header := &types.Header{
+		header := state.NewL2Header(&types.Header{
 			Number:     big.NewInt(int64(i) + 1),
 			ParentHash: state.ZeroHash,
 			Coinbase:   state.ZeroAddress,
@@ -888,9 +889,9 @@ func TestGetLogs(t *testing.T) {
 			GasUsed:    1,
 			GasLimit:   10,
 			Time:       uint64(time.Unix()),
-		}
+		})
 
-		l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+		l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 		for _, receipt := range receipts {
 			receipt.BlockHash = l2Block.Hash()
 		}
@@ -1004,7 +1005,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 		transactions := []*types.Transaction{tx}
 		receipts := []*types.Receipt{receipt}
 
-		header := &types.Header{
+		header := state.NewL2Header(&types.Header{
 			Number:     big.NewInt(int64(i) + 1),
 			ParentHash: state.ZeroHash,
 			Coinbase:   state.ZeroAddress,
@@ -1012,9 +1013,9 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 			GasUsed:    1,
 			GasLimit:   10,
 			Time:       uint64(time.Unix()),
-		}
+		})
 
-		l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+		l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 		for _, receipt := range receipts {
 			receipt.BlockHash = l2Block.Hash()
 		}
