@@ -1138,6 +1138,7 @@ func TestGetAllL1InfoRootEntries(t *testing.T) {
 
 func TestGetLatestIndex(t *testing.T) {
 	setup()
+	initOrResetDB()
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
