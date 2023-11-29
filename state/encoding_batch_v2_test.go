@@ -190,12 +190,12 @@ func TestEncodeBatchV2(t *testing.T) {
 	block1 := L2BlockRaw{
 		DeltaTimestamp:  123,
 		IndexL1InfoTree: 456,
-		Transactions:    []L2Tx{},
+		Transactions:    []L2TxRaw{},
 	}
 	block2 := L2BlockRaw{
 		DeltaTimestamp:  789,
 		IndexL1InfoTree: 101112,
-		Transactions:    []L2Tx{},
+		Transactions:    []L2TxRaw{},
 	}
 	blocks := []L2BlockRaw{block1, block2}
 
@@ -203,7 +203,7 @@ func TestEncodeBatchV2(t *testing.T) {
 		0xb, 0x0, 0x0, 0x0, 0x7b, 0x0, 0x0, 0x1, 0xc8, 0xb, 0x0, 0x0, 0x3, 0x15, 0x0, 0x1, 0x8a, 0xf8,
 	}
 
-	batchData, err := EncodeBatchV2(&BatchV2{Blocks: blocks})
+	batchData, err := EncodeBatchV2(&BatchRawV2{Blocks: blocks})
 	require.NoError(t, err)
 	require.Equal(t, expectedBatchData, batchData)
 }
@@ -220,7 +220,7 @@ func TestDecodeEncodeBatchV2(t *testing.T) {
 }
 
 func TestEncodeEmptyBatchV2Fails(t *testing.T) {
-	l2Batch := BatchV2{}
+	l2Batch := BatchRawV2{}
 	_, err := EncodeBatchV2(&l2Batch)
 	require.ErrorIs(t, err, ErrInvalidBatchV2)
 	_, err = EncodeBatchV2(nil)

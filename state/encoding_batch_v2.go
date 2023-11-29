@@ -2,6 +2,7 @@
 This file provide functions to work with ETROG batches:
 - EncodeBatchV2 (equivalent to EncodeTransactions)
 - DecodeBatchV2 (equivalent to DecodeTxs)
+- DecodeForcedBatchV2)
 
 
 // batch data format:
@@ -45,19 +46,21 @@ import (
 type L2BlockRaw struct {
 	DeltaTimestamp  uint32
 	IndexL1InfoTree uint32
-	Transactions    []L2Tx
+	Transactions    []L2TxRaw
 }
 
-type BatchV2 struct {
+// BatchRawV2 is the  representation of a batch of transactions.
+type BatchRawV2 struct {
 	Blocks []L2BlockRaw
 }
 
-type ForcedBatchV2 struct {
-	Transactions []L2Tx
+// ForcedBatchRawV2 is the  representation of a forced batch of transactions.
+type ForcedBatchRawV2 struct {
+	Transactions []L2TxRaw
 }
 
-// L2Tx is the raw representation of a L2 transaction  inside a L2 block.
-type L2Tx struct {
+// L2TxRaw is the raw representation of a L2 transaction  inside a L2 block.
+type L2TxRaw struct {
 	Tx                   types.Transaction
 	EfficiencyPercentage uint8
 }
@@ -74,7 +77,7 @@ var (
 )
 
 // EncodeBatchV2 encodes a batch of transactions into a byte slice.
-func EncodeBatchV2(batch *BatchV2) ([]byte, error) {
+func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	var err error
 	var batchData []byte
 	if batch == nil {
@@ -106,7 +109,7 @@ func encodeBlockHeader(batchData []byte, block L2BlockRaw) ([]byte, error) {
 	return batchData, nil
 }
 
-func encodeTxRLP(batchData []byte, tx L2Tx) ([]byte, error) {
+func encodeTxRLP(batchData []byte, tx L2TxRaw) ([]byte, error) {
 	rlpTx, err := prepareRPLTxData(tx.Tx)
 	if err != nil {
 		return nil, fmt.Errorf("can't encode tx to RLP: %w", err)
@@ -126,7 +129,7 @@ func serializeUint32(value uint32) []byte {
 }
 
 // DecodeBatchV2 decodes a batch of transactions from a byte slice.
-func DecodeBatchV2(txsData []byte) (*BatchV2, error) {
+func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 	// The transactions is not RLP encoded. Is the raw bytes in this form: 1 byte for the transaction type (always 0b for changeL2Block) + 4 bytes for deltaTimestamp + for bytes for indexL1InfoTree
 	var err error
 	var blocks []L2BlockRaw
@@ -148,7 +151,7 @@ func DecodeBatchV2(txsData []byte) (*BatchV2, error) {
 		// is a tx
 		default:
 			log.Debugf("pos: %d, Transaction", pos)
-			var tx *L2Tx
+			var tx *L2TxRaw
 			pos, tx, err = decodeTxRLP(txsData, pos)
 			if err != nil {
 				return nil, fmt.Errorf("can't decode transactions: %w", err)
@@ -162,12 +165,12 @@ func DecodeBatchV2(txsData []byte) (*BatchV2, error) {
 	if currentBlock != nil {
 		blocks = append(blocks, *currentBlock)
 	}
-	return &BatchV2{blocks}, nil
+	return &BatchRawV2{blocks}, nil
 }
 
 // DecodeForcedBatchV2 decodes a forced batch V2 (Etrog)
 // Is forbidden changeL2Block, so are just the set of transactions
-func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchV2, error) {
+func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchRawV2, error) {
 	txs, _, efficiencyPercentages, err := DecodeTxs(txsData, FORKID_ETROG)
 	if err != nil {
 		return nil, err
@@ -176,9 +179,9 @@ func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchV2, error) {
 	if len(efficiencyPercentages) != len(txs) {
 		return nil, fmt.Errorf("error decoding len(efficiencyPercentages) != len(txs). len(efficiencyPercentages)=%d, len(txs)=%d : %w", len(efficiencyPercentages), len(txs), ErrInvalidRLP)
 	}
-	forcedBatch := ForcedBatchV2{}
+	forcedBatch := ForcedBatchRawV2{}
 	for i, tx := range txs {
-		forcedBatch.Transactions = append(forcedBatch.Transactions, L2Tx{
+		forcedBatch.Transactions = append(forcedBatch.Transactions, L2TxRaw{
 			Tx:                   tx,
 			EfficiencyPercentage: efficiencyPercentages[i],
 		})
@@ -204,7 +207,7 @@ func decodeBlockHeader(txsData []byte, pos int) (int, *L2BlockRaw, error) {
 	return pos, currentBlock, nil
 }
 
-func decodeTxRLP(txsData []byte, offset int) (int, *L2Tx, error) {
+func decodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	var err error
 	length, err := decodeRLPListLengthFromOffset(txsData, offset)
 	if err != nil {
@@ -235,7 +238,7 @@ func decodeTxRLP(txsData []byte, offset int) (int, *L2Tx, error) {
 		return 0, nil, err
 	}
 
-	l2Tx := &L2Tx{
+	l2Tx := &L2TxRaw{
 		Tx:                   *types.NewTx(legacyTx),
 		EfficiencyPercentage: efficiencyPercentage,
 	}
