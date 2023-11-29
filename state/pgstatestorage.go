@@ -2833,11 +2833,15 @@ func scanDSL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 }
 
 // GetDSBatches returns the DS batches
-func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error) {
-	const getBatchByNumberSQL = `
+func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error) {
+	var getBatchByNumberSQL = `
 		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
 		  FROM state.batch b, state.fork_id f
-		 WHERE b.state_root is not null AND b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
+		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
+
+	if !readWIPBatch {
+		getBatchByNumberSQL += " AND b.state_root is not null"
+	}
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getBatchByNumberSQL, firstBatchNumber, lastBatchNumber)
