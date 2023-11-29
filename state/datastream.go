@@ -314,7 +314,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		log.Debugf("Current entry number: %d", entry)
 		log.Debugf("Current batch number: %d", currentBatchNumber)
 		// Get Next Batch
-		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, true, nil)
+		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, readWIPBatch, nil)
 		if err != nil {
 			if err == ErrStateNotSynchronized {
 				break
