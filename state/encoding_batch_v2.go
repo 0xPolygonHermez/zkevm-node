@@ -175,7 +175,7 @@ func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchRawV2, error) {
 	if err != nil {
 		return nil, err
 	}
-	// This is a safeguard, never have to occour this error
+	// This is a safeguard, never have to occur this error
 	if len(efficiencyPercentages) != len(txs) {
 		return nil, fmt.Errorf("error decoding len(efficiencyPercentages) != len(txs). len(efficiencyPercentages)=%d, len(txs)=%d : %w", len(efficiencyPercentages), len(txs), ErrInvalidRLP)
 	}
