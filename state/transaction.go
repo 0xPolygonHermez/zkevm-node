@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,9 +24,66 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	two uint = 2
-)
+// TestGetL2Hash computes the l2 hash of a transaction for testing purposes
+func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
+	return getL2Hash(tx, sender)
+}
+
+// GetL2Hash computes the l2 hash of a transaction
+func GetL2Hash(tx types.Transaction) (common.Hash, error) {
+	sender, err := GetSender(tx)
+	if err != nil {
+		log.Debugf("error getting sender: %v", err)
+	}
+
+	return getL2Hash(tx, sender)
+}
+
+func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
+	var input string
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Nonce()))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.GasPrice()))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Gas()))
+	input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Value()))
+	if len(tx.Data()) > 0 {
+		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
+	}
+	if sender != ZeroAddress {
+		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
+	}
+
+	h4Hash, err := merkletree.HashContractBytecode(common.Hex2Bytes(input))
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return common.HexToHash(merkletree.H4ToString(h4Hash)), nil
+}
+
+// pad20Bytes pads the given address with 0s to make it 20 bytes long
+func pad20Bytes(address string) string {
+	const addressLength = 40
+
+	if len(address) < addressLength {
+		address = strings.Repeat("0", addressLength-len(address)) + address
+	}
+	return address
+}
+
+func formatL2TxHashParam(param string) string {
+	param = strings.TrimLeft(param, "0x")
+
+	if param == "00" || param == "" {
+		return "00"
+	}
+
+	if len(param)%2 != 0 {
+		param = "0" + param
+	}
+
+	return param
+}
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
@@ -248,7 +307,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	if s.tree == nil {
 		return nil, ErrStateTreeNil
 	}
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +523,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint:gomnd
 	if err != nil {
 		return 0, nil, err
 	}
@@ -661,7 +720,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	// Start the binary search for the lowest possible gas price
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
-		mid := (lowEnd + highEnd) / uint64(two)
+		mid := (lowEnd + highEnd) / 2 // nolint:gomnd
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
