@@ -151,7 +151,7 @@ func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2D
 		return nil, ErrExecutorNil
 	}
 
-	lastBatches, err := s.GetLastNBatches(ctx, two, dbTx)
+	lastBatches, err := s.GetLastNBatches(ctx, 2, dbTx) // nolint:gomnd
 	if err != nil {
 		return nil, err
 	}

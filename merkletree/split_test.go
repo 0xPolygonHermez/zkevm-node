@@ -332,7 +332,7 @@ func Test_string2fea(t *testing.T) {
 		{
 			input:            "deadbeefs",
 			expectedError:    true,
-			expectedErrorMsg: `Could not convert "deadbeefs" into big int`,
+			expectedErrorMsg: `could not convert "deadbeefs" into big int`,
 		},
 	}
 	for i, tc := range tcs {

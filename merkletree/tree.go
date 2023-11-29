@@ -173,7 +173,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 // SetCode sets smart contract code.
 func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
-	scCodeHash4, err := hashContractBytecode(code)
+	scCodeHash4, err := HashContractBytecode(code)
 	if err != nil {
 		return nil, nil, err
 	}
