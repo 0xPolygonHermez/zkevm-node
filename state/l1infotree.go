@@ -33,11 +33,11 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 func (s *State) AddL1InfoTreeLeaf(ctx context.Context, l1InfoTreeLeaf *L1InfoTreeLeaf, dbTx pgx.Tx) (*L1InfoTreeExitRootStorageEntry, error) {
 	var newIndex uint
 	gerIndex, err := s.GetLatestIndex(ctx, dbTx)
-	if err != nil && !errors.Is(err, ErrNotFound){
+	if err != nil && !errors.Is(err, ErrNotFound) {
 		log.Error("error getting latest l1InfoTree index. Error: ", err)
 		return nil, err
 	} else if err == nil {
-		newIndex = gerIndex+1
+		newIndex = gerIndex + 1
 	}
 	log.Debug("latestIndex: ", gerIndex)
 	root, err := s.l1InfoTree.AddLeaf(newIndex, l1InfoTreeLeaf.Hash())
@@ -46,8 +46,8 @@ func (s *State) AddL1InfoTreeLeaf(ctx context.Context, l1InfoTreeLeaf *L1InfoTre
 		return nil, err
 	}
 	entry := L1InfoTreeExitRootStorageEntry{
-		L1InfoTreeLeaf: *l1InfoTreeLeaf,
-		L1InfoTreeRoot: root,
+		L1InfoTreeLeaf:  *l1InfoTreeLeaf,
+		L1InfoTreeRoot:  root,
 		L1InfoTreeIndex: newIndex,
 	}
 	err = s.AddL1InfoRootToExitRoot(ctx, &entry, dbTx)

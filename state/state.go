@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"

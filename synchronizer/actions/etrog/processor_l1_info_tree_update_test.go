@@ -8,9 +8,9 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
-	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
