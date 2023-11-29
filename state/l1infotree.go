@@ -59,7 +59,11 @@ func (s *State) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *L1InfoTre
 }
 
 func buildL1InfoTree(allLeaves []L1InfoTreeExitRootStorageEntry) (common.Hash, error) {
-	mt := l1infotree.NewL1InfoTree(uint8(32)) //nolint:gomnd
+	mt, err := l1infotree.NewL1InfoTree(uint8(32), [][32]byte{}) //nolint:gomnd
+	if err != nil {
+		log.Error("error creating L1InfoTree. Error: ", err)
+		return common.Hash{}, err
+	}
 	var leaves [][32]byte
 	// Insert the Leaf0 that is not used but compute for the Merkle Tree
 	leaves = append(leaves, leaf0Hash)
