@@ -130,14 +130,18 @@ func TestClosingSignalsManager(t *testing.T) {
 		Etherman: NewEthermanMock(t),
 	}
 
+	log.Debugf("[TestClosingSignalsManager] before setupTest stateCfg.ForkIDIntervals: %v", stateCfg.ForkIDIntervals)
 	setupTest(t)
+	log.Debugf("[TestClosingSignalsManager] after setupTest stateCfg.ForkIDIntervals: %v", stateCfg.ForkIDIntervals)
 	channels := ClosingSignalCh{
 		ForcedBatchCh: make(chan state.ForcedBatch),
 	}
 
-	prepareForcedBatches(t)
+	log.Debugf("[TestClosingSignalsManager] before newClosingSignalsManager stateCfg.ForkIDIntervals: %v", stateCfg.ForkIDIntervals)
 	closingSignalsManager := newClosingSignalsManager(localCtx, localTestDbManager, channels, cfg, m.Etherman)
+	log.Debugf("[TestClosingSignalsManager] after newClosingSignalsManager stateCfg.ForkIDIntervals: %v", stateCfg.ForkIDIntervals)
 	closingSignalsManager.Start()
+	log.Debugf("[TestClosingSignalsManager] after newClosingSignalsManager.Start() stateCfg.ForkIDIntervals: %v", stateCfg.ForkIDIntervals)
 
 	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
 	defer cancelFunc()

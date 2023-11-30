@@ -3,6 +3,7 @@ package state
 import (
 	"context"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -38,6 +39,7 @@ func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval,
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	log.Debugf("[state.GetForkIDByBatchNumber]")
 	return s.storage.GetForkIDByBatchNumber(batchNumber)
 }
 
