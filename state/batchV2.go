@@ -62,6 +62,10 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		processBatchRequest.SkipFirstChangeL2Block = cTrue
 	}
 
+	if request.SkipWriteBlockInfoRoot {
+		processBatchRequest.SkipWriteBlockInfoRoot = cTrue
+	}
+
 	res, err := s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, request.Caller)
 	if err != nil {
 		return nil, err

@@ -34,3 +34,26 @@ func LoadStateTransitionTestCaseV2(path string) (StateTransitionTestCaseV2, erro
 
 	return testCase, nil
 }
+
+// LoadStateTransitionTestCasesV2 loads the state-transition tests cases
+func LoadStateTransitionTestCasesV2(path string) ([]StateTransitionTestCaseV2, error) {
+	var testCases []StateTransitionTestCaseV2
+
+	jsonFile, err := os.Open(filepath.Clean(path))
+	if err != nil {
+		return testCases, err
+	}
+	defer func() { _ = jsonFile.Close() }()
+
+	bytes, err := io.ReadAll(jsonFile)
+	if err != nil {
+		return testCases, err
+	}
+
+	err = json.Unmarshal(bytes, &testCases)
+	if err != nil {
+		return testCases, err
+	}
+
+	return testCases, nil
+}
