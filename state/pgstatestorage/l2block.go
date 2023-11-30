@@ -161,9 +161,8 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
 
-	log.Debugf("[AddL2Block] getting fork id for block number %v by batch number: %v", batchNumber, l2Block.NumberU64())
 	forkID := p.GetForkIDByBatchNumber(batchNumber)
-	log.Debugf("[AddL2Block] fork id for block number %v: %v", l2Block.NumberU64(), forkID)
+
 	if forkID >= state.FORKID_ETROG {
 		l2Block.ForceHash(l2Block.Root())
 		for _, receipt := range receipts {
@@ -171,7 +170,6 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 	}
 
-	log.Debugf("[AddL2Block] marshaling Header for block number %v", l2Block.NumberU64())
 	var header = "{}"
 	if l2Block.Header() != nil {
 		headerBytes, err := json.Marshal(l2Block.Header())
@@ -180,9 +178,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 		header = string(headerBytes)
 	}
-	log.Debugf("[AddL2Block] header for block number %v: %v", l2Block.NumberU64(), header)
 
-	log.Debugf("[AddL2Block] marshaling Uncles for block number %v", l2Block.NumberU64())
 	var uncles = "[]"
 	if l2Block.Uncles() != nil {
 		unclesBytes, err := json.Marshal(l2Block.Uncles())
@@ -191,9 +187,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 		uncles = string(unclesBytes)
 	}
-	log.Debugf("[AddL2Block] uncles for block number %v: %v", l2Block.NumberU64(), header)
 
-	log.Debugf("[AddL2Block] persisting block data into database for block number %v", l2Block.NumberU64())
 	if _, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),
@@ -201,7 +195,6 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		return err
 	}
 
-	log.Debugf("[AddL2Block] persisting txs data into database for block number %v", l2Block.NumberU64())
 	for idx, tx := range l2Block.Transactions() {
 		egpLog := ""
 		if txsEGPData != nil {
@@ -235,7 +228,6 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 	}
 
-	log.Debugf("[AddL2Block] persisting receipts data into database for block number %v", l2Block.NumberU64())
 	for _, receipt := range receipts {
 		err := p.AddReceipt(ctx, receipt, dbTx)
 		if err != nil {
