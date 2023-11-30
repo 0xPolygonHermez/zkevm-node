@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -40,7 +41,11 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 	require.NoError(t, err)
 	defer stateDb.Close()
 
-	testState := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), nil, nil, nil)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	testState := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), nil, nil, nil, mt)
 
 	sut := NewProcessorL1InfoTreeUpdate(testState)
 	l1infotree := etherman.GlobalExitRoot{
