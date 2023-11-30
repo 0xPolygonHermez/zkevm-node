@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/incaberry"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -60,7 +61,9 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*incaberry.SyncTrustedBatchesAction)
+	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
+	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -82,7 +85,9 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*incaberry.SyncTrustedBatchesAction)
+	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
+	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220

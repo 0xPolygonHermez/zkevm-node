@@ -81,3 +81,8 @@ type zkEVMClientInterface interface {
 	BatchNumber(ctx context.Context) (uint64, error)
 	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }
+
+type syncTrustedStateExecutor interface {
+	SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error
+	CleanTrustedState()
+}
