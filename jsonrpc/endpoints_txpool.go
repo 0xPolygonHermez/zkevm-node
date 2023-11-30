@@ -14,6 +14,11 @@ type TxPoolEndpoints struct {
 	pool types.PoolInterface
 }
 
+type TxPoolStatusResponse struct {
+	Pending hexutil.Uint `json:"pending"`
+	Queued  hexutil.Uint `json:"queued"`
+}
+
 type contentResponse struct {
 	Pending map[common.Address]map[uint64]*txPoolTransaction `json:"pending"`
 	Queued  map[common.Address]map[uint64]*txPoolTransaction `json:"queued"`
@@ -55,19 +60,20 @@ func (e *TxPoolEndpoints) Status() (interface{}, types.Error) {
 	ctx := context.Background()
 	txPendingCount, err := e.pool.CountPendingTransactions(ctx)
 	if err != nil {
-		log.Errorf("Failed to count pending txs from pool", err)
+		log.Errorf("Failed to count pending txs from pool: %v", err)
 		return RPCErrorResponse(types.DefaultErrorCode, "Failed to count pending txs from pool", err, false)
 	}
 
 	txQueuedCount, err := e.pool.CountQueuedTransactions(ctx)
 	if err != nil {
-		log.Errorf("Failed to count queued txs from pool", err)
+		log.Errorf("Failed to count queued txs from pool: %v", err)
 		return RPCErrorResponse(types.DefaultErrorCode, "Failed to count queued txs from pool", err, false)
 	}
 
-	resp := map[string]hexutil.Uint{
-		"pending": hexutil.Uint(txPendingCount),
-		"queued":  hexutil.Uint(txQueuedCount),
+	// resp := map[string]hexutil.Uint{
+	resp := TxPoolStatusResponse{
+		Pending: hexutil.Uint(txPendingCount),
+		Queued:  hexutil.Uint(txQueuedCount),
 	}
 
 	return resp, nil
