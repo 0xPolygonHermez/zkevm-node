@@ -88,7 +88,7 @@ func setupDBManager() {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(state.Config{}, stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
 
 	// DBManager
 	closingSignalCh := ClosingSignalCh{
