@@ -35,58 +35,63 @@ func TestDecodeBatches(t *testing.T) {
 	type testCase struct {
 		name          string
 		batchL2Data   string
-		expectedError bool
+		expectedError error
 	}
 	testCases := []testCase{
 		{
 			name:          "batch dont start with 0x0b (changeL2Block)",
 			batchL2Data:   "0c",
-			expectedError: true,
+			expectedError: ErrInvalidBatchV2,
 		},
 		{
 			name:          "batch no enough  data to decode block.deltaTimestamp",
 			batchL2Data:   "0b010203",
-			expectedError: true,
+			expectedError: ErrInvalidBatchV2,
 		},
 		{
 			name:          "batch no enough  data to decode block.index",
 			batchL2Data:   "0b01020304010203",
-			expectedError: true,
+			expectedError: ErrInvalidBatchV2,
 		},
 		{
 			name:          "batch no enough  data to decode block.index",
 			batchL2Data:   "0b01020304010203",
-			expectedError: true,
+			expectedError: ErrInvalidBatchV2,
 		},
 		{
 			name:          "valid batch no trx, just L2Block",
 			batchL2Data:   "0b0102030401020304",
-			expectedError: false,
+			expectedError: nil,
 		},
 		{
 			name:          "invalid batch bad RLP codification",
 			batchL2Data:   "0b" + "01020304" + "01020304" + "7f",
-			expectedError: true,
+			expectedError: ErrInvalidRLP,
 		},
 		{
 			name:          "1 block + 2 txs",
 			batchL2Data:   "0b" + "73e6af6f" + "00000000" + codedRLP2Txs1 + codedRLP2Txs2,
-			expectedError: false,
+			expectedError: nil,
 		},
 		{
 			name:          "1 block + 1 txs",
 			batchL2Data:   "0b" + "73e6af6f" + "00000000" + codedRLP2Txs1,
-			expectedError: false,
+			expectedError: nil,
 		},
 		{
 			name:          "1 block + 1 txs, missiging efficiencyPercentage",
 			batchL2Data:   "0b" + "73e6af6f" + "00000000" + codedRLP2Txs1[0:len(codedRLP2Txs1)-2],
-			expectedError: true,
+			expectedError: ErrInvalidBatchV2,
 		},
 		{
 			name:          "real batch converted to etrog",
 			batchL2Data:   realBatchConvertedEtrog,
-			expectedError: false,
+			expectedError: nil,
+		},
+		{
+			name:          "pass a V1 batch(incaberry) must fail",
+			batchL2Data:   realBatchIncaberry,
+			expectedError: ErrBatchV2DontStartWithChangeL2Block,
 		},
 	}
 	for _, tc := range testCases {
@@ -98,8 +103,8 @@ func TestDecodeBatches(t *testing.T) {
 			if err != nil {
 				log.Debugf("[%s] %v", tc.name, err)
 			}
-			if tc.expectedError {
-				require.Error(t, err)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError)
 			} else {
 				require.NoError(t, err)
 			}

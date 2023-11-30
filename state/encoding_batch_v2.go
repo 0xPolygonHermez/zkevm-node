@@ -71,6 +71,8 @@ const (
 
 var (
 	// ErrInvalidBatchV2 is returned when the batch is invalid.
+	ErrBatchV2DontStartWithChangeL2Block = errors.New("batch v2 must start with changeL2Block before Tx (suspect a V1 Batch or a ForcedBatch?))")
+	// ErrInvalidBatchV2 is returned when the batch is invalid.
 	ErrInvalidBatchV2 = errors.New("invalid batch v2")
 	// ErrInvalidRLP is returned when the rlp is invalid.
 	ErrInvalidRLP = errors.New("invalid rlp codification")
@@ -151,14 +153,22 @@ func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 		// is a tx
 		default:
 			log.Debugf("pos: %d, Transaction", pos)
+			if currentBlock == nil {
+				_, _, err := decodeTxRLP(txsData, pos)
+				if err == nil {
+					// There is no changeL2Block but have a valid RLP transaction
+					return nil, ErrBatchV2DontStartWithChangeL2Block
+				} else {
+					// No changeL2Block and no valid RLP transaction
+					return nil, fmt.Errorf("no ChangeL2Block neither valid Tx, batch malformed : %w", ErrInvalidBatchV2)
+				}
+			}
 			var tx *L2TxRaw
 			pos, tx, err = decodeTxRLP(txsData, pos)
 			if err != nil {
 				return nil, fmt.Errorf("can't decode transactions: %w", err)
 			}
-			if currentBlock == nil {
-				return nil, fmt.Errorf("can't add transactions because currentBlock is nil: %w", err)
-			}
+
 			currentBlock.Transactions = append(currentBlock.Transactions, *tx)
 		}
 	}
