@@ -70,7 +70,7 @@ const (
 )
 
 var (
-	// ErrInvalidBatchV2 is returned when the batch is invalid.
+	// ErrBatchV2DontStartWithChangeL2Block is returned when the batch start directly with a trsansaction (without a changeL2Block)
 	ErrBatchV2DontStartWithChangeL2Block = errors.New("batch v2 must start with changeL2Block before Tx (suspect a V1 Batch or a ForcedBatch?))")
 	// ErrInvalidBatchV2 is returned when the batch is invalid.
 	ErrInvalidBatchV2 = errors.New("invalid batch v2")
