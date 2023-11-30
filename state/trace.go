@@ -153,24 +153,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	}
 
 	// Sanity check
-	response := convertedResponse.Responses[0]
+	response := convertedResponse.BlockResponses[0].TransactionResponses[0]
 	log.Debugf(response.TxHash.String())
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")
 	}
-
-	// const path = "/Users/thiago/github.com/0xPolygonHermez/zkevm-node/dist/%v.json"
-	// filePath := fmt.Sprintf(path, "EXECUTOR_processBatchResponse")
-	// c, _ := json.MarshalIndent(processBatchResponse, "", "    ")
-	// os.WriteFile(filePath, c, 0644)
-
-	// filePath = fmt.Sprintf(path, "NODE_execution_trace")
-	// c, _ = json.MarshalIndent(response.ExecutionTrace, "", "    ")
-	// os.WriteFile(filePath, c, 0644)
-
-	// filePath = fmt.Sprintf(path, "NODE_call_trace")
-	// c, _ = json.MarshalIndent(response.CallTrace, "", "    ")
-	// os.WriteFile(filePath, c, 0644)
 
 	result := &runtime.ExecutionResult{
 		CreateAddress: response.CreateAddress,

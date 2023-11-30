@@ -105,12 +105,12 @@ func (f *FakeDB) GetCodeSize(address common.Address) int {
 	return len(f.GetCode(address))
 }
 
-// AddRefund not implemented
+// AddRefund adds gas to the refund counter
 func (f *FakeDB) AddRefund(gas uint64) {
 	f.refund += gas
 }
 
-// SubRefund not implemented
+// SubRefund subtracts gas from the refund counter
 func (f *FakeDB) SubRefund(gas uint64) {
 	if gas > f.refund {
 		log.Errorf(fmt.Sprintf("Refund counter below zero (gas: %d > refund: %d)", gas, f.refund))
@@ -118,7 +118,7 @@ func (f *FakeDB) SubRefund(gas uint64) {
 	f.refund -= gas
 }
 
-// GetRefund not implemented
+// GetRefund returns the refund counter
 func (f *FakeDB) GetRefund() uint64 {
 	return f.refund
 }

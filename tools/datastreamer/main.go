@@ -194,7 +194,7 @@ func generate(cliCtx *cli.Context) error {
 	stateDB := pgstatestorage.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Debug("Connected to the database")
 
-	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB)
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

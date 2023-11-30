@@ -763,10 +763,13 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 			Once()
 	}
 	tx1 := state.ProcessTransactionResponse{}
+	block1 := state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{&tx1},
+	}
 	processedBatch := state.ProcessBatchResponse{
-		FlushID:   1,
-		ProverID:  cProverIDExecution,
-		Responses: []*state.ProcessTransactionResponse{&tx1},
+		FlushID:        1,
+		ProverID:       cProverIDExecution,
+		BlockResponses: []*state.ProcessBlockResponse{&block1},
 	}
 	m.State.
 		On("ProcessBatch", mock.Anything, mock.Anything, true).

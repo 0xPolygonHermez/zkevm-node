@@ -120,7 +120,7 @@ func (e *txSortedList) addSort(tx *TxTracker) {
 	e.sorted = append(e.sorted, nil)
 	copy(e.sorted[i+1:], e.sorted[i:])
 	e.sorted[i] = tx
-	log.Infof("Added tx(%s) to txSortedList. With gasPrice(%d) at index(%d) from total(%d)", tx.HashStr, tx.GasPrice, i, len(e.sorted))
+	log.Debugf("Added tx(%s) to txSortedList. With gasPrice(%d) at index(%d) from total(%d)", tx.HashStr, tx.GasPrice, i, len(e.sorted))
 }
 
 // isGreaterThan returns true if the tx1 has greater gasPrice than tx2
