@@ -46,10 +46,10 @@ func (p *PostgresStorage) GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.
 	return entries, nil
 }
 
-func (p *PostgresStorage) GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint, error) {
+func (p *PostgresStorage) GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error) {
 	const getLatestIndexSQL = `SELECT max(l1_info_tree_index) as l1_info_tree_index FROM state.exit_root 
 		WHERE l1_info_tree_index IS NOT NULL`
-	var l1InfoTreeIndex *uint
+	var l1InfoTreeIndex *uint32
 	e := p.getExecQuerier(dbTx)
 	err := e.QueryRow(ctx, getLatestIndexSQL).Scan(&l1InfoTreeIndex)
 	if err != nil {

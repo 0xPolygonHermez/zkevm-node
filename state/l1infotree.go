@@ -16,16 +16,11 @@ type L1InfoTreeLeaf struct {
 	PreviousBlockHash common.Hash
 }
 
-// L1InfoTreeIndexType type of the index of the leafs of L1InfoTree
-//
-//	the leaf starts at 0
-type L1InfoTreeIndexType uint32
-
 // L1InfoTreeExitRootStorageEntry entry of the Database
 type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeLeaf
 	L1InfoTreeRoot  common.Hash
-	L1InfoTreeIndex uint
+	L1InfoTreeIndex uint32
 }
 
 // Hash returns the hash of the leaf
@@ -36,7 +31,7 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 
 // AddL1InfoTreeLeaf adds a new leaf to the L1InfoTree and returns the entry and error
 func (s *State) AddL1InfoTreeLeaf(ctx context.Context, l1InfoTreeLeaf *L1InfoTreeLeaf, dbTx pgx.Tx) (*L1InfoTreeExitRootStorageEntry, error) {
-	var newIndex uint
+	var newIndex uint32
 	gerIndex, err := s.GetLatestIndex(ctx, dbTx)
 	if err != nil && !errors.Is(err, ErrNotFound) {
 		log.Error("error getting latest l1InfoTree index. Error: ", err)

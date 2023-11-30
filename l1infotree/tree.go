@@ -11,7 +11,7 @@ import (
 type L1InfoTree struct {
 	height      uint8
 	zeroHashes  [][32]byte
-	count       uint
+	count       uint32
 	siblings    [][32]byte
 	currentRoot common.Hash
 }
@@ -21,7 +21,7 @@ func NewL1InfoTree(height uint8, initialLeaves [][32]byte) (*L1InfoTree, error) 
 	mt := &L1InfoTree{
 		zeroHashes: generateZeroHashes(height),
 		height:     height,
-		count:      uint(len(initialLeaves)),
+		count:      uint32(len(initialLeaves)),
 	}
 	var err error
 	mt.siblings, mt.currentRoot, err = mt.initSiblings(initialLeaves)
@@ -73,7 +73,7 @@ func (mt *L1InfoTree) BuildL1InfoRoot(leaves [][32]byte) (common.Hash, error) {
 }
 
 // ComputeMerkleProof computes the merkleProof and root given the leaves of the tree
-func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint, leaves [][32]byte) ([][32]byte, common.Hash, error) {
+func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint32, leaves [][32]byte) ([][32]byte, common.Hash, error) {
 	var ns [][][]byte
 	if len(leaves) == 0 {
 		leaves = append(leaves, mt.zeroHashes[0])
@@ -88,7 +88,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint, leaves [][32]byte) ([][3
 			siblings = append(siblings, leaves[index-1])
 		} else { // It is even
 			if len(leaves) > 1 {
-				if index >= uint(len(leaves)) {
+				if index >= uint32(len(leaves)) {
 					// siblings = append(siblings, mt.zeroHashes[h])
 					siblings = append(siblings, leaves[index-1])
 				} else {
@@ -108,7 +108,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint, leaves [][32]byte) ([][3
 		}
 		// Find the index of the leave in the next level of the tree.
 		// Divide the index by 2 to find the position in the upper level
-		index = uint(float64(index) / 2) //nolint:gomnd
+		index = uint32(float64(index) / 2) //nolint:gomnd
 		ns = nsi
 		leaves = hashes
 	}
@@ -120,7 +120,7 @@ func (mt *L1InfoTree) ComputeMerkleProof(gerIndex uint, leaves [][32]byte) ([][3
 }
 
 // AddLeaf adds new leaves to the tree and computes the new root
-func (mt *L1InfoTree) AddLeaf(index uint, leaf [32]byte) (common.Hash, error) {
+func (mt *L1InfoTree) AddLeaf(index uint32, leaf [32]byte) (common.Hash, error) {
 	if index != mt.count {
 		return common.Hash{}, fmt.Errorf("mismatched leaf count: %d, expected: %d", index, mt.count)
 	}
@@ -155,7 +155,7 @@ func (mt *L1InfoTree) AddLeaf(index uint, leaf [32]byte) (common.Hash, error) {
 // initSiblings returns the siblings of the node at the given index.
 // it is used to initialize the siblings array in the beginning.
 func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common.Hash, error) {
-	if mt.count != uint(len(initialLeaves)) {
+	if mt.count != uint32(len(initialLeaves)) {
 		return nil, [32]byte{}, fmt.Errorf("error: mt.count and initialLeaves length mismatch")
 	}
 	if mt.count == 0 {
@@ -177,6 +177,6 @@ func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common
 }
 
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
-func (mt *L1InfoTree) GetCurrentRootCountAndSiblings() (common.Hash, uint, [][32]byte) {
+func (mt *L1InfoTree) GetCurrentRootCountAndSiblings() (common.Hash, uint32, [][32]byte) {
 	return mt.currentRoot, mt.count, mt.siblings
 }

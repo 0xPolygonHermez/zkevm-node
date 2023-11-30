@@ -129,5 +129,5 @@ type storage interface {
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error
 	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
-	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint, error)
+	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
 }

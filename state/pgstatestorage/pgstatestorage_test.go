@@ -1077,7 +1077,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint) *state.L1InfoTreeExitRootStorageEntry {
+func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint32) *state.L1InfoTreeExitRootStorageEntry {
 	exitRoot := state.L1InfoTreeExitRootStorageEntry{
 		L1InfoTreeLeaf: state.L1InfoTreeLeaf{
 			GlobalExitRoot: state.GlobalExitRoot{
