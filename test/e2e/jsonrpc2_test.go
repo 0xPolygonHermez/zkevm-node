@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -614,11 +615,30 @@ func TestEstimateGas(t *testing.T) {
 		txToMsg, err := sc.Increment(auth)
 		require.NoError(t, err)
 
+		// add funds to address 0x000...001 used in the test
+		nonce, err := ethereumClient.NonceAt(ctx, auth.From, nil)
+		require.NoError(t, err)
+		value := big.NewInt(1000)
+		require.NoError(t, err)
+		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    nonce,
+			To:       ptr(common.HexToAddress("0x1")),
+			Value:    value,
+			Gas:      24000,
+			GasPrice: gasPrice,
+		})
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		err = ethereumClient.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
 		type testCase struct {
 			name          string
 			address       *common.Address
-			balance       *big.Int
-			forceGasPrice bool
+			value         *int64
+			setGasPrice   bool
 			expectedError rpc.Error
 		}
 
@@ -626,102 +646,117 @@ func TestEstimateGas(t *testing.T) {
 			{
 				name:          "with gasPrice set and address with enough balance",
 				address:       ptr(auth.From),
-				balance:       nil,
-				forceGasPrice: true,
+				setGasPrice:   true,
 				expectedError: nil,
 			},
 			{
 				name:          "with gasPrice set and address without enough balance",
 				address:       ptr(common.HexToAddress("0x1")),
-				balance:       big.NewInt(1000),
-				forceGasPrice: true,
+				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
 			{
 				name:          "with gasPrice set and address with balance zero",
 				address:       ptr(common.HexToAddress("0x2")),
-				balance:       nil,
-				forceGasPrice: true,
+				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
 			{
 				name:          "with gasPrice set and without from address",
 				address:       nil,
-				balance:       nil,
-				forceGasPrice: true,
-				expectedError: nil,
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			// TODO: This test is failing due to geth bug
+			//       we can uncomment it when updating geth version
+			//       on l1 image, it's returning error code -32000 when
+			//       it should be returning error code 3 due to execution message
+			// {
+			// 	name:          "with gasPrice and value set and address with enough balance",
+			// 	address:       ptr(auth.From),
+			// 	value:         ptr(int64(1)),
+			// 	setGasPrice:   true,
+			// 	expectedError: types.NewRPCError(3, "execution reverted"),
+			// },
+			{
+				name:          "with gasPrice and value set and address without enough balance",
+				address:       ptr(common.HexToAddress("0x1")),
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
+			},
+			{
+				name:          "with gasPrice and value set and address with balance zero",
+				address:       ptr(common.HexToAddress("0x2")),
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
+			},
+			{
+				name:          "with gasPrice and value set and without from address",
+				address:       nil,
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
 			},
 			{
 				name:          "without gasPrice set and address with enough balance",
 				address:       ptr(auth.From),
-				balance:       nil,
-				forceGasPrice: false,
+				setGasPrice:   false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address without enough balance",
 				address:       ptr(common.HexToAddress("0x1")),
-				balance:       big.NewInt(1000),
-				forceGasPrice: false,
+				setGasPrice:   false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address with balance zero",
 				address:       ptr(common.HexToAddress("0x2")),
-				balance:       nil,
-				forceGasPrice: false,
+				setGasPrice:   false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and without from address",
 				address:       nil,
-				balance:       nil,
-				forceGasPrice: false,
+				setGasPrice:   false,
 				expectedError: nil,
 			},
 		}
 
 		for _, testCase := range testCases {
 			t.Run(testCase.name, func(t *testing.T) {
-				// if balance is set, send funds to the account
-				if testCase.balance != nil && testCase.address != nil {
-					nonce, err := ethereumClient.NonceAt(ctx, auth.From, nil)
-					require.NoError(t, err)
-					value := big.NewInt(1000)
-					require.NoError(t, err)
-					tx := ethTypes.NewTx(&ethTypes.LegacyTx{
-						Nonce:    nonce,
-						To:       testCase.address,
-						Value:    value,
-						Gas:      24000,
-						GasPrice: gasPrice,
-					})
-					signedTx, err := auth.Signer(auth.From, tx)
-					require.NoError(t, err)
-					err = ethereumClient.SendTransaction(ctx, signedTx)
-					require.NoError(t, err)
-					err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
-					require.NoError(t, err)
-
-				}
-
 				msg := ethereum.CallMsg{
-					To:    txToMsg.To(),
-					Value: txToMsg.Value(),
-					Data:  txToMsg.Data(),
+					To:   txToMsg.To(),
+					Data: txToMsg.Data(),
 				}
 				if testCase.address != nil {
 					msg.From = *testCase.address
 				}
-				if testCase.forceGasPrice {
+				balance, err := ethereumClient.BalanceAt(ctx, msg.From, nil)
+				require.NoError(t, err)
+
+				if testCase.value != nil {
+					v := *testCase.value
+					if v == -1 { //set the value as acc balance + 1 to force overflow
+
+						msg.Value = common.Big0.Add(balance, common.Big1)
+					} else {
+						msg.Value = big.NewInt(0).SetInt64(v)
+					}
+				}
+
+				if testCase.setGasPrice {
 					msg.GasPrice = gasPrice
 				}
 
 				_, err = ethereumClient.EstimateGas(ctx, msg)
 				if testCase.expectedError != nil {
 					rpcErr := err.(rpc.Error)
-					assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode())
-					assert.True(t, strings.HasPrefix(rpcErr.Error(), testCase.expectedError.Error()))
+					errMsg := fmt.Sprintf("[%v] expected: %v %v found: %v %v", network.Name, testCase.expectedError.ErrorCode(), testCase.expectedError.Error(), rpcErr.ErrorCode(), rpcErr.Error())
+					assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode(), errMsg)
+					assert.True(t, strings.HasPrefix(rpcErr.Error(), testCase.expectedError.Error()), errMsg)
 				} else {
 					assert.Nil(t, err)
 				}

@@ -1021,30 +1021,25 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	highEnd := s.cfg.MaxCumulativeGasUsed
 
-	isZeroAddress := senderAddress.String() == ZeroAddress.String()
-	isDefaultSenderAddress := senderAddress.String() == common.HexToAddress(DefaultSenderAddress).String()
-	isSenderSpecified := !isZeroAddress && !isDefaultSenderAddress
+	// if gas price is set, set the highEnd to the max amount
+	// of the account afford
 	isGasPriceSet := transaction.GasPrice().BitLen() != 0
-
-	// if sender is specified and gas price is set
-	// try to set the high end to the max value the account balance can afford
-	if isSenderSpecified && isGasPriceSet {
+	if isGasPriceSet {
 		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
-		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				senderBalance = big.NewInt(0)
-			} else {
-				return 0, nil, err
-			}
+		if errors.Is(err, ErrNotFound) {
+			senderBalance = big.NewInt(0)
+		} else if err != nil {
+			return 0, nil, err
 		}
 
 		availableBalance := new(big.Int).Set(senderBalance)
-		// check if the account balance is at least bigger than the tx Value
+		// check if the account has funds to pay the transfer value
 		if transaction.Value() != nil {
 			if transaction.Value().Cmp(availableBalance) > 0 {
 				return 0, nil, ErrInsufficientFundsForTransfer
 			}
 
+			// deduct the value from the available balance
 			availableBalance.Sub(availableBalance, transaction.Value())
 		}
 
