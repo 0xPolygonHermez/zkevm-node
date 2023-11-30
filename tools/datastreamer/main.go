@@ -743,7 +743,7 @@ func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.G
 
 	uuid := uuid.New().String()
 
-	for _, action := range genesis.GenesisActions {
+	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):

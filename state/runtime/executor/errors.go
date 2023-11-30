@@ -413,6 +413,8 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidL1SmtProof
 	case ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE:
 		return runtime.ErrExecutorErrorInvalidBalance
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH:
+		return runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch
 	}
 	return ErrExecutorUnknown
 }
@@ -581,6 +583,52 @@ func ExecutorErrorCode(err error) ExecutorError {
 	case runtime.ErrExecutorErrorInvalidGetKey:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
 		// Start of V2 errors
+	case runtime.ErrExecutorSMMainCountersOverflowSha256:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256
+	case runtime.ErrExecutorSMMainHashS:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS
+	case runtime.ErrExecutorSMMainHashSSizeOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE
+	case runtime.ErrExecutorSMMainHashSPositionNegative:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE
+	case runtime.ErrExecutorSMMainHashSPositionPlusSizeOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE
+	case runtime.ErrExecutorSMMainHashSDigestAddressNotFound:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND
+	case runtime.ErrExecutorSMMainHashSDigestNotCompleted:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED
+	case runtime.ErrExecutorSMMainHashSValueMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH
+	case runtime.ErrExecutorSMMainHashSPaddingMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH
+	case runtime.ErrExecutorSMMainHashSSizeMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH
+	case runtime.ErrExecutorSMMainHashSLenLengthMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH
+	case runtime.ErrExecutorSMMainHashSLenCalledTwice:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE
+	case runtime.ErrExecutorSMMainHashSDigestNotFound:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND
+	case runtime.ErrExecutorSMMainHashSDigestDigestMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH
+	case runtime.ErrExecutorSMMainHashSDigestCalledTwice:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE
+	case runtime.ErrExecutorSMMainHashSReadOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE
+	case runtime.ErrExecutorErrorInvalidL1InfoRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_ROOT
+	case runtime.ErrExecutorErrorInvalidForcedBlockhashL1:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1
+	case runtime.ErrExecutorErrorInvalidL1DataV2GlobalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorInvalidL1DataV2BlockHashL1:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1
+	case runtime.ErrExecutorErrorInvalidL1SmtProof:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_SMT_PROOF
+	case runtime.ErrExecutorErrorInvalidBalance:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE
+	case runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH
 	}
 	return ErrCodeExecutorUnknown
 }
