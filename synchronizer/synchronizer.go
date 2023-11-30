@@ -371,8 +371,8 @@ func (s *ClientSynchronizer) Sync() error {
 			// Sync trusted state
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				startTrusted := time.Now()
-				if s.syncTrustedStateExecutor == nil {
-					log.Info("Syncing trusted state")
+				if s.syncTrustedStateExecutor != nil && !s.isTrustedSequencer {
+					log.Info("Syncing trusted state (permissionless)")
 					err = s.syncTrustedState(latestSyncedBatch)
 					metrics.FullTrustedSyncTime(time.Since(startTrusted))
 					if err != nil {

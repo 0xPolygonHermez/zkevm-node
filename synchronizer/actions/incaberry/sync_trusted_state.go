@@ -42,7 +42,6 @@ type syncTrustedBatchesStateInterface interface {
 type syncTrustedBatchesSynchronizerInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CheckFlushID(dbTx pgx.Tx) error
-	IsTrustedSequencer() bool
 }
 
 // SyncTrustedBatchesAction is the action that synchronizes the trusted state
@@ -73,10 +72,6 @@ func NewSyncTrustedStateExecutor(zkEVMClient zkEVMClientInterface, state syncTru
 // related to the trusted state when the node has all the information from
 // l1 synchronized
 func (s *SyncTrustedBatchesAction) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
-	if s.sync.IsTrustedSequencer() {
-		return nil
-	}
-
 	log.Info("syncTrustedState: Getting trusted state info")
 	start := time.Now()
 	lastTrustedStateBatchNumber, err := s.zkEVMClient.BatchNumber(ctx)
