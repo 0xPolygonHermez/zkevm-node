@@ -582,7 +582,7 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
 }
 
-func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
+func TestEstimateGas(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -616,7 +616,7 @@ func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
 
 		type testCase struct {
 			name          string
-			address       common.Address
+			address       *common.Address
 			balance       *big.Int
 			forceGasPrice bool
 			expectedError rpc.Error
@@ -625,42 +625,56 @@ func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
 		testCases := []testCase{
 			{
 				name:          "with gasPrice set and address with enough balance",
-				address:       auth.From,
+				address:       ptr(auth.From),
 				balance:       nil,
 				forceGasPrice: true,
 				expectedError: nil,
 			},
 			{
 				name:          "with gasPrice set and address without enough balance",
-				address:       common.HexToAddress("0x1"),
+				address:       ptr(common.HexToAddress("0x1")),
 				balance:       big.NewInt(1000),
 				forceGasPrice: true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
 			{
 				name:          "with gasPrice set and address with balance zero",
-				address:       common.HexToAddress("0x2"),
+				address:       ptr(common.HexToAddress("0x2")),
 				balance:       nil,
 				forceGasPrice: true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
 			{
+				name:          "with gasPrice set and without from address",
+				address:       nil,
+				balance:       nil,
+				forceGasPrice: true,
+				expectedError: nil,
+			},
+			{
 				name:          "without gasPrice set and address with enough balance",
-				address:       auth.From,
+				address:       ptr(auth.From),
 				balance:       nil,
 				forceGasPrice: false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address without enough balance",
-				address:       common.HexToAddress("0x1"),
+				address:       ptr(common.HexToAddress("0x1")),
 				balance:       big.NewInt(1000),
 				forceGasPrice: false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address with balance zero",
-				address:       common.HexToAddress("0x2"),
+				address:       ptr(common.HexToAddress("0x2")),
+				balance:       nil,
+				forceGasPrice: false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and without from address",
+				address:       nil,
 				balance:       nil,
 				forceGasPrice: false,
 				expectedError: nil,
@@ -670,14 +684,14 @@ func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
 		for _, testCase := range testCases {
 			t.Run(testCase.name, func(t *testing.T) {
 				// if balance is set, send funds to the account
-				if testCase.balance != nil {
+				if testCase.balance != nil && testCase.address != nil {
 					nonce, err := ethereumClient.NonceAt(ctx, auth.From, nil)
 					require.NoError(t, err)
 					value := big.NewInt(1000)
 					require.NoError(t, err)
 					tx := ethTypes.NewTx(&ethTypes.LegacyTx{
 						Nonce:    nonce,
-						To:       &testCase.address,
+						To:       testCase.address,
 						Value:    value,
 						Gas:      24000,
 						GasPrice: gasPrice,
@@ -692,10 +706,12 @@ func TestEstimateTxWithLessBalanceThanNeededToExecuteTheTx(t *testing.T) {
 				}
 
 				msg := ethereum.CallMsg{
-					From:  testCase.address,
 					To:    txToMsg.To(),
 					Value: txToMsg.Value(),
 					Data:  txToMsg.Data(),
+				}
+				if testCase.address != nil {
+					msg.From = *testCase.address
 				}
 				if testCase.forceGasPrice {
 					msg.GasPrice = gasPrice

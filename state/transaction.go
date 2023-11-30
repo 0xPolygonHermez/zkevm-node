@@ -1021,9 +1021,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	highEnd := s.cfg.MaxCumulativeGasUsed
 
+	isZeroAddress := senderAddress.String() == ZeroAddress.String()
+	isDefaultSenderAddress := senderAddress.String() == common.HexToAddress(DefaultSenderAddress).String()
+	isSenderSpecified := !isZeroAddress && !isDefaultSenderAddress
+	isGasPriceSet := transaction.GasPrice().BitLen() != 0
+
 	// if sender is specified and gas price is set
 	// try to set the high end to the max value the account balance can afford
-	if senderAddress != ZeroAddress && transaction.GasPrice().BitLen() != 0 {
+	if isSenderSpecified && isGasPriceSet {
 		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
 		if err != nil {
 			if errors.Is(err, ErrNotFound) {
