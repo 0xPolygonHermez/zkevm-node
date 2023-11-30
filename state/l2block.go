@@ -150,9 +150,11 @@ func NewL2Block(h *L2Header, txs []*types.Transaction, uncles []*L2Header, recei
 		gethUncles = append(gethUncles, types.CopyHeader(uncle.gethHeader.Header))
 	}
 
+	cpy := CopyHeader(h)
 	b := types.NewBlock(h.gethHeader.Header, txs, gethUncles, receipts, hasher)
+	cpy.gethHeader = &gethHeader{b.Header()}
 	return &L2Block{
-		header:    CopyHeader(h),
+		header:    cpy,
 		gethBlock: &gethBlock{b},
 		uncles:    l2Uncles,
 	}
