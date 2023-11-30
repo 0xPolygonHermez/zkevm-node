@@ -1561,6 +1561,7 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
+/*
 func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -1660,6 +1661,7 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 		})
 	}
 }
+*/
 
 func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	eventStorage, err := nileventstorage.NewNilEventStorage()

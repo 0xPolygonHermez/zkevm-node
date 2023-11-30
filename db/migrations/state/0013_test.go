@@ -54,6 +54,49 @@ func (m migrationTest0013) InsertData(db *sql.DB) error {
 
 	return nil
 }
+
+func (m migrationTest0013) InsertDataIntoTransactionsTable(db *sql.DB) error {
+	// Insert block to respect the FKey
+	const addBlock = "INSERT INTO state.block (block_num, received_at, block_hash) VALUES ($1, $2, $3)"
+	if _, err := db.Exec(addBlock, 1, time.Now(), "0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"); err != nil {
+		return err
+	}
+	if _, err := db.Exec(addBlock, 2, time.Now(), "0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2"); err != nil {
+		return err
+	}
+	const insertBatch = `
+		INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) 
+		VALUES (0,'0x0000', '0x0000', '0x0000', '0x0000', now(), '0x0000', null, null)`
+
+	// insert batch
+	_, err := db.Exec(insertBatch)
+	if err != nil {
+		return err
+	}
+
+	const insertL2Block = `
+		INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
+		VALUES (0, '0x0001', '{}', '{}', '0x0002', '0x003', now(), 0, now())`
+
+	// insert l2 block
+	_, err = db.Exec(insertL2Block)
+	if err != nil {
+		return err
+	}
+
+	const insertTx = `
+		INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, l2_hash)
+		VALUES ('0x0001', 'ABCDEF', '{}', 0, 255, '0x0002')`
+
+	// insert tx
+	_, err = db.Exec(insertTx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m migrationTest0013) insertRowInMigratedTable(db *sql.DB, args []interface{}) error {
 	insert := `
         INSERT INTO state.exit_root (block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index) 
@@ -89,6 +132,17 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, err)
 	assert.Equal(t, prevBlockHash, currentPrevBlockHash)
 	assert.Equal(t, l1InfoRoot, currentL1InfoRoot)
+
+	// Check column l2_hash exists in state.transactions table
+	const getL2HashColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='l2_hash'`
+	row := db.QueryRow(getL2HashColumn)
+	var result int
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 1, result)
+
+	// Try to insert data into the transactions table
+	err = m.InsertDataIntoTransactionsTable(db)
+	assert.NoError(t, err)
 }
 
 func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -97,6 +151,13 @@ func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	err := db.QueryRow(sqlSelect).Scan(&count)
 	assert.NoError(t, err)
 	assert.Equal(t, 4, count)
+
+	// Check column l2_hash doesn't exists in state.transactions table
+	const getL2HashColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='l2_hash'`
+	row := db.QueryRow(getL2HashColumn)
+	var result int
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 0, result)
 }
 
 func TestMigration0013(t *testing.T) {

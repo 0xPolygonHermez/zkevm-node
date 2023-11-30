@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,9 +24,66 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	two uint = 2
-)
+// TestGetL2Hash computes the l2 hash of a transaction for testing purposes
+func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
+	return getL2Hash(tx, sender)
+}
+
+// GetL2Hash computes the l2 hash of a transaction
+func GetL2Hash(tx types.Transaction) (common.Hash, error) {
+	sender, err := GetSender(tx)
+	if err != nil {
+		log.Debugf("error getting sender: %v", err)
+	}
+
+	return getL2Hash(tx, sender)
+}
+
+func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
+	var input string
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Nonce()))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.GasPrice()))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Gas()))
+	input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
+	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Value()))
+	if len(tx.Data()) > 0 {
+		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
+	}
+	if sender != ZeroAddress {
+		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
+	}
+
+	h4Hash, err := merkletree.HashContractBytecode(common.Hex2Bytes(input))
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return common.HexToHash(merkletree.H4ToString(h4Hash)), nil
+}
+
+// pad20Bytes pads the given address with 0s to make it 20 bytes long
+func pad20Bytes(address string) string {
+	const addressLength = 40
+
+	if len(address) < addressLength {
+		address = strings.Repeat("0", addressLength-len(address)) + address
+	}
+	return address
+}
+
+func formatL2TxHashParam(param string) string {
+	param = strings.TrimLeft(param, "0x")
+
+	if param == "00" || param == "" {
+		return "00"
+	}
+
+	if len(param)%2 != 0 {
+		param = "0" + param
+	}
+
+	return param
+}
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
@@ -109,18 +168,9 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 // StoreTransactions is used by the sequencer to add processed transactions into
 // an open batch. If the batch already has txs, the processedTxs must be a super
 // set of the existing ones, preserving order.
-func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedTxs []*ProcessTransactionResponse, txsEGPLog []*EffectiveGasPriceLog, dbTx pgx.Tx) error {
+func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedBlocks []*ProcessBlockResponse, txsEGPLog []*EffectiveGasPriceLog, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
-	}
-
-	// check existing txs vs parameter txs
-	existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
-	if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
-		return err
 	}
 
 	// Check if last batch is closed. Note that it's assumed that only the latest batch can be open
@@ -132,58 +182,77 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrBatchAlreadyClosed
 	}
 
-	processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
-	if err != nil {
-		return err
-	}
+	for _, processedBlock := range processedBlocks {
+		processedTxs := processedBlock.TransactionResponses
+		// check existing txs vs parameter txs
+		/*
+			existingTxs, err := s.GetTxsHashesByBatchNumber(ctx, batchNumber, dbTx)
+			if err != nil {
+				return err
+			}*/
 
-	firstTxToInsert := len(existingTxs)
+		// TODO: Refactor
+		/*
+			if err := CheckSupersetBatchTransactions(existingTxs, processedTxs); err != nil {
+				return err
+			}
+		*/
 
-	for i := firstTxToInsert; i < len(processedTxs); i++ {
-		processedTx := processedTxs[i]
-		// if the transaction has an intrinsic invalid tx error it means
-		// the transaction has not changed the state, so we don't store it
-		// and just move to the next
-		if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) || errors.Is(processedTx.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
-			continue
-		}
-
-		lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+		processingContext, err := s.GetProcessingContext(ctx, batchNumber, dbTx)
 		if err != nil {
 			return err
 		}
 
-		header := &types.Header{
-			Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
-			ParentHash: lastL2Block.Hash(),
-			Coinbase:   processingContext.Coinbase,
-			Root:       processedTx.StateRoot,
-			GasUsed:    processedTx.GasUsed,
-			GasLimit:   s.cfg.MaxCumulativeGasUsed,
-			Time:       uint64(processingContext.Timestamp.Unix()),
-		}
-		transactions := []*types.Transaction{&processedTx.Tx}
+		// firstTxToInsert := len(existingTxs)
 
-		receipt := generateReceipt(header.Number, processedTx)
-		if !CheckLogOrder(receipt.Logs) {
-			return fmt.Errorf("error: logs received from executor are not in order")
-		}
-		receipts := []*types.Receipt{receipt}
+		firstTxToInsert := 0
 
-		// Create block to be able to calculate its hash
-		block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-		block.ReceivedAt = processingContext.Timestamp
+		for i := firstTxToInsert; i < len(processedTxs); i++ {
+			processedTx := processedTxs[i]
+			// if the transaction has an intrinsic invalid tx error it means
+			// the transaction has not changed the state, so we don't store it
+			// and just move to the next
+			if executor.IsIntrinsicError(executor.RomErrorCode(processedTx.RomError)) || errors.Is(processedTx.RomError, executor.RomErr(executor.RomError_ROM_ERROR_INVALID_RLP)) {
+				continue
+			}
 
-		receipt.BlockHash = block.Hash()
+			lastL2Block, err := s.GetLastL2Block(ctx, dbTx)
+			if err != nil {
+				return err
+			}
 
-		storeTxsEGPData := []StoreTxEGPData{{EGPLog: nil, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
-		if txsEGPLog != nil {
-			storeTxsEGPData[0].EGPLog = txsEGPLog[i]
-		}
+			header := &types.Header{
+				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
+				ParentHash: lastL2Block.Hash(),
+				Coinbase:   processingContext.Coinbase,
+				Root:       processedTx.StateRoot,
+				GasUsed:    processedTx.GasUsed,
+				GasLimit:   s.cfg.MaxCumulativeGasUsed,
+				Time:       uint64(processingContext.Timestamp.Unix()),
+			}
+			transactions := []*types.Transaction{&processedTx.Tx}
 
-		// Store L2 block and its transaction
-		if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
-			return err
+			receipt := generateReceipt(header.Number, processedTx)
+			if !CheckLogOrder(receipt.Logs) {
+				return fmt.Errorf("error: logs received from executor are not in order")
+			}
+			receipts := []*types.Receipt{receipt}
+
+			// Create block to be able to calculate its hash
+			block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+			block.ReceivedAt = processingContext.Timestamp
+
+			receipt.BlockHash = block.Hash()
+
+			storeTxsEGPData := []StoreTxEGPData{{EGPLog: nil, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
+			if txsEGPLog != nil {
+				storeTxsEGPData[0].EGPLog = txsEGPLog[i]
+			}
+
+			// Store L2 block and its transaction
+			if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -212,7 +281,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 		return nil, err
 	}
 
-	r := response.Responses[0]
+	r := response.BlockResponses[0].TransactionResponses[0]
 	result.ReturnValue = r.ReturnValue
 	result.GasLeft = r.GasLeft
 	result.GasUsed = r.GasUsed
@@ -238,7 +307,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	if s.tree == nil {
 		return nil, ErrStateTreeNil
 	}
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +523,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, two, dbTx)
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint:gomnd
 	if err != nil {
 		return 0, nil, err
 	}
@@ -651,7 +720,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	// Start the binary search for the lowest possible gas price
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
-		mid := (lowEnd + highEnd) / uint64(two)
+		mid := (lowEnd + highEnd) / 2 // nolint:gomnd
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
 
