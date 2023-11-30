@@ -130,8 +130,6 @@ func sortIndexForForkdIDSortedByBlockNumber(forkIDs []state.ForkIDInterval) []in
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
-	log.Errorf("[storage.GetForkIDByBatchNumber] log to get the trace")
-
 	log.Debugf("[storage.GetForkIDByBatchNumber] batchNumber: %v", batchNumber)
 	log.Debugf("[storage.GetForkIDByBatchNumber] p.cfg.ForkUpgradeBatchNumber: %v", p.cfg.ForkUpgradeBatchNumber)
 	log.Debugf("[storage.GetForkIDByBatchNumber] p.cfg.ForkUpgradeBatchNumber: %v", p.cfg.ForkUpgradeBatchNumber)
