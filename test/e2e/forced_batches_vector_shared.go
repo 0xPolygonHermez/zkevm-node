@@ -52,7 +52,7 @@ func LaunchTestForcedBatchesVectorFilesGroup(t *testing.T, vectorFilesDir string
 				opsCfg.State.ForkIDIntervals = []state.ForkIDInterval{{
 					FromBatchNumber: 0,
 					ToBatchNumber:   math.MaxUint64,
-					ForkId:          5,
+					ForkId:          state.FORKID_ETROG,
 					Version:         "",
 				}}
 				opsman, err := operations.NewManager(ctx, opsCfg)

@@ -659,7 +659,7 @@ func GetDefaultOperationsConfig() *Config {
 			ForkIDIntervals: []state.ForkIDInterval{{
 				FromBatchNumber: 0,
 				ToBatchNumber:   math.MaxUint64,
-				ForkId:          5,
+				ForkId:          state.FORKID_ETROG,
 				Version:         "",
 			}}},
 		SequenceSender: &SequenceSenderConfig{
