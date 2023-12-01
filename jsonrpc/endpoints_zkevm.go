@@ -193,12 +193,12 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
+			header := lastBlock.Header()
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = ethTypes.EmptyRootHash
 			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
+			block := state.NewL2BlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, true)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)

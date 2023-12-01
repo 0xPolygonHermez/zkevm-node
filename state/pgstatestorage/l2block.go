@@ -15,12 +15,12 @@ import (
 )
 
 // GetL2BlockByNumber gets a l2 block by its number
-func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error) {
-	const query = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
+func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Block, error) {
+	const query = "SELECT block_hash, header, uncles, received_at FROM state.l2block b WHERE b.block_num = $1"
 
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query, blockNumber)
-	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
+	blockHash, header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -32,17 +32,15 @@ func (p *PostgresStorage) GetL2BlockByNumber(ctx context.Context, blockNumber ui
 		return nil, err
 	}
 
-	block := types.NewBlockWithHeader(header).WithBody(transactions, uncles)
-	block.ReceivedAt = receivedAt
-
+	block := buildBlock(*blockHash, header, transactions, uncles, receivedAt)
 	return block, nil
 }
 
 // GetL2BlocksByBatchNumber get all blocks associated to a batch
 // accordingly to the provided batch number
-func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Block, error) {
+func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error) {
 	const query = `
-        SELECT bl.header, bl.uncles, bl.received_at
+        SELECT bl.block_hash, bl.header, bl.uncles, bl.received_at
           FROM state.l2block bl
 		 INNER JOIN state.batch ba
 		    ON ba.batch_num = bl.batch_num
@@ -59,25 +57,27 @@ func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNum
 	defer rows.Close()
 
 	type l2BlockInfo struct {
-		header     *types.Header
-		uncles     []*types.Header
+		blockHash  common.Hash
+		header     *state.L2Header
+		uncles     []*state.L2Header
 		receivedAt time.Time
 	}
 
 	l2BlockInfos := []l2BlockInfo{}
 	for rows.Next() {
-		header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, rows, dbTx)
+		blockHash, header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, rows, dbTx)
 		if err != nil {
 			return nil, err
 		}
 		l2BlockInfos = append(l2BlockInfos, l2BlockInfo{
+			blockHash:  *blockHash,
 			header:     header,
 			uncles:     uncles,
 			receivedAt: receivedAt,
 		})
 	}
 
-	l2Blocks := make([]types.Block, 0, len(rows.RawValues()))
+	l2Blocks := make([]state.L2Block, 0, len(rows.RawValues()))
 	for _, l2BlockInfo := range l2BlockInfos {
 		transactions, err := p.GetTxsByBlockNumber(ctx, l2BlockInfo.header.Number.Uint64(), dbTx)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -86,28 +86,30 @@ func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNum
 			return nil, err
 		}
 
-		block := types.NewBlockWithHeader(l2BlockInfo.header).WithBody(transactions, l2BlockInfo.uncles)
-		block.ReceivedAt = l2BlockInfo.receivedAt
-
+		block := buildBlock(l2BlockInfo.blockHash, l2BlockInfo.header, transactions, l2BlockInfo.uncles, l2BlockInfo.receivedAt)
 		l2Blocks = append(l2Blocks, *block)
 	}
 
 	return l2Blocks, nil
 }
 
-func (p *PostgresStorage) scanL2BlockInfo(ctx context.Context, rows pgx.Row, dbTx pgx.Tx) (header *types.Header, uncles []*types.Header, receivedAt time.Time, err error) {
-	header = &types.Header{}
-	uncles = []*types.Header{}
+func (p *PostgresStorage) scanL2BlockInfo(ctx context.Context, rows pgx.Row, dbTx pgx.Tx) (hash *common.Hash, header *state.L2Header, uncles []*state.L2Header, receivedAt time.Time, err error) {
+	hash = &common.Hash{}
+	header = &state.L2Header{}
+	uncles = []*state.L2Header{}
 	receivedAt = time.Time{}
 
-	err = rows.Scan(&header, &uncles, &receivedAt)
+	var hexHash string
+	err = rows.Scan(&hexHash, &header, &uncles, &receivedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil, time.Time{}, state.ErrNotFound
+		return nil, nil, nil, time.Time{}, state.ErrNotFound
 	} else if err != nil {
-		return nil, nil, time.Time{}, err
+		return nil, nil, nil, time.Time{}, err
 	}
 
-	return header, uncles, receivedAt, nil
+	blockHash := common.HexToHash(hexHash)
+	hash = &blockHash
+	return hash, header, uncles, receivedAt, nil
 }
 
 // GetLastL2BlockCreatedAt gets the timestamp of the last l2 block
@@ -148,7 +150,7 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
 	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
 
@@ -158,6 +160,15 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
+
+	forkID := p.GetForkIDByBatchNumber(batchNumber)
+
+	if forkID >= state.FORKID_ETROG {
+		l2Block.ForceHash(l2Block.Root())
+		for _, receipt := range receipts {
+			receipt.BlockHash = l2Block.Root()
+		}
+	}
 
 	var header = "{}"
 	if l2Block.Header() != nil {
@@ -320,9 +331,9 @@ func (p *PostgresStorage) GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx)
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
-func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	const query = "SELECT b.header FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
-	header := &types.Header{}
+	header := &state.L2Header{}
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, query).Scan(&header)
 
@@ -336,12 +347,12 @@ func (p *PostgresStorage) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx)
 }
 
 // GetLastL2Block retrieves the latest L2 Block from the State data base
-func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
-	const query = "SELECT header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
+func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error) {
+	const query = "SELECT block_hash, header, uncles, received_at FROM state.l2block b ORDER BY b.block_num DESC LIMIT 1"
 
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query)
-	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
+	blockHash, header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
 	if errors.Is(err, state.ErrNotFound) {
 		return nil, state.ErrStateNotSynchronized
 	} else if err != nil {
@@ -355,19 +366,17 @@ func (p *PostgresStorage) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*typ
 		return nil, err
 	}
 
-	block := types.NewBlockWithHeader(header).WithBody(transactions, uncles)
-	block.ReceivedAt = receivedAt
-
+	block := buildBlock(*blockHash, header, transactions, uncles, receivedAt)
 	return block, nil
 }
 
 // GetL2BlockByHash gets a l2 block from its hash
-func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error) {
-	const query = "SELECT header, uncles, received_at FROM state.l2block b WHERE b.block_hash = $1"
+func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*state.L2Block, error) {
+	const query = "SELECT block_hash, header, uncles, received_at FROM state.l2block b WHERE b.block_hash = $1"
 
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query, hash.String())
-	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
+	blockHash, header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -379,17 +388,15 @@ func (p *PostgresStorage) GetL2BlockByHash(ctx context.Context, hash common.Hash
 		return nil, err
 	}
 
-	block := types.NewBlockWithHeader(header).WithBody(transactions, uncles)
-	block.ReceivedAt = receivedAt
-
+	block := buildBlock(*blockHash, header, transactions, uncles, receivedAt)
 	return block, nil
 }
 
 // GetL2BlockHeaderByHash gets the block header by block number
-func (p *PostgresStorage) GetL2BlockHeaderByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Header, error) {
+func (p *PostgresStorage) GetL2BlockHeaderByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*state.L2Header, error) {
 	const getL2BlockHeaderByHashSQL = "SELECT header FROM state.l2block b WHERE b.block_hash = $1"
 
-	header := &types.Header{}
+	header := &state.L2Header{}
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getL2BlockHeaderByHashSQL, hash.String()).Scan(&header)
 
@@ -402,10 +409,10 @@ func (p *PostgresStorage) GetL2BlockHeaderByHash(ctx context.Context, hash commo
 }
 
 // GetL2BlockHeaderByNumber gets the block header by block number
-func (p *PostgresStorage) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error) {
+func (p *PostgresStorage) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Header, error) {
 	const getL2BlockHeaderByNumberSQL = "SELECT header FROM state.l2block b WHERE b.block_num = $1"
 
-	header := &types.Header{}
+	header := &state.L2Header{}
 	q := p.getExecQuerier(dbTx)
 	err := q.QueryRow(ctx, getL2BlockHeaderByNumberSQL, blockNumber).Scan(&header)
 
@@ -481,4 +488,12 @@ func (p *PostgresStorage) IsL2BlockVirtualized(ctx context.Context, blockNumber 
 	}
 
 	return isVirtualized, nil
+}
+
+func buildBlock(blockHash common.Hash, header *state.L2Header, transactions []*types.Transaction, uncles []*state.L2Header, receivedAt time.Time) *state.L2Block {
+	l2Block := state.NewL2BlockWithHeader(header).WithBody(transactions, uncles)
+	l2Block.ReceivedAt = receivedAt
+
+	l2Block.ForceHash(blockHash)
+	return l2Block
 }

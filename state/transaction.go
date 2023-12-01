@@ -221,7 +221,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				return err
 			}
 
-			header := &types.Header{
+			header := NewL2Header(&types.Header{
 				Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 				ParentHash: lastL2Block.Hash(),
 				Coinbase:   processingContext.Coinbase,
@@ -229,7 +229,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				GasUsed:    processedTx.GasUsed,
 				GasLimit:   s.cfg.MaxCumulativeGasUsed,
 				Time:       uint64(processingContext.Timestamp.Unix()),
-			}
+			})
 			transactions := []*types.Transaction{&processedTx.Tx}
 
 			receipt := generateReceipt(header.Number, processedTx)
@@ -238,11 +238,11 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 			receipts := []*types.Receipt{receipt}
 
-			// Create block to be able to calculate its hash
-			block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-			block.ReceivedAt = processingContext.Timestamp
+			// Create l2Block to be able to calculate its hash
+			l2Block := NewL2Block(header, transactions, []*L2Header{}, receipts, &trie.StackTrie{})
+			l2Block.ReceivedAt = processingContext.Timestamp
 
-			receipt.BlockHash = block.Hash()
+			receipt.BlockHash = l2Block.Hash()
 
 			storeTxsEGPData := []StoreTxEGPData{{EGPLog: nil, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
 			if txsEGPLog != nil {
@@ -250,7 +250,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			}
 
 			// Store L2 block and its transaction
-			if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
 				return err
 			}
 		}
@@ -453,7 +453,7 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 }
 
 // StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *EffectiveGasPriceLog, dbTx pgx.Tx) (*L2Header, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -469,7 +469,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 		return nil, err
 	}
 
-	header := &types.Header{
+	header := NewL2Header(&types.Header{
 		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 		ParentHash: lastL2Block.Hash(),
 		Coinbase:   coinbase,
@@ -477,26 +477,26 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 		GasUsed:    processedTx.GasUsed,
 		GasLimit:   s.cfg.MaxCumulativeGasUsed,
 		Time:       timestamp,
-	}
+	})
 	transactions := []*types.Transaction{&processedTx.Tx}
 
 	receipt := generateReceipt(header.Number, processedTx)
 	receipts := []*types.Receipt{receipt}
 
-	// Create block to be able to calculate its hash
-	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = time.Unix(int64(timestamp), 0)
+	// Create l2Block to be able to calculate its hash
+	l2Block := NewL2Block(header, transactions, []*L2Header{}, receipts, &trie.StackTrie{})
+	l2Block.ReceivedAt = time.Unix(int64(timestamp), 0)
 
-	receipt.BlockHash = block.Hash()
+	receipt.BlockHash = l2Block.Hash()
 
 	storeTxsEGPData := []StoreTxEGPData{{EGPLog: egpLog, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
 		return nil, err
 	}
 
-	return block.Header(), nil
+	return l2Block.Header(), nil
 }
 
 // CheckSupersetBatchTransactions verifies that processedTransactions is a

@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -35,7 +34,7 @@ type State struct {
 	eventLog       *event.EventLog
 	l1InfoTree     *l1infotree.L1InfoTree
 
-	lastL2BlockSeen         atomic.Pointer[types.Block]
+	lastL2BlockSeen         atomic.Pointer[L2Block]
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
