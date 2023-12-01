@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -532,5 +533,39 @@ func Test_Transactions(t *testing.T) {
 		payload := big.NewInt(5)
 		_, err = instance.Double(callOpts, payload)
 		require.ErrorContains(t, err, "no contract code at given address")
+	}
+}
+
+// TestJSONRPC tests JSON RPC methods on a running environment.
+func TestTxPoolJSONRPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	ctx := context.Background()
+	setup()
+	defer teardown()
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+		ethereumClient, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
+		require.NoError(t, err)
+
+		// Send transaction
+		tx, err := createTX(ethereumClient, auth, toAddress, big.NewInt(1000))
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		response, err := client.JSONRPCCall(network.URL, "txpool_status")
+		require.NoError(t, err)
+		require.Nil(t, response.Error)
+		require.NotNil(t, response.Result)
+
+		var txPoolStatusResponse jsonrpc.TxPoolStatusResponse
+		err = json.Unmarshal(response.Result, &txPoolStatusResponse)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, txPoolStatusResponse.Pending, hexutil.Uint(0))
+		require.GreaterOrEqual(t, txPoolStatusResponse.Queued, hexutil.Uint(0))
 	}
 }
