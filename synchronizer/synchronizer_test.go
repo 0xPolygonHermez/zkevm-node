@@ -61,7 +61,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*incaberry.SyncTrustedBatchesAction)
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_sync_incaberry.SyncTrustedBatchesAction)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
 	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
 }

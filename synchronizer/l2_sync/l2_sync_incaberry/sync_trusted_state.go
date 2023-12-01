@@ -1,4 +1,4 @@
-package incaberry
+package l2_sync_incaberry
 
 import (
 	"context"
