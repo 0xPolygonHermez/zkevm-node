@@ -286,9 +286,13 @@ func (w *Worker) DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 }
 
 // GetBestFittingTx gets the most efficient tx that fits in the available batch resources
-func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
+func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, error) {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
+
+	if w.txSortedList.len() == 0 {
+		return nil, ErrTransactionsListEmpty
+	}
 
 	var (
 		tx         *TxTracker
@@ -335,9 +339,10 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 
 	if foundAt != -1 {
 		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with gasPrice(%d)", tx.Hash.String(), foundAt, tx.GasPrice)
+		return tx, nil
+	} else {
+		return nil, ErrNoFittingTransaction
 	}
-
-	return tx
 }
 
 // ExpireTransactions deletes old txs

@@ -28,6 +28,20 @@ type StateMock struct {
 	mock.Mock
 }
 
+// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx
+func (_m *StateMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *types.Block, []*types.Receipt, []state.StoreTxEGPData, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Begin provides a mock function with given fields: ctx
 func (_m *StateMock) Begin(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
@@ -696,6 +710,30 @@ func (_m *StateMock) GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber
 	return r0, r1, r2
 }
 
+// GetLatestL1InfoRoot provides a mock function with given fields: ctx, maxBlockNumber
+func (_m *StateMock) GetLatestL1InfoRoot(ctx context.Context, maxBlockNumber uint64) (state.L1InfoTreeExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, maxBlockNumber)
+
+	var r0 state.L1InfoTreeExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) (state.L1InfoTreeExitRootStorageEntry, error)); ok {
+		return rf(ctx, maxBlockNumber)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64) state.L1InfoTreeExitRootStorageEntry); ok {
+		r0 = rf(ctx, maxBlockNumber)
+	} else {
+		r0 = ret.Get(0).(state.L1InfoTreeExitRootStorageEntry)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64) error); ok {
+		r1 = rf(ctx, maxBlockNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLatestVirtualBatchTimestamp provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -1004,22 +1042,8 @@ func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, p
 	return r0, r1
 }
 
-// UpdateBatchL2Data provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx
-func (_m *StateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, batchL2Data, dbTx)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// UpdateBatchL2DataAndLER provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
-func (_m *StateMock) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+// UpdateBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
+func (_m *StateMock) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 
 	var r0 error

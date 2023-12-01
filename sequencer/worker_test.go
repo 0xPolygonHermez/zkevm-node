@@ -261,7 +261,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	ct := 0
 
 	for {
-		tx := worker.GetBestFittingTx(rc)
+		tx, _ := worker.GetBestFittingTx(rc)
 		if tx != nil {
 			if ct >= len(expectedGetBestTx) {
 				t.Fatalf("Error getting more best tx than expected. Expected=%d, Actual=%d", len(expectedGetBestTx), ct+1)

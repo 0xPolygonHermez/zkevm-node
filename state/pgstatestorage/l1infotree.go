@@ -2,6 +2,7 @@ package pgstatestorage
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/jackc/pgx/v4"
@@ -48,4 +49,24 @@ func (p *PostgresStorage) GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.
 		entries = append(entries, entry)
 	}
 	return entries, nil
+}
+
+// GetLatestL1InfoRoot is used to get the latest L1InfoRoot
+func (p *PostgresStorage) GetLatestL1InfoRoot(ctx context.Context, maxBlockNumber uint64) (state.L1InfoTreeExitRootStorageEntry, error) {
+	const getL1InfoRootSQL = `SELECT block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index
+		FROM state.exit_root 
+		WHERE l1_info_tree_index IS NOT NULL AND block_num <= $1
+		ORDER BY l1_info_tree_index DESC`
+
+	entry := state.L1InfoTreeExitRootStorageEntry{}
+
+	e := p.getExecQuerier(nil)
+	err := e.QueryRow(ctx, getL1InfoRootSQL, maxBlockNumber).Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
+		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return entry, err
+	}
+
+	return entry, nil
 }

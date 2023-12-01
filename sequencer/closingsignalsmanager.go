@@ -22,7 +22,7 @@ func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface,
 
 func (c *closingSignalsManager) Start() {
 	go c.checkForcedBatches()
-	go c.checkGERUpdate()
+	//go c.checkGERUpdate() //TODO: delete this go func and all GER related data and funcs
 }
 
 func (c *closingSignalsManager) checkGERUpdate() {

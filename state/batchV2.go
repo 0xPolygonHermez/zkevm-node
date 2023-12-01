@@ -62,7 +62,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		processBatchRequest.SkipFirstChangeL2Block = cTrue
 	}
 
-	if request.SkipWriteBlockInfoRoot {
+	if request.SkipWriteBlockInfoRoot_V2 {
 		processBatchRequest.SkipWriteBlockInfoRoot = cTrue
 	}
 
