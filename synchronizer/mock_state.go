@@ -735,19 +735,19 @@ func (_m *stateMock) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBat
 }
 
 // StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
-func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
+func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 
-	var r0 *types.Header
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*types.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *types.Header); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 

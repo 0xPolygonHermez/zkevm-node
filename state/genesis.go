@@ -174,18 +174,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 
 	// store L2 genesis block
-	header := &types.Header{
+	header := NewL2Header(&types.Header{
 		Number:     big.NewInt(0),
 		ParentHash: ZeroHash,
 		Coinbase:   ZeroAddress,
 		Root:       root,
 		Time:       uint64(block.ReceivedAt.Unix()),
-	}
+	})
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
 
 	receipts := []*types.Receipt{}
-	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := NewL2Block(header, []*types.Transaction{}, []*L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
 	storeTxsEGPData := []StoreTxEGPData{}

@@ -109,7 +109,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err, true)
+			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
 		if result.Reverted() {
@@ -195,7 +197,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
+			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -251,7 +255,7 @@ func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.Bloc
 	})
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -324,12 +328,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
+			header := lastBlock.Header()
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = ethTypes.EmptyRootHash
 			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
+			block := state.NewL2BlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, false)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
