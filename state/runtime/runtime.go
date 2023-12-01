@@ -287,6 +287,8 @@ var (
 	ErrExecutorErrorInvalidL1SmtProof = errors.New("l1_smt_proof is invalid")
 	// ErrExecutorErrorInvalidBalance indicates that the input parameter balance is invalid
 	ErrExecutorErrorInvalidBalance = errors.New("balance is invalid")
+	// ErrExecutorErrorSMMainBinaryLt4Mismatch indicates that the binary instruction less than four opcode failed
+	ErrExecutorErrorSMMainBinaryLt4Mismatch = errors.New("the binary instruction less than four opcode failed")
 
 	// GRPC ERRORS
 	// ===========

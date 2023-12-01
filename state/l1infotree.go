@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -15,22 +16,12 @@ type L1InfoTreeLeaf struct {
 	PreviousBlockHash common.Hash
 }
 
-// L1InfoTreeIndexType type of the index of the leafs of L1InfoTree
-//
-//	the leaf starts at 0
-type L1InfoTreeIndexType uint32
-
 // L1InfoTreeExitRootStorageEntry entry of the Database
 type L1InfoTreeExitRootStorageEntry struct {
 	L1InfoTreeLeaf
 	L1InfoTreeRoot  common.Hash
-	L1InfoTreeIndex L1InfoTreeIndexType
+	L1InfoTreeIndex uint32
 }
-
-var (
-	// TODO: Put the real hash of Leaf 0, pending of deploying contracts
-	leaf0Hash = [32]byte{} //nolint:gomnd
-)
 
 // Hash returns the hash of the leaf
 func (l *L1InfoTreeLeaf) Hash() common.Hash {
@@ -39,38 +30,30 @@ func (l *L1InfoTreeLeaf) Hash() common.Hash {
 }
 
 // AddL1InfoTreeLeaf adds a new leaf to the L1InfoTree and returns the entry and error
-func (s *State) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *L1InfoTreeLeaf, dbTx pgx.Tx) (*L1InfoTreeExitRootStorageEntry, error) {
-	allLeaves, err := s.GetAllL1InfoRootEntries(ctx, dbTx)
-	if err != nil {
-		log.Error("error getting all leaves. Error: ", err)
+func (s *State) AddL1InfoTreeLeaf(ctx context.Context, l1InfoTreeLeaf *L1InfoTreeLeaf, dbTx pgx.Tx) (*L1InfoTreeExitRootStorageEntry, error) {
+	var newIndex uint32
+	gerIndex, err := s.GetLatestIndex(ctx, dbTx)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		log.Error("error getting latest l1InfoTree index. Error: ", err)
 		return nil, err
+	} else if err == nil {
+		newIndex = gerIndex + 1
 	}
-	root, err := buildL1InfoTree(allLeaves)
+	log.Debug("latestIndex: ", gerIndex)
+	root, err := s.l1InfoTree.AddLeaf(newIndex, l1InfoTreeLeaf.Hash())
 	if err != nil {
-		log.Error("error building L1InfoTree. Error: ", err)
+		log.Error("error add new leaf to the L1InfoTree. Error: ", err)
 		return nil, err
 	}
 	entry := L1InfoTreeExitRootStorageEntry{
-		L1InfoTreeLeaf: *L1InfoTreeLeaf,
-		L1InfoTreeRoot: root,
+		L1InfoTreeLeaf:  *l1InfoTreeLeaf,
+		L1InfoTreeRoot:  root,
+		L1InfoTreeIndex: newIndex,
 	}
-	index, err := s.AddL1InfoRootToExitRoot(ctx, &entry, dbTx)
+	err = s.AddL1InfoRootToExitRoot(ctx, &entry, dbTx)
 	if err != nil {
 		log.Error("error adding L1InfoRoot to ExitRoot. Error: ", err)
 		return nil, err
 	}
-	entry.L1InfoTreeIndex = index
 	return &entry, nil
-}
-
-func buildL1InfoTree(allLeaves []L1InfoTreeExitRootStorageEntry) (common.Hash, error) {
-	mt := l1infotree.NewL1InfoTree(uint8(32)) //nolint:gomnd
-	var leaves [][32]byte
-	// Insert the Leaf0 that is not used but compute for the Merkle Tree
-	leaves = append(leaves, leaf0Hash)
-	for _, leaf := range allLeaves {
-		leaves = append(leaves, leaf.Hash())
-	}
-	root, err := mt.BuildL1InfoRoot(leaves)
-	return root, err
 }

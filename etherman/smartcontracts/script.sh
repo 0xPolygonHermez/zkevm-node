@@ -8,10 +8,11 @@ gen() {
     abigen --bin bin/${package}.bin --abi abi/${package}.abi --pkg=${package} --out=${package}/${package}.go
 }
 
-gen polygonzkevm
-gen oldpolygonzkevm
-gen polygonzkevmbridge
+gen oldpolygonzkevmglobalexitroot
 gen oldpolygonzkevmbridge
+gen oldpolygonzkevm
+gen polygonzkevm
+gen polygonzkevmbridge
 gen pol
 gen polygonzkevmglobalexitroot
 gen polygonrollupmanager

@@ -1,7 +1,6 @@
 package synchronizer
 
 import (
-	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/etrog"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/incaberry"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
@@ -14,9 +13,8 @@ func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1Ev
 	p.Register(incaberry.NewProcessL1ForcedBatches(sync.state))
 	p.Register(incaberry.NewProcessL1SequenceForcedBatches(sync.state, sync))
 	p.Register(incaberry.NewProcessorForkId(sync.state, sync))
-	p.Register(incaberry.NewProcessorL1InfoTreeUpdate(sync.state))
 	p.Register(etrog.NewProcessorL1InfoTreeUpdate(sync.state))
-	p.AddEventProcessor(etherman.TrustedVerifyBatchOrder, incaberry.NewProcessorL1VerifyBatch(sync.state))
-	p.AddEventProcessor(etherman.VerifyBatchOrder, incaberry.NewProcessorL1VerifyBatch(sync.state))
+	p.Register(etrog.NewProcessorL1SequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
+	p.Register(incaberry.NewProcessorL1VerifyBatch(sync.state))
 	return p.Build()
 }

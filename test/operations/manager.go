@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -174,7 +175,7 @@ func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: genesisActions,
+		Actions: genesisActions,
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
@@ -495,7 +496,11 @@ func initState(cfg state.Config) (*state.State, error) {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, mt)
 	return st, nil
 }
 
@@ -525,12 +530,12 @@ func (m *Manager) SetInitialBatch(genesis state.Genesis, dbTx pgx.Tx) error {
 		BatchNumber:   1,
 		TxHash:        state.ZeroHash,
 		Coinbase:      genesis.FirstBatchData.Sequencer,
-		BlockNumber:   genesis.GenesisBlockNum,
+		BlockNumber:   genesis.BlockNumber,
 		SequencerAddr: genesis.FirstBatchData.Sequencer,
 	}
 	err = m.st.AddVirtualBatch(m.ctx, &virtualBatch1, dbTx)
 	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.GenesisBlockNum, err)
+		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.BlockNumber, err)
 		return err
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches

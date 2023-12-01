@@ -49,7 +49,7 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -290,7 +290,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -353,7 +353,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1012,7 +1012,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1131,7 +1131,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
-	st := state.NewState(stCfg, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 
@@ -1336,7 +1336,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				GenesisActions: []*state.GenesisAction{
+				Actions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1477,7 +1477,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1693,7 +1693,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1802,7 +1802,7 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: genesisActions,
+		Actions:        genesisActions,
 		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
@@ -1884,7 +1884,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),

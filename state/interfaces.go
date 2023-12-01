@@ -127,10 +127,11 @@ type storage interface {
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
-	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) (L1InfoTreeIndexType, error)
+	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error
 	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
 	UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval)
 	AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error
 	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
 }

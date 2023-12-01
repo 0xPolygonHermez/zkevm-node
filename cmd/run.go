@@ -25,6 +25,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
@@ -117,7 +118,7 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
-	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.GenesisBlockNum)
+	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
 	if err != nil {
 		log.Fatal("error getting forkIDs. Error: ", err)
 	}
@@ -488,8 +489,20 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
 	}
+	allLeaves, err := stateDb.GetAllL1InfoRootEntries(ctx, nil)
+	if err != nil {
+		log.Fatal("error getting all leaves. Error: ", err)
+	}
+	var leaves [][32]byte
+	for _, leaf := range allLeaves {
+		leaves = append(leaves, leaf.Hash())
+	}
+	mt, err := l1infotree.NewL1InfoTree(uint8(32), leaves) //nolint:gomnd
+	if err != nil {
+		log.Fatal("error creating L1InfoTree. Error: ", err)
+	}
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, mt)
 	return st
 }
 
