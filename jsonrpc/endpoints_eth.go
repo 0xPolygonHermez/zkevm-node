@@ -24,11 +24,6 @@ import (
 )
 
 const (
-	// DefaultSenderAddress is the address that jRPC will use
-	// to communicate with the state for eth_EstimateGas and eth_Call when
-	// the From field is not specified because it is optional
-	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-
 	// maxTopics is the max number of topics a log can have
 	maxTopics = 4
 )
@@ -101,7 +96,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			arg.Gas = &gas
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -183,7 +178,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			}
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
