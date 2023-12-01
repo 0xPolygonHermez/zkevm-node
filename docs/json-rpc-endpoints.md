@@ -53,6 +53,9 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 
 <!-- TXPOOL -->
 - `txpool_content` _* response is always empty_
+- `txpool_status`
+  - _For trusted nodes, this will return the # of pending and queued transactions_ 
+  - _For permissionless nodes without access to the source Pool DB, this will always return 0 for the # of pending and queued transactions_ 
 
 <!-- WEB3 -->
 - `web3_clientVersion`
