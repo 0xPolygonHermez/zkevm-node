@@ -2,7 +2,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "_globalExitRootManager",
                 "type": "address"
             },
@@ -351,6 +351,12 @@
                 "internalType": "uint64",
                 "name": "numBatch",
                 "type": "uint64"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "l1InfoRoot",
+                "type": "bytes32"
             }
         ],
         "name": "SequenceBatches",
@@ -707,6 +713,19 @@
     },
     {
         "inputs": [],
+        "name": "gapLastTimestamp",
+        "outputs": [
+            {
+                "internalType": "uint64",
+                "name": "",
+                "type": "uint64"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "gasTokenAddress",
         "outputs": [
             {
@@ -770,7 +789,7 @@
         "name": "globalExitRootManager",
         "outputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "",
                 "type": "address"
             }
@@ -870,19 +889,6 @@
     },
     {
         "inputs": [],
-        "name": "lastTimestamp",
-        "outputs": [
-            {
-                "internalType": "uint64",
-                "name": "",
-                "type": "uint64"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
         "name": "networkName",
         "outputs": [
             {
@@ -967,21 +973,21 @@
                     },
                     {
                         "internalType": "bytes32",
-                        "name": "globalExitRoot",
+                        "name": "forcedGlobalExitRoot",
                         "type": "bytes32"
                     },
                     {
                         "internalType": "uint64",
-                        "name": "timestamp",
+                        "name": "forcedTimestamp",
                         "type": "uint64"
                     },
                     {
-                        "internalType": "uint64",
-                        "name": "minForcedTimestamp",
-                        "type": "uint64"
+                        "internalType": "bytes32",
+                        "name": "forcedBlockHashL1",
+                        "type": "bytes32"
                     }
                 ],
-                "internalType": "struct PolygonRollupBase.BatchData[]",
+                "internalType": "struct PolygonRollupBaseEtrog.BatchData[]",
                 "name": "batches",
                 "type": "tuple[]"
             },
@@ -1007,16 +1013,21 @@
                     },
                     {
                         "internalType": "bytes32",
-                        "name": "globalExitRoot",
+                        "name": "forcedGlobalExitRoot",
                         "type": "bytes32"
                     },
                     {
                         "internalType": "uint64",
-                        "name": "minForcedTimestamp",
+                        "name": "forcedTimestamp",
                         "type": "uint64"
+                    },
+                    {
+                        "internalType": "bytes32",
+                        "name": "forcedBlockHashL1",
+                        "type": "bytes32"
                     }
                 ],
-                "internalType": "struct PolygonRollupBase.ForcedBatchData[]",
+                "internalType": "struct PolygonRollupBaseEtrog.BatchData[]",
                 "name": "batches",
                 "type": "tuple[]"
             }

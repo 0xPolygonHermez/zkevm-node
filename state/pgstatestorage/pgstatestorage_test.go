@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -106,8 +107,11 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
-
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), executorClient, stateTree, eventLog, mt)
 
 	result := m.Run()
 
@@ -829,7 +833,11 @@ func TestGetLogs(t *testing.T) {
 		MaxLogsBlockRange: 10,
 	}
 
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil, mt)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -955,8 +963,11 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	cfg := state.Config{
 		MaxNativeBlockHashBlockRange: 10,
 	}
-
-	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	testState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(cfg, stateDb), executorClient, stateTree, nil, mt)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1066,7 +1077,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 	require.NoError(t, dbTx.Commit(ctx))
 }
 
-func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64) *state.L1InfoTreeExitRootStorageEntry {
+func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint32) *state.L1InfoTreeExitRootStorageEntry {
 	exitRoot := state.L1InfoTreeExitRootStorageEntry{
 		L1InfoTreeLeaf: state.L1InfoTreeLeaf{
 			GlobalExitRoot: state.GlobalExitRoot{
@@ -1079,31 +1090,9 @@ func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64) *state.L1In
 			PreviousBlockHash: common.HexToHash("0x03"),
 		},
 		L1InfoTreeRoot: common.HexToHash("0x04"),
+		L1InfoTreeIndex: index,
 	}
 	return &exitRoot
-}
-
-func TestAddL1InfoRootToExitRootIncreaseLeafIndex(t *testing.T) {
-	setup()
-	ctx := context.Background()
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	block1 := *block
-	block1.BlockNumber = 2000
-	err = testState.AddBlock(ctx, &block1, dbTx)
-	assert.NoError(t, err)
-	block2 := *block
-	block2.BlockNumber = 2001
-	err = testState.AddBlock(ctx, &block2, dbTx)
-	assert.NoError(t, err)
-
-	Leafindex, err := testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber), dbTx)
-	require.NoError(t, err)
-	assert.Equal(t, state.L1InfoTreeIndexType(1), Leafindex, "first leave must be 1")
-	Leafindex, err = testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber), dbTx)
-	require.NoError(t, err)
-	assert.Equal(t, state.L1InfoTreeIndexType(2), Leafindex)
-	dbTx.Rollback(ctx)
 }
 
 func TestGetAllL1InfoRootEntries(t *testing.T) {
@@ -1127,22 +1116,34 @@ func TestGetAllL1InfoRootEntries(t *testing.T) {
 	}
 	testState.AddGlobalExitRoot(ctx, &globalExitRoot, dbTx)
 	assert.NoError(t, err)
-	l1InfoTreeEntry1 := createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber)
-	l1InfoTreeEntry2 := createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber)
+	l1InfoTreeEntry1 := createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber, 0)
+	l1InfoTreeEntry2 := createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber, 1)
 
-	_, err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry1, dbTx)
+	err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry1, dbTx)
 	require.NoError(t, err)
-	_, err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry2, dbTx)
+	err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry2, dbTx)
 	require.NoError(t, err)
 
 	entries, err := testState.GetAllL1InfoRootEntries(ctx, dbTx)
 	require.NoError(t, err)
-	l1InfoTreeEntry1.L1InfoTreeIndex = 1
-	l1InfoTreeEntry2.L1InfoTreeIndex = 2
+	l1InfoTreeEntry1.L1InfoTreeIndex = 0
+	l1InfoTreeEntry2.L1InfoTreeIndex = 1
 
 	assert.Equal(t, *l1InfoTreeEntry1, entries[0])
 	assert.Equal(t, *l1InfoTreeEntry2, entries[1])
 
 	assert.Equal(t, 2, len(entries))
-	dbTx.Rollback(ctx)
+	require.NoError(t, dbTx.Commit(ctx))
+}
+
+func TestGetLatestIndex(t *testing.T) {
+	setup()
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	idx, err := testState.GetLatestIndex(ctx, dbTx)
+	require.Error(t, err)
+	t.Log("Initial index retrieved: ", idx)
+	require.Equal(t, state.ErrNotFound, err)
 }

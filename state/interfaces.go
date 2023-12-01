@@ -128,6 +128,7 @@ type storage interface {
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error)
-	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) (L1InfoTreeIndexType, error)
+	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error
 	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
+	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
 }

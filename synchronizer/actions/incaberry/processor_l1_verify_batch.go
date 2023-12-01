@@ -28,7 +28,7 @@ func NewProcessorL1VerifyBatch(state stateL1VerifyBatchInterface) *ProcessorL1Ve
 	return &ProcessorL1VerifyBatch{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1VerifyBatch]{
 			SupportedEvent:    []etherman.EventOrder{etherman.VerifyBatchOrder, etherman.TrustedVerifyBatchOrder},
-			SupportedForkdIds: &actions.ForksIdToIncaberry},
+			SupportedForkdIds: &actions.ForksIdAll},
 		state: state,
 	}
 }
