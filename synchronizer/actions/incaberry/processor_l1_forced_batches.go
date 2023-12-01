@@ -25,7 +25,7 @@ func NewProcessL1ForcedBatches(state stateProcessL1ForcedBatchesInterface) *Proc
 	return &ProcessL1ForcedBatches{
 		ProcessorBase: actions.ProcessorBase[ProcessL1ForcedBatches]{
 			SupportedEvent:    []etherman.EventOrder{etherman.ForcedBatchesOrder},
-			SupportedForkdIds: &actions.ForksIdToIncaberry},
+			SupportedForkdIds: &actions.ForksIdAll},
 		state: state}
 }
 
