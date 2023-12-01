@@ -481,6 +481,7 @@ func initState(cfg state.Config) (*state.State, error) {
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: cfg.MaxCumulativeGasUsed,
 		ChainID:              cfg.ChainID,
+		ForkIDIntervals:      cfg.ForkIDIntervals,
 	}
 
 	ctx := context.Background()
@@ -659,7 +660,13 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001,
+			ForkIDIntervals: []state.ForkIDInterval{{
+				FromBatchNumber: 0,
+				ToBatchNumber:   math.MaxUint64,
+				ForkId:          state.FORKID_ETROG,
+				Version:         "",
+			}}},
 		SequenceSender: &SequenceSenderConfig{
 			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,

@@ -483,19 +483,19 @@ func (_m *StateMock) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*stat
 }
 
 // GetLastL2Block provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+func (_m *StateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *types.Block
+	var r0 *state.L2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*types.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Block, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *types.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Block); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Block)
+			r0 = ret.Get(0).(*state.L2Block)
 		}
 	}
 
@@ -509,19 +509,19 @@ func (_m *StateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Bl
 }
 
 // GetLastL2BlockHeader provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (_m *StateMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *types.Header
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*types.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *types.Header); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 
@@ -979,19 +979,19 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 }
 
 // StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
-func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error) {
+func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 
-	var r0 *types.Header
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*types.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *types.Header); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 

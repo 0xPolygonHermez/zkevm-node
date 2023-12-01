@@ -254,7 +254,7 @@ func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.Bloc
 	})
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -327,12 +327,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
+			header := lastBlock.Header()
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = ethTypes.EmptyRootHash
 			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
+			block := state.NewL2BlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, false)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
