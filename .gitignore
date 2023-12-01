@@ -20,8 +20,6 @@
 .idea/
 .env
 out.dat
-*.swp
-*.swo
 
 cmd/__debug_bin
 
