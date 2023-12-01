@@ -11,7 +11,7 @@ package network
 // 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 // 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 // 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/bridge"
-// 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
+// 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 // 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proofofefficiency"
 // 	"github.com/0xPolygonHermez/zkevm-node/log"
 // 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -49,7 +49,7 @@ package network
 // type L1Deployer struct {
 // 	Address, PrivateKey      string
 // 	L1ETHAmountToSequencer   string
-// 	L1MaticAmountToSequencer string
+// 	L1PolAmountToSequencer   string
 // }
 
 // type InitNetworkConfig struct {
@@ -163,31 +163,31 @@ package network
 // 		}
 // 	}
 
-// 	if nc.L1Deployer.L1MaticAmountToSequencer != "" {
-// 		// Create matic maticTokenSC sc instance
-// 		log.Infof("Loading Matic token SC instance")
-// 		log.Infof("Matic add %s", cfg.NetworkConfig.MaticAddr)
-// 		maticTokenSC, err := matic.NewMatic(cfg.NetworkConfig.MaticAddr, clientL1)
+// 	if nc.L1Deployer.L1PolAmountToSequencer != "" {
+// 		// Create pol polTokenSC sc instance
+// 		log.Infof("Loading Pol token SC instance")
+// 		log.Infof("Pol add %s", cfg.NetworkConfig.PolAddr)
+// 		polTokenSC, err := pol.NewPol(cfg.NetworkConfig.PolAddr, clientL1)
 // 		if err != nil {
 // 			return err
 // 		}
-// 		// Send matic to sequencer
-// 		maticAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1MaticAmountToSequencer, encoding.Base10)
-// 		log.Infof("Transferring %s L1 MATIC tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1MaticAmountToSequencer, nc.sequencerAddress, nc.L1Deployer.Address)
-// 		tx, err := maticTokenSC.Transfer(authDeployer, sequencerAddress, maticAmount)
+// 		// Send pol to sequencer
+// 		polAmount, _ := big.NewInt(0).SetString(nc.L1Deployer.L1PolAmountToSequencer, encoding.Base10)
+// 		log.Infof("Transferring %s L1 Pol tokens to sequencer %q from L1 deployer %q", nc.L1Deployer.L1PolAmountToSequencer, nc.sequencerAddress, nc.L1Deployer.Address)
+// 		tx, err := polTokenSC.Transfer(authDeployer, sequencerAddress, polAmount)
 // 		if err != nil {
 // 			return err
 // 		}
 
-// 		// wait matic transfer to be mined
+// 		// wait pol transfer to be mined
 // 		err = operations.WaitTxToBeMined(clientL1, tx.Hash(), nc.TxTimeout)
 // 		if err != nil {
 // 			return err
 // 		}
 
 // 		// approve tokens to be used by PoE SC on behalf of the sequencer
-// 		log.Infof("Approving %s L1 MATIC tokens to be used by PoE on behalf of the sequencer %q", maticAmount.String(), nc.sequencerAddress)
-// 		tx, err = maticTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, maticAmount)
+// 		log.Infof("Approving %s L1 Pol tokens to be used by PoE on behalf of the sequencer %q", polAmount.String(), nc.sequencerAddress)
+// 		tx, err = polTokenSC.Approve(authSequencer, cfg.NetworkConfig.PoEAddr, polAmount)
 // 		if err != nil {
 // 			return err
 // 		}
@@ -202,7 +202,7 @@ package network
 // 	ethermanConfig := etherman.Config{
 // 		URL: nc.L1NetworkURL,
 // 	}
-// 	etherman, err := etherman.NewClient(ethermanConfig, authSequencer, cfg.NetworkConfig.PoEAddr, cfg.NetworkConfig.MaticAddr)
+// 	etherman, err := etherman.NewClient(ethermanConfig, authSequencer, cfg.NetworkConfig.PoEAddr, cfg.NetworkConfig.PolAddr)
 // 	if err != nil {
 // 		return err
 // 	}
@@ -377,13 +377,13 @@ package network
 // 	if err != nil {
 // 		return err
 // 	}
-// 	maticAmount, err := poe.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
+// 	polAmount, err := poe.CalculateSequencerCollateral(&bind.CallOpts{Pending: false})
 // 	if err != nil {
 // 		return err
 // 	}
-// 	log.Infof("Collateral: %v", maticAmount.Text(encoding.Base10))
+// 	log.Infof("Collateral: %v", polAmount.Text(encoding.Base10))
 
-// 	tx, err := poe.SendBatch(auth, []byte{}, maticAmount)
+// 	tx, err := poe.SendBatch(auth, []byte{}, polAmount)
 // 	if err != nil {
 // 		return err
 // 	}

@@ -109,6 +109,7 @@ type storage interface {
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error)
 	GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error
@@ -121,10 +122,12 @@ type storage interface {
 	UpdateForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error
 	GetNativeBlockHashesInRange(ctx context.Context, fromBlock, toBlock uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error)
-	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error)
+	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error)
+	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) (L1InfoTreeIndexType, error)
+	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
 }

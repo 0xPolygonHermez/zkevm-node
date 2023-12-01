@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/trie"
@@ -18,12 +19,14 @@ import (
 
 // Genesis contains the information to populate state on creation
 type Genesis struct {
-	// GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1
-	GenesisBlockNum uint64
+	// BlockNumber is the block number where the polygonZKEVM smc was deployed on L1
+	BlockNumber uint64
 	// Root hash of the genesis block
 	Root common.Hash
-	// Contracts to be deployed to L2
-	GenesisActions []*GenesisAction
+	// Actions is the data to populate into the state trie
+	Actions []*GenesisAction
+	// Data of the first batch after the genesis(Batch 1)
+	FirstBatchData *BatchData
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -37,87 +40,95 @@ type GenesisAction struct {
 	Root            string `json:"root"`
 }
 
+// BatchData represents the data of the first batch that contains initial transaction
+type BatchData struct {
+	Transactions   string         `json:"transactions"`
+	GlobalExitRoot common.Hash    `json:"globalExitRoot"`
+	Timestamp      uint64         `json:"timestamp"`
+	Sequencer      common.Address `json:"sequencer"`
+}
+
 // SetGenesis populates state with genesis information
-func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, dbTx pgx.Tx) ([]byte, error) {
+func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, error) {
 	var (
-		root    common.Hash
-		newRoot []byte
-		err     error
+		root             common.Hash
+		genesisStateRoot []byte
+		err              error
 	)
 	if dbTx == nil {
-		return newRoot, ErrDBTxNil
+		return common.Hash{}, ErrDBTxNil
 	}
 	if s.tree == nil {
-		return newRoot, ErrStateTreeNil
+		return common.Hash{}, ErrStateTreeNil
 	}
 
 	uuid := uuid.New().String()
 
-	for _, action := range genesis.GenesisActions {
+	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
 			balance, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
-			newRoot, _, err = s.tree.SetBalance(ctx, address, balance, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetBalance(ctx, address, balance, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeNonce):
 			nonce, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
-			newRoot, _, err = s.tree.SetNonce(ctx, address, nonce, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetNonce(ctx, address, nonce, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeCode):
 			code, err := hex.DecodeHex(action.Bytecode)
 			if err != nil {
-				return newRoot, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
+				return common.Hash{}, fmt.Errorf("could not decode SC bytecode for address %q: %v", address, err)
 			}
-			newRoot, _, err = s.tree.SetCode(ctx, address, code, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetCode(ctx, address, code, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeStorage):
 			// Parse position and value
 			positionBI, err := encoding.DecodeBigIntHexOrDecimal(action.StoragePosition)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 			valueBI, err := encoding.DecodeBigIntHexOrDecimal(action.Value)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 			// Store
-			newRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, newRoot, uuid)
+			genesisStateRoot, _, err = s.tree.SetStorageAt(ctx, address, positionBI, valueBI, genesisStateRoot, uuid)
 			if err != nil {
-				return newRoot, err
+				return common.Hash{}, err
 			}
 		case int(merkletree.LeafTypeSCLength):
 			log.Debug("Skipped genesis action of type merkletree.LeafTypeSCLength, these actions will be handled as part of merkletree.LeafTypeCode actions")
 		default:
-			return newRoot, fmt.Errorf("unknown genesis action type %q", action.Type)
+			return common.Hash{}, fmt.Errorf("unknown genesis action type %q", action.Type)
 		}
 	}
 
-	root.SetBytes(newRoot)
+	root.SetBytes(genesisStateRoot)
 
 	// flush state db
 	err = s.tree.Flush(ctx, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
-		return newRoot, err
+		return common.Hash{}, err
 	}
 
 	// store L1 block related to genesis batch
 	err = s.AddBlock(ctx, &block, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, err
 	}
 
 	// store genesis batch
@@ -135,7 +146,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 
 	err = s.StoreGenesisBatch(ctx, batch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, err
 	}
 
 	// mark the genesis batch as virtualized
@@ -147,7 +158,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, err
 	}
 
 	// mark the genesis batch as verified/consolidated
@@ -159,7 +170,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	}
 	err = s.AddVerifiedBatch(ctx, verifiedBatch, dbTx)
 	if err != nil {
-		return newRoot, err
+		return common.Hash{}, err
 	}
 
 	// store L2 genesis block
@@ -182,5 +193,9 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: MaxEffectivePercentage})
 	}
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	return root, nil
 }

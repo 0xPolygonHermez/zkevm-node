@@ -95,6 +95,32 @@ func (_m *stateMock) AddGlobalExitRoot(ctx context.Context, exitRoot *state.Glob
 	return r0
 }
 
+// AddL1InfoTreeLeaf provides a mock function with given fields: ctx, L1InfoTreeLeaf, dbTx
+func (_m *stateMock) AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *state.L1InfoTreeLeaf, dbTx pgx.Tx) (*state.L1InfoTreeExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, L1InfoTreeLeaf, dbTx)
+
+	var r0 *state.L1InfoTreeExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *state.L1InfoTreeLeaf, pgx.Tx) (*state.L1InfoTreeExitRootStorageEntry, error)); ok {
+		return rf(ctx, L1InfoTreeLeaf, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *state.L1InfoTreeLeaf, pgx.Tx) *state.L1InfoTreeExitRootStorageEntry); ok {
+		r0 = rf(ctx, L1InfoTreeLeaf, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.L1InfoTreeExitRootStorageEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *state.L1InfoTreeLeaf, pgx.Tx) error); ok {
+		r1 = rf(ctx, L1InfoTreeLeaf, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // AddSequence provides a mock function with given fields: ctx, sequence, dbTx
 func (_m *stateMock) AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, sequence, dbTx)
@@ -654,25 +680,25 @@ func (_m *stateMock) ResetTrustedState(ctx context.Context, batchNumber uint64, 
 	return r0
 }
 
-// SetGenesis provides a mock function with given fields: ctx, block, genesis, dbTx
-func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, dbTx pgx.Tx) ([]byte, error) {
-	ret := _m.Called(ctx, block, genesis, dbTx)
+// SetGenesis provides a mock function with given fields: ctx, block, genesis, m, dbTx
+func (_m *stateMock) SetGenesis(ctx context.Context, block state.Block, genesis state.Genesis, m metrics.CallerLabel, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, block, genesis, m, dbTx)
 
-	var r0 []byte
+	var r0 common.Hash
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, pgx.Tx) ([]byte, error)); ok {
-		return rf(ctx, block, genesis, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, block, genesis, m, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, pgx.Tx) []byte); ok {
-		r0 = rf(ctx, block, genesis, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, block, genesis, m, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
+			r0 = ret.Get(0).(common.Hash)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.Block, state.Genesis, pgx.Tx) error); ok {
-		r1 = rf(ctx, block, genesis, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.Block, state.Genesis, metrics.CallerLabel, pgx.Tx) error); ok {
+		r1 = rf(ctx, block, genesis, m, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

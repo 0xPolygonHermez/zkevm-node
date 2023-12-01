@@ -199,13 +199,13 @@ func (g DSUpdateGER) Decode(data []byte) DSUpdateGER {
 // DSState gathers the methods required to interact with the data stream state.
 type DSState interface {
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error)
-	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error)
+	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
-func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState) error {
+func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool) error {
 	header := streamServer.GetHeader()
 
 	var currentBatchNumber uint64 = 0
@@ -314,7 +314,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		log.Debugf("Current entry number: %d", entry)
 		log.Debugf("Current batch number: %d", currentBatchNumber)
 		// Get Next Batch
-		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, nil)
+		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, readWIPBatch, nil)
 		if err != nil {
 			if err == ErrStateNotSynchronized {
 				break
@@ -345,8 +345,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 		// Gererate full batches
 		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
-		log.Debugf("Full batches: %+v", fullBatches)
-
 		currentBatchNumber += limit
 
 		for _, batch := range fullBatches {

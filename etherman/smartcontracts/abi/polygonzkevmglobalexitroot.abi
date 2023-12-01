@@ -3,7 +3,7 @@
 		"inputs": [
 			{
 				"internalType": "address",
-				"name": "_rollupAddress",
+				"name": "_rollupManager",
 				"type": "address"
 			},
 			{
@@ -112,7 +112,7 @@
 	},
 	{
 		"inputs": [],
-		"name": "rollupAddress",
+		"name": "rollupManager",
 		"outputs": [
 			{
 				"internalType": "address",

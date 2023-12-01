@@ -117,7 +117,7 @@ func start(cliCtx *cli.Context) error {
 	}
 
 	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
-	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.GenesisBlockNum)
+	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
 	if err != nil {
 		log.Fatal("error getting forkIDs. Error: ", err)
 	}
@@ -280,11 +280,7 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	etherman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
-	if err != nil {
-		return nil, err
-	}
-	return etherman, nil
+	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *ethtxmanager.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {

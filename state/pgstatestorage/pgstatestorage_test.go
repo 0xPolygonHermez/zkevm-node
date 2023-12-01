@@ -1065,3 +1065,84 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 
 	require.NoError(t, dbTx.Commit(ctx))
 }
+
+func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64) *state.L1InfoTreeExitRootStorageEntry {
+	exitRoot := state.L1InfoTreeExitRootStorageEntry{
+		L1InfoTreeLeaf: state.L1InfoTreeLeaf{
+			GlobalExitRoot: state.GlobalExitRoot{
+				BlockNumber:     blockNumber,
+				MainnetExitRoot: common.HexToHash("0x00"),
+				RollupExitRoot:  common.HexToHash("0x01"),
+				GlobalExitRoot:  common.HexToHash("0x02"),
+				Timestamp:       time.Now().Round(time.Millisecond),
+			},
+			PreviousBlockHash: common.HexToHash("0x03"),
+		},
+		L1InfoTreeRoot: common.HexToHash("0x04"),
+	}
+	return &exitRoot
+}
+
+func TestAddL1InfoRootToExitRootIncreaseLeafIndex(t *testing.T) {
+	setup()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block1 := *block
+	block1.BlockNumber = 2000
+	err = testState.AddBlock(ctx, &block1, dbTx)
+	assert.NoError(t, err)
+	block2 := *block
+	block2.BlockNumber = 2001
+	err = testState.AddBlock(ctx, &block2, dbTx)
+	assert.NoError(t, err)
+
+	Leafindex, err := testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber), dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, state.L1InfoTreeIndexType(1), Leafindex, "first leave must be 1")
+	Leafindex, err = testState.AddL1InfoRootToExitRoot(ctx, createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber), dbTx)
+	require.NoError(t, err)
+	assert.Equal(t, state.L1InfoTreeIndexType(2), Leafindex)
+	dbTx.Rollback(ctx)
+}
+
+func TestGetAllL1InfoRootEntries(t *testing.T) {
+	setup()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	block1 := *block
+	block1.BlockNumber = 2002
+	err = testState.AddBlock(ctx, &block1, dbTx)
+	assert.NoError(t, err)
+	block2 := *block
+	block2.BlockNumber = 2003
+	err = testState.AddBlock(ctx, &block2, dbTx)
+	assert.NoError(t, err)
+	globalExitRoot := state.GlobalExitRoot{
+		BlockNumber:     block1.BlockNumber,
+		MainnetExitRoot: common.HexToHash("0x00"),
+		RollupExitRoot:  common.HexToHash("0x01"),
+		GlobalExitRoot:  common.HexToHash("0x02"),
+	}
+	testState.AddGlobalExitRoot(ctx, &globalExitRoot, dbTx)
+	assert.NoError(t, err)
+	l1InfoTreeEntry1 := createL1InfoTreeExitRootStorageEntryForTest(block1.BlockNumber)
+	l1InfoTreeEntry2 := createL1InfoTreeExitRootStorageEntryForTest(block2.BlockNumber)
+
+	_, err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry1, dbTx)
+	require.NoError(t, err)
+	_, err = testState.AddL1InfoRootToExitRoot(ctx, l1InfoTreeEntry2, dbTx)
+	require.NoError(t, err)
+
+	entries, err := testState.GetAllL1InfoRootEntries(ctx, dbTx)
+	require.NoError(t, err)
+	l1InfoTreeEntry1.L1InfoTreeIndex = 1
+	l1InfoTreeEntry2.L1InfoTreeIndex = 2
+
+	assert.Equal(t, *l1InfoTreeEntry1, entries[0])
+	assert.Equal(t, *l1InfoTreeEntry2, entries[1])
+
+	assert.Equal(t, 2, len(entries))
+	dbTx.Rollback(ctx)
+}

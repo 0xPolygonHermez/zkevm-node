@@ -2575,24 +2575,23 @@ GasOffset=0
 **Type:** : `object`
 **Description:** Configuration of the genesis of the network. This is used to known the initial state of the network
 
-| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                   |
-| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------- |
-| - [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | L1: Configuration related to L1                                                     |
-| - [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | DEPRECATED L2: address of the \`PolygonZkEVMGlobalExitRootL2 proxy\` smart contract |
-| - [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | L2: address of the \`PolygonZkEVMBridge proxy\` smart contract                      |
-| - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | L1: Genesis of the rollup, first block number and root                              |
+| Property                               | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
+| -------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
+| - [l1Config](#NetworkConfig_l1Config ) | No      | object | No         | -          | L1: Configuration related to L1                        |
+| - [Genesis](#NetworkConfig_Genesis )   | No      | object | No         | -          | L1: Genesis of the rollup, first block number and root |
 
 ### <a name="NetworkConfig_l1Config"></a>13.1. `[NetworkConfig.l1Config]`
 
 **Type:** : `object`
 **Description:** L1: Configuration related to L1
 
-| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                |
-| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------ |
-| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                       |
-| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                       |
-| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract           |
-| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract |
+| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                                          |
+| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------- |
+| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                 |
+| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | ZkEVMAddr Address of the L1 contract polygonZkEVMAddress                   |
+| - [polygonRollupManagerAddress](#NetworkConfig_l1Config_polygonRollupManagerAddress )             | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
+| - [polTokenAddress](#NetworkConfig_l1Config_polTokenAddress )                                     | No      | array of integer | No         | -          | PolAddr Address of the L1 Pol token Contract                               |
+| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract |
 
 #### <a name="NetworkConfig_l1Config_chainId"></a>13.1.1. `NetworkConfig.l1Config.chainId`
 
@@ -2611,62 +2610,58 @@ chainId=0
 #### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>13.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 contract
+**Description:** ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
 
-#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>13.1.3. `NetworkConfig.l1Config.maticTokenAddress`
-
-**Type:** : `array of integer`
-**Description:** Address of the L1 Matic token Contract
-
-#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
+#### <a name="NetworkConfig_l1Config_polygonRollupManagerAddress"></a>13.1.3. `NetworkConfig.l1Config.polygonRollupManagerAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 GlobalExitRootManager contract
+**Description:** RollupManagerAddr Address of the L1 contract
 
-### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>13.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
-
-**Type:** : `array of integer`
-**Description:** DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract
-
-### <a name="NetworkConfig_L2BridgeAddr"></a>13.3. `NetworkConfig.L2BridgeAddr`
+#### <a name="NetworkConfig_l1Config_polTokenAddress"></a>13.1.4. `NetworkConfig.l1Config.polTokenAddress`
 
 **Type:** : `array of integer`
-**Description:** L2: address of the `PolygonZkEVMBridge proxy` smart contract
+**Description:** PolAddr Address of the L1 Pol token Contract
 
-### <a name="NetworkConfig_Genesis"></a>13.4. `[NetworkConfig.Genesis]`
+#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.5. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
+
+**Type:** : `array of integer`
+**Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
+
+### <a name="NetworkConfig_Genesis"></a>13.2. `[NetworkConfig.Genesis]`
 
 **Type:** : `object`
 **Description:** L1: Genesis of the rollup, first block number and root
 
-| Property                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                 |
-| ------------------------------------------------------------ | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------------- |
-| - [GenesisBlockNum](#NetworkConfig_Genesis_GenesisBlockNum ) | No      | integer          | No         | -          | GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1 |
-| - [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | Root hash of the genesis block                                                    |
-| - [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | Contracts to be deployed to L2                                                    |
+| Property                                                   | Pattern | Type             | Deprecated | Definition | Title/Description                                                             |
+| ---------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------- |
+| - [BlockNumber](#NetworkConfig_Genesis_BlockNumber )       | No      | integer          | No         | -          | BlockNumber is the block number where the polygonZKEVM smc was deployed on L1 |
+| - [Root](#NetworkConfig_Genesis_Root )                     | No      | array of integer | No         | -          | Root hash of the genesis block                                                |
+| - [Actions](#NetworkConfig_Genesis_Actions )               | No      | array of object  | No         | -          | Actions is the data to populate into the state trie                           |
+| - [FirstBatchData](#NetworkConfig_Genesis_FirstBatchData ) | No      | object           | No         | -          | Data of the first batch after the genesis(Batch 1)                            |
 
-#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>13.4.1. `NetworkConfig.Genesis.GenesisBlockNum`
+#### <a name="NetworkConfig_Genesis_BlockNumber"></a>13.2.1. `NetworkConfig.Genesis.BlockNumber`
 
 **Type:** : `integer`
 
 **Default:** `0`
 
-**Description:** GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1
+**Description:** BlockNumber is the block number where the polygonZKEVM smc was deployed on L1
 
 **Example setting the default value** (0):
 ```
 [NetworkConfig.Genesis]
-GenesisBlockNum=0
+BlockNumber=0
 ```
 
-#### <a name="NetworkConfig_Genesis_Root"></a>13.4.2. `NetworkConfig.Genesis.Root`
+#### <a name="NetworkConfig_Genesis_Root"></a>13.2.2. `NetworkConfig.Genesis.Root`
 
 **Type:** : `array of integer`
 **Description:** Root hash of the genesis block
 
-#### <a name="NetworkConfig_Genesis_GenesisActions"></a>13.4.3. `NetworkConfig.Genesis.GenesisActions`
+#### <a name="NetworkConfig_Genesis_Actions"></a>13.2.3. `NetworkConfig.Genesis.Actions`
 
 **Type:** : `array of object`
-**Description:** Contracts to be deployed to L2
+**Description:** Actions is the data to populate into the state trie
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -2676,52 +2671,80 @@ GenesisBlockNum=0
 | **Additional items** | False              |
 | **Tuple validation** | See below          |
 
-| Each item of this array must be                                     | Description                                                               |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
+| Each item of this array must be                       | Description                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| [Actions items](#NetworkConfig_Genesis_Actions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_3"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_3"></a>13.2.3.1. [NetworkConfig.Genesis.Actions.Actions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
 
-| Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description |
-| --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [address](#NetworkConfig_Genesis_GenesisActions_items_address )                 | No      | string  | No         | -          | -                 |
-| - [type](#NetworkConfig_Genesis_GenesisActions_items_type )                       | No      | integer | No         | -          | -                 |
-| - [storagePosition](#NetworkConfig_Genesis_GenesisActions_items_storagePosition ) | No      | string  | No         | -          | -                 |
-| - [bytecode](#NetworkConfig_Genesis_GenesisActions_items_bytecode )               | No      | string  | No         | -          | -                 |
-| - [key](#NetworkConfig_Genesis_GenesisActions_items_key )                         | No      | string  | No         | -          | -                 |
-| - [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
-| - [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
+| Property                                                                   | Pattern | Type    | Deprecated | Definition | Title/Description |
+| -------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [address](#NetworkConfig_Genesis_Actions_items_address )                 | No      | string  | No         | -          | -                 |
+| - [type](#NetworkConfig_Genesis_Actions_items_type )                       | No      | integer | No         | -          | -                 |
+| - [storagePosition](#NetworkConfig_Genesis_Actions_items_storagePosition ) | No      | string  | No         | -          | -                 |
+| - [bytecode](#NetworkConfig_Genesis_Actions_items_bytecode )               | No      | string  | No         | -          | -                 |
+| - [key](#NetworkConfig_Genesis_Actions_items_key )                         | No      | string  | No         | -          | -                 |
+| - [value](#NetworkConfig_Genesis_Actions_items_value )                     | No      | string  | No         | -          | -                 |
+| - [root](#NetworkConfig_Genesis_Actions_items_root )                       | No      | string  | No         | -          | -                 |
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>13.4.3.1.1. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.address`
+##### <a name="NetworkConfig_Genesis_Actions_items_address"></a>13.2.3.1.1. `NetworkConfig.Genesis.Actions.Actions items.address`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>13.4.3.1.2. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.type`
+##### <a name="NetworkConfig_Genesis_Actions_items_type"></a>13.2.3.1.2. `NetworkConfig.Genesis.Actions.Actions items.type`
 
 **Type:** : `integer`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>13.4.3.1.3. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.storagePosition`
+##### <a name="NetworkConfig_Genesis_Actions_items_storagePosition"></a>13.2.3.1.3. `NetworkConfig.Genesis.Actions.Actions items.storagePosition`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>13.4.3.1.4. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.bytecode`
+##### <a name="NetworkConfig_Genesis_Actions_items_bytecode"></a>13.2.3.1.4. `NetworkConfig.Genesis.Actions.Actions items.bytecode`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>13.4.3.1.5. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.key`
+##### <a name="NetworkConfig_Genesis_Actions_items_key"></a>13.2.3.1.5. `NetworkConfig.Genesis.Actions.Actions items.key`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>13.4.3.1.6. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.value`
+##### <a name="NetworkConfig_Genesis_Actions_items_value"></a>13.2.3.1.6. `NetworkConfig.Genesis.Actions.Actions items.value`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>13.4.3.1.7. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.root`
+##### <a name="NetworkConfig_Genesis_Actions_items_root"></a>13.2.3.1.7. `NetworkConfig.Genesis.Actions.Actions items.root`
 
 **Type:** : `string`
+
+#### <a name="NetworkConfig_Genesis_FirstBatchData"></a>13.2.4. `[NetworkConfig.Genesis.FirstBatchData]`
+
+**Type:** : `object`
+**Description:** Data of the first batch after the genesis(Batch 1)
+
+| Property                                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [transactions](#NetworkConfig_Genesis_FirstBatchData_transactions )     | No      | string           | No         | -          | -                 |
+| - [globalExitRoot](#NetworkConfig_Genesis_FirstBatchData_globalExitRoot ) | No      | array of integer | No         | -          | -                 |
+| - [timestamp](#NetworkConfig_Genesis_FirstBatchData_timestamp )           | No      | integer          | No         | -          | -                 |
+| - [sequencer](#NetworkConfig_Genesis_FirstBatchData_sequencer )           | No      | array of integer | No         | -          | -                 |
+
+##### <a name="NetworkConfig_Genesis_FirstBatchData_transactions"></a>13.2.4.1. `NetworkConfig.Genesis.FirstBatchData.transactions`
+
+**Type:** : `string`
+
+##### <a name="NetworkConfig_Genesis_FirstBatchData_globalExitRoot"></a>13.2.4.2. `NetworkConfig.Genesis.FirstBatchData.globalExitRoot`
+
+**Type:** : `array of integer`
+
+##### <a name="NetworkConfig_Genesis_FirstBatchData_timestamp"></a>13.2.4.3. `NetworkConfig.Genesis.FirstBatchData.timestamp`
+
+**Type:** : `integer`
+
+##### <a name="NetworkConfig_Genesis_FirstBatchData_sequencer"></a>13.2.4.4. `NetworkConfig.Genesis.FirstBatchData.sequencer`
+
+**Type:** : `array of integer`
 
 ## <a name="L2GasPriceSuggester"></a>14. `[L2GasPriceSuggester]`
 

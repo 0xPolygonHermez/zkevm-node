@@ -18,10 +18,10 @@ const (
 	TxProcessedName = Prefix + "transaction_processed"
 	// SequencesOversizedDataErrorName is the name of the metric that counts the sequences with oversized data error.
 	SequencesOversizedDataErrorName = Prefix + "sequences_oversized_data_error"
-	// EthToMaticPriceName is the name of the metric that shows the Ethereum to Matic price.
-	EthToMaticPriceName = Prefix + "eth_to_matic_price"
-	// SequenceRewardInMaticName is the name of the metric that shows the reward in Matic of a sequence.
-	SequenceRewardInMaticName = Prefix + "sequence_reward_in_matic"
+	// EthToPolPriceName is the name of the metric that shows the Ethereum to Pol price.
+	EthToPolPriceName = Prefix + "eth_to_pol_price"
+	// SequenceRewardInPolName is the name of the metric that shows the reward in Pol of a sequence.
+	SequenceRewardInPolName = Prefix + "sequence_reward_in_pol"
 	// ProcessingTimeName is the name of the metric that shows the processing time.
 	ProcessingTimeName = Prefix + "processing_time"
 	// WorkerPrefix is the prefix for the metrics of the worker.
@@ -81,12 +81,12 @@ func Register() {
 			Help: "[SEQUENCER] average gas price estimated",
 		},
 		{
-			Name: EthToMaticPriceName,
-			Help: "[SEQUENCER] eth to matic price",
+			Name: EthToPolPriceName,
+			Help: "[SEQUENCER] eth to pol price",
 		},
 		{
-			Name: SequenceRewardInMaticName,
-			Help: "[SEQUENCER] reward for a sequence in Matic",
+			Name: SequenceRewardInPolName,
+			Help: "[SEQUENCER] reward for a sequence in pol",
 		},
 	}
 
@@ -130,14 +130,14 @@ func SequencesOvesizedDataError() {
 	metrics.CounterInc(SequencesOversizedDataErrorName)
 }
 
-// EthToMaticPrice sets the gauge for the Ethereum to Matic price.
-func EthToMaticPrice(price float64) {
-	metrics.GaugeSet(EthToMaticPriceName, price)
+// EthToPolPrice sets the gauge for the Ethereum to Pol price.
+func EthToPolPrice(price float64) {
+	metrics.GaugeSet(EthToPolPriceName, price)
 }
 
-// SequenceRewardInMatic sets the gauge for the reward in Matic of a sequence.
-func SequenceRewardInMatic(reward float64) {
-	metrics.GaugeSet(SequenceRewardInMaticName, reward)
+// SequenceRewardInPol sets the gauge for the reward in Pol of a sequence.
+func SequenceRewardInPol(reward float64) {
+	metrics.GaugeSet(SequenceRewardInPolName, reward)
 }
 
 // ProcessingTime observes the last processing time on the histogram.
