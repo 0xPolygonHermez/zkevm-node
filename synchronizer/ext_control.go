@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 )
 
 const (
@@ -28,11 +29,11 @@ const (
 // echo "l1_producer_stop" >> /tmp/synchronizer_in
 // echo "l1_orchestrator_reset|8577060" >> /tmp/synchronizer_in
 type externalControl struct {
-	producer     *l1RollupInfoProducer
-	orquestrator *l1SyncOrchestration
+	producer     *l1_parallel_sync.L1RollupInfoProducer
+	orquestrator *l1_parallel_sync.L1SyncOrchestration
 }
 
-func newExternalControl(producer *l1RollupInfoProducer, orquestrator *l1SyncOrchestration) *externalControl {
+func newExternalControl(producer *l1_parallel_sync.L1RollupInfoProducer, orquestrator *l1_parallel_sync.L1SyncOrchestration) *externalControl {
 	return &externalControl{producer: producer, orquestrator: orquestrator}
 }
 
@@ -83,6 +84,8 @@ func (e *externalControl) process(line string) {
 		e.cmdL1ProducerStop(cmd[1:])
 	case "l1_orchestrator_reset":
 		e.cmdL1OrchestratorReset(cmd[1:])
+	case "l1_orchestrator_stop":
+		e.cmdL1OrchestratorAbort(cmd[1:])
 	default:
 		log.Warnf("EXT:process: unknown command: %s", cmd[0])
 	}
@@ -100,8 +103,19 @@ func (e *externalControl) cmdL1OrchestratorReset(args []string) {
 		return
 	}
 	log.Infof("EXT:cmdL1OrchestratorReset: calling orchestrator reset(%d)", blockNumber)
-	e.orquestrator.reset(blockNumber)
+	e.orquestrator.Reset(blockNumber)
 	log.Infof("EXT:cmdL1OrchestratorReset: calling orchestrator reset(%d) returned", blockNumber)
+}
+
+func (e *externalControl) cmdL1OrchestratorAbort(args []string) {
+	log.Infof("EXT:cmdL1OrchestratorAbort: %s", args)
+	if e.orquestrator == nil {
+		log.Infof("EXT:cmdL1OrchestratorAbort: orquestrator is nil")
+		return
+	}
+	log.Infof("EXT:cmdL1OrchestratorAbort: calling orquestrator stop")
+	e.orquestrator.Abort()
+	log.Infof("EXT:cmdL1OrchestratorAbort: calling orquestrator stop returned")
 }
 
 func (e *externalControl) cmdL1ProducerStop(args []string) {

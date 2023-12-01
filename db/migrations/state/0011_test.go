@@ -32,6 +32,13 @@ func (m migrationTest0011) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 1, result)
 	}
+
+	// Check column egp_log exists in state.transactions table
+	const getFinalDeviationColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='egp_log'`
+	row := db.QueryRow(getFinalDeviationColumn)
+	var result int
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 1, result)
 }
 
 func (m migrationTest0011) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -52,6 +59,13 @@ func (m migrationTest0011) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 0, result)
 	}
+
+	// Check column egp_log doesn't exists in state.transactions table
+	const getFinalDeviationColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='egp_log'`
+	row := db.QueryRow(getFinalDeviationColumn)
+	var result int
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 0, result)
 }
 
 func TestMigration0011(t *testing.T) {

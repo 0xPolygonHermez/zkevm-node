@@ -47,17 +47,17 @@ func (so *StateOverride) toExecutorStateOverride() map[string]*executor.Override
 			balance = (*accOverride.Balance).Bytes()
 		}
 
-		st := map[string][]byte{}
+		st := map[string]string{}
 		if accOverride.State != nil {
 			for k, v := range *accOverride.State {
-				st[k.String()] = v.Bytes()
+				st[k.String()] = v.String()
 			}
 		}
 
-		stDiff := map[string][]byte{}
+		stDiff := map[string]string{}
 		if accOverride.StateDiff != nil {
 			for k, v := range *accOverride.StateDiff {
-				stDiff[k.String()] = v.Bytes()
+				stDiff[k.String()] = v.String()
 			}
 		}
 		overrides[addr.String()] = &executor.OverrideAccount{

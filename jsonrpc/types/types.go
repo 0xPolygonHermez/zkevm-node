@@ -262,7 +262,7 @@ type Block struct {
 }
 
 // NewBlock creates a Block instance
-func NewBlock(b *types.Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
+func NewBlock(b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
 	h := b.Header()
 
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
@@ -355,7 +355,7 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []types.Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
+func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
 	closed := batch.StateRoot.String() != state.ZeroHash.String() || batch.BatchNumber == 0
 	res := &Batch{

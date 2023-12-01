@@ -21,6 +21,7 @@ message Version {
  * Flush: wait for all the pendings writes to the DB are done
  */
 service HashDBService {
+    rpc GetLatestStateRoot(google.protobuf.Empty) returns (GetLatestStateRootResponse) {}
     rpc Set(SetRequest) returns (SetResponse) {}
     rpc Get(GetRequest) returns (GetResponse) {}
     rpc SetProgram(SetProgramRequest) returns (SetProgramResponse) {}
@@ -31,6 +32,11 @@ service HashDBService {
     rpc SemiFlush (SemiFlushRequest) returns (google.protobuf.Empty) {}
     rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
     rpc GetFlushData (GetFlushDataRequest) returns (GetFlushDataResponse) {}
+    rpc ConsolidateState (ConsolidateStateRequest) returns (ConsolidateStateResponse) {}
+    rpc Purge (PurgeRequest) returns (PurgeResponse) {}
+    rpc ReadTree (ReadTreeRequest) returns (ReadTreeResponse) {}
+    rpc CancelBatch (CancelBatchRequest) returns (CancelBatchResponse) {}
+    rpc ResetDB (google.protobuf.Empty) returns (ResetDBResponse) {}
 }
 
 ///////////////////
@@ -52,7 +58,8 @@ enum Persistence {
  * @param {details} - indicates if it should return all response parameters (true) or just the new root (false)
  * @param {get_db_read_log} - indicates if it should return the DB reads generated during the execution of the request
  * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
- * @param {tx} - current transaction ordinal number: 0, 1, 2...
+ * @param {tx_index} - current transaction ordinal index: 0, 1, 2...
+ * @param {block_index} - current block ordinal index: 0, 1, 2...
  */
 message SetRequest {
     Fea old_root = 1;
@@ -62,8 +69,8 @@ message SetRequest {
     bool details = 5;
     bool get_db_read_log = 6;
     string batch_uuid = 7;
-    uint64 tx = 8;
-
+    uint64 tx_index = 8;
+    uint64 block_index = 9;
 }
 
 /**
@@ -86,30 +93,40 @@ message GetRequest {
  * @dev SetProgramRequest
  * @param {key} - key to set
  * @param {data} - Program data to store
- * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
+ * @param {tx_index} - current transaction ordinal index: 0, 1, 2...
+ * @param {block_index} - current block ordinal index: 0, 1, 2...
  */
 message SetProgramRequest {
     Fea key = 1;
     bytes data = 2;
-    bool persistent = 3;
+    Persistence persistence = 3;
+    string batch_uuid = 4;
+    uint64 tx_index = 5;
+    uint64 block_index = 6;
 }
 
 /**
  * @dev GetProgramRequest
  * @param {key} - key to get program data
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session; data for this batch can be stored in memory until flushed to database
  */
 message GetProgramRequest {
     Fea key = 1;
+    string batch_uuid = 2;
 }
 
 /**
  * @dev LoadDBRequest
  * @param {input_db} - list of db records (MT) to load in the database
  * @param {persistent} - indicates if it should be stored in the SQL database (true) or only in the memory cache (false)
+ * @param {state_root} - current (old) state root made up of the provided db records
  */
 message LoadDBRequest {
     map<string, FeList> input_db = 1;
     bool persistent = 2;
+    Fea  state_root = 3;
 }
 
 /**
@@ -154,9 +171,59 @@ message GetFlushDataRequest {
     uint64 flush_id = 1;
 }
 
+/**
+ * @dev ConsolidateStateRequest
+ * @param {virtual_state_root} - virtual state root to consolidate (and previous virtual state roots, too)
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message ConsolidateStateRequest {
+    Fea virtual_state_root = 1;
+    Persistence persistence = 2;
+}
+
+/**
+ * @dev PurgeRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be purged
+ * @param {new_state_root} - state root at this point of the execution
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message PurgeRequest {
+    string batch_uuid = 1;
+    Fea new_state_root = 2;
+    Persistence persistence = 3;
+}
+
+/**
+ * @dev ReadTreeRequest
+ * @param {state_root} - state root at this point of the execution
+ * @param {keys} - list of keys to get their values for
+ */
+message ReadTreeRequest {
+    Fea state_root = 1;
+    repeated Fea keys = 2;
+}
+
+/**
+ * @dev CancelBatchRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be deleted
+ */
+message CancelBatchRequest {
+    string batch_uuid = 1;
+}
+
 /////////////////////
 // Responses messages
 /////////////////////
+
+/**
+ * @dev GetLatestStateRootResponse
+ * @param {latest_root} - latest state root
+ * @param {result} - result code
+ */
+message GetLatestStateRootResponse {
+    Fea latest_root = 1;
+    ResultCode result = 2;
+}
 
 /**
  * @dev SetResponse
@@ -285,6 +352,56 @@ message GetFlushDataResponse {
 }
 
 /**
+ * @dev ConsolidateStateResponse
+ * @param {consolidated_state_root} - consolidated state root at the point of the execution of virtual_state_root
+ * @param {flush_id} - id assigned to this flush data
+ * @param {stored_flush_id} - id of the last flush data sent to database
+ * @param {result} - result code
+ */
+message ConsolidateStateResponse {
+    Fea consolidated_state_root = 1;
+    uint64 flush_id = 2;
+    uint64 stored_flush_id = 3;
+    ResultCode result = 4;
+}
+
+/**
+ * @dev PurgeResponse
+ * @param {result} - result code
+ */
+message PurgeResponse {
+    ResultCode result = 1;
+}
+
+/**
+ * @dev ReadTreeResponse
+ * @param {key_value} - list of key-value pairs requested to be read
+ * @param {hash_value} - list of hash-value pairs required to get the key-value pairs
+ * @param {result} - result code
+ */
+message ReadTreeResponse {
+    repeated KeyValue key_value = 1;
+    repeated HashValueGL hash_value = 2;
+    ResultCode result = 3;
+}
+
+/**
+ * @dev CancelBatchResponse
+ * @param {result} - result code
+ */
+message CancelBatchResponse {
+    ResultCode result = 1;
+}
+
+/**
+ * @dev ResetDBResponse
+ * @param {result} - result code
+ */
+message ResetDBResponse {
+    ResultCode result = 1;
+}
+
+/**
  * @dev Array of 4 FE
  * @param {fe0} - Field Element value for pos 0
  * @param {fe1} - Field Element value for pos 1
@@ -296,6 +413,45 @@ message Fea {
     uint64 fe1 = 2;
     uint64 fe2 = 3;
     uint64 fe3 = 4;
+}
+
+/**
+ * @dev Array of 12 FE
+ * @param {fex} - Field Element value for pos x
+*/
+message Fea12 {
+    uint64 fe0  = 1;
+    uint64 fe1  = 2;
+    uint64 fe2  = 3;
+    uint64 fe3  = 4;
+    uint64 fe4  = 5;
+    uint64 fe5  = 6;
+    uint64 fe6  = 7;
+    uint64 fe7  = 8;
+    uint64 fe8  = 9;
+    uint64 fe9  = 10;
+    uint64 fe10 = 11;
+    uint64 fe11 = 12;
+}
+
+/**
+ * @dev HashValueGL
+ * @param {hash} - Hash
+ * @param {value} - Value
+*/
+message HashValueGL {
+    Fea hash = 1;
+    Fea12 value = 2;
+}
+
+/**
+ * @dev KeyValue
+ * @param {key} - key
+ * @param {value} - Value
+*/
+message KeyValue {
+    Fea key = 1;
+    string value = 2;
 }
 
 /**

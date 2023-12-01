@@ -54,7 +54,7 @@ func TestSendFinalProof(t *testing.T) {
 		BatchNumberFinal: batchNumFinal,
 	}
 	finalProof := &prover.FinalProof{}
-	cfg := Config{SenderAddress: from.Hex()}
+	cfg := Config{SenderAddress: from.Hex(), GasOffset: uint64(10)}
 
 	testCases := []struct {
 		name    string
@@ -85,7 +85,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
@@ -108,7 +108,7 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(nil, nil, errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
@@ -131,11 +131,11 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(&to, data, nil).Once()
 				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
-				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, nil).Return(errBanana).Once()
+				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, cfg.GasOffset, nil).Return(errBanana).Once()
 				m.stateMock.On("UpdateGeneratedProof", mock.Anything, recursiveProof, nil).Run(func(args mock.Arguments) {
 					// test is done, stop the sendFinalProof method
 					a.exit()
@@ -156,11 +156,11 @@ func TestSendFinalProof(t *testing.T) {
 					NewLocalExitRoot: finalBatch.LocalExitRoot.Bytes(),
 					NewStateRoot:     finalBatch.StateRoot.Bytes(),
 				}
-				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs).Run(func(args mock.Arguments) {
+				m.etherman.On("BuildTrustedVerifyBatchesTxData", batchNum-1, batchNumFinal, &expectedInputs, common.HexToAddress(cfg.SenderAddress)).Run(func(args mock.Arguments) {
 					assert.True(a.verifyingProof)
 				}).Return(&to, data, nil).Once()
 				monitoredTxID := buildMonitoredTxID(batchNum, batchNumFinal)
-				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, nil).Return(nil).Once()
+				m.ethTxManager.On("Add", mock.Anything, ethTxManagerOwner, monitoredTxID, from, &to, value, data, cfg.GasOffset, nil).Return(nil).Once()
 				ethTxManResult := ethtxmanager.MonitoredTxResult{
 					ID:     monitoredTxID,
 					Status: ethtxmanager.MonitoredTxStatusConfirmed,

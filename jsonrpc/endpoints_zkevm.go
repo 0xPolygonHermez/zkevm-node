@@ -128,7 +128,7 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
-		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, z.state, dbTx)
+		batchNumber, rpcErr := batchNumber.GetNumericBatchNumber(ctx, z.state, z.etherman, dbTx)
 		if rpcErr != nil {
 			return nil, rpcErr
 		}
@@ -193,12 +193,12 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
+			header := lastBlock.Header()
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = ethTypes.EmptyRootHash
 			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
+			block := state.NewL2BlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, true)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
@@ -264,5 +264,27 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 		}
 
 		return rpcBlock, nil
+	})
+}
+
+// GetNativeBlockHashesInRange return the state root for the blocks in range
+func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlockRangeFilter) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, z.cfg, z.state, z.etherman, dbTx)
+		if rpcErr != nil {
+			return nil, rpcErr
+		}
+
+		nativeBlockHashes, err := z.state.GetNativeBlockHashesInRange(ctx, fromBlockNumber, toBlockNumber, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if errors.Is(err, state.ErrMaxNativeBlockHashBlockRangeLimitExceeded) {
+			errMsg := fmt.Sprintf(state.ErrMaxNativeBlockHashBlockRangeLimitExceeded.Error(), z.cfg.MaxNativeBlockHashBlockRange)
+			return RPCErrorResponse(types.InvalidParamsErrorCode, errMsg, nil, false)
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
+		}
+
+		return nativeBlockHashes, nil
 	})
 }

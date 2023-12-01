@@ -113,7 +113,7 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		tx.Status,
 		gasPrice,
 		nonce,
-		tx.CumulativeGasUsed,
+		tx.GasUsed,
 		tx.UsedKeccakHashes,
 		tx.UsedPoseidonHashes,
 		tx.UsedPoseidonPaddings,
@@ -327,7 +327,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		tx.Status = pool.TxStatus(status)
 		tx.ReceivedAt = receivedAt
 		tx.ZKCounters = state.ZKCounters{
-			CumulativeGasUsed:    cumulativeGasUsed,
+			GasUsed:              cumulativeGasUsed,
 			UsedKeccakHashes:     usedKeccakHashes,
 			UsedPoseidonHashes:   usedPoseidonHashes,
 			UsedPoseidonPaddings: usedPoseidonPaddings,
@@ -410,6 +410,16 @@ func (p *PostgresPoolStorage) DeleteTransactionsByHashes(ctx context.Context, ha
 
 	query := "DELETE FROM pool.transaction WHERE hash = ANY ($1)"
 	if _, err := p.db.Exec(ctx, query, hh); err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteFailedTransactionsOlderThan deletes all failed transactions older than the given date
+func (p *PostgresPoolStorage) DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error {
+	sql := `DELETE FROM pool.transaction WHERE status = 'failed' and received_at < $1`
+
+	if _, err := p.db.Exec(ctx, sql, date); err != nil {
 		return err
 	}
 	return nil
@@ -647,7 +657,7 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ReceivedAt = receivedAt
 	tx.IsWIP = isWIP
 	tx.IP = ip
-	tx.ZKCounters.CumulativeGasUsed = cumulativeGasUsed
+	tx.ZKCounters.GasUsed = cumulativeGasUsed
 	tx.ZKCounters.UsedKeccakHashes = usedKeccakHashes
 	tx.ZKCounters.UsedPoseidonHashes = usedPoseidonHashes
 	tx.ZKCounters.UsedPoseidonPaddings = usedPoseidonPaddings
@@ -675,7 +685,7 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 
 	sql := `SELECT cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
 			used_arithmetics, used_binaries, used_steps FROM pool.transaction WHERE hash = $1`
-	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.CumulativeGasUsed, &zkCounters.UsedKeccakHashes,
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.GasUsed, &zkCounters.UsedKeccakHashes,
 		&zkCounters.UsedPoseidonHashes, &zkCounters.UsedPoseidonPaddings,
 		&zkCounters.UsedMemAligns, &zkCounters.UsedArithmetics, &zkCounters.UsedBinaries, &zkCounters.UsedSteps)
 	if errors.Is(err, pgx.ErrNoRows) {

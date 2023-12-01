@@ -268,17 +268,17 @@ func (a *Aggregator) sendFinalProof() {
 
 			// add batch verification to be monitored
 			sender := common.HexToAddress(a.cfg.SenderAddress)
-			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs, sender)
 			if err != nil {
 				log.Errorf("Error estimating batch verification to add to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
 			monitoredTxID := buildMonitoredTxID(proof.BatchNumber, proof.BatchNumberFinal)
-			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, nil)
+			err = a.EthTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, sender, to, nil, data, a.cfg.GasOffset, nil)
 			if err != nil {
-				log := log.WithFields("tx", monitoredTxID)
-				log.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
+				mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, sender, to)
+				mTxLogger.Errorf("Error to add batch verification tx to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
 				continue
 			}
@@ -766,7 +766,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 
 	log.Info("Checking profitability to aggregate batch")
 
-	// pass matic collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
+	// pass pol collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
 	isProfitable, err := a.ProfitabilityChecker.IsProfitable(ctx, big.NewInt(0))
 	if err != nil {
 		log.Errorf("Failed to check aggregator profitability, err: %v", err)
@@ -774,7 +774,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 	}
 
 	if !isProfitable {
-		log.Infof("Batch is not profitable, matic collateral %d", big.NewInt(0))
+		log.Infof("Batch is not profitable, pol collateral %d", big.NewInt(0))
 		return nil, nil, err
 	}
 
@@ -1027,9 +1027,9 @@ func (hc *healthChecker) Watch(req *grpchealth.HealthCheckRequest, server grpche
 }
 
 func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResult) {
-	resLog := log.WithFields("owner", ethTxManagerOwner, "txId", result.ID)
+	mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-		resLog.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
+		mTxResultLogger.Fatal("failed to send batch verification, TODO: review this fatal and define what to do in this case")
 	}
 
 	// monitoredIDFormat: "proof-from-%v-to-%v"
@@ -1037,13 +1037,13 @@ func (a *Aggregator) handleMonitoredTxResult(result ethtxmanager.MonitoredTxResu
 	proofBatchNumberStr := idSlice[2]
 	proofBatchNumber, err := strconv.ParseUint(proofBatchNumberStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number from monitored tx: %v", err)
+		mTxResultLogger.Errorf("failed to read final proof batch number from monitored tx: %v", err)
 	}
 
 	proofBatchNumberFinalStr := idSlice[4]
 	proofBatchNumberFinal, err := strconv.ParseUint(proofBatchNumberFinalStr, encoding.Base10, 0)
 	if err != nil {
-		resLog.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
+		mTxResultLogger.Errorf("failed to read final proof batch number final from monitored tx: %v", err)
 	}
 
 	log := log.WithFields("txId", result.ID, "batches", fmt.Sprintf("%d-%d", proofBatchNumber, proofBatchNumberFinal))

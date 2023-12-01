@@ -164,7 +164,7 @@ func (d *dbManager) sendDataToStreamer() {
 		// Read data from channel
 		fullL2Block := <-d.dataToStream
 
-		l2Block := fullL2Block.L2Block
+		l2Block := fullL2Block
 		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
@@ -216,7 +216,8 @@ func (d *dbManager) sendDataToStreamer() {
 
 			_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("failed to add stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
+				continue
 			}
 
 			err = d.streamServer.CommitAtomicOp()
@@ -269,7 +270,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), dbTx)
+	l2BlockHeader, err := d.state.StoreTransaction(ctx, tx.batchNumber, tx.response, tx.coinbase, uint64(tx.timestamp.Unix()), tx.egpLog, dbTx)
 	if err != nil {
 		return err
 	}
@@ -292,7 +293,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 	if !tx.isForcedBatch {
-		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		err = d.state.UpdateBatchL2DataAndLER(ctx, tx.batchNumber, batch.BatchL2Data, tx.batchResponse.NewLocalExitRoot, dbTx)
 		if err != nil {
 			err2 := dbTx.Rollback(ctx)
 			if err2 != nil {
@@ -307,10 +308,12 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		return err
 	}
 
-	// Change Tx status to selected
-	err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
-	if err != nil {
-		return err
+	if !tx.isForcedBatch {
+		// Change Tx status to selected
+		err = d.txPool.UpdateTxStatus(ctx, tx.response.TxHash, pool.TxStatusSelected, false, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	log.Infof("StoreProcessedTxAndDeleteFromPool: successfully stored tx: %v for batch: %v", tx.response.TxHash.String(), tx.batchNumber)
@@ -336,6 +339,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 
 		l2Transaction := state.DSL2Transaction{
+			L2BlockNumber:               l2Block.L2BlockNumber,
 			EffectiveGasPricePercentage: uint8(tx.response.EffectivePercentage),
 			IsValid:                     1,
 			EncodedLength:               uint32(len(binaryTxData)),
@@ -343,8 +347,8 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 		}
 
 		d.dataToStream <- state.DSL2FullBlock{
-			L2Block: l2Block,
-			Txs:     []state.DSL2Transaction{l2Transaction},
+			DSL2Block: l2Block,
+			Txs:       []state.DSL2Transaction{l2Transaction},
 		}
 	}
 
@@ -407,7 +411,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Init counters to MAX values
 	var totalBytes uint64 = d.batchConstraints.MaxBatchBytesSize
 	var batchZkCounters = state.ZKCounters{
-		CumulativeGasUsed:    d.batchConstraints.MaxCumulativeGasUsed,
+		GasUsed:              d.batchConstraints.MaxCumulativeGasUsed,
 		UsedKeccakHashes:     d.batchConstraints.MaxKeccakHashes,
 		UsedPoseidonHashes:   d.batchConstraints.MaxPoseidonHashes,
 		UsedPoseidonPaddings: d.batchConstraints.MaxPoseidonPaddings,
@@ -463,7 +467,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			}
 
 			zkCounters := &state.ZKCounters{
-				CumulativeGasUsed:    batchResponse.GetCumulativeGasUsed(),
+				GasUsed:              batchResponse.GetCumulativeGasUsed(),
 				UsedKeccakHashes:     batchResponse.CntKeccakHashes,
 				UsedPoseidonHashes:   batchResponse.CntPoseidonHashes,
 				UsedPoseidonPaddings: batchResponse.CntPoseidonPaddings,
@@ -565,8 +569,8 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      request.Timestamp,
-		GlobalExitRoot: request.GlobalExitRoot,
+		Timestamp:      request.Timestamp_V1,
+		GlobalExitRoot: request.GlobalExitRoot_V1,
 		ForcedBatchNum: &ForcedBatchNumber,
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
@@ -609,11 +613,13 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 
 	// Close Batch
 	txsBytes := uint64(0)
-	for _, resp := range processBatchResponse.Responses {
-		if !resp.ChangesStateRoot {
-			continue
+	for _, blockResp := range processBatchResponse.BlockResponses {
+		for _, resp := range blockResp.TransactionResponses {
+			if !resp.ChangesStateRoot {
+				continue
+			}
+			txsBytes += resp.Tx.Size()
 		}
-		txsBytes += resp.Tx.Size()
 	}
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   request.BatchNumber,
@@ -655,7 +661,7 @@ func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
-func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
 }
 
@@ -704,8 +710,8 @@ func (d *dbManager) GetDefaultMinGasPriceAllowed() uint64 {
 	return d.txPool.GetDefaultMinGasPriceAllowed()
 }
 
-func (d *dbManager) GetL1GasPrice() uint64 {
-	return d.txPool.GetL1GasPrice()
+func (d *dbManager) GetL1AndL2GasPrice() (uint64, uint64) {
+	return d.txPool.GetL1AndL2GasPrice()
 }
 
 // GetStoredFlushID returns the stored flush ID and prover ID

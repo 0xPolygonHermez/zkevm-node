@@ -41,6 +41,18 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(100),
 		},
 		{
+			path:          "Synchronizer.L1SynchronizationMode",
+			expectedValue: "parallel",
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxPendingNoProcessedBlocks",
+			expectedValue: uint64(25),
+		},
+		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(1 * time.Second),
 		},
@@ -105,26 +117,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.Enabled",
-			expectedValue: false,
-		},
-		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
@@ -157,6 +149,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(131072),
 		},
 		{
+			path:          "SequenceSender.GasOffset",
+			expectedValue: uint64(80000),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
@@ -169,7 +165,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
-			path:          "NetworkConfig.L1Config.MaticAddr",
+			path:          "NetworkConfig.L1Config.PolAddr",
 			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
 		},
 		{
@@ -278,6 +274,34 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(1024),
 		},
 		{
+			path:          "Pool.EffectiveGasPrice.Enabled",
+			expectedValue: false,
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ZeroByteGasCost",
+			expectedValue: uint64(4),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.NetProfit",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.BreakEvenFactor",
+			expectedValue: float64(1.1),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.FinalDeviationPct",
+			expectedValue: uint64(10),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
@@ -348,6 +372,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.MaxLogsBlockRange",
 			expectedValue: uint64(10000),
+		},
+		{
+			path:          "RPC.MaxNativeBlockHashBlockRange",
+			expectedValue: uint64(60000),
+		},
+		{
+			path:          "RPC.EnableHttpLog",
+			expectedValue: true,
 		},
 		{
 			path:          "RPC.WebSockets.Enabled",
@@ -429,7 +461,10 @@ func Test_Defaults(t *testing.T) {
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
 		},
-
+		{
+			path:          "Aggregator.GasOffset",
+			expectedValue: uint64(0),
+		},
 		{
 			path:          "State.Batch.Constraints.MaxTxsPerBatch",
 			expectedValue: uint64(300),
@@ -465,10 +500,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "State.Batch.Constraints.MaxBinaries",
 			expectedValue: uint32(473170),
-		},
-		{
-			path:          "State.Batch.Constraints.MaxSteps",
-			expectedValue: uint32(7570538),
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

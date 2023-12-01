@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	forkID5 = 5
+	forkID6 = 6
 )
 
 func TestConsolidatedBlockNumber(t *testing.T) {
@@ -675,9 +675,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				effectivePercentages := make([]uint8, 0, len(txs))
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -714,7 +714,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 				tc.ExpectedResult.BatchL2Data = batchL2Data
 				batch := &state.Batch{
@@ -813,9 +813,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -833,7 +833,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 
 				batch := &state.Batch{
@@ -925,7 +925,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(tc.ExpectedResult.Number), nil).
 					Once()
 
@@ -939,9 +939,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -982,7 +982,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					batchTxs = append(batchTxs, *tx)
 					effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
 				}
-				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID5)
+				batchL2Data, err := state.EncodeTransactions(batchTxs, effectivePercentages, forkID6)
 				require.NoError(t, err)
 				var fb uint64 = 1
 				batch := &state.Batch{
@@ -1063,7 +1063,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last batch number")).
 					Once()
 			},
@@ -1085,7 +1085,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLastBatchNumber", context.Background(), m.DbTx).
+					On("GetLastClosedBatchNumber", context.Background(), m.DbTx).
 					Return(uint64(1), nil).
 					Once()
 
@@ -1234,7 +1234,11 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1325,7 +1329,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 
 				m.State.
 					On("GetL2BlockByNumber", context.Background(), hex.DecodeUint64(tc.Number), m.DbTx).
-					Return(nil, state.ErrNotFound)
+					Return(nil, state.ErrNotFound).
+					Once()
 			},
 		},
 		{
@@ -1340,8 +1345,11 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
-					tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1395,9 +1403,15 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 					Return(blockNumber, nil).
 					Once()
 
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+
 				m.State.
 					On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).
-					Return(tc.ExpectedResult, nil).
+					Return(block, nil).
 					Once()
 
 				for _, tx := range tc.ExpectedResult.Transactions() {
@@ -1465,7 +1479,7 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				lastBlockHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := ethTypes.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
 
 				expectedResultHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
 				expectedResultHeader.ParentHash = lastBlock.Hash()
@@ -1547,6 +1561,158 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 	}
 }
 
+func TestGetNativeBlockHashesInRange(t *testing.T) {
+	type testCase struct {
+		Name           string
+		Filter         NativeBlockHashBlockRangeFilter
+		ExpectedResult *[]string
+		ExpectedError  interface{}
+		SetupMocks     func(*mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Block not found",
+			Filter: NativeBlockHashBlockRangeFilter{
+				FromBlock: types.BlockNumber(0),
+				ToBlock:   types.BlockNumber(10),
+			},
+			ExpectedResult: ptr([]string{}),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				fromBlock, _ := tc.Filter.FromBlock.GetNumericBlockNumber(context.Background(), nil, nil, nil)
+				toBlock, _ := tc.Filter.ToBlock.GetNumericBlockNumber(context.Background(), nil, nil, nil)
+
+				m.State.
+					On("GetNativeBlockHashesInRange", context.Background(), fromBlock, toBlock, m.DbTx).
+					Return([]common.Hash{}, nil).
+					Once()
+			},
+		},
+		{
+			Name: "native block hash range returned successfully",
+			Filter: NativeBlockHashBlockRangeFilter{
+				FromBlock: types.BlockNumber(0),
+				ToBlock:   types.BlockNumber(10),
+			},
+			ExpectedResult: ptr([]string{}),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				fromBlock, _ := tc.Filter.FromBlock.GetNumericBlockNumber(context.Background(), nil, nil, nil)
+				toBlock, _ := tc.Filter.ToBlock.GetNumericBlockNumber(context.Background(), nil, nil, nil)
+				hashes := []common.Hash{}
+				expectedResult := []string{}
+				for i := fromBlock; i < toBlock; i++ {
+					sHash := hex.EncodeUint64(i)
+					hash := common.HexToHash(sHash)
+					hashes = append(hashes, hash)
+					expectedResult = append(expectedResult, hash.String())
+				}
+				tc.ExpectedResult = &expectedResult
+
+				m.State.
+					On("GetNativeBlockHashesInRange", context.Background(), fromBlock, toBlock, m.DbTx).
+					Return(hashes, nil).
+					Once()
+			},
+		},
+		{
+			Name: "native block hash range fails due to invalid range",
+			Filter: NativeBlockHashBlockRangeFilter{
+				FromBlock: types.BlockNumber(10),
+				ToBlock:   types.BlockNumber(0),
+			},
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid block range"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "native block hash range fails due to range limit",
+			Filter: NativeBlockHashBlockRangeFilter{
+				FromBlock: types.BlockNumber(0),
+				ToBlock:   types.BlockNumber(60001),
+			},
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "native block hashes are limited to a 60000 block range"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
+
+			res, err := s.JSONRPCCall("zkevm_getNativeBlockHashesInRange", tc.Filter)
+			require.NoError(t, err)
+
+			if tc.ExpectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var result []string
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				assert.Equal(t, len(*tc.ExpectedResult), len(result))
+				assert.ElementsMatch(t, *tc.ExpectedResult, result)
+			}
+
+			if tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+					assert.Equal(t, expectedErr.Error(), res.Error.Message)
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
 func ptrUint64(n uint64) *uint64 {
 	return &n
 }
@@ -1563,6 +1729,10 @@ func ptrArgUint64FromUint64(n uint64) *types.ArgUint64 {
 
 func ptrHash(h common.Hash) *common.Hash {
 	return &h
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
 
 func signTx(tx *ethTypes.Transaction, chainID uint64) *ethTypes.Transaction {

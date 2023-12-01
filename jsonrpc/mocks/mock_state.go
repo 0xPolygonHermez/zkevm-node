@@ -239,44 +239,20 @@ func (_m *StateMock) GetExitRootByGlobalExitRoot(ctx context.Context, ger common
 	return r0, r1
 }
 
-// GetFinalizedL2BlockNumber provides a mock function with given fields: ctx, l1FinalizedBlockNumber, dbTx
-func (_m *StateMock) GetFinalizedL2BlockNumber(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, l1FinalizedBlockNumber, dbTx)
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (uint64, error)); ok {
-		return rf(ctx, l1FinalizedBlockNumber, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, l1FinalizedBlockNumber, dbTx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, l1FinalizedBlockNumber, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetL2BlockByHash provides a mock function with given fields: ctx, hash, dbTx
-func (_m *StateMock) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*coretypes.Block, error) {
+func (_m *StateMock) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*state.L2Block, error) {
 	ret := _m.Called(ctx, hash, dbTx)
 
-	var r0 *coretypes.Block
+	var r0 *state.L2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*coretypes.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*state.L2Block, error)); ok {
 		return rf(ctx, hash, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *coretypes.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *state.L2Block); ok {
 		r0 = rf(ctx, hash, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*coretypes.Block)
+			r0 = ret.Get(0).(*state.L2Block)
 		}
 	}
 
@@ -290,19 +266,19 @@ func (_m *StateMock) GetL2BlockByHash(ctx context.Context, hash common.Hash, dbT
 }
 
 // GetL2BlockByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *StateMock) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*coretypes.Block, error) {
+func (_m *StateMock) GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Block, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
-	var r0 *coretypes.Block
+	var r0 *state.L2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*coretypes.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.L2Block, error)); ok {
 		return rf(ctx, blockNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *coretypes.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.L2Block); ok {
 		r0 = rf(ctx, blockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*coretypes.Block)
+			r0 = ret.Get(0).(*state.L2Block)
 		}
 	}
 
@@ -342,19 +318,19 @@ func (_m *StateMock) GetL2BlockHashesSince(ctx context.Context, since time.Time,
 }
 
 // GetL2BlockHeaderByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
-func (_m *StateMock) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*coretypes.Header, error) {
+func (_m *StateMock) GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
 
-	var r0 *coretypes.Header
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*coretypes.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, blockNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *coretypes.Header); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, blockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*coretypes.Header)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 
@@ -416,19 +392,19 @@ func (_m *StateMock) GetL2BlockTransactionCountByNumber(ctx context.Context, blo
 }
 
 // GetL2BlocksByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]coretypes.Block, error) {
+func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	var r0 []coretypes.Block
+	var r0 []state.L2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]coretypes.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]state.L2Block, error)); ok {
 		return rf(ctx, batchNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []coretypes.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []state.L2Block); ok {
 		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]coretypes.Block)
+			r0 = ret.Get(0).([]state.L2Block)
 		}
 	}
 
@@ -443,6 +419,30 @@ func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber u
 
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (uint64, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastClosedBatchNumber provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
 
 	var r0 uint64
@@ -490,19 +490,19 @@ func (_m *StateMock) GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx 
 }
 
 // GetLastL2Block provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*coretypes.Block, error) {
+func (_m *StateMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *coretypes.Block
+	var r0 *state.L2Block
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*coretypes.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Block, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *coretypes.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Block); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*coretypes.Block)
+			r0 = ret.Get(0).(*state.L2Block)
 		}
 	}
 
@@ -558,6 +558,54 @@ func (_m *StateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*st
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
 		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVerifiedBatchNumberUntilL1Block provides a mock function with given fields: ctx, l1BlockNumber, dbTx
+func (_m *StateMock) GetLastVerifiedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, l1BlockNumber, dbTx)
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (uint64, error)); ok {
+		return rf(ctx, l1BlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, l1BlockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, l1BlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastVerifiedL2BlockNumberUntilL1Block provides a mock function with given fields: ctx, l1FinalizedBlockNumber, dbTx
+func (_m *StateMock) GetLastVerifiedL2BlockNumberUntilL1Block(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, l1FinalizedBlockNumber, dbTx)
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (uint64, error)); ok {
+		return rf(ctx, l1FinalizedBlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, l1FinalizedBlockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, l1FinalizedBlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -639,6 +687,32 @@ func (_m *StateMock) GetLogs(ctx context.Context, fromBlock uint64, toBlock uint
 	return r0, r1
 }
 
+// GetNativeBlockHashesInRange provides a mock function with given fields: ctx, fromBlockNumber, toBlockNumber, dbTx
+func (_m *StateMock) GetNativeBlockHashesInRange(ctx context.Context, fromBlockNumber uint64, toBlockNumber uint64, dbTx pgx.Tx) ([]common.Hash, error) {
+	ret := _m.Called(ctx, fromBlockNumber, toBlockNumber, dbTx)
+
+	var r0 []common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) ([]common.Hash, error)); ok {
+		return rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) []common.Hash); ok {
+		r0 = rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, fromBlockNumber, toBlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetNonce provides a mock function with given fields: ctx, address, root
 func (_m *StateMock) GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error) {
 	ret := _m.Called(ctx, address, root)
@@ -656,30 +730,6 @@ func (_m *StateMock) GetNonce(ctx context.Context, address common.Address, root 
 
 	if rf, ok := ret.Get(1).(func(context.Context, common.Address, common.Hash) error); ok {
 		r1 = rf(ctx, address, root)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetSafeL2BlockNumber provides a mock function with given fields: ctx, l1SafeBlockNumber, dbTx
-func (_m *StateMock) GetSafeL2BlockNumber(ctx context.Context, l1SafeBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
-	ret := _m.Called(ctx, l1SafeBlockNumber, dbTx)
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (uint64, error)); ok {
-		return rf(ctx, l1SafeBlockNumber, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
-		r0 = rf(ctx, l1SafeBlockNumber, dbTx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, l1SafeBlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

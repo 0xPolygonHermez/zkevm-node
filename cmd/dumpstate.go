@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/urfave/cli/v2"
 )
 
@@ -46,7 +47,7 @@ type dumpedState struct {
 type genesis state.Genesis
 
 func (g genesis) MarshalJSON() ([]byte, error) {
-	for _, action := range g.GenesisActions {
+	for _, action := range g.Actions {
 		if !strings.HasPrefix(action.Value, "0x") {
 			action.Value = fmt.Sprintf("0x%s", action.Value)
 		}
@@ -65,7 +66,7 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 		Actions []*state.GenesisAction
 	}{
 		Alias:   (Alias)(g),
-		Actions: g.GenesisActions,
+		Actions: g.Actions,
 	})
 }
 
@@ -113,7 +114,7 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
+	stateDB := pgstatestorage.NewPostgresStorage(state.Config{}, stateSqlDB)
 
 	dump := dumpedState{
 		Description: description,

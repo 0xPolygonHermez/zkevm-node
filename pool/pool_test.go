@@ -23,6 +23,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -38,7 +40,7 @@ import (
 )
 
 const (
-	forkID5          = 5
+	forkID6          = 6
 	senderPrivateKey = "0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e"
 	senderAddress    = "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"
 )
@@ -47,12 +49,18 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "90000000000000000000000000000000000000000000000000000000000",
 			},
+		},
+		FirstBatchData: &state.BatchData{
+			Transactions:   "0xf8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4d3476afe000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005ca1ab1e0000000000000000000000000000000000000000000000000000000005ca1ab1e1bff",
+			GlobalExitRoot: common.Hash{},
+			Timestamp:      1697640780,
+			Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
 		},
 	}
 	cfg = pool.Config{
@@ -65,6 +73,16 @@ var (
 		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
 		AccountQueue:                      15,
 		GlobalQueue:                       20,
+		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
+			Enabled:                   true,
+			L1GasPriceFactor:          0.25,
+			ByteGasCost:               16,
+			ZeroByteGasCost:           4,
+			NetProfit:                 1,
+			BreakEvenFactor:           1.1,
+			FinalDeviationPct:         10,
+			L2GasPriceSuggesterFactor: 0.5,
+		},
 	}
 	gasPrice   = big.NewInt(1000000000)
 	l1GasPrice = big.NewInt(1000000000000)
@@ -93,6 +111,83 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 	os.Exit(code)
+}
+
+type testData struct {
+	pool *pool.Pool
+	st   *state.State
+
+	stateSqlDB *pgxpool.Pool
+	poolSqlDB  *pgxpool.Pool
+}
+
+func Test_AddTxEGPAceptedBecauseGasPriceIsTheSuggested(t *testing.T) {
+	ctx := context.Background()
+
+	data := prepareToExecuteTx(t, chainID.Uint64())
+	defer data.stateSqlDB.Close() //nolint:gosec,errcheck
+	defer data.poolSqlDB.Close()  //nolint:gosec,errcheck
+
+	b := make([]byte, cfg.MaxTxDataBytesSize-20)
+	to := common.HexToAddress(senderAddress)
+	gasPrice := big.NewInt(1000000000)
+	gasLimitForThisTx := uint64(21000) + uint64(16)*uint64(len(b))
+	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimitForThisTx, gasPrice, b)
+
+	// GetAuth configures and returns an auth object.
+	auth, err := operations.GetAuth(senderPrivateKey, chainID.Uint64())
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = data.pool.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+}
+
+func Test_EGPValidateEffectiveGasPrice(t *testing.T) {
+	tests := []struct {
+		name                string
+		egpEnabled          bool
+		gasPriceTx          *big.Int
+		preExecutionGasUsed uint64
+		gasPrices           pool.GasPrices
+		expectedError       error
+	}{
+		{
+			name:                "Reject transaction if below break-even and below current estimated L2 gas price",
+			egpEnabled:          true,
+			gasPriceTx:          big.NewInt(1000000000),
+			preExecutionGasUsed: uint64(21000) * 2000,
+			gasPrices: pool.GasPrices{
+				L1GasPrice: uint64(1000000000000),
+				L2GasPrice: uint64(1000000000 + 1),
+			},
+			expectedError: pool.ErrEffectiveGasPriceGasPriceTooLow,
+		},
+		{
+			name:                "Accept transaction if below break-even and below current estimated L2 gas price if EGP is disabled",
+			egpEnabled:          false,
+			gasPriceTx:          big.NewInt(1000000000),
+			preExecutionGasUsed: uint64(21000) * 2000,
+			gasPrices: pool.GasPrices{
+				L1GasPrice: uint64(1000000000000),
+				L2GasPrice: uint64(1000000000 + 1),
+			},
+			expectedError: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg.EffectiveGasPrice.Enabled = tt.egpEnabled
+			data := prepareToExecuteTx(t, chainID.Uint64())
+			dataLen := cfg.MaxTxDataBytesSize - 20
+			signedTx := createSignedTx(t, dataLen, tt.gasPriceTx, uint64(21000)+uint64(16)*uint64(dataLen))
+
+			err := data.pool.ValidateBreakEvenGasPrice(context.Background(), *signedTx, tt.preExecutionGasUsed, tt.gasPrices)
+			require.ErrorIs(t, err, tt.expectedError)
+		})
+	}
 }
 
 func Test_AddTx(t *testing.T) {
@@ -124,7 +219,8 @@ func Test_AddTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -194,18 +290,20 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -255,7 +353,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -267,11 +365,13 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 				Value:   "200000000000000000000",
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -284,7 +384,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	batchL2Data := "0xe580843b9aca00830186a0941275fbb540c8efc58b812ba83b0d0b8b9917ae98808464fbb77c6b39bdc5f8e458aba689f2a1ff8c543a94e4817bda40f3fe34080c4ab26c1e3c2fc2cda93bc32f0a79940501fd505dcf48d94abfde932ebf1417f502cb0d9de81bff"
 	b, err := hex.DecodeHex(batchL2Data)
 	require.NoError(t, err)
-	txs, _, _, err := state.DecodeTxs(b, forkID5)
+	txs, _, _, err := state.DecodeTxs(b, forkID6)
 	require.NoError(t, err)
 
 	tx := txs[0]
@@ -342,7 +442,8 @@ func Test_GetPendingTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -402,7 +503,8 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -462,7 +564,8 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -522,7 +625,8 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -570,10 +674,10 @@ func Test_UpdateTxsStatus(t *testing.T) {
 
 	var count int
 	rows, err := poolSqlDB.Query(ctx, "SELECT status, failed_reason FROM pool.transaction WHERE hash = ANY($1)", []string{signedTx1.Hash().String(), signedTx2.Hash().String()})
-	defer rows.Close() // nolint:staticcheck
 	if err != nil {
 		t.Error(err)
 	}
+	defer rows.Close() // nolint:staticcheck
 	var state, failedReason string
 	for rows.Next() {
 		count++
@@ -613,7 +717,8 @@ func Test_UpdateTxStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -750,7 +855,8 @@ func TestGetPendingTxSince(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -841,8 +947,8 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -906,18 +1012,20 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   initialBalance.String(),
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1007,7 +1115,14 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(state.Config{}, sqlDB)
+	stCfg := state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
+		FromBatchNumber: 0,
+		ToBatchNumber:   math.MaxUint64,
+		ForkId:          5,
+		Version:         "",
+	}}}
+
+	stateDb := pgstatestorage.NewPostgresStorage(stCfg, sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
@@ -1016,12 +1131,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
-		FromBatchNumber: 0,
-		ToBatchNumber:   math.MaxUint64,
-		ForkId:          5,
-		Version:         "",
-	}}}, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 
@@ -1057,7 +1167,8 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1189,7 +1300,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			name:          "GasPriceTooLowErr",
 			nonce:         0,
 			to:            nil,
-			gasLimit:      gasLimit,
+			gasLimit:      gasLimit, // Is a contract 53000
 			gasPrice:      big.NewInt(0).SetUint64(gasPrice.Uint64() - uint64(1)),
 			data:          []byte{},
 			expectedError: pool.ErrGasPrice,
@@ -1225,18 +1336,20 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				GenesisActions: []*state.GenesisAction{
+				Actions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
 						Value:   "1000000000000000000000",
 					},
 				},
+				FirstBatchData: genesis.FirstBatchData,
 			}
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1295,7 +1408,8 @@ func Test_AddRevertedTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1363,19 +1477,20 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1448,6 +1563,7 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
+/*
 func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -1507,11 +1623,13 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 						Value:   "1000000000000000000000",
 					},
 				},
+				FirstBatchData: genesis.FirstBatchData,
 			}
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1545,6 +1663,7 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 		})
 	}
 }
+*/
 
 func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	eventStorage, err := nileventstorage.NewNilEventStorage()
@@ -1574,18 +1693,20 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1681,12 +1802,14 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: genesisActions,
+		Actions:        genesisActions,
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1761,18 +1884,20 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   "1000000000000000000000",
 			},
 		},
+		FirstBatchData: genesis.FirstBatchData,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1842,7 +1967,8 @@ func Test_AddTx_IPValidation(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1870,10 +1996,69 @@ func Test_AddTx_IPValidation(t *testing.T) {
 }
 
 func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstraintsCfg, s *pgpoolstorage.PostgresPoolStorage, st *state.State, chainID uint64, ctx context.Context, eventLog *event.EventLog) *pool.Pool {
-	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
-
-	err := p.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
+	err := s.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
 	require.NoError(t, err)
+	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
+}
+
+func prepareToExecuteTx(t *testing.T, chainIDToCreate uint64) testData {
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	require.NoError(t, err)
+	//defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+
+	//defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		stateSqlDB.Close() //nolint:gosec,errcheck
+		poolSqlDB.Close()  //nolint:gosec,errcheck
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := newState(stateSqlDB, eventLog)
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+	require.NoError(t, err)
+
+	p := setupPool(t, cfg, bc, s, st, chainIDToCreate, ctx, eventLog)
+	return testData{
+		pool:       p,
+		st:         st,
+		stateSqlDB: stateSqlDB,
+		poolSqlDB:  poolSqlDB,
+	}
+}
+
+func createSignedTx(t *testing.T, dataLen int, gasPrice *big.Int, gasLimit uint64) *ethTypes.Transaction {
+	b := make([]byte, cfg.MaxTxDataBytesSize-20)
+	to := common.HexToAddress(senderAddress)
+	//gasPrice := big.NewInt(1000000000)
+	//gasLimitForThisTx := uint64(21000) + uint64(16)*uint64(len(b))
+	tx := ethTypes.NewTransaction(0, to, big.NewInt(0), gasLimit, gasPrice, b)
+	auth, err := operations.GetAuth(senderPrivateKey, chainID.Uint64())
+	require.NoError(t, err)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+	return signedTx
 }

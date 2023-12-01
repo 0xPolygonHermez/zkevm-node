@@ -288,18 +288,28 @@ func (_m *DbManagerMock) GetGasPrices(ctx context.Context) (pool.GasPrices, erro
 	return r0, r1
 }
 
-// GetL1GasPrice provides a mock function with given fields:
-func (_m *DbManagerMock) GetL1GasPrice() uint64 {
+// GetL1AndL2GasPrice provides a mock function with given fields:
+func (_m *DbManagerMock) GetL1AndL2GasPrice() (uint64, uint64) {
 	ret := _m.Called()
 
 	var r0 uint64
+	var r1 uint64
+	if rf, ok := ret.Get(0).(func() (uint64, uint64)); ok {
+		return rf()
+	}
 	if rf, ok := ret.Get(0).(func() uint64); ok {
 		r0 = rf()
 	} else {
 		r0 = ret.Get(0).(uint64)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func() uint64); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Get(1).(uint64)
+	}
+
+	return r0, r1
 }
 
 // GetLastBatch provides a mock function with given fields: ctx
@@ -405,19 +415,19 @@ func (_m *DbManagerMock) GetLastClosedBatch(ctx context.Context) (*state.Batch, 
 }
 
 // GetLastL2BlockHeader provides a mock function with given fields: ctx, dbTx
-func (_m *DbManagerMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (_m *DbManagerMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *types.Header
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*types.Header, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *types.Header); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Header)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 

@@ -224,7 +224,7 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 	defer w.workerMutex.Unlock()
 
 	log.Infof("UpdateTxZKCounters tx(%s) addr(%s)", txHash.String(), addr.String())
-	log.Debugf("UpdateTxZKCounters counters.CumulativeGasUsed: %d", counters.CumulativeGasUsed)
+	log.Debugf("UpdateTxZKCounters counters.CumulativeGasUsed: %d", counters.GasUsed)
 	log.Debugf("UpdateTxZKCounters counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
 	log.Debugf("UpdateTxZKCounters counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
 	log.Debugf("UpdateTxZKCounters counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)
@@ -232,6 +232,7 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 	log.Debugf("UpdateTxZKCounters counters.UsedArithmetics: %d", counters.UsedArithmetics)
 	log.Debugf("UpdateTxZKCounters counters.UsedBinaries: %d", counters.UsedBinaries)
 	log.Debugf("UpdateTxZKCounters counters.UsedSteps: %d", counters.UsedSteps)
+	log.Debugf("UpdateTxZKCounters counters.UsedSha256Hashes_V2: %d", counters.UsedSha256Hashes_V2)
 
 	addrQueue, found := w.pool[addr.String()]
 
@@ -334,8 +335,6 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) *TxTracker {
 
 	if foundAt != -1 {
 		log.Infof("GetBestFittingTx found tx(%s) at index(%d) with gasPrice(%d)", tx.Hash.String(), foundAt, tx.GasPrice)
-	} else {
-		log.Debugf("GetBestFittingTx no tx found")
 	}
 
 	return tx

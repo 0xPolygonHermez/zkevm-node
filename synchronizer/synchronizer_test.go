@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -30,7 +31,7 @@ type mocks struct {
 	State        *stateMock
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
-	DbTx         *dbTxMock
+	DbTx         *syncMocks.DbTxMock
 	ZKEVMClient  *zkEVMClientMock
 	//EventLog     *eventLogMock
 }
@@ -89,23 +90,19 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 // but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:                       10,
-		UseParallelModeForL1Synchronization: false,
-		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
-			NumberOfParallelOfEthereumClients:   1,
-			CapacityOfBufferingRollupInfoFromL1: 1,
-		},
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
 	}
 
 	m := mocks{
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
@@ -123,6 +120,10 @@ func TestForcedBatch(t *testing.T) {
 			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
+			m.State.
+				On("GetForkIDByBatchNumber", mock.Anything).
+				Return(uint64(7), nil).
+				Maybe()
 			m.State.
 				On("GetLastBlock", ctx, m.DbTx).
 				Return(lastBlock, nil).
@@ -181,11 +182,11 @@ func TestForcedBatch(t *testing.T) {
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
-				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
-					Transactions:       []byte{},
-					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					Timestamp:          uint64(t.Unix()),
-					MinForcedTimestamp: 1000, //ForcedBatch
+				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
+					Transactions:         []byte{},
+					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedTimestamp:      uint64(t.Unix()),
+					ForcedBlockHashL1:    common.HexToHash("0x444"),
 				},
 			}
 
@@ -193,12 +194,14 @@ func TestForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
-				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				GlobalExitRoot:    sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				RawTxsData:        sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
+				BlockNumber:      1,
+				ReceivedAt:       t,
 				BlockHash:        ethBlock.Hash(),
 				SequencedBatches: [][]etherman.SequencedBatch{{sequencedBatch}},
 				ForcedBatches:    forceb,
@@ -251,9 +254,9 @@ func TestForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
-				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				GlobalExitRoot:    sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				RawTxsData:        sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			m.State.
@@ -267,9 +270,9 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			trustedBatch := &state.Batch{
-				BatchL2Data:    sequencedBatch.Transactions,
-				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
-				Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
+				BatchL2Data:    sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				GlobalExitRoot: sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				Timestamp:      time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 				Coinbase:       sequencedBatch.Coinbase,
 			}
 
@@ -283,7 +286,7 @@ func TestForcedBatch(t *testing.T) {
 				BatchNumber:    sequencedBatch.BatchNumber,
 				Coinbase:       common.HexToAddress("0x222"),
 				BatchL2Data:    []byte{},
-				Timestamp:      time.Unix(int64(t.Unix()), 0),
+				Timestamp:      t,
 				Transactions:   nil,
 				GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 				ForcedBatchNum: &forced,
@@ -340,23 +343,19 @@ func TestForcedBatch(t *testing.T) {
 // but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestSequenceForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:                        cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize:                       10,
-		UseParallelModeForL1Synchronization: false,
-		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
-			NumberOfParallelOfEthereumClients:   1,
-			CapacityOfBufferingRollupInfoFromL1: 1,
-		},
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
 	}
 
 	m := mocks{
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
@@ -373,6 +372,14 @@ func TestSequenceForcedBatch(t *testing.T) {
 			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
 			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
 			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
+			m.State.
+				On("GetForkIDByBatchNumber", mock.Anything).
+				Return(uint64(1), nil).
+				Maybe()
+			m.State.
+				On("GetForkIDByBlockNumber", mock.Anything).
+				Return(uint64(1), nil).
+				Maybe()
 
 			m.State.
 				On("GetLastBlock", ctx, m.DbTx).
@@ -430,10 +437,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber: uint64(2),
 				Coinbase:    common.HexToAddress("0x222"),
 				TxHash:      common.HexToHash("0x333"),
-				PolygonZkEVMForcedBatchData: polygonzkevm.PolygonZkEVMForcedBatchData{
-					Transactions:       []byte{},
-					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					MinForcedTimestamp: 1000, //ForcedBatch
+				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
+					Transactions:         []byte{},
+					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedTimestamp:      1000, //ForcedBatch
+					ForcedBlockHashL1:    common.HexToHash("0x444"),
 				},
 			}
 
@@ -441,9 +449,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedForceBatch.Coinbase,
-				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot:    sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				RawTxsData:        sequencedForceBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
@@ -494,9 +502,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedForceBatch.Coinbase,
-				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot:    sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				RawTxsData:        sequencedForceBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			m.State.
@@ -524,13 +532,13 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber:    sequencedForceBatch.BatchNumber,
 				Coinbase:       sequencedForceBatch.Coinbase,
 				Timestamp:      ethBlock.ReceivedAt,
-				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot: sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				ForcedBatchNum: &f,
-				BatchL2Data:    &sequencedForceBatch.Transactions,
+				BatchL2Data:    &sequencedForceBatch.PolygonRollupBaseEtrogBatchData.Transactions,
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.PolygonRollupBaseEtrogBatchData.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 
@@ -576,18 +584,30 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
-		SyncInterval:  cfgTypes.Duration{Duration: 1 * time.Second},
-		SyncChunkSize: 10,
+		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
+		SyncChunkSize:         10,
+		L1SynchronizationMode: SequentialMode,
+		L1ParallelSynchronization: L1ParallelSynchronizationConfig{
+			MaxClients:                             2,
+			MaxPendingNoProcessedBlocks:            2,
+			RequestLastBlockPeriod:                 cfgTypes.Duration{Duration: 1 * time.Second},
+			RequestLastBlockTimeout:                cfgTypes.Duration{Duration: 1 * time.Second},
+			RequestLastBlockMaxRetries:             1,
+			StatisticsPeriod:                       cfgTypes.Duration{Duration: 1 * time.Second},
+			TimeOutMainLoop:                        cfgTypes.Duration{Duration: 1 * time.Second},
+			RollupInfoRetriesSpacing:               cfgTypes.Duration{Duration: 1 * time.Second},
+			FallbackToSequentialModeOnSynchronized: false,
+		},
 	}
 
 	m := mocks{
 		Etherman:    newEthermanMock(t),
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
-		DbTx:        newDbTxMock(t),
+		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: newZkEVMClientMock(t),
 		//EventLog:    newEventLogMock(t),
 	}
@@ -743,10 +763,13 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 			Once()
 	}
 	tx1 := state.ProcessTransactionResponse{}
+	block1 := state.ProcessBlockResponse{
+		TransactionResponses: []*state.ProcessTransactionResponse{&tx1},
+	}
 	processedBatch := state.ProcessBatchResponse{
-		FlushID:   1,
-		ProverID:  cProverIDExecution,
-		Responses: []*state.ProcessTransactionResponse{&tx1},
+		FlushID:        1,
+		ProverID:       cProverIDExecution,
+		BlockResponses: []*state.ProcessBlockResponse{&block1},
 	}
 	m.State.
 		On("ProcessBatch", mock.Anything, mock.Anything, true).
@@ -754,8 +777,8 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		Once()
 
 	m.State.
-		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), m.DbTx).
-		Return(&ethTypes.Header{}, nil).
+		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), mock.Anything, m.DbTx).
+		Return(&state.L2Header{}, nil).
 		Once()
 
 	m.State.

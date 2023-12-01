@@ -265,6 +265,58 @@
 					"type": "integer",
 					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
 					"default": 1024
+				},
+				"EffectiveGasPrice": {
+					"properties": {
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the effective gas price",
+							"default": false
+						},
+						"L1GasPriceFactor": {
+							"type": "number",
+							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
+							"default": 0.25
+						},
+						"ByteGasCost": {
+							"type": "integer",
+							"description": "ByteGasCost is the gas cost per byte that is not 0",
+							"default": 16
+						},
+						"ZeroByteGasCost": {
+							"type": "integer",
+							"description": "ZeroByteGasCost is the gas cost per byte that is 0",
+							"default": 4
+						},
+						"NetProfit": {
+							"type": "number",
+							"description": "NetProfit is the profit margin to apply to the calculated breakEvenGasPrice",
+							"default": 1
+						},
+						"BreakEvenFactor": {
+							"type": "number",
+							"description": "BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx",
+							"default": 1.1
+						},
+						"FinalDeviationPct": {
+							"type": "integer",
+							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
+							"default": 10
+						},
+						"L2GasPriceSuggesterFactor": {
+							"type": "number",
+							"description": "L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the\ncalculations when the effective gas price is disabled (testing/metrics purposes)",
+							"default": 0.5
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
+				},
+				"ForkID": {
+					"type": "integer",
+					"description": "ForkID is the current fork ID of the chain",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -378,6 +430,16 @@
 					"type": "integer",
 					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
 					"default": 10000
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
+					"default": 60000
+				},
+				"EnableHttpLog": {
+					"type": "boolean",
+					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
+					"default": true
 				}
 			},
 			"additionalProperties": false,
@@ -406,48 +468,52 @@
 					"description": "TrustedSequencerURL is the rpc url to connect and sync the trusted state",
 					"default": ""
 				},
-				"UseParallelModeForL1Synchronization": {
-					"type": "boolean",
-					"description": "L1ParallelSynchronization Use new L1 synchronization that do in parallel request to L1 and process the data\nIf false use the legacy sequential mode",
-					"default": true
+				"L1SynchronizationMode": {
+					"type": "string",
+					"enum": [
+						"sequential",
+						"parallel"
+					],
+					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
+					"default": "parallel"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
-						"NumberOfParallelOfEthereumClients": {
+						"MaxClients": {
 							"type": "integer",
-							"description": "NumberOfParallelOfEthereumClients Number of clients used to synchronize with L1\n(if UseParallelModeForL1Synchronization is true)",
-							"default": 2
-						},
-						"CapacityOfBufferingRollupInfoFromL1": {
-							"type": "integer",
-							"description": "CapacityOfBufferingRollupInfoFromL1 Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients\n(if UseParallelModeForL1Synchronization is true)",
+							"description": "MaxClients Number of clients used to synchronize with L1",
 							"default": 10
 						},
-						"TimeForCheckLastBlockOnL1Time": {
+						"MaxPendingNoProcessedBlocks": {
+							"type": "integer",
+							"description": "MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients",
+							"default": 25
+						},
+						"RequestLastBlockPeriod": {
 							"type": "string",
 							"title": "Duration",
-							"description": "TimeForCheckLastBlockOnL1Time is the time to wait to request the\nlast block to L1 to known if we need to retrieve more data.\nThis value only apply when the system is synchronized",
+							"description": "RequestLastBlockPeriod is the time to wait to request the\nlast block to L1 to known if we need to retrieve more data.\nThis value only apply when the system is synchronized",
 							"default": "5s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"PerformanceCheck": {
+						"PerformanceWarning": {
 							"properties": {
-								"AcceptableTimeWaitingForNewRollupInfo": {
+								"AceptableInacctivityTime": {
 									"type": "string",
 									"title": "Duration",
-									"description": "AcceptableTimeWaitingForNewRollupInfo is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
+									"description": "AceptableInacctivityTime is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
 									"default": "5s",
 									"examples": [
 										"1m",
 										"300ms"
 									]
 								},
-								"NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo": {
+								"ApplyAfterNumRollupReceived": {
 									"type": "integer",
-									"description": "NumIterationsBeforeStartCheckingTimeWaitinfForNewRollupInfo is the number of iterations to\nstart checking the time waiting for new rollup info data",
+									"description": "ApplyAfterNumRollupReceived is the number of iterations to\nstart checking the time waiting for new rollup info data",
 									"default": 10
 								}
 							},
@@ -455,25 +521,25 @@
 							"type": "object",
 							"description": "Consumer Configuration for the consumer of rollup information from L1"
 						},
-						"TimeoutForRequestLastBlockOnL1": {
+						"RequestLastBlockTimeout": {
 							"type": "string",
 							"title": "Duration",
-							"description": "TimeoutForRequestLastBlockOnL1 Timeout for request LastBlock On L1",
+							"description": "RequestLastBlockTimeout Timeout for request LastBlock On L1",
 							"default": "5s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"MaxNumberOfRetriesForRequestLastBlockOnL1": {
+						"RequestLastBlockMaxRetries": {
 							"type": "integer",
-							"description": "MaxNumberOfRetriesForRequestLastBlockOnL1 Max number of retries to request LastBlock On L1",
+							"description": "RequestLastBlockMaxRetries Max number of retries to request LastBlock On L1",
 							"default": 3
 						},
-						"TimeForShowUpStatisticsLog": {
+						"StatisticsPeriod": {
 							"type": "string",
 							"title": "Duration",
-							"description": "TimeForShowUpStatisticsLog how ofter show a log with statistics (0 is disabled)",
+							"description": "StatisticsPeriod how ofter show a log with statistics (0 is disabled)",
 							"default": "5m0s",
 							"examples": [
 								"1m",
@@ -490,20 +556,25 @@
 								"300ms"
 							]
 						},
-						"MinTimeBetweenRetriesForRollupInfo": {
+						"RollupInfoRetriesSpacing": {
 							"type": "string",
 							"title": "Duration",
-							"description": "MinTimeBetweenRetriesForRollupInfo is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
+							"description": "RollupInfoRetriesSpacing is the minimum time between retries to request rollup info (it will sleep for fulfill this time) to avoid spamming L1",
 							"default": "5s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
+						},
+						"FallbackToSequentialModeOnSynchronized": {
+							"type": "boolean",
+							"description": "FallbackToSequentialModeOnSynchronized if true switch to sequential mode if the system is synchronized",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "L1ParallelSynchronization Configuration for parallel mode (if UseParallelModeForL1Synchronization is true)"
+					"description": "L1ParallelSynchronization Configuration for parallel mode (if L1SynchronizationMode equal to 'parallel')"
 				}
 			},
 			"additionalProperties": false,
@@ -684,43 +755,6 @@
 					"type": "object",
 					"description": "DBManager's specific config properties"
 				},
-				"EffectiveGasPrice": {
-					"properties": {
-						"MaxBreakEvenGasPriceDeviationPercentage": {
-							"type": "integer",
-							"description": "MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
-							"default": 10
-						},
-						"L1GasPriceFactor": {
-							"type": "number",
-							"description": "L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price",
-							"default": 0.25
-						},
-						"ByteGasCost": {
-							"type": "integer",
-							"description": "ByteGasCost is the gas cost per byte",
-							"default": 16
-						},
-						"MarginFactor": {
-							"type": "number",
-							"description": "MarginFactor is the margin factor percentage to be added to the L2 min gas price",
-							"default": 1
-						},
-						"Enabled": {
-							"type": "boolean",
-							"description": "Enabled is a flag to enable/disable the effective gas price",
-							"default": false
-						},
-						"DefaultMinGasPriceAllowed": {
-							"type": "integer",
-							"description": "DefaultMinGasPriceAllowed is the default min gas price to suggest\nThis value is assigned from [Pool].DefaultMinGasPriceAllowed",
-							"default": 0
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "EffectiveGasPrice is the config for the gas price"
-				},
 				"StreamServer": {
 					"properties": {
 						"Port": {
@@ -849,6 +883,11 @@
 					"type": "integer",
 					"description": "Batch number where there is a forkid change (fork upgrade)",
 					"default": 0
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 80000
 				}
 			},
 			"additionalProperties": false,
@@ -947,6 +986,11 @@
 					"type": "string",
 					"description": "GeneratingProofCleanupThreshold represents the time interval after\nwhich a proof in generating state is considered to be stuck and\nallowed to be cleared.",
 					"default": "10m"
+				},
+				"GasOffset": {
+					"type": "integer",
+					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -969,16 +1013,25 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 contract"
+							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"maticTokenAddress": {
+						"polygonRollupManagerAddress": {
 							"items": {
 								"type": "integer"
 							},
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 Matic token Contract"
+							"description": "RollupManagerAddr Address of the L1 contract"
+						},
+						"polTokenAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "PolAddr Address of the L1 Pol token Contract"
 						},
 						"polygonZkEVMGlobalExitRootAddress": {
 							"items": {
@@ -987,36 +1040,18 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 GlobalExitRootManager contract"
+							"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1: Configuration related to L1"
 				},
-				"L2GlobalExitRootManagerAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
-				},
-				"L2BridgeAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
-				},
 				"Genesis": {
 					"properties": {
-						"GenesisBlockNum": {
+						"BlockNumber": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
+							"description": "BlockNumber is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -1028,7 +1063,7 @@
 							"minItems": 32,
 							"description": "Root hash of the genesis block"
 						},
-						"GenesisActions": {
+						"Actions": {
 							"items": {
 								"properties": {
 									"address": {
@@ -1058,7 +1093,36 @@
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array",
-							"description": "Contracts to be deployed to L2"
+							"description": "Actions is the data to populate into the state trie"
+						},
+						"FirstBatchData": {
+							"properties": {
+								"transactions": {
+									"type": "string"
+								},
+								"globalExitRoot": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 32,
+									"minItems": 32
+								},
+								"timestamp": {
+									"type": "integer"
+								},
+								"sequencer": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 20,
+									"minItems": 20
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Data of the first batch after the genesis(Batch 1)"
 						}
 					},
 					"additionalProperties": false,
@@ -1476,6 +1540,11 @@
 				"MaxLogsBlockRange": {
 					"type": "integer",
 					"description": "MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs\nlogs in a single call to the state, if zero it means no limit",
+					"default": 0
+				},
+				"MaxNativeBlockHashBlockRange": {
+					"type": "integer",
+					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
 					"default": 0
 				}
 			},
