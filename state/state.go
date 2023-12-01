@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"sync"
-	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
@@ -34,7 +33,6 @@ type State struct {
 	eventLog       *event.EventLog
 	l1InfoTree     *l1infotree.L1InfoTree
 
-	lastL2BlockSeen         atomic.Pointer[L2Block]
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -215,6 +214,7 @@ type NewL2BlockEventHandler func(e NewL2BlockEvent)
 // when a new l2 block is detected with data related to this new l2 block.
 type NewL2BlockEvent struct {
 	Block L2Block
+	Logs  []*types.Log
 }
 
 // StartToMonitorNewL2Blocks starts 2 go routines that will
@@ -223,15 +223,8 @@ type NewL2BlockEvent struct {
 // filter subscription but can be used by any other component that
 // needs to react to a new L2 block added to the state.
 func (s *State) StartToMonitorNewL2Blocks() {
-	lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
-	if errors.Is(err, ErrStateNotSynchronized) {
-		lastL2Block = NewL2BlockWithHeader(NewL2Header(&types.Header{Number: big.NewInt(0)}))
-	} else if err != nil {
-		log.Fatalf("failed to load the last l2 block: %v", err)
-	}
-	s.lastL2BlockSeen.Store(lastL2Block)
-	go s.monitorNewL2Blocks()
-	go s.handleEvents()
+	go InfiniteSafeRun(s.monitorNewL2Blocks, "fail to monitor new l2 blocks: %v:", time.Second)
+	go InfiniteSafeRun(s.handleEvents, "fail to handle events: %v", time.Second)
 }
 
 // RegisterNewL2BlockEventHandler add the provided handler to the list of handlers
@@ -246,13 +239,21 @@ func (s *State) monitorNewL2Blocks() {
 		time.Sleep(newL2BlocksCheckInterval)
 	}
 
+	lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
+	if errors.Is(err, ErrStateNotSynchronized) {
+		lastL2BlockNumber = 0
+	} else if err != nil {
+		log.Fatalf("failed to load the last l2 block: %v", err)
+	}
+	lastL2BlockNumberSeen := lastL2BlockNumber
+
 	for {
 		if len(s.newL2BlockEventHandlers) == 0 {
 			waitNextCycle()
 			continue
 		}
 
-		lastL2Block, err := s.GetLastL2Block(context.Background(), nil)
+		lastL2BlockNumber, err := s.GetLastL2BlockNumber(context.Background(), nil)
 		if errors.Is(err, ErrStateNotSynchronized) {
 			waitNextCycle()
 			continue
@@ -262,16 +263,14 @@ func (s *State) monitorNewL2Blocks() {
 			continue
 		}
 
-		lastL2BlockSeen := s.lastL2BlockSeen.Load()
-
 		// not updates until now
-		if lastL2Block == nil || lastL2BlockSeen.NumberU64() >= lastL2Block.NumberU64() {
+		if lastL2BlockNumber == 0 || lastL2BlockNumberSeen >= lastL2BlockNumber {
 			waitNextCycle()
 			continue
 		}
 
-		fromBlockNumber := lastL2BlockSeen.NumberU64() + uint64(1)
-		toBlockNumber := lastL2Block.NumberU64()
+		fromBlockNumber := lastL2BlockNumberSeen + uint64(1)
+		toBlockNumber := lastL2BlockNumber
 		log.Debugf("[monitorNewL2Blocks] new l2 block detected from block %v to %v", fromBlockNumber, toBlockNumber)
 
 		for bn := fromBlockNumber; bn <= toBlockNumber; bn++ {
@@ -280,12 +279,19 @@ func (s *State) monitorNewL2Blocks() {
 				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
 				break
 			}
+			logs, err := s.GetLogsByBlockNumber(context.Background(), bn, nil)
+			if err != nil {
+				log.Errorf("failed to get l2 block while monitoring new blocks: %v", err)
+				break
+			}
+
 			log.Debugf("[monitorNewL2Blocks] sending NewL2BlockEvent for block %v", block.NumberU64())
 			start := time.Now()
 			s.newL2BlockEvents <- NewL2BlockEvent{
 				Block: *block,
+				Logs:  logs,
 			}
-			s.lastL2BlockSeen.Store(block)
+			lastL2BlockNumberSeen = block.NumberU64()
 			log.Debugf("[monitorNewL2Blocks] NewL2BlockEvent for block %v took %v to be sent", block.NumberU64(), time.Since(start))
 			log.Infof("new l2 block detected: number %v, hash %v", block.NumberU64(), block.Hash().String())
 		}
