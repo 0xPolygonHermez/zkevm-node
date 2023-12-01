@@ -18,6 +18,10 @@ import (
 const newL2BlockEventBufferSize = 500
 
 var (
+	// DefaultSenderAddress is the address that jRPC will use
+	// to communicate with the state for eth_EstimateGas and eth_Call when
+	// the From field is not specified because it is optional
+	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
 	ZeroHash = common.Hash{}
 	// ZeroAddress is the address 0x0000000000000000000000000000000000000000
