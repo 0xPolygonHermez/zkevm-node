@@ -108,7 +108,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err, true)
+			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
 		if result.Reverted() {
@@ -194,7 +196,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
+			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
