@@ -1129,7 +1129,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          5,
 		Version:         "",
-	}}}, stateDb, executorClient, stateTree, eventLog)
+	}}}, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 

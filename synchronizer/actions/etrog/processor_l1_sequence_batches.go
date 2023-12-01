@@ -1,4 +1,4 @@
-package incaberry
+package etrog
 
 import (
 	"context"
@@ -49,9 +49,9 @@ type syncProcessSequenceBatchesInterface interface {
 	CleanTrustedState()
 }
 
-// ProcessorL1SequenceBatches implements L1EventProcessor
-type ProcessorL1SequenceBatches struct {
-	actions.ProcessorBase[ProcessorL1SequenceBatches]
+// ProcessorL1SequenceBatchesEtrog implements L1EventProcessor
+type ProcessorL1SequenceBatchesEtrog struct {
+	actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]
 	state    stateProcessSequenceBatches
 	etherMan ethermanProcessSequenceBatches
 	pool     poolProcessSequenceBatchesInterface
@@ -61,11 +61,11 @@ type ProcessorL1SequenceBatches struct {
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
-	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
-	return &ProcessorL1SequenceBatches{
-		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatches]{
+	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatchesEtrog {
+	return &ProcessorL1SequenceBatchesEtrog{
+		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
-			SupportedForkdIds: &actions.ForksIdToIncaberry},
+			SupportedForkdIds: &ForksIdOnlyEtrog},
 		state:    state,
 		etherMan: etherMan,
 		pool:     pool,
@@ -75,15 +75,15 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 }
 
 // Process process event
-func (g *ProcessorL1SequenceBatches) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
 		return actions.ErrInvalidParams
 	}
-	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, dbTx)
+	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
 	return err
 }
 
-func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, timestamp time.Time, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
@@ -98,13 +98,13 @@ func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context,
 		}
 		batch := state.Batch{
 			BatchNumber:    sbatch.BatchNumber,
-			GlobalExitRoot: sbatch.PolygonZkEVMBatchData.GlobalExitRoot,
-			Timestamp:      time.Unix(int64(sbatch.PolygonZkEVMBatchData.Timestamp), 0),
+			GlobalExitRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+			Timestamp:      timestamp,
 			Coinbase:       sbatch.Coinbase,
-			BatchL2Data:    sbatch.PolygonZkEVMBatchData.Transactions,
+			BatchL2Data:    sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
 		}
 		// ForcedBatch must be processed
-		if sbatch.PolygonZkEVMBatchData.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
+		if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 { // If this is true means that the batch is forced
 			log.Debug("FORCED BATCH SEQUENCED!")
 			// Read forcedBatches from db
 			forcedBatches, err := g.state.GetNextForcedBatches(ctx, 1, dbTx)
@@ -126,11 +126,11 @@ func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context,
 				}
 				return fmt.Errorf("error: empty forcedBatches array read from db. BatchNumber: %d", sbatch.BatchNumber)
 			}
-			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.PolygonZkEVMBatchData.MinForcedTimestamp ||
-				forcedBatches[0].GlobalExitRoot != sbatch.PolygonZkEVMBatchData.GlobalExitRoot ||
-				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.PolygonZkEVMBatchData.Transactions) {
+			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp ||
+				forcedBatches[0].GlobalExitRoot != sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot ||
+				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.PolygonRollupBaseEtrogBatchData.Transactions) {
 				log.Warnf("ForcedBatch stored: %+v. RawTxsData: %s", forcedBatches, common.Bytes2Hex(forcedBatches[0].RawTxsData))
-				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(sbatch.PolygonZkEVMBatchData.Transactions))
+				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(sbatch.PolygonRollupBaseEtrogBatchData.Transactions))
 				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				rollbackErr := dbTx.Rollback(ctx)
 				if rollbackErr != nil {
@@ -301,7 +301,7 @@ func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context,
 	return nil
 }
 
-func (g *ProcessorL1SequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesEtrog) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
 	latestBatchNum, err := g.etherMan.GetLatestBatchNumber()
 	if err != nil {
 		log.Error("error getting the latestBatchNumber virtualized in the smc. Error: ", err)
@@ -338,7 +338,7 @@ func (g *ProcessorL1SequenceBatches) reorgPool(ctx context.Context, dbTx pgx.Tx)
 	return nil
 }
 
-func (g *ProcessorL1SequenceBatches) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
+func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
 	var reorgReasons strings.Builder
 	if newRoot != tBatch.StateRoot {
@@ -388,7 +388,7 @@ func (g *ProcessorL1SequenceBatches) checkTrustedState(ctx context.Context, batc
 }
 
 // halt halts the Synchronizer
-func (g *ProcessorL1SequenceBatches) halt(ctx context.Context, err error) {
+func (g *ProcessorL1SequenceBatchesEtrog) halt(ctx context.Context, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,

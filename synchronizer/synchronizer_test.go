@@ -127,7 +127,7 @@ func TestForcedBatch(t *testing.T) {
 
 			m.State.
 				On("GetForkIDByBatchNumber", mock.Anything).
-				Return(uint64(1), nil).
+				Return(uint64(7), nil).
 				Maybe()
 			m.State.
 				On("GetLastBlock", ctx, m.DbTx).
@@ -187,11 +187,11 @@ func TestForcedBatch(t *testing.T) {
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
-				PolygonRollupBaseBatchData: polygonzkevm.PolygonRollupBaseBatchData{
-					Transactions:       []byte{},
-					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					Timestamp:          uint64(t.Unix()),
-					MinForcedTimestamp: 1000, //ForcedBatch
+				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
+					Transactions:         []byte{},
+					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedTimestamp:      uint64(t.Unix()),
+					ForcedBlockHashL1:    common.HexToHash("0x444"),
 				},
 			}
 
@@ -199,12 +199,14 @@ func TestForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
-				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				GlobalExitRoot:    sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				RawTxsData:        sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
+				BlockNumber:      1,
+				ReceivedAt:       t,
 				BlockHash:        ethBlock.Hash(),
 				SequencedBatches: [][]etherman.SequencedBatch{{sequencedBatch}},
 				ForcedBatches:    forceb,
@@ -257,9 +259,9 @@ func TestForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
-				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
+				GlobalExitRoot:    sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				RawTxsData:        sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				ForcedAt:          time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			m.State.
@@ -273,9 +275,9 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			trustedBatch := &state.Batch{
-				BatchL2Data:    sequencedBatch.Transactions,
-				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
-				Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
+				BatchL2Data:    sequencedBatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				GlobalExitRoot: sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				Timestamp:      time.Unix(int64(sequencedBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 				Coinbase:       sequencedBatch.Coinbase,
 			}
 
@@ -289,7 +291,7 @@ func TestForcedBatch(t *testing.T) {
 				BatchNumber:    sequencedBatch.BatchNumber,
 				Coinbase:       common.HexToAddress("0x222"),
 				BatchL2Data:    []byte{},
-				Timestamp:      time.Unix(int64(t.Unix()), 0),
+				Timestamp:      t,
 				Transactions:   nil,
 				GlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 				ForcedBatchNum: &forced,
@@ -440,10 +442,11 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber: uint64(2),
 				Coinbase:    common.HexToAddress("0x222"),
 				TxHash:      common.HexToHash("0x333"),
-				PolygonRollupBaseForcedBatchData: polygonzkevm.PolygonRollupBaseForcedBatchData{
-					Transactions:       []byte{},
-					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
-					MinForcedTimestamp: 1000, //ForcedBatch
+				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
+					Transactions:         []byte{},
+					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
+					ForcedTimestamp:      1000, //ForcedBatch
+					ForcedBlockHashL1:    common.HexToHash("0x444"),
 				},
 			}
 
@@ -451,9 +454,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedForceBatch.Coinbase,
-				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot:    sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				RawTxsData:        sequencedForceBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			ethermanBlock := etherman.Block{
@@ -504,9 +507,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedForceBatch.Coinbase,
-				GlobalExitRoot:    sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot:    sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				RawTxsData:        sequencedForceBatch.Transactions,
-				ForcedAt:          time.Unix(int64(sequencedForceBatch.MinForcedTimestamp), 0),
+				ForcedAt:          time.Unix(int64(sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
 			}}
 
 			m.State.
@@ -534,13 +537,13 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber:    sequencedForceBatch.BatchNumber,
 				Coinbase:       sequencedForceBatch.Coinbase,
 				Timestamp:      ethBlock.ReceivedAt,
-				GlobalExitRoot: sequencedForceBatch.GlobalExitRoot,
+				GlobalExitRoot: sequencedForceBatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				ForcedBatchNum: &f,
-				BatchL2Data:    &sequencedForceBatch.Transactions,
+				BatchL2Data:    &sequencedForceBatch.PolygonRollupBaseEtrogBatchData.Transactions,
 			}
 
 			m.State.
-				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
+				On("ProcessAndStoreClosedBatch", ctx, processingContext, sequencedForceBatch.PolygonRollupBaseEtrogBatchData.Transactions, m.DbTx, metrics.SynchronizerCallerLabel).
 				Return(common.Hash{}, uint64(1), cProverIDExecution, nil).
 				Once()
 
