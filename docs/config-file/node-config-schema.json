@@ -1049,9 +1049,9 @@
 				},
 				"Genesis": {
 					"properties": {
-						"GenesisBlockNum": {
+						"BlockNumber": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
+							"description": "BlockNumber is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -1063,7 +1063,7 @@
 							"minItems": 32,
 							"description": "Root hash of the genesis block"
 						},
-						"GenesisActions": {
+						"Actions": {
 							"items": {
 								"properties": {
 									"address": {
@@ -1093,7 +1093,7 @@
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array",
-							"description": "Contracts to be deployed to L2"
+							"description": "Actions is the data to populate into the state trie"
 						},
 						"FirstBatchData": {
 							"properties": {

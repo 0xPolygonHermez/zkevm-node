@@ -47,7 +47,7 @@ type dumpedState struct {
 type genesis state.Genesis
 
 func (g genesis) MarshalJSON() ([]byte, error) {
-	for _, action := range g.GenesisActions {
+	for _, action := range g.Actions {
 		if !strings.HasPrefix(action.Value, "0x") {
 			action.Value = fmt.Sprintf("0x%s", action.Value)
 		}
@@ -66,7 +66,7 @@ func (g genesis) MarshalJSON() ([]byte, error) {
 		Actions []*state.GenesisAction
 	}{
 		Alias:   (Alias)(g),
-		Actions: g.GenesisActions,
+		Actions: g.Actions,
 	})
 }
 

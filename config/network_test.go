@@ -88,9 +88,9 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 						Timestamp:      1697640780,
 						Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
 					},
-					Root:            common.HexToHash("0xBEEF"),
-					GenesisBlockNum: 69,
-					GenesisActions: []*state.GenesisAction{
+					Root:        common.HexToHash("0xBEEF"),
+					BlockNumber: 69,
+					Actions: []*state.GenesisAction{
 						{
 							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 							Type:    int(merkletree.LeafTypeNonce),
@@ -173,7 +173,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 }`,
 			expectedConfig: NetworkConfig{
 				Genesis: state.Genesis{
-					GenesisActions: []*state.GenesisAction{
+					Actions: []*state.GenesisAction{
 						{
 							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 							Type:    int(merkletree.LeafTypeBalance),

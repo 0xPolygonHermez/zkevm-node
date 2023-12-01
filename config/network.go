@@ -121,10 +121,10 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 
 	cfg.L1Config = cfgJSON.L1Config
 	cfg.Genesis = state.Genesis{
-		GenesisBlockNum: cfgJSON.GenesisBlockNum,
-		Root:            common.HexToHash(cfgJSON.Root),
-		GenesisActions:  []*state.GenesisAction{},
-		FirstBatchData:  cfgJSON.FirstBatchData,
+		BlockNumber:    cfgJSON.GenesisBlockNum,
+		Root:           common.HexToHash(cfgJSON.Root),
+		Actions:        []*state.GenesisAction{},
+		FirstBatchData: cfgJSON.FirstBatchData,
 	}
 
 	for _, account := range cfgJSON.Genesis {
@@ -134,7 +134,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   account.Balance,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if account.Nonce != "" && account.Nonce != "0" {
 			action := &state.GenesisAction{
@@ -142,7 +142,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 				Type:    int(merkletree.LeafTypeNonce),
 				Value:   account.Nonce,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if account.Bytecode != "" {
 			action := &state.GenesisAction{
@@ -150,7 +150,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 				Type:     int(merkletree.LeafTypeCode),
 				Bytecode: account.Bytecode,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if len(account.Storage) > 0 {
 			for storageKey, storageValue := range account.Storage {
@@ -160,7 +160,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 					StoragePosition: storageKey,
 					Value:           storageValue,
 				}
-				cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 			}
 		}
 	}
