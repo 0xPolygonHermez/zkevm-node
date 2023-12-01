@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -109,14 +107,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
-	currBatch, processingReq := s.bootstrap(ctx, dbManager, finalizer)
-	go finalizer.Start(ctx, currBatch, processingReq)
+	go finalizer.Start(ctx)
 
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
-	go s.purgeOldPoolTxs(ctx)
-	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+	go s.purgeOldPoolTxs(ctx)                                                //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
+	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration) //TODO: why is this needed?
 	defer tickerProcessTxs.Stop()
 
 	// Expire too old txs in the worker
@@ -140,66 +137,11 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
-	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state)
+	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state, true)
 	if err != nil {
 		log.Fatalf("failed to generate data streamer file, err: %v", err)
 	}
 	log.Info("Data streamer file updated")
-}
-
-func (s *Sequencer) bootstrap(ctx context.Context, dbManager *dbManager, finalizer *finalizer) (*WipBatch, *state.ProcessRequest) {
-	var (
-		currBatch      *WipBatch
-		processRequest *state.ProcessRequest
-	)
-
-	batchNum, err := dbManager.GetLastBatchNumber(ctx)
-	for err != nil {
-		if errors.Is(err, state.ErrStateNotSynchronized) {
-			log.Warnf("state is not synchronized, trying to get last batch num once again...")
-			time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
-			batchNum, err = dbManager.GetLastBatchNumber(ctx)
-		} else {
-			log.Fatalf("failed to get last batch number, err: %v", err)
-		}
-	}
-	if batchNum == 0 {
-		///////////////////
-		// GENESIS Batch //
-		///////////////////
-		processingCtx := dbManager.CreateFirstBatch(ctx, s.address)
-		timestamp := processingCtx.Timestamp
-		_, oldStateRoot, err := finalizer.getLastBatchNumAndOldStateRoot(ctx)
-		if err != nil {
-			log.Fatalf("failed to get old state root, err: %v", err)
-		}
-		processRequest = &state.ProcessRequest{
-			BatchNumber:    processingCtx.BatchNumber,
-			OldStateRoot:   oldStateRoot,
-			GlobalExitRoot: processingCtx.GlobalExitRoot,
-			Coinbase:       processingCtx.Coinbase,
-			Timestamp:      timestamp,
-			Caller:         stateMetrics.SequencerCallerLabel,
-		}
-		currBatch = &WipBatch{
-			globalExitRoot:     processingCtx.GlobalExitRoot,
-			initialStateRoot:   oldStateRoot,
-			stateRoot:          oldStateRoot,
-			batchNumber:        processingCtx.BatchNumber,
-			coinbase:           processingCtx.Coinbase,
-			timestamp:          timestamp,
-			remainingResources: getMaxRemainingResources(finalizer.batchConstraints),
-		}
-	} else {
-		err := finalizer.syncWithState(ctx, &batchNum)
-		if err != nil {
-			log.Fatalf("failed to sync with state, err: %v", err)
-		}
-		currBatch = finalizer.batch
-		processRequest = &finalizer.processRequest
-	}
-
-	return currBatch, processRequest
 }
 
 func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
@@ -265,20 +207,4 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 	}
 
 	return true
-}
-
-func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
-	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			CumulativeGasUsed:    constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-		},
-		Bytes: constraints.MaxBatchBytesSize,
-	}
 }

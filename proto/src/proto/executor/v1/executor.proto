@@ -9,6 +9,7 @@ option go_package = "github.com/0xPolygonHermez/zkevm-node/state/runtime/executo
 service ExecutorService {
     /// Processes a batch
     rpc ProcessBatch(ProcessBatchRequest) returns (ProcessBatchResponse) {}
+    rpc ProcessBatchV2(ProcessBatchRequestV2) returns (ProcessBatchResponseV2) {}
     rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
 }
 
@@ -32,7 +33,10 @@ message ProcessBatchRequest {
     map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
     TraceConfig trace_config = 15;
     string context_id = 16;
-    uint32 get_keys = 17; // if 1, the keys used to read or write storage values will be returned
+    // The state override set is an optional address-to-state mapping,
+    // where each entry specifies some state to be ephemerally overridden
+    // prior to executing the call.
+    map<string, OverrideAccount> state_override = 17;
 }
 
 message ProcessBatchResponse {
@@ -54,8 +58,7 @@ message ProcessBatchResponse {
     uint64 flush_id = 16;
     uint64 stored_flush_id = 17;
     string prover_id = 18;
-    repeated bytes nodes_keys = 19;
-    repeated bytes program_keys = 20;
+    uint64 fork_id = 19;
 }
 
 /**
@@ -90,11 +93,29 @@ message TraceConfig {
     uint32 enable_memory = 3;
     // Enables return data (default=false)
     uint32 enable_return_data = 4;
-    // Hash of tx in batch to retrieve the execution trace
-    bytes tx_hash_to_generate_execute_trace = 5;
-    // Hash of tx in batch to retrieve the call trace
-    bytes tx_hash_to_generate_call_trace = 6;
+    // Hash of tx in batch to retrieve the trace
+    bytes tx_hash_to_generate_full_trace = 5;
 }
+
+// OverrideAccount indicates the overriding fields of account during the execution
+// of a message call.
+// Note, state and stateDiff can't be specified at the same time. If state is
+// set, message execution will only use the data in the given state. Otherwise
+// if statDiff is set, all diff will be applied first and then execute the call
+// message.
+message OverrideAccount {
+    // Fake balance to set for the account before executing the call.
+    bytes balance = 1;
+    // Fake nonce to set for the account before executing the call.
+    uint64 nonce = 2;
+    // Fake EVM bytecode to inject into the account before executing the call.
+    bytes code = 3;
+    // Fake key-value mapping to override all slots in the account storage before executing the call.
+    map<string, string> state = 4;
+    // Fake key-value mapping to override individual slots in the account storage before executing the call.
+    map<string, string> state_diff = 5;
+}
+
 message InfoReadWrite {
     // If nonce="" then it has not been set; if set, string is in decimal (base 10)
     string nonce = 1;
@@ -102,7 +123,7 @@ message InfoReadWrite {
     string balance = 2;
 }
 
-message CallTrace {
+message FullTrace {
     TransactionContext context = 1;
     repeated TransactionStep steps = 2;
 }
@@ -163,6 +184,8 @@ message TransactionStep {
     Contract contract = 13;
     // Error
     RomError error = 14;
+    // Content of the storage
+    map<string, string> storage = 15;
 }
 
 message Contract {
@@ -200,9 +223,7 @@ message ProcessTransactionResponse {
     bytes state_root = 10;
     // Logs emited by LOG opcode
     repeated Log logs = 11;
-    // Trace
-    repeated ExecutionTraceStep execution_trace = 13;
-    CallTrace call_trace = 14;
+    FullTrace full_trace = 14;
     // Efective Gas Price
     string effective_gas_price = 15;
     uint32 effective_percentage = 16;
@@ -231,34 +252,294 @@ message Log {
     uint32 index = 8;
 }
 
-message ExecutionTraceStep {
-    // Program Counter
-    uint64 pc = 1;
-    // OpCode
-    string op = 2;
+////////////////////////////////////////////////
+////////////  START V2 SECTION  ////////////////
+////////////////////////////////////////////////
+
+message ProcessBatchRequestV2 {
+    bytes old_state_root = 1;
+    bytes old_acc_input_hash = 2;
+    uint64 old_batch_num = 3;
+    uint64 chain_id = 4;
+    uint64 fork_id = 5;
+    bytes batch_l2_data = 6;
+    bytes l1_info_root = 7;
+    uint64 timestamp_limit = 8;
+    string coinbase = 9;
+    bytes forced_blockhash_l1 = 10;
+    // flag to indicate if the merkle tree needs to be updated
+    uint32 update_merkle_tree = 11;
+    // flag to indicate that counters should not be taken into account
+    uint32 no_counters = 12;
+    // from is used for unsigned transactions with sender
+    string from = 13;
+    // flag to skip the check when l1Data is verified
+    uint32 skip_verify_l1_info_root = 14;
+    // flag to skip the restriction to start a batch with a changeL2Block transaction
+    uint32 skip_first_change_l2_block = 15;
+    // flag to skip writing the block info root in the state
+    uint32 skip_write_block_info_root = 16;
+    // lInfoTree information
+    map<uint32, L1DataV2> l1_info_tree_data = 17;
+    // For testing purposes only
+    map<string, string> db = 18;
+    map<string, string> contracts_bytecode = 19; // For debug/testing purpposes only. Don't fill this on production
+    TraceConfigV2 trace_config = 20;
+    string context_id = 21;
+    uint32 get_keys = 22; // if 1, the keys used to read or write storage values will be returned
+    // The state override set is an optional address-to-state mapping,
+    // where each entry specifies some state to be ephemerally overridden
+    // prior to executing the call.
+    map<string, OverrideAccountV2> state_override = 23;
+}
+
+message L1DataV2 {
+    bytes global_exit_root = 1;
+    bytes block_hash_l1 = 2;
+    uint64 min_timestamp = 3;
+    repeated bytes smt_proof = 4;
+}
+
+message ProcessBatchResponseV2 {
+    bytes new_state_root = 1;
+    bytes new_acc_input_hash = 2;
+    bytes new_local_exit_root = 3;
+    uint64 new_batch_num = 4;
+    uint32 cnt_keccak_hashes = 5;
+    uint32 cnt_poseidon_hashes = 6;
+    uint32 cnt_poseidon_paddings = 7;
+    uint32 cnt_mem_aligns = 8;
+    uint32 cnt_arithmetics = 9;
+    uint32 cnt_binaries = 10;
+    uint32 cnt_steps = 11;
+    uint32 cnt_sha256_hashes = 12;
+    repeated ProcessBlockResponseV2 block_responses = 13;
+    ExecutorError error = 14;
+    map<string, InfoReadWriteV2> read_write_addresses = 15;
+    uint64 flush_id = 16;
+    uint64 stored_flush_id = 17;
+    string prover_id = 18;
+    uint64 gas_used = 19;
+    repeated bytes smt_keys = 20;
+    repeated bytes program_keys = 21;
+    uint64 fork_id = 22;
+}
+
+// Trace configuration request params
+message TraceConfigV2 {
+    // Disables storage (default=false)
+    uint32 disable_storage = 1;
+    // Disables stack (default=false)
+    uint32 disable_stack = 2;
+    // Enables memory (default=false)
+    uint32 enable_memory = 3;
+    // Enables return data (default=false)
+    uint32 enable_return_data = 4;
+    // Hash of tx in batch to retrieve the trace
+    bytes tx_hash_to_generate_full_trace = 5;
+}
+
+// OverrideAccount indicates the overriding fields of account during the execution
+// of a message call.
+// Note, state and stateDiff can't be specified at the same time. If state is
+// set, message execution will only use the data in the given state. Otherwise
+// if statDiff is set, all diff will be applied first and then execute the call
+// message.
+message OverrideAccountV2 {
+    // Fake balance to set for the account before executing the call.
+    bytes balance = 1;
+    // Fake nonce to set for the account before executing the call.
+    uint64 nonce = 2;
+    // Fake EVM bytecode to inject into the account before executing the call.
+    bytes code = 3;
+    // Fake key-value mapping to override all slots in the account storage before executing the call.
+    map<string, string> state = 4;
+    // Fake key-value mapping to override individual slots in the account storage before executing the call.
+    map<string, string> state_diff = 5;
+}
+
+message InfoReadWriteV2 {
+    // If nonce="" then it has not been set; if set, string is in decimal (base 10)
+    string nonce = 1;
+    // If balance="" then it has not been set; if set, string is in decimal (base 10)
+    string balance = 2;
+}
+
+message FullTraceV2 {
+    TransactionContextV2 context = 1;
+    repeated TransactionStepV2 steps = 2;
+}
+
+message TransactionContextV2 {
+    // CALL or CREATE
+    string type = 1;
+    // Sender of the transaction
+    string from = 2;
+    // Target of the transaction
+    string to = 3;
+    // Input data of the transaction
+    bytes data = 4;
+    // Gas of the transaction
+    uint64 gas = 5;
+    // Value of the transaction
+    string value = 6;
+    // Hash of the block in which the transaction was included
+    bytes block_hash = 7;
+    // Returned data from the runtime (function result or data supplied with revert opcode)
+    bytes output = 8;
+    // Total gas used as result of execution
+    uint64 gas_used = 9;
+    // Gas Price
+    string gas_price = 10;
+    // Execution Time
+    uint32 execution_time = 11;
+    // Starting state root
+    bytes old_state_root = 12;
+    // The number of transactions made by the sender prior to this one
+    uint64 nonce = 13;
+    // The integer of the transaction's index position in the block
+    uint64 tx_index = 14;
+    // The chain id of the transaction, if any
+    uint64 chain_id = 15;
+}
+
+message TransactionStepV2 {
+    bytes state_root = 1;
+    // Call depth
+    uint32 depth = 2;
+    // Program counter
+    uint64 pc = 3;
     // Remaining gas
-    uint64 remaining_gas = 3;
+    uint64 gas = 4;
     // Gas cost of the operation
-    uint64 gas_cost = 4;
-    // Content of memory, starting at memory_offset, showing only changes vs. previous step
-    bytes memory = 5;
-    // Total size of memory
-    uint32 memory_size = 6;
-    // Offset of memory changes
-    uint32 memory_offset = 7;
+    uint64 gas_cost = 5;
+    // Gas refunded during the operation
+    uint64 gas_refund = 6;
+    // Opcode
+    uint32 op = 7;
     // Content of the stack
     repeated string stack = 8;
-    // Returned data
-    bytes return_data = 9;
-    // Content of the storage
-    map<string, string> storage = 10;
-    // Call depth
-    uint32 depth = 11;
-    // Gas refund
-    uint64 gas_refund = 12;
+     // Content of memory, starting at memory_offset, showing only changes vs. previous step
+    bytes memory = 9;
+    // Total size of memory
+    uint32 memory_size = 10;
+    // Offset of memory changes
+    uint32 memory_offset = 11;
+    // Return Data
+    bytes return_data = 12;
+    // Contract information
+    ContractV2 contract = 13;
     // Error
-    RomError error = 13;
+    RomError error = 14;
+    // Content of the storage
+    map<string, string> storage = 15;
 }
+
+message ContractV2 {
+    string address = 1;
+    string caller = 2;
+    string value = 3;
+    bytes data = 4;
+    uint64 gas = 5;
+    // Define type of internal call: CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL
+    string type = 6;
+}
+
+message ProcessBlockResponseV2 {
+    // The hash of the parent block. Must match the old_state_root
+    bytes parent_hash = 1;
+    // l2 coinbase
+    string coinbase = 2;
+    // The maximum gas allowed in this block
+    uint64 gas_limit = 3;
+    // block number
+    uint64 block_number = 4;
+    // timestamp used in the block
+    uint64 timestamp = 5;
+    // global exit root l1InfoTree
+    bytes ger = 6;
+    // block hash L1
+    bytes block_hash_l1 = 7;
+    // The total used gas by all transactions in this block
+    uint64 gas_used = 8;
+    // The root of the block info tree
+    bytes block_info_root = 9;
+    // block hash (should match the new state root)
+    bytes block_hash = 10;
+    // transaction responses
+    repeated ProcessTransactionResponseV2 responses = 11;
+    // All Logs emited by LOG opcode during the block
+    repeated LogV2 logs = 12;
+}
+
+message ProcessTransactionResponseV2 {
+    // Hash of the transaction
+    bytes tx_hash = 1;
+    // Hash of the transaction computed by the ROM
+    bytes tx_hash_l2 = 2;
+    // RLP encoded transaction
+    // [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+    bytes rlp_tx = 3;
+    // The hash of the block where this transaction was included
+    bytes block_hash = 4;
+    // The block number where this transaction was included
+    uint64 block_number = 5;
+    // Type indicates legacy transaction
+    // It will be always 0 (legacy) in the executor
+    uint32 type = 6;
+    // Returned data from the runtime (function result or data supplied with revert opcode)
+    bytes return_value = 7;
+    // Total gas left as result of execution
+    uint64 gas_left = 8;
+    // Total gas used as result of execution or gas estimation
+    uint64 gas_used = 9;
+    // Cumulative gas used by this tranaction in the block
+    uint64 cumulative_gas_used = 10;
+    // Total gas refunded as result of execution
+    uint64 gas_refunded = 11;
+    // Any error encountered during the execution
+    RomError error = 12;
+    // New SC Address in case of SC creation
+    string create_address = 13;
+    // State Root
+    bytes state_root = 14;
+    // All Logs emited by LOG opcode during this transaction
+    repeated LogV2 logs = 15;
+    // Trace
+    FullTraceV2 full_trace = 16;
+    // Efective Gas Price
+    string effective_gas_price = 17;
+    uint32 effective_percentage = 18;
+    // Flag to indicate if opcode 'GASPRICE' has been called
+    uint32 has_gasprice_opcode = 19;
+    // Flag to indicate if opcode 'BALANCE' has been called
+    uint32 has_balance_opcode = 20;
+}
+
+message LogV2 {
+    // Address of the contract that generated the event
+    string address = 1;
+    // List of topics provided by the contract
+    repeated bytes topics = 2;
+    // Supplied by the contract, usually ABI-encoded
+    bytes data = 3;
+    // Batch in which the transaction was included
+    uint64 block_number = 4;
+    // Hash of the transaction
+    bytes tx_hash = 5;
+    // Hash of the transaction L2 computed by the rom
+    bytes tx_hash_l2 = 6;
+    // Index of the transaction in the block
+    uint32 tx_index = 7;
+    // Hash of the block in which the transaction was included
+    bytes block_hash = 8;
+    // Index of the log in the block
+    uint32 index = 9;
+}
+
+////////////////////////////////////////////////
+//////////  START COMMON SECTION  //////////////
+////////////////////////////////////////////////
 
 enum RomError {
     ROM_ERROR_UNSPECIFIED = 0;
@@ -290,36 +571,45 @@ enum RomError {
     ROM_ERROR_OUT_OF_COUNTERS_PADDING = 13;
     // ROM_ERROR_OUT_OF_COUNTERS_POSEIDON indicates there is not enough poseidon counters to continue the execution
     ROM_ERROR_OUT_OF_COUNTERS_POSEIDON = 14;
+    // ROM_ERROR_OUT_OF_COUNTERS_SHA indicates there is not enough sha counters to continue the execution
+    ROM_ERROR_OUT_OF_COUNTERS_SHA = 15;
     // ROM_ERROR_INVALID_JUMP indicates there is an invalid jump opcode
-    ROM_ERROR_INVALID_JUMP = 15;
+    ROM_ERROR_INVALID_JUMP = 16;
     // ROM_ERROR_INVALID_OPCODE indicates there is an invalid opcode
-    ROM_ERROR_INVALID_OPCODE = 16;
+    ROM_ERROR_INVALID_OPCODE = 17;
     // ROM_ERROR_INVALID_STATIC indicates there is an invalid static call
-    ROM_ERROR_INVALID_STATIC = 17;
+    ROM_ERROR_INVALID_STATIC = 18;
     // ROM_ERROR_INVALID_BYTECODE_STARTS_EF indicates there is a bytecode starting with 0xEF
-    ROM_ERROR_INVALID_BYTECODE_STARTS_EF = 18;
+    ROM_ERROR_INVALID_BYTECODE_STARTS_EF = 19;
     // ROM_ERROR_INTRINSIC_INVALID_SIGNATURE indicates the transaction is failing at the signature intrinsic check
-    ROM_ERROR_INTRINSIC_INVALID_SIGNATURE = 19;
+    ROM_ERROR_INTRINSIC_INVALID_SIGNATURE = 20;
     // ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID indicates the transaction is failing at the chain id intrinsic check
-    ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID = 20;
+    ROM_ERROR_INTRINSIC_INVALID_CHAIN_ID = 21;
     // ROM_ERROR_INTRINSIC_INVALID_NONCE indicates the transaction is failing at the nonce intrinsic check
-    ROM_ERROR_INTRINSIC_INVALID_NONCE = 21;
+    ROM_ERROR_INTRINSIC_INVALID_NONCE = 22;
     // ROM_ERROR_INTRINSIC_INVALID_GAS indicates the transaction is failing at the gas limit intrinsic check
-    ROM_ERROR_INTRINSIC_INVALID_GAS_LIMIT = 22;
+    ROM_ERROR_INTRINSIC_INVALID_GAS_LIMIT = 23;
     // ROM_ERROR_INTRINSIC_INVALID_BALANCE indicates the transaction is failing at balance intrinsic check
-    ROM_ERROR_INTRINSIC_INVALID_BALANCE = 23;
+    ROM_ERROR_INTRINSIC_INVALID_BALANCE = 24;
     // ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT indicates the batch is exceeding the batch gas limit
-    ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 24;
+    ROM_ERROR_INTRINSIC_INVALID_BATCH_GAS_LIMIT = 25;
     // ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE indicates the transaction sender is invalid
-    ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE = 25;
+    ROM_ERROR_INTRINSIC_INVALID_SENDER_CODE = 26;
     // ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW indicates the transaction gasLimit*gasPrice > MAX_UINT_256 - 1
-    ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW = 26;
+    ROM_ERROR_INTRINSIC_TX_GAS_OVERFLOW = 27;
     // ROM_ERROR_BATCH_DATA_TOO_BIG indicates the batch_l2_data is too big to be processed
-    ROM_ERROR_BATCH_DATA_TOO_BIG = 27;
+    ROM_ERROR_BATCH_DATA_TOO_BIG = 28;
     // ROM_ERROR_UNSUPPORTED_FORK_ID indicates that the fork id is not supported
-    ROM_ERROR_UNSUPPORTED_FORK_ID = 28;
+    ROM_ERROR_UNSUPPORTED_FORK_ID = 29;
     // ROM_ERROR_INVALID_RLP indicates that there has been an error while parsing the RLP
-    ROM_ERROR_INVALID_RLP = 29;
+    ROM_ERROR_INVALID_RLP = 30;
+    // START V2 ROM ERRORS
+    // ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK indicates that there has been an error while parsing decoding a change l2 block transaction
+    ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK = 31;
+    // ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK indicates that the first transaction in a batch is not a change l2 block transaction
+    ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK = 32;
+    // ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK indicates that the change l2 block transaction has trigger an error during while executing
+    ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK = 33;
 }
 
 enum ExecutorError {
@@ -484,4 +774,51 @@ enum ExecutorError {
     EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE = 79;
     // EXECUTOR_ERROR_INVALID_GET_KEY indicates that the input parameter get key is invalid, e.g. is true but fork_id<5
     EXECUTOR_ERROR_INVALID_GET_KEY = 80;
+    // START V2 EXECUTOR ERRORS
+    // EXECUTOR_ERROR_COUNTERS_OVERFLOW_SHA256 indicates that the SHA-256 counter exceeded the maximum
+    EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256 = 81;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS indicates that a register value is out of range while calculating a SHA-256 hash
+    EXECUTOR_ERROR_SM_MAIN_HASHS = 82;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE indicates that a size register value is out of range while calculating a SHA-256 hash
+    EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE = 83;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE indicates that a position register value is negative while calculating a SHA-256 hash
+    EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE = 84;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE indicates that a position register value plus a size register value is out of range while calculating a SHA-256 hash
+    EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE = 85;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND indicates that an address has not been found while calculating a SHA-256 hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND = 86;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED indicates that the hash has not been completed while calling a SHA-256 hash digest
+    EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED = 87;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH indicates that the SHA-256 hash instruction value check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH = 88;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH indicates that the SHA-256 hash instruction padding check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH = 89;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH indicates that the SHA-256 hash instruction size check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH = 90;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH indicates that the SHA-256 hash length instruction length check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH = 91;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE indicates that the SHA-256 hash length instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE = 92;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND indicates that the SHA-256 hash digest instruction slot not found
+    EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND = 93;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH indicates that the SHA-256 hash digest instruction digest check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH = 94;
+    // EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE indicates that the SHA-256 hash digest instruction called once check failed
+    EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE = 95;
+    // EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE indicates that the main execution SHA-256 check found read out of range
+    EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE = 96;
+    // EXECUTOR_ERROR_INVALID_L1_INFO_ROOT indicates that the input parameter L1 info root value is invalid
+    EXECUTOR_ERROR_INVALID_L1_INFO_ROOT = 97;
+    // EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1 indicates that the input parameter forced blockhash L1 value is invalid
+    EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1 = 98;
+    // EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT indicates that the input parameter L1 data V2 global exit root value is invalid
+    EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT = 99;
+    // EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1 indicates that the input parameter L1 data V2 block hash L1 value is invalid
+    EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1 = 100;
+    // EXECUTOR_ERROR_INVALID_L1_SMT_PROOF indicates that the input parameter L1 data V2 SMT proof value is invalid
+    EXECUTOR_ERROR_INVALID_L1_SMT_PROOF = 101;
+    // EXECUTOR_ERROR_INVALID_BALANCE indicates that the input parameter balance value is invalid
+    EXECUTOR_ERROR_INVALID_BALANCE = 102;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH indicates that the binary instruction less than four opcode failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH = 103;
 }

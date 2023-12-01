@@ -118,7 +118,7 @@ func h4ToFilledByteSlice(h4 []uint64) []byte {
 func string2fea(s string) ([]uint64, error) {
 	bi, ok := new(big.Int).SetString(s, hex.Base)
 	if !ok {
-		return nil, fmt.Errorf("Could not convert %q into big int", s)
+		return nil, fmt.Errorf("could not convert %q into big int", s)
 	}
 	return scalar2fea(bi), nil
 }

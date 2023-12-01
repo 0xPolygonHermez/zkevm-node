@@ -2,7 +2,6 @@ package state_test
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -10,10 +9,13 @@ import (
 	"path"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/tools/genesis/genesisparser"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,16 +89,22 @@ func genesisCase(t *testing.T, tv genesisTestVectorReader) {
 	require.NoError(t, err)
 	actions := genesisparser.GenesisTest2Actions(tv.GenesisAccountTest())
 	genesis := state.Genesis{
-		GenesisActions: actions,
+		Actions: actions,
+		FirstBatchData: &state.BatchData{
+			Transactions:   "0xf8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4d3476afe000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005ca1ab1e0000000000000000000000000000000000000000000000000000000005ca1ab1e1bff",
+			GlobalExitRoot: common.Hash{},
+			Timestamp:      uint64(time.Now().Unix()),
+			Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
+		},
 	}
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	root, err := testState.SetGenesis(ctx, state.Block{}, genesis, dbTx)
+	genesisRoot, err := testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	err = dbTx.Commit(ctx)
 	require.NoError(t, err)
 	expectedRoot, _ := big.NewInt(0).SetString(tv.Root, 10)
-	actualRoot, _ := big.NewInt(0).SetString(hex.EncodeToString(root), 16)
+	actualRoot, _ := big.NewInt(0).SetString(genesisRoot.String()[2:], 16)
 	assert.Equal(t, expectedRoot, actualRoot)
 }

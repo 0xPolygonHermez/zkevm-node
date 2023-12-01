@@ -302,11 +302,21 @@
 							"type": "integer",
 							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
+						},
+						"L2GasPriceSuggesterFactor": {
+							"type": "number",
+							"description": "L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the\ncalculations when the effective gas price is disabled (testing/metrics purposes)",
+							"default": 0.5
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
+				},
+				"ForkID": {
+					"type": "integer",
+					"description": "ForkID is the current fork ID of the chain",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -1003,16 +1013,25 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 contract"
+							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"maticTokenAddress": {
+						"polygonRollupManagerAddress": {
 							"items": {
 								"type": "integer"
 							},
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 Matic token Contract"
+							"description": "RollupManagerAddr Address of the L1 contract"
+						},
+						"polTokenAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "PolAddr Address of the L1 Pol token Contract"
 						},
 						"polygonZkEVMGlobalExitRootAddress": {
 							"items": {
@@ -1021,36 +1040,18 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 GlobalExitRootManager contract"
+							"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1: Configuration related to L1"
 				},
-				"L2GlobalExitRootManagerAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
-				},
-				"L2BridgeAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
-				},
 				"Genesis": {
 					"properties": {
-						"GenesisBlockNum": {
+						"BlockNumber": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
+							"description": "BlockNumber is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -1062,7 +1063,7 @@
 							"minItems": 32,
 							"description": "Root hash of the genesis block"
 						},
-						"GenesisActions": {
+						"Actions": {
 							"items": {
 								"properties": {
 									"address": {
@@ -1092,7 +1093,36 @@
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array",
-							"description": "Contracts to be deployed to L2"
+							"description": "Actions is the data to populate into the state trie"
+						},
+						"FirstBatchData": {
+							"properties": {
+								"transactions": {
+									"type": "string"
+								},
+								"globalExitRoot": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 32,
+									"minItems": 32
+								},
+								"timestamp": {
+									"type": "integer"
+								},
+								"sequencer": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 20,
+									"minItems": 20
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Data of the first batch after the genesis(Batch 1)"
 						}
 					},
 					"additionalProperties": false,

@@ -117,7 +117,7 @@ func TestWorkerAddTx(t *testing.T) {
 		{
 			name: "Adding from:0x01, tx:0x01/gp:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1, gasPrice: new(big.Int).SetInt64(10),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			counters:  state.ZKCounters{GasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
 			expectedTxSortedList: []common.Hash{
 				{1},
@@ -126,7 +126,7 @@ func TestWorkerAddTx(t *testing.T) {
 		{
 			name: "Adding from:0x02, tx:0x02/gp:4", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(4),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			counters:  state.ZKCounters{GasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
 			expectedTxSortedList: []common.Hash{
 				{1}, {2},
@@ -135,7 +135,7 @@ func TestWorkerAddTx(t *testing.T) {
 		{
 			name: "Readding from:0x02, tx:0x02/gp:20", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(20),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
+			counters:  state.ZKCounters{GasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
 			usedBytes: 5,
 			expectedTxSortedList: []common.Hash{
 				{2}, {1},
@@ -144,7 +144,7 @@ func TestWorkerAddTx(t *testing.T) {
 		{
 			name: "Readding from:0x03, tx:0x03/gp:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1, gasPrice: new(big.Int).SetInt64(25),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
+			counters:  state.ZKCounters{GasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
 			expectedTxSortedList: []common.Hash{
 				{3}, {2}, {1},
@@ -152,7 +152,7 @@ func TestWorkerAddTx(t *testing.T) {
 		},
 		{
 			name: "Invalid IP address", from: common.Address{5}, txHash: common.Hash{5}, nonce: 1,
-			counters:    state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			counters:    state.ZKCounters{GasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes:   1,
 			ip:          "invalid IP",
 			expectedErr: pool.ErrInvalidIP,
@@ -163,7 +163,7 @@ func TestWorkerAddTx(t *testing.T) {
 			cost: new(big.Int).SetInt64(5),
 			// Here, we intentionally set the counters such that they violate the constraints
 			counters: state.ZKCounters{
-				CumulativeGasUsed:    worker.batchConstraints.MaxCumulativeGasUsed + 1,
+				GasUsed:              worker.batchConstraints.MaxCumulativeGasUsed + 1,
 				UsedKeccakHashes:     worker.batchConstraints.MaxKeccakHashes + 1,
 				UsedPoseidonHashes:   worker.batchConstraints.MaxPoseidonHashes + 1,
 				UsedPoseidonPaddings: worker.batchConstraints.MaxPoseidonPaddings + 1,
@@ -178,7 +178,7 @@ func TestWorkerAddTx(t *testing.T) {
 		{
 			name: "Adding from:0x04, tx:0x04/gp:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1, gasPrice: new(big.Int).SetInt64(100),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			counters:  state.ZKCounters{GasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
 			expectedTxSortedList: []common.Hash{
 				{4}, {3}, {2}, {1},
@@ -193,7 +193,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 	var nilErr error
 
 	rc := state.BatchResources{
-		ZKCounters: state.ZKCounters{CumulativeGasUsed: 10, UsedKeccakHashes: 10, UsedPoseidonHashes: 10, UsedPoseidonPaddings: 10, UsedMemAligns: 10, UsedArithmetics: 10, UsedBinaries: 10, UsedSteps: 10},
+		ZKCounters: state.ZKCounters{GasUsed: 10, UsedKeccakHashes: 10, UsedPoseidonHashes: 10, UsedPoseidonPaddings: 10, UsedMemAligns: 10, UsedArithmetics: 10, UsedBinaries: 10, UsedSteps: 10},
 		Bytes:      10,
 	}
 
@@ -220,7 +220,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		{
 			name: "Adding from:0x01, tx:0x01/gp:10", from: common.Address{1}, txHash: common.Hash{1}, nonce: 1, gasPrice: new(big.Int).SetInt64(10),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
+			counters:  state.ZKCounters{GasUsed: 1, UsedKeccakHashes: 1, UsedPoseidonHashes: 1, UsedPoseidonPaddings: 1, UsedMemAligns: 1, UsedArithmetics: 1, UsedBinaries: 1, UsedSteps: 1},
 			usedBytes: 1,
 			expectedTxSortedList: []common.Hash{
 				{1},
@@ -229,7 +229,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		{
 			name: "Adding from:0x02, tx:0x02/gp:12", from: common.Address{2}, txHash: common.Hash{2}, nonce: 1, gasPrice: new(big.Int).SetInt64(12),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
+			counters:  state.ZKCounters{GasUsed: 5, UsedKeccakHashes: 5, UsedPoseidonHashes: 5, UsedPoseidonPaddings: 5, UsedMemAligns: 5, UsedArithmetics: 5, UsedBinaries: 5, UsedSteps: 5},
 			usedBytes: 5,
 			expectedTxSortedList: []common.Hash{
 				{2}, {1},
@@ -238,7 +238,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		{
 			name: "Readding from:0x03, tx:0x03/gp:25", from: common.Address{3}, txHash: common.Hash{3}, nonce: 1, gasPrice: new(big.Int).SetInt64(25),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
+			counters:  state.ZKCounters{GasUsed: 2, UsedKeccakHashes: 2, UsedPoseidonHashes: 2, UsedPoseidonPaddings: 2, UsedMemAligns: 2, UsedArithmetics: 2, UsedBinaries: 2, UsedSteps: 2},
 			usedBytes: 2,
 			expectedTxSortedList: []common.Hash{
 				{3}, {2}, {1},
@@ -247,7 +247,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 		{
 			name: "Adding from:0x04, tx:0x04/gp:100", from: common.Address{4}, txHash: common.Hash{4}, nonce: 1, gasPrice: new(big.Int).SetInt64(100),
 			cost:      new(big.Int).SetInt64(5),
-			counters:  state.ZKCounters{CumulativeGasUsed: 4, UsedKeccakHashes: 4, UsedPoseidonHashes: 4, UsedPoseidonPaddings: 4, UsedMemAligns: 4, UsedArithmetics: 4, UsedBinaries: 4, UsedSteps: 4},
+			counters:  state.ZKCounters{GasUsed: 4, UsedKeccakHashes: 4, UsedPoseidonHashes: 4, UsedPoseidonPaddings: 4, UsedMemAligns: 4, UsedArithmetics: 4, UsedBinaries: 4, UsedSteps: 4},
 			usedBytes: 4,
 			expectedTxSortedList: []common.Hash{
 				{4}, {3}, {2}, {1},

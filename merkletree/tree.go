@@ -173,7 +173,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 // SetCode sets smart contract code.
 func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code []byte, root []byte, uuid string) (newRoot []byte, proof *UpdateProof, err error) {
 	// calculating smart contract code hash
-	scCodeHash4, err := hashContractBytecode(code)
+	scCodeHash4, err := HashContractBytecode(code)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -282,8 +282,11 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64, uu
 		OldRoot:     &hashdb.Fea{Fe0: oldRoot[0], Fe1: oldRoot[1], Fe2: oldRoot[2], Fe3: oldRoot[3]},
 		Key:         &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Value:       feaValue,
+		Details:     false,
 		Persistence: hashdb.Persistence_PERSISTENCE_DATABASE,
 		BatchUuid:   uuid,
+		TxIndex:     0,
+		BlockIndex:  0,
 	})
 	if err != nil {
 		return nil, err
@@ -307,9 +310,11 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64, uu
 
 func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool) error {
 	_, err := tree.grpcClient.SetProgram(ctx, &hashdb.SetProgramRequest{
-		Key:        &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
-		Data:       data,
-		Persistent: persistent,
+		Key:         &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
+		Data:        data,
+		Persistence: hashdb.Persistence_PERSISTENCE_DATABASE,
+		TxIndex:     0,
+		BlockIndex:  0,
 	})
 	return err
 }

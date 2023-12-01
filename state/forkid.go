@@ -3,20 +3,21 @@ package state
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
 )
 
 const (
-	// BLUEBERRY_FORKID is the fork id 4
-	BLUEBERRY_FORKID = 4
-	// DRAGONFRUIT_FORKID is the fork id 5
-	DRAGONFRUIT_FORKID = 5
-	// INCABERRY_FORKID is the fork id 6
-	INCABERRY_FORKID = 6
-	// ETROG_FORKID is the fork id 7
-	ETROG_FORKID = 7
+	// FORKID_BLUEBERRY is the fork id 4
+	FORKID_BLUEBERRY = 4
+	// FORKID_DRAGONFRUIT is the fork id 5
+	FORKID_DRAGONFRUIT = 5
+	// FORKID_INCABERRY is the fork id 6
+	FORKID_INCABERRY = 6
+	// FORKID_ETROG is the fork id 7
+	FORKID_ETROG = 7
 )
 
 // ForkIDInterval is a fork id interval
@@ -88,4 +89,29 @@ func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 
 	// If not found return the last fork id
 	return s.cfg.ForkIDIntervals[len(s.cfg.ForkIDIntervals)-1].ForkId
+}
+
+// GetForkIDByBlockNumber returns the fork id for a given block number
+func (s *State) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
+	for _, index := range sortIndexForForkdIDSortedByBlockNumber(s.cfg.ForkIDIntervals) {
+		// reverse travesal
+		interval := s.cfg.ForkIDIntervals[len(s.cfg.ForkIDIntervals)-1-index]
+		if blockNumber > interval.BlockNumber {
+			return interval.ForkId
+		}
+	}
+	// If not found return the  fork id 1
+	return 1
+}
+
+func sortIndexForForkdIDSortedByBlockNumber(forkIDs []ForkIDInterval) []int {
+	sortedIndex := make([]int, len(forkIDs))
+	for i := range sortedIndex {
+		sortedIndex[i] = i
+	}
+	cmpFunc := func(i, j int) bool {
+		return forkIDs[sortedIndex[i]].BlockNumber < forkIDs[sortedIndex[j]].BlockNumber
+	}
+	sort.Slice(sortedIndex, cmpFunc)
+	return sortedIndex
 }

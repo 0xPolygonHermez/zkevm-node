@@ -19,15 +19,17 @@ const (
 	// MaxEffectivePercentage is the maximum value that can be used as effective percentage
 	MaxEffectivePercentage = uint8(255)
 	// Decoding constants
-	headerByteLength               uint64 = 1
-	sLength                        uint64 = 32
-	rLength                        uint64 = 32
-	vLength                        uint64 = 1
-	c0                             uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
-	ff                             uint64 = 255 // max value of rlp header
-	shortRlp                       uint64 = 55  // length of the short rlp codification
-	f7                             uint64 = 247 // 192 + 55 = c0 + shortRlp
-	efficiencyPercentageByteLength uint64 = 1
+	headerByteLength uint64 = 1
+	sLength          uint64 = 32
+	rLength          uint64 = 32
+	vLength          uint64 = 1
+	c0               uint64 = 192 // 192 is c0. This value is defined by the rlp protocol
+	ff               uint64 = 255 // max value of rlp header
+	shortRlp         uint64 = 55  // length of the short rlp codification
+	f7               uint64 = 247 // 192 + 55 = c0 + shortRlp
+
+	// EfficiencyPercentageByteLength is the length of the effective percentage in bytes
+	EfficiencyPercentageByteLength uint64 = 1
 )
 
 // EncodeTransactions RLP encodes the given transactions
@@ -41,7 +43,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 		}
 		batchL2Data = append(batchL2Data, txData...)
 
-		if forkID >= DRAGONFRUIT_FORKID {
+		if forkID >= FORKID_DRAGONFRUIT {
 			effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
 			if err != nil {
 				return nil, err
@@ -151,7 +153,7 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 	effectivePercentageAsHex := fmt.Sprintf("%x", MaxEffectivePercentage)
 	// Only add EffectiveGasprice if forkID is equal or higher than DRAGONFRUIT_FORKID
-	if forkID < DRAGONFRUIT_FORKID {
+	if forkID < FORKID_DRAGONFRUIT {
 		effectivePercentageAsHex = ""
 	}
 	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
@@ -204,8 +206,8 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 
 		endPos := pos + length + rLength + sLength + vLength + headerByteLength
 
-		if forkID >= DRAGONFRUIT_FORKID {
-			endPos += efficiencyPercentageByteLength
+		if forkID >= FORKID_DRAGONFRUIT {
+			endPos += EfficiencyPercentageByteLength
 		}
 
 		if endPos > txDataLength {
@@ -233,7 +235,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 		sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
 		vData := txsData[dataStart+rLength+sLength : dataStart+rLength+sLength+vLength]
 
-		if forkID >= DRAGONFRUIT_FORKID {
+		if forkID >= FORKID_DRAGONFRUIT {
 			efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
 			efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
 		}
