@@ -743,7 +743,7 @@ func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
-func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
 }
 

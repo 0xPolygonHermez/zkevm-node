@@ -1115,7 +1115,14 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	ctx := context.Background()
-	stateDb := pgstatestorage.NewPostgresStorage(state.Config{}, sqlDB)
+	stCfg := state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
+		FromBatchNumber: 0,
+		ToBatchNumber:   math.MaxUint64,
+		ForkId:          5,
+		Version:         "",
+	}}}
+
+	stateDb := pgstatestorage.NewPostgresStorage(stCfg, sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
@@ -1124,12 +1131,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
-		FromBatchNumber: 0,
-		ToBatchNumber:   math.MaxUint64,
-		ForkId:          5,
-		Version:         "",
-	}}}, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 

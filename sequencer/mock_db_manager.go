@@ -430,20 +430,20 @@ func (_m *DbManagerMock) GetLastClosedBatch(ctx context.Context) (*state.Batch, 
 	return r0, r1
 }
 
-// GetLastL2Block provides a mock function with given fields: ctx, dbTx
-func (_m *DbManagerMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+// GetLastL2BlockHeader provides a mock function with given fields: ctx, dbTx
+func (_m *DbManagerMock) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	var r0 *types.Block
+	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*types.Block, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Header, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *types.Block); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Header); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*types.Block)
+			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 

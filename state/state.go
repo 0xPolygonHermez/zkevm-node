@@ -4,14 +4,13 @@ import (
 	"context"
 	"math/big"
 	"sync"
-	"sync/atomic"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -32,14 +31,14 @@ type State struct {
 	executorClient executor.ExecutorServiceClient
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
+	l1InfoTree     *l1infotree.L1InfoTree
 
-	lastL2BlockSeen         atomic.Pointer[types.Block]
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
+func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog, mt *l1infotree.L1InfoTree) *State {
 	var once sync.Once
 	once.Do(func() {
 		metrics.Register()
@@ -53,6 +52,7 @@ func NewState(cfg Config, storage storage, executorClient executor.ExecutorServi
 		eventLog:                eventLog,
 		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
+		l1InfoTree:              mt,
 	}
 
 	return state

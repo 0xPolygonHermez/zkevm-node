@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -40,22 +41,24 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 	require.NoError(t, err)
 	defer stateDb.Close()
 
-	testState := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), nil, nil, nil)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	testState := state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, stateDb), nil, nil, nil, mt)
 
 	sut := NewProcessorL1InfoTreeUpdate(testState)
-	l1infotree := etherman.L1InfoTree{
-		GlobalExitRoot: etherman.GlobalExitRoot{
-			BlockNumber:     123,
-			MainnetExitRoot: common.HexToHash("abc"),
-			RollupExitRoot:  common.HexToHash("abc"),
-			GlobalExitRoot:  common.HexToHash("abc"),
-		},
+	l1infotree := etherman.GlobalExitRoot{
+		BlockNumber:       123,
+		MainnetExitRoot:   common.HexToHash("abc"),
+		RollupExitRoot:    common.HexToHash("abc"),
+		GlobalExitRoot:    common.HexToHash("abc"),
 		PreviousBlockHash: common.HexToHash("abc"),
-		MinTimestamp:      time.Now(),
+		Timestamp:         time.Now(),
 	}
 	l1Block := &etherman.Block{
 		BlockNumber: 123,
-		L1InfoTree:  []etherman.L1InfoTree{l1infotree},
+		L1InfoTree:  []etherman.GlobalExitRoot{l1infotree},
 	}
 
 	stateBlock := state.Block{

@@ -1,14 +1,15 @@
-package state
+package pgstatestorage
 
 import (
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSortIndexForForkdIDSortedByBlockNumber(t *testing.T) {
-	forkIDs := []ForkIDInterval{
+	forkIDs := []state.ForkIDInterval{
 		{BlockNumber: 10, ForkId: 1},
 		{BlockNumber: 5, ForkId: 2},
 		{BlockNumber: 15, ForkId: 3},
@@ -21,7 +22,7 @@ func TestSortIndexForForkdIDSortedByBlockNumber(t *testing.T) {
 	assert.Equal(t, expected, actual)
 
 	// Ensure that the original slice is not modified
-	assert.Equal(t, []ForkIDInterval{
+	assert.Equal(t, []state.ForkIDInterval{
 		{BlockNumber: 10, ForkId: 1},
 		{BlockNumber: 5, ForkId: 2},
 		{BlockNumber: 15, ForkId: 3},
@@ -29,7 +30,7 @@ func TestSortIndexForForkdIDSortedByBlockNumber(t *testing.T) {
 	}, forkIDs)
 
 	// Ensure that the sorted slice is sorted correctly
-	sortedForkIDs := make([]ForkIDInterval, len(forkIDs))
+	sortedForkIDs := make([]state.ForkIDInterval, len(forkIDs))
 	for i, idx := range actual {
 		sortedForkIDs[i] = forkIDs[idx]
 	}
@@ -82,17 +83,17 @@ func TestGetForkIDByBlockNumber(t *testing.T) {
 	// Run test cases
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// Create a new State instance with test data
-			state := &State{
-				cfg: Config{
-					ForkIDIntervals: []ForkIDInterval{
-						{BlockNumber: 10, ForkId: 1},
-						{BlockNumber: 200, ForkId: 2},
-						{BlockNumber: 400, ForkId: 3},
-						{BlockNumber: 500, ForkId: 4},
-					},
+			cfg := state.Config{
+				ForkIDIntervals: []state.ForkIDInterval{
+					{BlockNumber: 10, ForkId: 1},
+					{BlockNumber: 200, ForkId: 2},
+					{BlockNumber: 400, ForkId: 3},
+					{BlockNumber: 500, ForkId: 4},
 				},
 			}
+			storage := NewPostgresStorage(cfg, nil)
+			// Create a new State instance with test data
+			state := state.NewState(cfg, storage, nil, nil, nil, nil)
 
 			// Call the function being tested
 			actual := state.GetForkIDByBlockNumber(tc.blockNumber)

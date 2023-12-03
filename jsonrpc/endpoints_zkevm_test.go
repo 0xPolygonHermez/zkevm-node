@@ -675,9 +675,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				effectivePercentages := make([]uint8, 0, len(txs))
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -813,9 +813,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -939,9 +939,9 @@ func TestGetBatchByNumber(t *testing.T) {
 				tc.ExpectedResult.Transactions = []types.TransactionOrHash{}
 
 				receipts := []*ethTypes.Receipt{}
-				blocks := []ethTypes.Block{}
+				blocks := []state.L2Block{}
 				for i, tx := range txs {
-					block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: big.NewInt(int64(i))}).WithBody([]*ethTypes.Transaction{tx}, []*ethTypes.Header{})
+					block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: big.NewInt(int64(i))})).WithBody([]*ethTypes.Transaction{tx}, []*state.L2Header{})
 					blocks = append(blocks, *block)
 					receipt := ethTypes.NewReceipt([]byte{}, false, uint64(0))
 					receipt.TxHash = tx.Hash()
@@ -1234,7 +1234,11 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1341,8 +1345,11 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
-					tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1396,9 +1403,15 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 					Return(blockNumber, nil).
 					Once()
 
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+
 				m.State.
 					On("GetL2BlockByNumber", context.Background(), blockNumber, m.DbTx).
-					Return(tc.ExpectedResult, nil).
+					Return(block, nil).
 					Once()
 
 				for _, tx := range tc.ExpectedResult.Transactions() {
@@ -1466,7 +1479,7 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				lastBlockHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := ethTypes.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
 
 				expectedResultHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
 				expectedResultHeader.ParentHash = lastBlock.Hash()

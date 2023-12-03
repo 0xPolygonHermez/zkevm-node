@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -21,7 +20,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -30,6 +28,9 @@ const (
 	// to communicate with the state for eth_EstimateGas and eth_Call when
 	// the From field is not specified because it is optional
 	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
+
+	// maxTopics is the max number of topics a log can have
+	maxTopics = 4
 )
 
 // EthEndpoints contains implementations for the "eth" RPC endpoints
@@ -108,7 +109,9 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err, true)
+			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
 		if result.Reverted() {
@@ -194,7 +197,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
+			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -250,7 +255,7 @@ func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.Bloc
 	})
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -323,12 +328,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
+			header := lastBlock.Header()
 			header.ParentHash = lastBlock.Hash()
 			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
 			header.TxHash = ethTypes.EmptyRootHash
 			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
+			block := state.NewL2BlockWithHeader(header)
 			rpcBlock, err := types.NewBlock(block, nil, fullTx, false)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
@@ -816,7 +821,7 @@ func (e *EthEndpoints) NewBlockFilter() (interface{}, types.Error) {
 }
 
 // internal
-func (e *EthEndpoints) newBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (interface{}, types.Error) {
+func (e *EthEndpoints) newBlockFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
 	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new block filter", err, true)
@@ -835,7 +840,7 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 }
 
 // internal
-func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *atomic.Pointer[websocket.Conn], filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
+func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *concurrentWsConn, filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
 	if filter.ShouldFilterByBlockRange() {
 		_, _, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, nil)
 		if rpcErr != nil {
@@ -861,7 +866,7 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 }
 
 // internal
-func (e *EthEndpoints) newPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (interface{}, types.Error) {
+func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
 	return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
 	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
 	// if err != nil {
@@ -1024,7 +1029,7 @@ func (e *EthEndpoints) updateFilterLastPoll(filterID string) types.Error {
 // The node will return a subscription id.
 // For each event that matches the subscription a notification with relevant
 // data is sent together with the subscription id.
-func (e *EthEndpoints) Subscribe(wsConn *atomic.Pointer[websocket.Conn], name string, logFilter *LogFilter) (interface{}, types.Error) {
+func (e *EthEndpoints) Subscribe(wsConn *concurrentWsConn, name string, logFilter *LogFilter) (interface{}, types.Error) {
 	switch name {
 	case "newHeads":
 		return e.newBlockFilter(wsConn)
@@ -1046,19 +1051,20 @@ func (e *EthEndpoints) Subscribe(wsConn *atomic.Pointer[websocket.Conn], name st
 }
 
 // Unsubscribe uninstalls the filter based on the provided filterID
-func (e *EthEndpoints) Unsubscribe(wsConn *websocket.Conn, filterID string) (interface{}, types.Error) {
+func (e *EthEndpoints) Unsubscribe(wsConn *concurrentWsConn, filterID string) (interface{}, types.Error) {
 	return e.UninstallFilter(filterID)
 }
 
 // uninstallFilterByWSConn uninstalls the filters connected to the
 // provided web socket connection
-func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error {
+func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 	return e.storage.UninstallFilterByWSConn(wsConn)
 }
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	start := time.Now()
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
@@ -1068,116 +1074,244 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	go e.notifyNewLogs(&wg, event)
 
 	wg.Wait()
+	log.Debugf("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
 	defer wg.Done()
 	start := time.Now()
-	blockFilters, err := e.storage.GetAllBlockFiltersWithWSConn()
+
+	b, err := types.NewBlock(&event.Block, nil, false, false)
 	if err != nil {
-		log.Errorf("failed to get all block filters with web sockets connections: %v", err)
-	} else {
-		b, err := types.NewBlock(&event.Block, nil, false, false)
-		if err != nil {
-			log.Errorf("failed to build block response to subscription: %v", err)
-			return
-		}
-		data, err := json.Marshal(b)
-		if err != nil {
-			log.Errorf("failed to marshal block response to subscription: %v", err)
-			return
-		}
-		for _, filter := range blockFilters {
-			filter.EnqueueSubscriptionDataToBeSent(data)
-			go filter.SendEnqueuedSubscriptionData()
-		}
+		log.Errorf("failed to build block response to subscription: %v", err)
+		return
 	}
+	data, err := json.Marshal(b)
+	if err != nil {
+		log.Errorf("failed to marshal block response to subscription: %v", err)
+		return
+	}
+
+	filters := e.storage.GetAllBlockFiltersWithWSConn()
+	log.Debugf("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
+
+	const maxWorkers = 32
+	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
+		for _, filter := range filters {
+			f := filter
+			start := time.Now()
+			f.EnqueueSubscriptionDataToBeSent(data)
+			log.Debugf("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
+		}
+	})
+
 	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
 	defer wg.Done()
 	start := time.Now()
-	logFilters, err := e.storage.GetAllLogFiltersWithWSConn()
-	if err != nil {
-		log.Errorf("failed to get all log filters with web sockets connections: %v", err)
-	} else {
-		for _, filter := range logFilters {
-			filterParameters := filter.Parameters.(LogFilter)
-			bn := types.BlockNumber(event.Block.NumberU64())
 
-			// if from and to blocks are new, set it to the current block to make
-			// the query faster
-			if filterParameters.FromBlock == nil && filterParameters.ToBlock == nil {
-				filterParameters.FromBlock = &bn
-				filterParameters.ToBlock = &bn
-			} else {
-				// if the filter has a fromBlock value set
-				// and the event block number is smaller than the
-				// from block, skip this filter
-				if filterParameters.FromBlock != nil {
-					fromBlock, rpcErr := filterParameters.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-					if rpcErr != nil {
-						log.Errorf(rpcErr.Error(), filter.ID, err)
-						continue
-					}
-					if fromBlock > event.Block.NumberU64() {
-						continue
-					}
-					// otherwise set the from block to a fixed number
-					// to avoid querying it again in the next step
-					fixedFromBlock := types.BlockNumber(fromBlock)
-					filterParameters.FromBlock = &fixedFromBlock
-				}
+	filters := e.storage.GetAllLogFiltersWithWSConn()
+	log.Debugf("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
 
-				// if the filter has a toBlock value set
-				// and the event block number is greater than the
-				// to block, skip this filter
-				if filterParameters.ToBlock != nil {
-					toBlock, rpcErr := filterParameters.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
-					if rpcErr != nil {
-						log.Errorf(rpcErr.Error(), filter.ID, err)
-						continue
-					}
-					if toBlock > event.Block.NumberU64() {
-						continue
-					}
-					// otherwise set the to block to a fixed number
-					// to avoid querying it again in the next step
-					fixedToBlock := types.BlockNumber(toBlock)
-					filterParameters.ToBlock = &fixedToBlock
-				}
+	const maxWorkers = 32
+	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
+		for _, filter := range filters {
+			f := filter
+			start := time.Now()
+			if e.shouldSkipLogFilter(event, filter) {
+				return
 			}
+			log.Debugf("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
 
+			start = time.Now()
 			// get new logs for this specific filter
-			changes, err := e.internalGetLogs(context.Background(), nil, filterParameters)
-			if errors.Is(err, state.ErrMaxLogsCountLimitExceeded) {
-				log.Infof("failed to get filters changes for filter %v, the filter seems to be returning more results than allowed and was removed: %v", filter.ID, err)
-				err := e.storage.UninstallFilter(filter.ID)
-				if !errors.Is(err, ErrNotFound) && err != nil {
-					log.Errorf("failed to automatically uninstall filter %v: %v", filter.ID, err)
-				} else {
-					log.Infof("Filter %v automatically uninstalled", filter.ID)
-				}
-				continue
-			} else if err != nil {
-				log.Errorf("failed to get filters changes for filter %v with web sockets connections: %v", filter.ID, err)
-				continue
-			}
+			logs := filterLogs(event.Logs, filter)
+			log.Debugf("[notifyNewLogs] took %v to filter logs", time.Since(start))
 
-			// if there are new logs for the filter, send it
-			if changes != nil {
-				ethLogs := changes.([]types.Log)
-				for _, ethLog := range ethLogs {
-					data, err := json.Marshal(ethLog)
-					if err != nil {
-						log.Errorf("failed to marshal ethLog response to subscription: %v", err)
-					}
-					filter.EnqueueSubscriptionDataToBeSent(data)
-					go filter.SendEnqueuedSubscriptionData()
+			start = time.Now()
+			for _, l := range logs {
+				data, err := json.Marshal(l)
+				if err != nil {
+					log.Errorf("failed to marshal ethLog response to subscription: %v", err)
 				}
+				f.EnqueueSubscriptionDataToBeSent(data)
+			}
+			log.Debugf("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
+		}
+	})
+
+	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
+}
+
+// shouldSkipLogFilter checks if the log filter can be skipped while notifying new logs.
+// it checks the log filter information against the block in the event to decide if the
+// information in the event is required by the filter or can be ignored to save resources.
+func (e *EthEndpoints) shouldSkipLogFilter(event state.NewL2BlockEvent, filter *Filter) bool {
+	logFilter := filter.Parameters.(LogFilter)
+
+	if logFilter.BlockHash != nil {
+		// if the filter block hash is set, we check if the block is the
+		// one with the expected hash, otherwise we ignore the filter
+		bh := *logFilter.BlockHash
+		if bh.String() != event.Block.Hash().String() {
+			return true
+		}
+	} else {
+		// if the filter has a fromBlock value set
+		// and the event block number is smaller than the
+		// from block, skip this filter
+		if logFilter.FromBlock != nil {
+			fromBlock, rpcErr := logFilter.FromBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+			if rpcErr != nil {
+				log.Errorf("failed to get numeric block number for FromBlock field for filter %v: %v", filter.ID, rpcErr)
+				return true
+			}
+			// if the block number is smaller than the fromBlock value
+			// this means this block is out of the block range for this
+			// filter, so we skip it
+			if event.Block.NumberU64() < fromBlock {
+				return true
+			}
+		}
+
+		// if the filter has a toBlock value set
+		// and the event block number is greater than the
+		// to block, skip this filter
+		if logFilter.ToBlock != nil {
+			toBlock, rpcErr := logFilter.ToBlock.GetNumericBlockNumber(context.Background(), e.state, e.etherman, nil)
+			if rpcErr != nil {
+				log.Errorf("failed to get numeric block number for ToBlock field for filter %v: %v", filter.ID, rpcErr)
+				return true
+			}
+			// if the block number is greater than the toBlock value
+			// this means this block is out of the block range for this
+			// filter, so we skip it
+			if event.Block.NumberU64() > toBlock {
+				return true
 			}
 		}
 	}
-	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
+	return false
+}
+
+// filterLogs will filter the provided logsToFilter accordingly to the filters provided
+func filterLogs(logsToFilter []*ethTypes.Log, filter *Filter) []types.Log {
+	logFilter := filter.Parameters.(LogFilter)
+
+	logs := make([]types.Log, 0)
+	for _, l := range logsToFilter {
+		// check address filter
+		if len(logFilter.Addresses) > 0 {
+			// if the log address doesn't match any address in the filter, skip this log
+			if !contains(logFilter.Addresses, l.Address) {
+				continue
+			}
+		}
+
+		// check topics
+		match := true
+		if len(logFilter.Topics) > 0 {
+		out:
+			// check all topics
+			for i := 0; i < maxTopics; i++ {
+				// check if the filter contains information
+				// to filter this topic position
+				checkTopic := len(logFilter.Topics) > i
+				if !checkTopic {
+					// if we shouldn't check this topic, we can assume
+					// no more topics needs to be checked, because there
+					// will be no more topic filters, so we can break out
+					break out
+				}
+
+				// check if the topic filter allows any topic
+				acceptAnyTopic := len(logFilter.Topics[i]) == 0
+				if acceptAnyTopic {
+					// since any topic is allowed, we continue to the next topic filters
+					continue
+				}
+
+				// check if the log has the required topic set
+				logHasTopic := len(l.Topics) > i
+				if !logHasTopic {
+					// if the log doesn't have the required topic set, skip this log
+					match = false
+					break out
+				}
+
+				// check if the any topic in the filter matches the log topic
+				if !contains(logFilter.Topics[i], l.Topics[i]) {
+					match = false
+					// if the log topic doesn't match any topic in the filter, skip this log
+					break out
+				}
+			}
+		}
+		if match {
+			logs = append(logs, types.NewLog(*l))
+		}
+	}
+	return logs
+}
+
+// contains check if the item can be found in the items
+func contains[T comparable](items []T, itemsToFind T) bool {
+	for _, item := range items {
+		if item == itemsToFind {
+			return true
+		}
+	}
+	return false
+}
+
+// parallelize split the items into workers accordingly
+// to the max number of workers and the number of items,
+// allowing the fn to be executed in concurrently for different
+// chunks of items.
+func parallelize[T any](maxWorkers int, items []T, fn func(worker int, items []T)) {
+	if len(items) == 0 {
+		return
+	}
+
+	var workersCount = maxWorkers
+	if workersCount > len(items) {
+		workersCount = len(items)
+	}
+
+	var jobSize = len(items) / workersCount
+	var rest = len(items) % workersCount
+	if rest > 0 {
+		jobSize++
+	}
+
+	wg := sync.WaitGroup{}
+	for worker := 0; worker < workersCount; worker++ {
+		rangeStart := worker * jobSize
+		rangeEnd := ((worker + 1) * jobSize)
+
+		if rangeStart > len(items) {
+			continue
+		}
+
+		if rangeEnd > len(items) {
+			rangeEnd = len(items)
+		}
+
+		jobItems := items[rangeStart:rangeEnd]
+
+		wg.Add(1)
+		go func(worker int, filteredItems []T, fn func(worker int, items []T)) {
+			defer func() {
+				wg.Done()
+				err := recover()
+				if err != nil {
+					fmt.Println(err)
+				}
+			}()
+			fn(worker, filteredItems)
+		}(worker, jobItems, fn)
+	}
+	wg.Wait()
 }
