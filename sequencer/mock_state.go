@@ -1016,6 +1016,20 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	return r0, r1
 }
 
+// StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
+func (_m *StateMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
 func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)

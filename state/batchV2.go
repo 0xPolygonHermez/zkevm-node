@@ -54,8 +54,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		updateMT = cTrue
 	}
 
-	//forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
-	forkID := uint64(7)
+	forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
 
 	// Create Batch
 	var processBatchRequest = &executor.ProcessBatchRequestV2{

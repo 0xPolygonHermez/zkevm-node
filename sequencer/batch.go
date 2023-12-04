@@ -241,7 +241,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 
 	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, f.currentGERHash, stateRoot)
 
-	// Substract the bytes needed to store the changeL2Block tx into the new batch
+	// Subtract the bytes needed to store the changeL2Block tx into the new batch
 	batch.remainingResources.Bytes = batch.remainingResources.Bytes - changeL2BlockSize
 
 	return batch, err

@@ -25,7 +25,7 @@ func (c *closingSignalsManager) Start() {
 	//go c.checkGERUpdate() //TODO: delete this go func and all GER related data and funcs
 }
 
-func (c *closingSignalsManager) checkGERUpdate() {
+/*func (c *closingSignalsManager) checkGERUpdate() {
 	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
 	for err != nil {
 		log.Errorf("error getting last batch: %v", err)
@@ -59,7 +59,7 @@ func (c *closingSignalsManager) checkGERUpdate() {
 			lastGERSent = ger.GlobalExitRoot
 		}
 	}
-}
+}*/
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
