@@ -2,22 +2,35 @@ package state
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
+
+// ProcessingContext is the necessary data that a batch needs to provide to the runtime,
+// without the historical state data (processing receipt from previous batch)
+type ProcessingContextV2 struct {
+	BatchNumber    uint64
+	Coinbase       common.Address
+	Timestamp      time.Time    // Batch timeStamp and also TimestampLimit
+	L1InfoRoot     *common.Hash // If null is used the current L1InfoRoot
+	ForcedBatchNum *uint64
+	BatchL2Data    *[]byte
+}
 
 // ProcessSequencerBatchV2 is used by the sequencers to process transactions into an open batch for forkID >= ETROG
 func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatchV2 start")
 
-	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, caller, dbTx)
+	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, nil, nil, caller, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +160,12 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTre
 	return processBatchResponse, err
 }
 
-func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+// if timestampLimit is nil, it will be set to time.Now()
+// if l1InfoRoot is nil it will be set to the current L1InfoRoot
+func (s *State) processBatchV2(ctx context.Context,
+	batchNumber uint64, batchL2Data []byte,
+	timestampLimit *time.Time, l1InfoRoot *common.Hash,
+	caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -183,20 +201,32 @@ func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2D
 	}
 	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 
+	var timestampLimitUnix uint64
+	if timestampLimit != nil {
+		timestampLimitUnix = uint64(timestampLimit.Unix())
+	} else {
+		timestampLimitUnix = uint64(time.Now().Unix())
+	}
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequestV2{
-		OldBatchNum:  lastBatch.BatchNumber - 1,
-		Coinbase:     lastBatch.Coinbase.String(),
-		BatchL2Data:  batchL2Data,
-		OldStateRoot: previousBatch.StateRoot.Bytes(),
-		// TODO: Update this to L1InfoRoot
-		L1InfoRoot:       lastBatch.GlobalExitRoot.Bytes(),
+		OldBatchNum:      lastBatch.BatchNumber - 1,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
+		L1InfoRoot:       l1InfoRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		TimestampLimit:   uint64(lastBatch.Timestamp.Unix()),
+		TimestampLimit:   timestampLimitUnix,
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
 		ContextId:        uuid.NewString(),
+	}
+
+	if l1InfoRoot != nil {
+		processBatchRequest.L1InfoRoot = l1InfoRoot.Bytes()
+	} else {
+		currentl1InfoRoot := s.GetCurrentL1InfoRoot()
+		processBatchRequest.L1InfoRoot = currentl1InfoRoot.Bytes()
 	}
 
 	return s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, caller)
@@ -238,4 +268,80 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
+}
+
+// ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
+// the flushID (incremental value returned by executor),
+// the ProverID (executor running ID) the result of closing the batch.
+func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	debugPrefix := fmt.Sprint("Batch ", processingCtx.BatchNumber, ": ProcessAndStoreClosedBatchV2: ")
+
+	BatchL2Data := processingCtx.BatchL2Data
+	if BatchL2Data == nil {
+		log.Warnf("%s processingCtx.BatchL2Data is nil, assuming is empty", debugPrefix, processingCtx.BatchNumber)
+		var BatchL2DataEmpty []byte
+		BatchL2Data = &BatchL2DataEmpty
+	}
+
+	// Decode transactions
+	decodeBatch, err := DecodeBatchV2(*BatchL2Data)
+	if err != nil {
+		log.Errorf("%s error decoding batch: %v", debugPrefix, processingCtx.BatchNumber, err)
+		return common.Hash{}, noFlushID, noProverID, err
+	}
+
+	if dbTx == nil {
+		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
+	}
+	// Avoid writing twice to the DB the BatchL2Data that is going to be written also in the call closeBatch
+	// TODO: check if is need this
+
+	convertedProcessingContextV1, err := convertProcessingContext(&processingCtx)
+	if err != nil {
+		log.Errorf("%s error convertProcessingContext: %v", debugPrefix, err)
+		return common.Hash{}, noFlushID, noProverID, err
+	}
+	convertedProcessingContextV1.BatchL2Data = nil
+	if err := s.OpenBatch(ctx, *convertedProcessingContextV1, dbTx); err != nil {
+		log.Errorf("%s error OpenBatch: %v", debugPrefix, err)
+		return common.Hash{}, noFlushID, noProverID, err
+	}
+	processed, err := s.processBatchV2(ctx, processingCtx.BatchNumber, *BatchL2Data,
+		&processingCtx.Timestamp, processingCtx.L1InfoRoot, caller, dbTx)
+	if err != nil {
+		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
+		return common.Hash{}, noFlushID, noProverID, err
+	}
+	if err := sanityCheckExecutorResponse(decodeBatch, processed); err != nil {
+		log.Warnf("%s sanity check failed: %v", debugPrefix, err)
+	}
+
+	processedBatch, err := s.convertToProcessBatchResponseV2(processed)
+	if err != nil {
+		log.Errorf("%s error convertToProcessBatchResponseV2: %v", debugPrefix, err)
+		return common.Hash{}, noFlushID, noProverID, err
+	}
+
+	if len(processedBatch.BlockResponses) > 0 {
+		// Store processed txs into the batch
+		// TODO: Change for storeL2Block
+		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.BlockResponses, nil, dbTx)
+		if err != nil {
+			log.Errorf("%s error StoreTransactions: %v", debugPrefix, err)
+			return common.Hash{}, noFlushID, noProverID, err
+		}
+	}
+	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, processed.ProverId, s.CloseBatchInStorage(ctx, ProcessingReceipt{
+		BatchNumber:   processingCtx.BatchNumber,
+		StateRoot:     processedBatch.NewStateRoot,
+		LocalExitRoot: processedBatch.NewLocalExitRoot,
+		AccInputHash:  processedBatch.NewAccInputHash,
+		BatchL2Data:   *BatchL2Data,
+	}, dbTx)
+}
+
+// sanityCheckExecutorResponse checks that the executor response is consistent with the batch
+// TODO
+func sanityCheckExecutorResponse(batch *BatchRawV2, processed *executor.ProcessBatchResponseV2) error {
+	return nil
 }

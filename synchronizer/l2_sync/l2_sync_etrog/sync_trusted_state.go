@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
@@ -32,8 +31,10 @@ type BatchStepsExecutorEtrogStateInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 
 	//ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
-	//ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
-	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
+	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
+	//ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
+	//ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
+	GetCurrentL1InfoRoot() common.Hash
 }
 
 type BatchStepsExecutorEtrogSynchronizerInterface interface {
@@ -61,17 +62,24 @@ func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *BatchStepsExecutorEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
 	log.Infof("Batch %d needs to be synchronized", uint64(data.TrustedBatch.Number))
-	err := b.openBatch(ctx, data.TrustedBatch, dbTx)
-	if err != nil {
-		log.Error("error openning batch. Error: ", err)
-		return nil, err
-	}
-	processBatchResp, err := b.processAndStoreTxs(ctx, trustedBatch, getProcessRequest(data), dbTx)
-	if err != nil {
-		log.Error("error procesingAndStoringTxs. Error: ", err)
-		return nil, nil, err
-	}
 	return nil, ErrNotImplemented
+	/*
+	   err := b.openBatch(ctx, data.TrustedBatch, dbTx)
+
+	   	if err != nil {
+	   		log.Error("error openning batch. Error: ", err)
+	   		return nil, err
+	   	}
+
+	   processBatchResp, err := b.processAndStoreTxs(ctx, trustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+
+	   	if err != nil {
+	   		log.Error("error procesingAndStoringTxs. Error: ", err)
+	   		return nil, err
+	   	}
+
+	   return nil, ErrNotImplemented
+	*/
 }
 
 // IncrementalProcess process a batch that we have processed before, and we have the intermediate state root, so is going to be process only new Tx
@@ -137,17 +145,6 @@ func (b *BatchStepsExecutorEtrog) openBatch(ctx context.Context, trustedBatch *t
 
 func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, trustedBatch *types.Batch, request state.ProcessRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
 
-	// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
-	processCtx := state.ProcessingContext{
-		BatchNumber:    uint64(trustedBatch.Number),
-		Coinbase:       trustedBatch.Coinbase,
-		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
-		GlobalExitRoot: trustedBatch.GlobalExitRoot,
-		ForcedBatchNum: nil,
-		BatchL2Data:    (*[]byte)(&trustedBatch.BatchL2Data),
-	}
-	newStateRoot, flushID, proverID, err := b.state.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
-
 	processBatchResp, err := b.state.ProcessBatchV2(ctx, request, true)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
@@ -178,32 +175,16 @@ func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, truste
 	return processBatchResp, nil
 }
 
-/*
-	type ProcessRequest struct {
-		BatchNumber               uint64
-		GlobalExitRoot_V1         common.Hash
-		L1InfoRoot_V2             common.Hash
-		OldStateRoot              common.Hash
-		OldAccInputHash           common.Hash
-		Transactions              []byte
-		Coinbase                  common.Address
-		Timestamp_V1              time.Time
-		TimestampLimit_V2         uint64
-		Caller                    metrics.CallerLabel
-		SkipFirstChangeL2Block_V2 bool
-		ForkID                    uint64
-	}
-*/
-func getProcessRequest(data *l2_shared.ProcessData) state.ProcessRequest {
+func getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) state.ProcessRequest {
 	request := state.ProcessRequest{
 		BatchNumber:     uint64(data.TrustedBatch.Number),
 		OldStateRoot:    data.OldStateRoot,
 		OldAccInputHash: data.OldAccInputHash,
 		Coinbase:        common.HexToAddress(data.TrustedBatch.Coinbase.String()),
-		Timestamp:       time.Unix(int64(data.TrustedBatch.Timestamp), 0),
-
-		GlobalExitRoot: data.trustedBatch.GlobalExitRoot,
-		Transactions:   data.trustedBatch.BatchL2Data,
+		L1InfoRoot_V2:   l1InfoRoot,
+		//Timestamp:       time.Unix(int64(data.TrustedBatch.Timestamp), 0),
+		//TimestampLimit_V2: int64(data.TrustedBatch.Timestamp),
+		Transactions: data.TrustedBatch.BatchL2Data,
 	}
 	return request
 }

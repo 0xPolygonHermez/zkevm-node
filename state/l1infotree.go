@@ -57,3 +57,9 @@ func (s *State) AddL1InfoTreeLeaf(ctx context.Context, l1InfoTreeLeaf *L1InfoTre
 	}
 	return &entry, nil
 }
+
+// GetCurrentL1InfoRoot Return current L1InfoRoot
+func (s *State) GetCurrentL1InfoRoot() common.Hash {
+	root, _, _ := s.l1InfoTree.GetCurrentRootCountAndSiblings()
+	return root
+}

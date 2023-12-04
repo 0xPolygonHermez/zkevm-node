@@ -325,3 +325,13 @@ func convertToKeys(keys [][]byte) []merkletree.Key {
 	}
 	return result
 }
+
+func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error) {
+	result := ProcessingContext{
+		BatchNumber:    p.BatchNumber,
+		Coinbase:       p.Coinbase,
+		ForcedBatchNum: p.ForcedBatchNum,
+		BatchL2Data:    p.BatchL2Data,
+	}
+	return &result, nil
+}
