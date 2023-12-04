@@ -38,7 +38,7 @@ func init() {
 }
 
 // This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, auth *bind.TransactOpts, maticAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge) {
+func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, auth *bind.TransactOpts, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +47,7 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, aut
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, ethBackend, maticAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
+	ethman, ethBackend, polAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, aut
 	if err != nil {
 		log.Fatal(err)
 	}
-	return ethman, ethBackend, auth, maticAddr, br
+	return ethman, ethBackend, auth, polAddr, br
 }
 
 func TestGEREvent(t *testing.T) {
@@ -81,10 +81,10 @@ func TestGEREvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(2), blocks[1].GlobalExitRoots[0].BlockNumber)
-	assert.NotEqual(t, common.Hash{}, blocks[1].GlobalExitRoots[0].MainnetExitRoot)
-	assert.Equal(t, common.Hash{}, blocks[1].GlobalExitRoots[0].RollupExitRoot)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(5), blocks[0].L1InfoTree[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].L1InfoTree[0].MainnetExitRoot)
+	assert.Equal(t, common.Hash{}, blocks[0].L1InfoTree[0].RollupExitRoot)
 }
 
 func TestForcedBatchEvent(t *testing.T) {
@@ -96,7 +96,7 @@ func TestForcedBatchEvent(t *testing.T) {
 	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	amount, err := etherman.ZkEVM.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	amount, err := etherman.RollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
@@ -113,14 +113,14 @@ func TestForcedBatchEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(2), blocks[1].BlockNumber)
-	assert.Equal(t, uint64(2), blocks[1].ForcedBatches[0].BlockNumber)
-	assert.NotEqual(t, common.Hash{}, blocks[1].ForcedBatches[0].GlobalExitRoot)
-	assert.NotEqual(t, time.Time{}, blocks[1].ForcedBatches[0].ForcedAt)
-	assert.Equal(t, uint64(1), blocks[1].ForcedBatches[0].ForcedBatchNumber)
-	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[1].ForcedBatches[0].RawTxsData))
-	assert.Equal(t, auth.From, blocks[1].ForcedBatches[0].Sequencer)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(5), blocks[0].BlockNumber)
+	assert.Equal(t, uint64(5), blocks[0].ForcedBatches[0].BlockNumber)
+	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
+	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
+	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
+	assert.Equal(t, rawTxs, hex.EncodeToString(blocks[0].ForcedBatches[0].RawTxsData))
+	assert.Equal(t, auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }
 
 func TestSequencedBatchesEvent(t *testing.T) {
@@ -139,11 +139,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	ethBackend.Commit()
 	auth.Value = big.NewInt(0)
 
-	// Get the last ger
-	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
-	require.NoError(t, err)
-
-	amount, err := etherman.ZkEVM.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	amount, err := etherman.RollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
@@ -160,18 +156,11 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
 	require.NoError(t, err)
 	t.Log("Blocks: ", blocks)
-	var sequences []polygonzkevm.PolygonZkEVMBatchData
-	sequences = append(sequences, polygonzkevm.PolygonZkEVMBatchData{
-		GlobalExitRoot:     ger,
-		Timestamp:          currentBlock.Time(),
-		MinForcedTimestamp: uint64(blocks[2].ForcedBatches[0].ForcedAt.Unix()),
-		Transactions:       common.Hex2Bytes(rawTxs),
-	})
-	sequences = append(sequences, polygonzkevm.PolygonZkEVMBatchData{
-		GlobalExitRoot:     ger,
-		Timestamp:          currentBlock.Time() + 1,
-		MinForcedTimestamp: 0,
-		Transactions:       common.Hex2Bytes(rawTxs),
+	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
+	sequences = append(sequences, polygonzkevm.PolygonRollupBaseEtrogBatchData{
+		Transactions: common.Hex2Bytes(rawTxs),
+	}, polygonzkevm.PolygonRollupBaseEtrogBatchData{
+		Transactions: common.Hex2Bytes(rawTxs),
 	})
 	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, auth.From)
 	require.NoError(t, err)
@@ -185,16 +174,16 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, 4, len(blocks))
-	assert.Equal(t, 1, len(blocks[3].SequencedBatches))
-	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[3].SequencedBatches[0][1].Transactions)
-	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].Timestamp)
-	assert.Equal(t, ger, blocks[3].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].Coinbase)
-	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].SequencerAddr)
-	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[3].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, 3, len(blocks))
+	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
+	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].PolygonRollupBaseEtrogBatchData.Transactions)
+	assert.Equal(t, uint64(0), blocks[2].SequencedBatches[0][0].ForcedTimestamp)
+	assert.Equal(t, [32]byte{}, blocks[2].SequencedBatches[0][0].ForcedGlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
+	assert.NotEqual(t, common.Hash{}, blocks[2].SequencedBatches[0][0].ForcedBlockHashL1)
+	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
 
 func TestVerifyBatchEvent(t *testing.T) {
@@ -208,19 +197,16 @@ func TestVerifyBatchEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
-	tx := polygonzkevm.PolygonZkEVMBatchData{
-		GlobalExitRoot:     common.Hash{},
-		Timestamp:          initBlock.Time(),
-		MinForcedTimestamp: 0,
-		Transactions:       common.Hex2Bytes(rawTxs),
+	tx := polygonzkevm.PolygonRollupBaseEtrogBatchData{
+		Transactions: common.Hex2Bytes(rawTxs),
 	}
-	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonZkEVMBatchData{tx}, auth.From)
+	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
 
-	_, err = etherman.ZkEVM.VerifyBatchesTrustedAggregator(auth, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, [24][32]byte{})
+	_, err = etherman.RollupManager.VerifyBatchesTrustedAggregator(auth, 1, uint64(0), uint64(0), uint64(1), [32]byte{}, [32]byte{}, auth.From, [24][32]byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -232,15 +218,15 @@ func TestVerifyBatchEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(3), blocks[2].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[2].VerifiedBatches[0].BatchNumber)
-	assert.NotEqual(t, common.Address{}, blocks[2].VerifiedBatches[0].Aggregator)
-	assert.NotEqual(t, common.Hash{}, blocks[2].VerifiedBatches[0].TxHash)
-	assert.Equal(t, GlobalExitRootsOrder, order[blocks[2].BlockHash][0].Name)
-	assert.Equal(t, TrustedVerifyBatchOrder, order[blocks[2].BlockHash][1].Name)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][1].Pos)
+	t.Logf("Blocks: %+v, \nOrder: %+v", blocks, order)
+	assert.Equal(t, uint64(6), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(1), blocks[1].VerifiedBatches[0].BatchNumber)
+	assert.NotEqual(t, common.Address{}, blocks[1].VerifiedBatches[0].Aggregator)
+	assert.NotEqual(t, common.Hash{}, blocks[1].VerifiedBatches[0].TxHash)
+	assert.Equal(t, L1InfoTreeOrder, order[blocks[1].BlockHash][1].Name)
+	assert.Equal(t, VerifyBatchOrder, order[blocks[1].BlockHash][0].Name)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][1].Pos)
 }
 
 func TestSequenceForceBatchesEvent(t *testing.T) {
@@ -252,7 +238,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	initBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
 
-	amount, err := etherman.ZkEVM.GetForcedBatchFee(&bind.CallOpts{Pending: false})
+	amount, err := etherman.RollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
 	data, err := hex.DecodeString(rawTxs)
@@ -271,14 +257,20 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
+	t.Logf("Blocks: %+v", blocks)
 
-	forceBatchData := polygonzkevm.PolygonZkEVMForcedBatchData{
-		Transactions:       blocks[1].ForcedBatches[0].RawTxsData,
-		GlobalExitRoot:     blocks[1].ForcedBatches[0].GlobalExitRoot,
-		MinForcedTimestamp: uint64(blocks[1].ForcedBatches[0].ForcedAt.Unix()),
+	forcedGer := blocks[0].ForcedBatches[0].GlobalExitRoot
+	forcedTimestamp := uint64(blocks[0].ForcedBatches[0].ForcedAt.Unix())
+	prevBlock, err := etherman.EthClient.BlockByNumber(ctx, big.NewInt(0).SetUint64(blocks[0].BlockNumber-1))
+	require.NoError(t, err)
+	forcedBlockHashL1 := prevBlock.Hash()
+	forceBatchData := polygonzkevm.PolygonRollupBaseEtrogBatchData{
+		Transactions:         blocks[0].ForcedBatches[0].RawTxsData,
+		ForcedGlobalExitRoot: forcedGer,
+		ForcedTimestamp:      forcedTimestamp,
+		ForcedBlockHashL1:    forcedBlockHashL1,
 	}
-	_, err = etherman.ZkEVM.SequenceForceBatches(auth, []polygonzkevm.PolygonZkEVMForcedBatchData{forceBatchData})
+	_, err = etherman.ZkEVM.SequenceForceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{forceBatchData})
 	require.NoError(t, err)
 	ethBackend.Commit()
 
@@ -288,11 +280,13 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	finalBlockNumber = finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, uint64(4), blocks[2].BlockNumber)
-	assert.Equal(t, uint64(1), blocks[2].SequencedForceBatches[0][0].BatchNumber)
-	assert.Equal(t, uint64(20), blocks[2].SequencedForceBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, uint64(7), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(2), blocks[1].SequencedForceBatches[0][0].BatchNumber)
+	assert.Equal(t, forcedGer, common.BytesToHash(blocks[1].SequencedForceBatches[0][0].ForcedGlobalExitRoot[:]))
+	assert.Equal(t, forcedTimestamp, blocks[1].SequencedForceBatches[0][0].ForcedTimestamp)
+	assert.Equal(t, forcedBlockHashL1, common.BytesToHash(blocks[1].SequencedForceBatches[0][0].ForcedBlockHashL1[:]))
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
 func TestSendSequences(t *testing.T) {
@@ -311,20 +305,11 @@ func TestSendSequences(t *testing.T) {
 	ethBackend.Commit()
 	auth.Value = big.NewInt(0)
 
-	// Get the last ger
-	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
-	require.NoError(t, err)
-
-	currentBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
-		GlobalExitRoot: ger,
-		Timestamp:      int64(currentBlock.Time() - 1),
-		BatchL2Data:    batchL2Data,
+		BatchL2Data: batchL2Data,
 	}
 	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From)
 	require.NoError(t, err)
@@ -337,15 +322,15 @@ func TestSendSequences(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	t.Log("Blocks: ", blocks)
-	assert.Equal(t, 3, len(blocks))
-	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
-	assert.Equal(t, currentBlock.Time()-1, blocks[2].SequencedBatches[0][0].Timestamp)
-	assert.Equal(t, ger, blocks[2].SequencedBatches[0][0].GlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
-	assert.Equal(t, uint64(0), blocks[2].SequencedBatches[0][0].MinForcedTimestamp)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
+	t.Logf("Blocks: %+v", blocks)
+	assert.Equal(t, 2, len(blocks))
+	assert.Equal(t, 1, len(blocks[1].SequencedBatches))
+	assert.Equal(t, [32]byte{}, blocks[1].SequencedBatches[0][0].ForcedGlobalExitRoot)
+	assert.Equal(t, [32]byte{}, blocks[1].SequencedBatches[0][0].ForcedBlockHashL1)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[1].SequencedBatches[0][0].SequencerAddr)
+	assert.Equal(t, uint64(0), blocks[1].SequencedBatches[0][0].ForcedTimestamp)
+	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 }
 
 func TestGasPrice(t *testing.T) {
@@ -376,7 +361,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
 	gp := etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625001), gp)
+	assert.Equal(t, big.NewInt(512908937), gp)
 
 	etherscanM := new(etherscanMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
@@ -407,10 +392,10 @@ func TestGetForks(t *testing.T) {
 	forks, err := etherman.GetForks(ctx, 0, 132)
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(forks))
-	assert.Equal(t, uint64(1), forks[0].ForkId)
+	assert.Equal(t, uint64(6), forks[0].ForkId)
 	assert.Equal(t, uint64(1), forks[0].FromBatchNumber)
 	assert.Equal(t, uint64(math.MaxUint64), forks[0].ToBatchNumber)
-	assert.Equal(t, "v1", forks[0].Version)
+	assert.Equal(t, "", forks[0].Version)
 	// Now read the event
 	finalBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
 	require.NoError(t, err)
@@ -423,8 +408,8 @@ func TestGetForks(t *testing.T) {
 	assert.Equal(t, 0, order[blocks[0].BlockHash][0].Pos)
 	assert.Equal(t, ForkIDsOrder, order[blocks[0].BlockHash][0].Name)
 	assert.Equal(t, uint64(0), blocks[0].ForkIDs[0].BatchNumber)
-	assert.Equal(t, uint64(1), blocks[0].ForkIDs[0].ForkID)
-	assert.Equal(t, "v1", blocks[0].ForkIDs[0].Version)
+	assert.Equal(t, uint64(6), blocks[0].ForkIDs[0].ForkID)
+	assert.Equal(t, "", blocks[0].ForkIDs[0].Version)
 }
 
 func TestProof(t *testing.T) {

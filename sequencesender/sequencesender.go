@@ -255,27 +255,27 @@ func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 
 	// while estimating gas a new block is not created and the POE SC may return
 	// an error regarding timestamp verification, this must be handled
-	if errors.Is(err, ethman.ErrTimestampMustBeInsideRange) {
-		// query the sc about the value of its lastTimestamp variable
-		lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
-		if err != nil {
-			return nil, err
-		}
-		// check POE SC lastTimestamp against sequences' one
-		for _, seq := range sequences {
-			if seq.Timestamp < int64(lastTimestamp) {
-				// TODO: gracefully handle this situation by creating an L2 reorg
-				log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
-			}
-			lastTimestamp = uint64(seq.Timestamp)
-		}
-		blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
-		if err != nil {
-			log.Error("error getting block timestamp: ", err)
-		}
-		log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
-		return nil, nil
-	}
+	// if errors.Is(err, ethman.ErrTimestampMustBeInsideRange) {
+	// 	// query the sc about the value of its lastTimestamp variable
+	// 	lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// check POE SC lastTimestamp against sequences' one
+	// 	for _, seq := range sequences {
+	// 		if seq.Timestamp < int64(lastTimestamp) {
+	// 			// TODO: gracefully handle this situation by creating an L2 reorg
+	// 			log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
+	// 		}
+	// 		lastTimestamp = uint64(seq.Timestamp)
+	// 	}
+	// 	blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+	// 	if err != nil {
+	// 		log.Error("error getting block timestamp: ", err)
+	// 	}
+	// 	log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
+	// 	return nil, nil
+	// }
 
 	// Unknown error
 	if len(sequences) == 1 {

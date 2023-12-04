@@ -1,20 +1,14 @@
 package jsonrpc
 
-import (
-	"sync/atomic"
-
-	"github.com/gorilla/websocket"
-)
-
 // storageInterface json rpc internal storage to persist data
 type storageInterface interface {
-	GetAllBlockFiltersWithWSConn() ([]*Filter, error)
-	GetAllLogFiltersWithWSConn() ([]*Filter, error)
+	GetAllBlockFiltersWithWSConn() []*Filter
+	GetAllLogFiltersWithWSConn() []*Filter
 	GetFilter(filterID string) (*Filter, error)
-	NewBlockFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error)
-	NewLogFilter(wsConn *atomic.Pointer[websocket.Conn], filter LogFilter) (string, error)
-	NewPendingTransactionFilter(wsConn *atomic.Pointer[websocket.Conn]) (string, error)
+	NewBlockFilter(wsConn *concurrentWsConn) (string, error)
+	NewLogFilter(wsConn *concurrentWsConn, filter LogFilter) (string, error)
+	NewPendingTransactionFilter(wsConn *concurrentWsConn) (string, error)
 	UninstallFilter(filterID string) error
-	UninstallFilterByWSConn(wsConn *atomic.Pointer[websocket.Conn]) error
+	UninstallFilterByWSConn(wsConn *concurrentWsConn) error
 	UpdateFilterLastPoll(filterID string) error
 }

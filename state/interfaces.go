@@ -59,8 +59,8 @@ type storage interface {
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error)
 	GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
-	GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Block, error)
-	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]types.Block, error)
+	GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Block, error)
+	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]L2Block, error)
 	GetLastL2BlockCreatedAt(ctx context.Context, dbTx pgx.Tx) (*time.Time, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error)
@@ -69,23 +69,23 @@ type storage interface {
 	GetL2BlockTransactionCountByHash(ctx context.Context, blockHash common.Hash, dbTx pgx.Tx) (uint64, error)
 	GetL2BlockTransactionCountByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetTransactionEGPLogByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*EffectiveGasPriceLog, error)
-	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error
+	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *L2Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error
 	GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastConsolidatedL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLastVerifiedL2BlockNumberUntilL1Block(ctx context.Context, l1FinalizedBlockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetLastVerifiedBatchNumberUntilL1Block(ctx context.Context, l1BlockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
-	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*L2Header, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*L2Block, error)
 	GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*VerifiedBatch, error)
 	GetStateRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetLocalExitRootByBatchNumber(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetBlockNumVirtualBatchByBatchNum(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (uint64, error)
-	GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Block, error)
+	GetL2BlockByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*L2Block, error)
 	GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
 	GetTxsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error)
-	GetL2BlockHeaderByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*types.Header, error)
-	GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*types.Header, error)
+	GetL2BlockHeaderByHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*L2Header, error)
+	GetL2BlockHeaderByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Header, error)
 	GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error)
 	IsL2BlockConsolidated(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error)
@@ -109,6 +109,7 @@ type storage interface {
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error)
 	GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
+	UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error
@@ -121,9 +122,17 @@ type storage interface {
 	UpdateForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error
 	GetNativeBlockHashesInRange(ctx context.Context, fromBlock, toBlock uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error)
-	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error)
+	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
+	GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error)
+	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error
+	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
+	UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval)
+	AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error
+	GetForkIDByBlockNumber(blockNumber uint64) uint64
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
 }

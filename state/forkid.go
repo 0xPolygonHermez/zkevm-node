@@ -2,21 +2,19 @@ package state
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/jackc/pgx/v4"
 )
 
 const (
-	// BLUEBERRY_FORKID is the fork id 4
-	BLUEBERRY_FORKID = 4
-	// DRAGONFRUIT_FORKID is the fork id 5
-	DRAGONFRUIT_FORKID = 5
-	// INCABERRY_FORKID is the fork id 6
-	INCABERRY_FORKID = 6
-	// ETROG_FORKID is the fork id 7
-	ETROG_FORKID = 7
+	// FORKID_BLUEBERRY is the fork id 4
+	FORKID_BLUEBERRY = 4
+	// FORKID_DRAGONFRUIT is the fork id 5
+	FORKID_DRAGONFRUIT = 5
+	// FORKID_INCABERRY is the fork id 6
+	FORKID_INCABERRY = 6
+	// FORKID_ETROG is the fork id 7
+	FORKID_ETROG = 7
 )
 
 // ForkIDInterval is a fork id interval
@@ -30,62 +28,20 @@ type ForkIDInterval struct {
 
 // UpdateForkIDIntervalsInMemory updates the forkID intervals in memory
 func (s *State) UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval) {
-	log.Infof("Updating forkIDs. Setting %d forkIDs", len(intervals))
-	log.Infof("intervals: %#v", intervals)
-	s.cfg.ForkIDIntervals = intervals
+	s.storage.UpdateForkIDIntervalsInMemory(intervals)
 }
 
 // AddForkIDInterval updates the forkID intervals
 func (s *State) AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error {
-	// Add forkId to db and memori variable
-	oldForkIDs, err := s.GetForkIDs(ctx, dbTx)
-	if err != nil {
-		log.Error("error getting oldForkIDs. Error: ", err)
-		return err
-	}
-	if len(oldForkIDs) == 0 {
-		s.UpdateForkIDIntervalsInMemory([]ForkIDInterval{newForkID})
-	} else {
-		var forkIDs []ForkIDInterval
-		forkIDs = oldForkIDs
-		// Check to detect forkID inconsistencies
-		if forkIDs[len(forkIDs)-1].ForkId+1 != newForkID.ForkId {
-			log.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
-			return fmt.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
-		}
-		forkIDs[len(forkIDs)-1].ToBatchNumber = newForkID.FromBatchNumber - 1
-		err := s.UpdateForkID(ctx, forkIDs[len(forkIDs)-1], dbTx)
-		if err != nil {
-			log.Errorf("error updating forkID: %d. Error: %v", forkIDs[len(forkIDs)-1].ForkId, err)
-			return err
-		}
-		forkIDs = append(forkIDs, newForkID)
-
-		s.UpdateForkIDIntervalsInMemory(forkIDs)
-	}
-	err = s.AddForkID(ctx, newForkID, dbTx)
-	if err != nil {
-		log.Errorf("error adding forkID %d. Error: %v", newForkID.ForkId, err)
-		return err
-	}
-	return nil
+	return s.storage.AddForkIDInterval(ctx, newForkID, dbTx)
 }
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (s *State) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
-	// If NumBatchForkIdUpgrade is defined (!=0) we are performing forkid upgrade process
-	// In this case, if the batchNumber is the next to the NumBatchForkIdUpgrade, we need to return the
-	// new "future" forkId (ForkUpgradeNewForkId)
-	if (s.cfg.ForkUpgradeBatchNumber) != 0 && (batchNumber > s.cfg.ForkUpgradeBatchNumber) {
-		return s.cfg.ForkUpgradeNewForkId
-	}
+	return s.storage.GetForkIDByBatchNumber(batchNumber)
+}
 
-	for _, interval := range s.cfg.ForkIDIntervals {
-		if batchNumber >= interval.FromBatchNumber && batchNumber <= interval.ToBatchNumber {
-			return interval.ForkId
-		}
-	}
-
-	// If not found return the last fork id
-	return s.cfg.ForkIDIntervals[len(s.cfg.ForkIDIntervals)-1].ForkId
+// GetForkIDByBlockNumber returns the fork id for a given block number
+func (s *State) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
+	return s.storage.GetForkIDByBlockNumber(blockNumber)
 }

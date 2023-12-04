@@ -7,13 +7,13 @@ To configure a node you need 3 files:
 
 ### Node Config
 This file is a [TOML](https://en.wikipedia.org/wiki/TOML#) formatted file. 
-You could find some examples here: 
+You can find some examples here: 
  - `config/environments/local/local.node.config.toml`: running a permisionless node
   - `config/environments/mainnet/node.config.toml`
   - `config/environments/public/node.config.toml`
   - `test/config/test.node.config.toml`: configuration for a trusted node used in CI
 
-  For details about the contents you can read specifications [here](config-file/node-config-doc.md)
+  For details about the contents you can read the specifications [here](config-file/node-config-doc.md)
 
 This file is used for trusted and for permisionless nodes. In the case of permissionless node you only need to setup next sections: 
 
@@ -25,12 +25,12 @@ For example:
 
 ### Network Genesis Config
 This file is a [JSON](https://en.wikipedia.org/wiki/JSON) formatted file. 
-This contain all the info information relating to the relation between L1 and L2 network's (e.g. contracts, etc..) also known as genesis file
+This contains all the info information relating to the relation between L1 and L2 network's (e.g. contracts, etc..) also known as genesis file
 
-You could find an example here: 
+You can find an example here: 
 - `config/environments/local/local.genesis.config.json`:
 
-For details about the contents you can read specifications [here](config-file/custom_network-config-doc.md)
+For details about the contents you can read the specifications [here](config-file/custom_network-config-doc.md)
 
 
 ### Prover Config

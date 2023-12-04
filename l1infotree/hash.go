@@ -3,7 +3,6 @@ package l1infotree
 import (
 	"encoding/binary"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"golang.org/x/crypto/sha3"
@@ -37,7 +36,6 @@ func HashLeafData(ger, prevBlockHash common.Hash, minTimestamp uint64) [32]byte 
 	var res [32]byte
 	t := make([]byte, 8) //nolint:gomnd
 	binary.BigEndian.PutUint64(t, minTimestamp)
-	log.Debug(ger.Bytes(), prevBlockHash.Bytes(), t)
 	copy(res[:], keccak256.Hash(ger.Bytes(), prevBlockHash.Bytes(), t))
 	return res
 }

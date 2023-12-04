@@ -55,8 +55,8 @@ type Pool struct {
 type preExecutionResponse struct {
 	usedZkCounters       state.ZKCounters
 	isExecutorLevelError bool
-	isOOC                bool
-	isOOG                bool
+	OOCError             error
+	OOGError             error
 	isReverted           bool
 	txResponse           *state.ProcessTransactionResponse
 }
@@ -192,7 +192,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		return err
 	}
 
-	if preExecutionResponse.isOOC {
+	if preExecutionResponse.OOCError != nil {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			IPAddress:   ip,
@@ -208,8 +208,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return ErrOutOfCounters
-	} else if preExecutionResponse.isOOG {
+		return fmt.Errorf("failed to add tx to the pool: %w", preExecutionResponse.OOCError)
+	} else if preExecutionResponse.OOGError != nil {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			IPAddress:   ip,
@@ -291,7 +291,7 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 
 // preExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
-	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
+	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
 
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
@@ -301,32 +301,41 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		if !isOOC && !isOOG {
 			return response, err
 		} else {
-			response.isOOC = isOOC
-			response.isOOG = isOOG
-			if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+			if isOOC {
+				response.OOCError = err
+			}
+			if isOOG {
+				response.OOGError = err
+			}
+			if processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
-				response.txResponse = processBatchResponse.Responses[0]
+				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
 			return response, nil
 		}
 	}
 
-	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		errorToCheck := processBatchResponse.Responses[0].RomError
+	if processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
+		errorToCheck := processBatchResponse.BlockResponses[0].TransactionResponses[0].RomError
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
 		if errorToCheck != nil {
 			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
-			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+			if executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck)) {
+				response.OOCError = err
+			}
+			if errors.Is(errorToCheck, runtime.ErrOutOfGas) {
+				response.OOGError = err
+			}
 		} else {
 			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
-				response.isOOC = true
-				log.Errorf("OutOfCounters Error (Node level) for tx: %s", tx.Hash().String())
+				err := fmt.Errorf("OutOfCounters Error (Node level) for tx: %s", tx.Hash().String())
+				response.OOCError = err
+				log.Error(err.Error())
 			}
 		}
 
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
-		response.txResponse = processBatchResponse.Responses[0]
+		response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 	}
 
 	return response, nil

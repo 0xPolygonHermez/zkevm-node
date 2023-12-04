@@ -10,13 +10,13 @@ import (
 type TxProfitabilityCheckerType string
 
 const (
-	// ProfitabilityBase checks matic collateral with min reward
+	// ProfitabilityBase checks pol collateral with min reward
 	ProfitabilityBase = "base"
 	// ProfitabilityAcceptAll validate batch anyway and don't check anything
 	ProfitabilityAcceptAll = "acceptall"
 )
 
-// TxProfitabilityCheckerBase checks matic collateral with min reward
+// TxProfitabilityCheckerBase checks pol collateral with min reward
 type TxProfitabilityCheckerBase struct {
 	State                             stateInterface
 	IntervalAfterWhichBatchSentAnyway time.Duration
@@ -32,8 +32,8 @@ func NewTxProfitabilityCheckerBase(state stateInterface, interval time.Duration,
 	}
 }
 
-// IsProfitable checks matic collateral with min reward
-func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, maticCollateral *big.Int) (bool, error) {
+// IsProfitable checks pol collateral with min reward
+func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, polCollateral *big.Int) (bool, error) {
 	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {
@@ -44,7 +44,7 @@ func (pc *TxProfitabilityCheckerBase) IsProfitable(ctx context.Context, maticCol
 	//	}
 	//}
 
-	return maticCollateral.Cmp(pc.MinReward) >= 0, nil
+	return polCollateral.Cmp(pc.MinReward) >= 0, nil
 }
 
 // TxProfitabilityCheckerAcceptAll validate batch anyway and don't check anything
@@ -62,7 +62,7 @@ func NewTxProfitabilityCheckerAcceptAll(state stateInterface, interval time.Dura
 }
 
 // IsProfitable validate batch anyway and don't check anything
-func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, maticCollateral *big.Int) (bool, error) {
+func (pc *TxProfitabilityCheckerAcceptAll) IsProfitable(ctx context.Context, polCollateral *big.Int) (bool, error) {
 	//if pc.IntervalAfterWhichBatchSentAnyway != 0 {
 	//	ok, err := isConsolidatedBatchAppeared(ctx, pc.State, pc.IntervalAfterWhichBatchSentAnyway)
 	//	if err != nil {

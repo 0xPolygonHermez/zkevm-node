@@ -293,7 +293,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 	if !tx.isForcedBatch {
-		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		err = d.state.UpdateBatchL2DataAndLER(ctx, tx.batchNumber, batch.BatchL2Data, tx.batchResponse.NewLocalExitRoot, dbTx)
 		if err != nil {
 			err2 := dbTx.Rollback(ctx)
 			if err2 != nil {
@@ -411,7 +411,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 	// Init counters to MAX values
 	var totalBytes uint64 = d.batchConstraints.MaxBatchBytesSize
 	var batchZkCounters = state.ZKCounters{
-		CumulativeGasUsed:    d.batchConstraints.MaxCumulativeGasUsed,
+		GasUsed:              d.batchConstraints.MaxCumulativeGasUsed,
 		UsedKeccakHashes:     d.batchConstraints.MaxKeccakHashes,
 		UsedPoseidonHashes:   d.batchConstraints.MaxPoseidonHashes,
 		UsedPoseidonPaddings: d.batchConstraints.MaxPoseidonPaddings,
@@ -467,7 +467,7 @@ func (d *dbManager) GetWIPBatch(ctx context.Context) (*WipBatch, error) {
 			}
 
 			zkCounters := &state.ZKCounters{
-				CumulativeGasUsed:    batchResponse.GetCumulativeGasUsed(),
+				GasUsed:              batchResponse.GetCumulativeGasUsed(),
 				UsedKeccakHashes:     batchResponse.CntKeccakHashes,
 				UsedPoseidonHashes:   batchResponse.CntPoseidonHashes,
 				UsedPoseidonPaddings: batchResponse.CntPoseidonPaddings,
@@ -569,8 +569,8 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 	processingCtx := state.ProcessingContext{
 		BatchNumber:    request.BatchNumber,
 		Coinbase:       request.Coinbase,
-		Timestamp:      request.Timestamp,
-		GlobalExitRoot: request.GlobalExitRoot,
+		Timestamp:      request.Timestamp_V1,
+		GlobalExitRoot: request.GlobalExitRoot_V1,
 		ForcedBatchNum: &ForcedBatchNumber,
 	}
 	dbTx, err := d.state.BeginStateTransaction(d.ctx)
@@ -613,11 +613,13 @@ func (d *dbManager) ProcessForcedBatch(ForcedBatchNumber uint64, request state.P
 
 	// Close Batch
 	txsBytes := uint64(0)
-	for _, resp := range processBatchResponse.Responses {
-		if !resp.ChangesStateRoot {
-			continue
+	for _, blockResp := range processBatchResponse.BlockResponses {
+		for _, resp := range blockResp.TransactionResponses {
+			if !resp.ChangesStateRoot {
+				continue
+			}
+			txsBytes += resp.Tx.Size()
 		}
-		txsBytes += resp.Tx.Size()
 	}
 	processingReceipt := state.ProcessingReceipt{
 		BatchNumber:   request.BatchNumber,
@@ -659,7 +661,7 @@ func (d *dbManager) GetForcedBatchesSince(ctx context.Context, forcedBatchNumber
 }
 
 // GetLastL2BlockHeader gets the last l2 block number
-func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error) {
+func (d *dbManager) GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error) {
 	return d.state.GetLastL2BlockHeader(ctx, dbTx)
 }
 

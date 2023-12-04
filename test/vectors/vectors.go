@@ -73,7 +73,7 @@ type TxEventsSendBatchTestCase struct {
 
 	BatchL2Data   string      `json:"batchL2Data"`
 	BatchHashData common.Hash `json:"batchHashData"`
-	MaticAmount   string      `json:"maticAmount"`
+	PolAmount   string        `json:"polAmount"`
 	FullCallData  string      `json:"fullCallData"`
 }
 
