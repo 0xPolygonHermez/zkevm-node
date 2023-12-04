@@ -298,7 +298,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 			continue
 		}
 
-		transactions = append(transactions, &txResponse.Tx)
+		transaction := &txResponse.Tx
+		transactions = append(transactions, transaction)
 
 		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
 		if txsEGPLog != nil {
