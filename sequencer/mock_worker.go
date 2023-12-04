@@ -72,10 +72,14 @@ func (_m *WorkerMock) DeleteTx(txHash common.Hash, from common.Address) {
 }
 
 // GetBestFittingTx provides a mock function with given fields: resources
-func (_m *WorkerMock) GetBestFittingTx(resources state.BatchResources) *TxTracker {
+func (_m *WorkerMock) GetBestFittingTx(resources state.BatchResources) (*TxTracker, error) {
 	ret := _m.Called(resources)
 
 	var r0 *TxTracker
+	var r1 error
+	if rf, ok := ret.Get(0).(func(state.BatchResources) (*TxTracker, error)); ok {
+		return rf(resources)
+	}
 	if rf, ok := ret.Get(0).(func(state.BatchResources) *TxTracker); ok {
 		r0 = rf(resources)
 	} else {
@@ -84,7 +88,13 @@ func (_m *WorkerMock) GetBestFittingTx(resources state.BatchResources) *TxTracke
 		}
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(state.BatchResources) error); ok {
+		r1 = rf(resources)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // HandleL2Reorg provides a mock function with given fields: txHashes

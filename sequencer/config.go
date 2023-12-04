@@ -62,6 +62,12 @@ type FinalizerCfg struct {
 	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
 	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
 
+	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+
+	// L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
+	L1InfoRootFinalityNumberOfBlocks uint64 `mapstructure:"L1InfoRootFinalityNumberOfBlocks"`
+
 	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
 
@@ -71,11 +77,14 @@ type FinalizerCfg struct {
 	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
 
-	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
-	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+	// WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
+	WaitForCheckingL1InfoRoot types.Duration `mapstructure:"WaitForCheckingL1InfoRoot"`
 
 	// TimestampResolution is the resolution of the timestamp used to close a batch
 	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+
+	// L2BlockTime is the resolution of the timestamp used to close a L2 block
+	L2BlockTime types.Duration `mapstructure:"L2BlockTime"`
 
 	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
 	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`

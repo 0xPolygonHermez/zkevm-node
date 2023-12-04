@@ -27,7 +27,7 @@ type ProcessRequest struct {
 	TimestampLimit_V2         uint64
 	Caller                    metrics.CallerLabel
 	SkipFirstChangeL2Block_V2 bool
-	SkipWriteBlockInfoRoot    bool
+	SkipWriteBlockInfoRoot_V2 bool
 	ForkID                    uint64
 }
 

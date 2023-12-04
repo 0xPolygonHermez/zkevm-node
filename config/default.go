@@ -126,11 +126,14 @@ MaxTxLifetime = "3h"
 		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
 		GERFinalityNumberOfBlocks = 64
+		ForcedBatchesFinalityNumberOfBlocks = 64
+		L1InfoRootFinalityNumberOfBlocks = 64
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		ForcedBatchesFinalityNumberOfBlocks = 64
+		WaitForCheckingL1InfoTree = "10s"
 		TimestampResolution = "10s"
+		L2BlockTime = "3s"
 		StopSequencerOnBatchNum = 0
 		SequentialReprocessFullBatch = false
 	[Sequencer.DBManager]
