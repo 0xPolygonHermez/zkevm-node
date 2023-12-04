@@ -269,6 +269,22 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
+// GetCurrentL1InfoRoot provides a mock function with given fields:
+func (_m *stateMock) GetCurrentL1InfoRoot() common.Hash {
+	ret := _m.Called()
+
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func() common.Hash); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	return r0
+}
+
 // GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
 func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	ret := _m.Called(batchNumber)
@@ -605,6 +621,46 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 
 	if rf, ok := ret.Get(3).(func(context.Context, state.ProcessingContext, []byte, pgx.Tx, metrics.CallerLabel) error); ok {
 		r3 = rf(ctx, processingCtx, encodedTxs, dbTx, caller)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
+}
+
+// ProcessAndStoreClosedBatchV2 provides a mock function with given fields: ctx, processingCtx, dbTx, caller
+func (_m *stateMock) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	ret := _m.Called(ctx, processingCtx, dbTx, caller)
+
+	var r0 common.Hash
+	var r1 uint64
+	var r2 string
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) (common.Hash, uint64, string, error)); ok {
+		return rf(ctx, processingCtx, dbTx, caller)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) common.Hash); ok {
+		r0 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) uint64); ok {
+		r1 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		r1 = ret.Get(1).(uint64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) string); ok {
+		r2 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	if rf, ok := ret.Get(3).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) error); ok {
+		r3 = rf(ctx, processingCtx, dbTx, caller)
 	} else {
 		r3 = ret.Error(3)
 	}

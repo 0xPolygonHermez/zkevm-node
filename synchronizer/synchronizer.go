@@ -849,18 +849,29 @@ func (s *ClientSynchronizer) checkFlushID(dbTx pgx.Tx) error {
 	return nil
 }
 
+const (
+	//L2BlockHeaderForGenesis = "0b73e6af6f00000000"
+	L2BlockHeaderForGenesis = "0b0000000000000000"
+)
+
 func (s *ClientSynchronizer) setInitialBatch(blockNumber uint64, dbTx pgx.Tx) error {
 	log.Debug("Setting initial transaction batch 1")
 	// Process FirstTransaction included in batch 1
-	batchL2Data := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
-	processCtx := state.ProcessingContext{
-		BatchNumber:    1,
-		Coinbase:       s.genesis.FirstBatchData.Sequencer,
-		Timestamp:      time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
-		GlobalExitRoot: s.genesis.FirstBatchData.GlobalExitRoot,
-		BatchL2Data:    &batchL2Data,
+	//TODO: Check if adding this prefix is a good solution
+	prefix := common.Hex2Bytes(L2BlockHeaderForGenesis)
+	genesisTransactions := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
+	batchL2Data := append(prefix, genesisTransactions...)
+	l1InfoRoot := s.state.GetCurrentL1InfoRoot()
+	processCtx := state.ProcessingContextV2{
+		BatchNumber: 1,
+		Coinbase:    s.genesis.FirstBatchData.Sequencer,
+		// TODO: If use s.genesis.FirstBatchData.Timestamp fails
+		//Timestamp:   time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
+		Timestamp:   time.Now(),
+		L1InfoRoot:  &l1InfoRoot,
+		BatchL2Data: &batchL2Data,
 	}
-	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatch(s.ctx, processCtx, batchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatchV2(s.ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 	if err != nil {
 		log.Error("error storing batch 1. Error: ", err)
 		return err

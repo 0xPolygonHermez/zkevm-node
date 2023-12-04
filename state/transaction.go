@@ -267,11 +267,6 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	log.Debugf("storing l2 block %d, txs %d, hash %d", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
-	dbTx, err := s.BeginStateTransaction(ctx)
-	if err != nil {
-		return err
-	}
-
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
 		ParentHash: l2Block.ParentHash,

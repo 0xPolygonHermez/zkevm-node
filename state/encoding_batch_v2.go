@@ -90,7 +90,7 @@ func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 		return nil, fmt.Errorf("a batch need minimum a L2Block: %w", ErrInvalidBatchV2)
 	}
 	for _, block := range blocks {
-		batchData, err = encodeBlockHeader(batchData, block)
+		batchData, err = EncodeBlockHeaderV2(batchData, block)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode block header: %w", err)
 		}
@@ -104,7 +104,7 @@ func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	return batchData, nil
 }
 
-func encodeBlockHeader(batchData []byte, block L2BlockRaw) ([]byte, error) {
+func EncodeBlockHeaderV2(batchData []byte, block L2BlockRaw) ([]byte, error) {
 	batchData = append(batchData, changeL2Block)
 	batchData = append(batchData, serializeUint32(block.DeltaTimestamp)...)
 	batchData = append(batchData, serializeUint32(block.IndexL1InfoTree)...)

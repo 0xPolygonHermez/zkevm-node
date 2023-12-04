@@ -116,9 +116,10 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
 		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
 
-		tx := new(types.Transaction)
+		var tx *types.Transaction
 
 		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
+			tx = new(types.Transaction)
 			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 			if err != nil {
 				timestamp := time.Now()
@@ -332,6 +333,7 @@ func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error
 		Coinbase:       p.Coinbase,
 		ForcedBatchNum: p.ForcedBatchNum,
 		BatchL2Data:    p.BatchL2Data,
+		Timestamp:      p.Timestamp,
 	}
 	return &result, nil
 }
