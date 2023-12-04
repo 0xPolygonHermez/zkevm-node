@@ -67,6 +67,7 @@ type stateInterface interface {
 	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	AddL1InfoTreeLeaf(ctx context.Context, L1InfoTreeLeaf *state.L1InfoTreeLeaf, dbTx pgx.Tx) (*state.L1InfoTreeExitRootStorageEntry, error)
+	GetCurrentL1InfoRoot() common.Hash
 }
 
 type ethTxManager interface {
