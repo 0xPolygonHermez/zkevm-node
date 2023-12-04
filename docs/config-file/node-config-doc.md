@@ -2516,28 +2516,31 @@ GenesisBlockNum=0
 **Type:** : `object`
 **Description:** Configuration of the gas price suggester service
 
-| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                        |
-| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Type](#L2GasPriceSuggester_Type )                                           | No      | string  | No         | -          | -                                                                                                                                        |
-| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )               | No      | integer | No         | -          | DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer. |
-| - [MaxGasPriceWei](#L2GasPriceSuggester_MaxGasPriceWei )                       | No      | integer | No         | -          | MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.                |
-| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                   | No      | object  | No         | -          | -                                                                                                                                        |
-| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                             | No      | object  | No         | -          | -                                                                                                                                        |
-| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                             | No      | integer | No         | -          | -                                                                                                                                        |
-| - [Percentile](#L2GasPriceSuggester_Percentile )                               | No      | integer | No         | -          | -                                                                                                                                        |
-| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                           | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )               | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [KafkaURL](#L2GasPriceSuggester_KafkaURL )                                   | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Topic](#L2GasPriceSuggester_Topic )                                         | No      | string  | No         | -          | -                                                                                                                                        |
-| - [GroupID](#L2GasPriceSuggester_GroupID )                                     | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Username](#L2GasPriceSuggester_Username )                                   | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Password](#L2GasPriceSuggester_Password )                                   | No      | string  | No         | -          | -                                                                                                                                        |
-| - [RootCAPath](#L2GasPriceSuggester_RootCAPath )                               | No      | string  | No         | -          | -                                                                                                                                        |
-| - [L2CoinId](#L2GasPriceSuggester_L2CoinId )                                   | No      | integer | No         | -          | -                                                                                                                                        |
-| - [DefaultL2CoinPrice](#L2GasPriceSuggester_DefaultL2CoinPrice )               | No      | number  | No         | -          | DefaultL2CoinPrice is the native token's coin price                                                                                      |
-| - [GasPriceUsdt](#L2GasPriceSuggester_GasPriceUsdt )                           | No      | number  | No         | -          | -                                                                                                                                        |
-| - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                                                                                                                                        |
+| Property                                                                                   | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                        |
+| ------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Type](#L2GasPriceSuggester_Type )                                                       | No      | string  | No         | -          | -                                                                                                                                        |
+| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )                           | No      | integer | No         | -          | DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer. |
+| - [MaxGasPriceWei](#L2GasPriceSuggester_MaxGasPriceWei )                                   | No      | integer | No         | -          | MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.                |
+| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                               | No      | object  | No         | -          | -                                                                                                                                        |
+| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                                         | No      | object  | No         | -          | -                                                                                                                                        |
+| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                                         | No      | integer | No         | -          | -                                                                                                                                        |
+| - [Percentile](#L2GasPriceSuggester_Percentile )                                           | No      | integer | No         | -          | -                                                                                                                                        |
+| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                                       | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )                           | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention )             | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [KafkaURL](#L2GasPriceSuggester_KafkaURL )                                               | No      | string  | No         | -          | -                                                                                                                                        |
+| - [Topic](#L2GasPriceSuggester_Topic )                                                     | No      | string  | No         | -          | -                                                                                                                                        |
+| - [GroupID](#L2GasPriceSuggester_GroupID )                                                 | No      | string  | No         | -          | -                                                                                                                                        |
+| - [Username](#L2GasPriceSuggester_Username )                                               | No      | string  | No         | -          | -                                                                                                                                        |
+| - [Password](#L2GasPriceSuggester_Password )                                               | No      | string  | No         | -          | -                                                                                                                                        |
+| - [RootCAPath](#L2GasPriceSuggester_RootCAPath )                                           | No      | string  | No         | -          | -                                                                                                                                        |
+| - [L1CoinId](#L2GasPriceSuggester_L1CoinId )                                               | No      | integer | No         | -          | -                                                                                                                                        |
+| - [L2CoinId](#L2GasPriceSuggester_L2CoinId )                                               | No      | integer | No         | -          | -                                                                                                                                        |
+| - [DefaultL1CoinPrice](#L2GasPriceSuggester_DefaultL1CoinPrice )                           | No      | number  | No         | -          | DefaultL1CoinPrice is the L1 token's coin price                                                                                          |
+| - [DefaultL2CoinPrice](#L2GasPriceSuggester_DefaultL2CoinPrice )                           | No      | number  | No         | -          | DefaultL2CoinPrice is the native token's coin price                                                                                      |
+| - [GasPriceUsdt](#L2GasPriceSuggester_GasPriceUsdt )                                       | No      | number  | No         | -          | -                                                                                                                                        |
+| - [EnableFollowerAdjustByL2L1Price](#L2GasPriceSuggester_EnableFollowerAdjustByL2L1Price ) | No      | boolean | No         | -          | EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy                      |
+| - [Factor](#L2GasPriceSuggester_Factor )                                                   | No      | number  | No         | -          | -                                                                                                                                        |
 
 ### <a name="L2GasPriceSuggester_Type"></a>14.1. `L2GasPriceSuggester.Type`
 
@@ -2755,7 +2758,19 @@ Password=""
 RootCAPath=""
 ```
 
-### <a name="L2GasPriceSuggester_L2CoinId"></a>14.17. `L2GasPriceSuggester.L2CoinId`
+### <a name="L2GasPriceSuggester_L1CoinId"></a>14.17. `L2GasPriceSuggester.L1CoinId`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[L2GasPriceSuggester]
+L1CoinId=0
+```
+
+### <a name="L2GasPriceSuggester_L2CoinId"></a>14.18. `L2GasPriceSuggester.L2CoinId`
 
 **Type:** : `integer`
 
@@ -2767,7 +2782,21 @@ RootCAPath=""
 L2CoinId=0
 ```
 
-### <a name="L2GasPriceSuggester_DefaultL2CoinPrice"></a>14.18. `L2GasPriceSuggester.DefaultL2CoinPrice`
+### <a name="L2GasPriceSuggester_DefaultL1CoinPrice"></a>14.19. `L2GasPriceSuggester.DefaultL1CoinPrice`
+
+**Type:** : `number`
+
+**Default:** `0`
+
+**Description:** DefaultL1CoinPrice is the L1 token's coin price
+
+**Example setting the default value** (0):
+```
+[L2GasPriceSuggester]
+DefaultL1CoinPrice=0
+```
+
+### <a name="L2GasPriceSuggester_DefaultL2CoinPrice"></a>14.20. `L2GasPriceSuggester.DefaultL2CoinPrice`
 
 **Type:** : `number`
 
@@ -2781,7 +2810,7 @@ L2CoinId=0
 DefaultL2CoinPrice=0
 ```
 
-### <a name="L2GasPriceSuggester_GasPriceUsdt"></a>14.19. `L2GasPriceSuggester.GasPriceUsdt`
+### <a name="L2GasPriceSuggester_GasPriceUsdt"></a>14.21. `L2GasPriceSuggester.GasPriceUsdt`
 
 **Type:** : `number`
 
@@ -2793,7 +2822,21 @@ DefaultL2CoinPrice=0
 GasPriceUsdt=0
 ```
 
-### <a name="L2GasPriceSuggester_Factor"></a>14.20. `L2GasPriceSuggester.Factor`
+### <a name="L2GasPriceSuggester_EnableFollowerAdjustByL2L1Price"></a>14.22. `L2GasPriceSuggester.EnableFollowerAdjustByL2L1Price`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy
+
+**Example setting the default value** (false):
+```
+[L2GasPriceSuggester]
+EnableFollowerAdjustByL2L1Price=false
+```
+
+### <a name="L2GasPriceSuggester_Factor"></a>14.23. `L2GasPriceSuggester.Factor`
 
 **Type:** : `number`
 

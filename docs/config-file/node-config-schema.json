@@ -1109,8 +1109,17 @@
 					"type": "string",
 					"default": ""
 				},
+				"L1CoinId": {
+					"type": "integer",
+					"default": 0
+				},
 				"L2CoinId": {
 					"type": "integer",
+					"default": 0
+				},
+				"DefaultL1CoinPrice": {
+					"type": "number",
+					"description": "DefaultL1CoinPrice is the L1 token's coin price",
 					"default": 0
 				},
 				"DefaultL2CoinPrice": {
@@ -1121,6 +1130,11 @@
 				"GasPriceUsdt": {
 					"type": "number",
 					"default": 0
+				},
+				"EnableFollowerAdjustByL2L1Price": {
+					"type": "boolean",
+					"description": "EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy",
+					"default": false
 				},
 				"Factor": {
 					"type": "number",

@@ -42,10 +42,16 @@ type Config struct {
 	Username   string `mapstructure:"Username"`
 	Password   string `mapstructure:"Password"`
 	RootCAPath string `mapstructure:"RootCAPath"`
+	L1CoinId   int    `mapstructure:"L1CoinId"`
 	L2CoinId   int    `mapstructure:"L2CoinId"`
+	// DefaultL1CoinPrice is the L1 token's coin price
+	DefaultL1CoinPrice float64 `mapstructure:"DefaultL1CoinPrice"`
 	// DefaultL2CoinPrice is the native token's coin price
 	DefaultL2CoinPrice float64 `mapstructure:"DefaultL2CoinPrice"`
 	GasPriceUsdt       float64 `mapstructure:"GasPriceUsdt"`
+
+	// EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy
+	EnableFollowerAdjustByL2L1Price bool `mapstructure:"EnableFollowerAdjustByL2L1Price"`
 
 	Factor float64 `mapstructure:"Factor"`
 }

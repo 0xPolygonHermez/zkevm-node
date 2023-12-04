@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -18,8 +19,14 @@ import (
 
 const (
 	okbcoinId      = 7184
+	ethcoinId      = 15756
 	defaultTime    = 10
 	defaultMaxData = 10e6 // 10M
+)
+
+var (
+	// ErrNotFindCoinPrice not find a correct coin price
+	ErrNotFindCoinPrice = errors.New("not find a correct coin price")
 )
 
 // MsgInfo msg info
@@ -64,24 +71,42 @@ type Price struct {
 	Id                       string  `json:"id"`
 }
 
+// L1L2PriceRecord l1 l2 coin price record
+type L1L2PriceRecord struct {
+	l1Price  float64
+	l2Price  float64
+	l1Update bool
+	l2Update bool
+}
+
 // KafkaProcessor kafka processor
 type KafkaProcessor struct {
-	kreader  *kafka.Reader
-	L2Price  float64
-	ctx      context.Context
-	rwLock   sync.RWMutex
-	l2CoinId int
+	cfg       Config
+	kreader   *kafka.Reader
+	ctx       context.Context
+	rwLock    sync.RWMutex
+	l1CoinId  int
+	l2CoinId  int
+	l1Price   float64
+	l2Price   float64
+	tmpPrices L1L2PriceRecord
 }
 
 func newKafkaProcessor(cfg Config, ctx context.Context) *KafkaProcessor {
 	rp := &KafkaProcessor{
+		cfg:      cfg,
 		kreader:  getKafkaReader(cfg),
-		L2Price:  cfg.DefaultL2CoinPrice,
+		l1Price:  cfg.DefaultL1CoinPrice,
+		l2Price:  cfg.DefaultL2CoinPrice,
 		ctx:      ctx,
 		l2CoinId: okbcoinId,
+		l1CoinId: ethcoinId,
 	}
 	if cfg.L2CoinId != 0 {
 		rp.l2CoinId = cfg.L2CoinId
+	}
+	if cfg.L1CoinId != 0 {
+		rp.l1CoinId = cfg.L1CoinId
 	}
 
 	go rp.processor()
@@ -130,52 +155,113 @@ func (rp *KafkaProcessor) processor() {
 		case <-rp.ctx.Done():
 			return
 		default:
-			value, err := rp.ReadAndCalc(rp.ctx)
-			if err != nil {
+			err := rp.ReadAndUpdate(rp.ctx)
+			if err != nil && err != ErrNotFindCoinPrice {
 				log.Warn("get the destion data fail ", err)
 				time.Sleep(time.Second * defaultTime)
 				continue
 			}
-			rp.updateL2CoinPrice(value)
 		}
 	}
 }
 
-// ReadAndCalc read and calc
-func (rp *KafkaProcessor) ReadAndCalc(ctx context.Context) (float64, error) {
+// ReadAndUpdate read and update
+func (rp *KafkaProcessor) ReadAndUpdate(ctx context.Context) error {
 	m, err := rp.kreader.ReadMessage(ctx)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return rp.parseL2CoinPrice(m.Value)
+	return rp.Update(m.Value)
+}
+
+// Update update the coin price
+func (rp *KafkaProcessor) Update(data []byte) error {
+	if rp.cfg.Type == FixedType {
+		price, err := rp.parseCoinPrice(data, []int{rp.l2CoinId})
+		if err == nil {
+			rp.updateL2CoinPrice(price[rp.l2CoinId])
+		}
+		return err
+	} else if rp.cfg.Type == FollowerType {
+		prices, err := rp.parseCoinPrice(data, []int{rp.l1CoinId, rp.l2CoinId})
+		if err == nil {
+			rp.updateL1L2CoinPrice(prices)
+		}
+		return err
+	}
+	return nil
 }
 
 func (rp *KafkaProcessor) updateL2CoinPrice(price float64) {
 	rp.rwLock.Lock()
 	defer rp.rwLock.Unlock()
-	rp.L2Price = price
+	rp.l2Price = price
 }
 
 // GetL2CoinPrice get L2 coin price
 func (rp *KafkaProcessor) GetL2CoinPrice() float64 {
 	rp.rwLock.RLock()
 	defer rp.rwLock.RUnlock()
-	return rp.L2Price
+	return rp.l2Price
 }
 
-func (rp *KafkaProcessor) parseL2CoinPrice(value []byte) (float64, error) {
+func (rp *KafkaProcessor) updateL1L2CoinPrice(prices map[int]float64) {
+	if len(prices) == 0 {
+		return
+	}
+	rp.rwLock.Lock()
+	defer rp.rwLock.Unlock()
+	if v, ok := prices[rp.l1CoinId]; ok {
+		rp.tmpPrices.l1Price = v
+		rp.tmpPrices.l1Update = true
+	}
+	if v, ok := prices[rp.l2CoinId]; ok {
+		rp.tmpPrices.l2Price = v
+		rp.tmpPrices.l2Update = true
+	}
+	if rp.tmpPrices.l1Update && rp.tmpPrices.l2Update {
+		rp.l1Price = rp.tmpPrices.l1Price
+		rp.l2Price = rp.tmpPrices.l2Price
+		rp.tmpPrices.l1Update = false
+		rp.tmpPrices.l2Update = false
+		return
+	}
+}
+
+// GetL1L2CoinPrice get l1, L2 coin price
+func (rp *KafkaProcessor) GetL1L2CoinPrice() (float64, float64) {
+	rp.rwLock.RLock()
+	defer rp.rwLock.RUnlock()
+	return rp.l1Price, rp.l2Price
+}
+
+func (rp *KafkaProcessor) parseCoinPrice(value []byte, coinIds []int) (map[int]float64, error) {
+	if len(coinIds) == 0 {
+		return nil, fmt.Errorf("the params coinIds is empty")
+	}
 	msgI := &MsgInfo{}
 	err := json.Unmarshal(value, &msgI)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if msgI.Data == nil || len(msgI.Data.PriceList) == 0 {
-		return 0, fmt.Errorf("the data PriceList is empty")
+		return nil, fmt.Errorf("the data PriceList is empty")
 	}
+	mp := make(map[int]*Price)
 	for _, price := range msgI.Data.PriceList {
-		if price.CoinId == rp.l2CoinId {
-			return price.Price, nil
+		mp[price.CoinId] = price
+	}
+
+	results := make(map[int]float64)
+	for _, coinId := range coinIds {
+		if coin, ok := mp[coinId]; ok {
+			results[coinId] = coin.Price
+		} else {
+			log.Debugf("not find a correct coin price coin id is =%v", coinId)
 		}
 	}
-	return 0, fmt.Errorf("not find a correct coin price coinId=%v", rp.l2CoinId)
+	if len(results) == 0 {
+		return results, ErrNotFindCoinPrice
+	}
+	return results, nil
 }

@@ -12,8 +12,8 @@ import (
 
 const (
 	// OKBWei OKB wei
-	OKBWei    = 1e18
-	minOKBWei = 1e-18
+	OKBWei       = 1e18
+	minCoinPrice = 1e-18
 )
 
 // FixedGasPrice struct
@@ -49,7 +49,7 @@ func (f *FixedGasPrice) UpdateGasPriceAvg() {
 	}
 
 	l2CoinPrice := f.ratePrc.GetL2CoinPrice()
-	if l2CoinPrice < minOKBWei {
+	if l2CoinPrice < minCoinPrice {
 		log.Warn("the L2 native coin price too small...")
 		return
 	}
