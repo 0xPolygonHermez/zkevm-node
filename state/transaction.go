@@ -258,6 +258,75 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 	return nil
 }
 
+// StoreL2Block stores a l2 block into the state
+func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *ProcessBlockResponse, txsEGPLog []*EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	log.Debugf("storing l2 block %d, txs %d, hash %d", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
+	start := time.Now()
+
+	dbTx, err := s.BeginStateTransaction(ctx)
+	if err != nil {
+		return err
+	}
+
+	header := &types.Header{
+		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
+		ParentHash: l2Block.ParentHash,
+		Coinbase:   l2Block.Coinbase,
+		Root:       l2Block.BlockHash, //BlockHash is the StateRoot in Etrog
+		GasUsed:    l2Block.GasUsed,
+		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		Time:       l2Block.Timestamp,
+	}
+
+	l2Header := NewL2Header(header)
+
+	l2Header.GlobalExitRoot = &l2Block.GlobalExitRoot
+	//TODO: l2header.LocalExitRoot??
+
+	transactions := []*types.Transaction{}
+	storeTxsEGPData := []StoreTxEGPData{}
+	receipts := []*types.Receipt{}
+
+	for i, txResponse := range l2Block.TransactionResponses {
+		// if the transaction has an intrinsic invalid tx error it means
+		// the transaction has not changed the state, so we don't store it
+		if executor.IsIntrinsicError(executor.RomErrorCode(txResponse.RomError)) {
+			continue
+		}
+
+		transactions = append(transactions, &txResponse.Tx)
+
+		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
+		if txsEGPLog != nil {
+			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
+		}
+
+		receipt := generateReceipt(header.Number, txResponse)
+		receipts = append(receipts, receipt)
+	}
+
+	// Create block to be able to calculate its hash
+	block := NewL2Block(l2Header, transactions, []*L2Header{}, receipts, &trie.StackTrie{})
+	block.ReceivedAt = time.Unix(int64(l2Block.Timestamp), 0)
+
+	for _, receipt := range receipts {
+		receipt.BlockHash = block.Hash()
+	}
+
+	// Store L2 block and its transactions
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+		return err
+	}
+
+	log.Debugf("stored L2 block %d for batch %d, storing time %v", header.Number, batchNumber, time.Since(start))
+
+	return nil
+}
+
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
 func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	sender, err := GetSender(*tx)
