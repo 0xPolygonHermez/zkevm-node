@@ -301,7 +301,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
 		}
 
-		receipt := generateReceipt(header.Number, txResponse)
+		receipt := GenerateReceipt(header.Number, txResponse)
 		receipts = append(receipts, receipt)
 	}
 
