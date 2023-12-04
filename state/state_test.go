@@ -100,7 +100,7 @@ func TestMain(m *testing.M) {
 	}
 	defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "toni-prover")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 	var executorCancel context.CancelFunc
@@ -720,13 +720,12 @@ func TestGenesis(t *testing.T) {
 		},
 	}
 
-	genesis.GenesisActions = actions
 	initOrResetDB()
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 
-	genesis.GenesisActions = actions
+	genesis.Actions = actions
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 	stateRoot, err := testState.SetGenesis(ctx, block, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
@@ -808,7 +807,7 @@ func TestExecutorRevert(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: sequencerAddress.String(),
 			Type:    int(merkletree.LeafTypeBalance),
@@ -892,7 +891,7 @@ func TestExecutorRevert(t *testing.T) {
 		Status:            types.ReceiptStatusSuccessful,
 	}
 
-	header := &types.Header{
+	header := state.NewL2Header(&types.Header{
 		Number:     big.NewInt(2),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
@@ -900,14 +899,14 @@ func TestExecutorRevert(t *testing.T) {
 		GasUsed:    receipt1.GasUsed,
 		GasLimit:   receipt1.GasUsed,
 		Time:       uint64(time.Now().Unix()),
-	}
+	})
 
 	receipts := []*types.Receipt{receipt, receipt1}
 
 	transactions := []*types.Transaction{signedTx0, signedTx1}
 
 	// Create block to be able to calculate its hash
-	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = time.Now()
 
 	receipt.BlockHash = l2Block.Hash()
@@ -1022,7 +1021,7 @@ func TestExecutorTransfer(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 			Type:    int(merkletree.LeafTypeBalance),
@@ -1283,7 +1282,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 				ParentHash:  state.ZeroHash,
 				ReceivedAt:  time.Now(),
 			}
-			genesis.GenesisActions = []*state.GenesisAction{
+			genesis.Actions = []*state.GenesisAction{
 				{
 					Address: senderAddress.String(),
 					Type:    int(merkletree.LeafTypeBalance),
@@ -1350,7 +1349,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 			Type:    int(merkletree.LeafTypeBalance),
@@ -1626,7 +1625,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: sequencerAddress.Hex(),
 			Type:    int(merkletree.LeafTypeBalance),
@@ -1739,7 +1738,7 @@ func TestAddGetL2Block(t *testing.T) {
 		Status:            types.ReceiptStatusSuccessful,
 	}
 
-	header := &types.Header{
+	header := state.NewL2Header(&types.Header{
 		Number:     big.NewInt(1),
 		ParentHash: state.ZeroHash,
 		Coinbase:   state.ZeroAddress,
@@ -1747,13 +1746,13 @@ func TestAddGetL2Block(t *testing.T) {
 		GasUsed:    1,
 		GasLimit:   10,
 		Time:       uint64(time.Unix()),
-	}
+	})
 	transactions := []*types.Transaction{tx}
 
 	receipts := []*types.Receipt{receipt}
 
 	// Create block to be able to calculate its hash
-	l2Block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()
@@ -2005,7 +2004,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 			Type:    int(merkletree.LeafTypeBalance),
@@ -2324,7 +2323,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
 			Type:    int(merkletree.LeafTypeBalance),
@@ -2685,7 +2684,7 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	dbTx, err := testState.BeginStateTransaction(context.Background())
 	require.NoError(t, err)
 	// Set genesis
-	genesis.GenesisActions = []*state.GenesisAction{
+	genesis.Actions = []*state.GenesisAction{
 		{
 			Address: operations.DefaultSequencerAddress,
 			Type:    int(merkletree.LeafTypeBalance),

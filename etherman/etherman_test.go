@@ -305,20 +305,11 @@ func TestSendSequences(t *testing.T) {
 	ethBackend.Commit()
 	auth.Value = big.NewInt(0)
 
-	// Get the last ger
-	ger, err := etherman.GlobalExitRootManager.GetLastGlobalExitRoot(nil)
-	require.NoError(t, err)
-
-	currentBlock, err := etherman.EthClient.BlockByNumber(ctx, nil)
-	require.NoError(t, err)
-
 	tx1 := types.NewTransaction(uint64(0), common.Address{}, big.NewInt(10), uint64(1), big.NewInt(10), []byte{})
 	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
-		GlobalExitRoot: ger,
-		Timestamp:      int64(currentBlock.Time() - 1),
-		BatchL2Data:    batchL2Data,
+		BatchL2Data: batchL2Data,
 	}
 	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From)
 	require.NoError(t, err)

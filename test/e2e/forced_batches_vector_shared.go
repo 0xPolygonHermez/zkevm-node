@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"math"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -48,6 +49,12 @@ func LaunchTestForcedBatchesVectorFilesGroup(t *testing.T, vectorFilesDir string
 
 				opsCfg := operations.GetDefaultOperationsConfig()
 				opsCfg.State.MaxCumulativeGasUsed = 80000000000
+				opsCfg.State.ForkIDIntervals = []state.ForkIDInterval{{
+					FromBatchNumber: 0,
+					ToBatchNumber:   math.MaxUint64,
+					ForkId:          state.FORKID_ETROG,
+					Version:         "",
+				}}
 				opsman, err := operations.NewManager(ctx, opsCfg)
 				require.NoError(t, err)
 
@@ -57,8 +64,8 @@ func LaunchTestForcedBatchesVectorFilesGroup(t *testing.T, vectorFilesDir string
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				genesisConfig.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
-				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.GenesisBlockNum, genesisActions))
-				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.BlockNumber, genesisActions))
+				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.BlockNumber, forkID6))
 				actualOldStateRoot, err := opsman.State().GetLastStateRoot(ctx, nil)
 				require.NoError(t, err)
 				dbTx, err := opsman.BeginStateTransaction()

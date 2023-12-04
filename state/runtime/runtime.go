@@ -287,6 +287,8 @@ var (
 	ErrExecutorErrorInvalidL1SmtProof = errors.New("l1_smt_proof is invalid")
 	// ErrExecutorErrorInvalidBalance indicates that the input parameter balance is invalid
 	ErrExecutorErrorInvalidBalance = errors.New("balance is invalid")
+	// ErrExecutorErrorSMMainBinaryLt4Mismatch indicates that the binary instruction less than four opcode failed
+	ErrExecutorErrorSMMainBinaryLt4Mismatch = errors.New("the binary instruction less than four opcode failed")
 
 	// GRPC ERRORS
 	// ===========
@@ -321,4 +323,16 @@ func (r *ExecutionResult) Failed() bool {
 // Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
 	return errors.Is(r.Err, ErrExecutionReverted)
+}
+
+// IsOutOfCounterError checks if the provided error is one
+// of the errors related to out of counters errors
+func IsOutOfCounterError(err error) bool {
+	return errors.Is(err, ErrOutOfCountersArith) ||
+		errors.Is(err, ErrOutOfCountersBinary) ||
+		errors.Is(err, ErrOutOfCountersKeccak) ||
+		errors.Is(err, ErrOutOfCountersMemory) ||
+		errors.Is(err, ErrOutOfCountersPadding) ||
+		errors.Is(err, ErrOutOfCountersPoseidon) ||
+		errors.Is(err, ErrOutOfCountersStep)
 }

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -168,7 +167,7 @@ func TestCall(t *testing.T) {
 						tx.Nonce() == nonce
 					return match
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
@@ -198,7 +197,7 @@ func TestCall(t *testing.T) {
 				nonce := uint64(7)
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).Once()
@@ -254,7 +253,7 @@ func TestCall(t *testing.T) {
 						tx.Nonce() == nonce
 					return match
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
@@ -282,7 +281,7 @@ func TestCall(t *testing.T) {
 				nonce := uint64(7)
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).Once()
@@ -336,7 +335,7 @@ func TestCall(t *testing.T) {
 						hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data) &&
 						tx.Nonce() == nonce
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumTenUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
@@ -359,7 +358,7 @@ func TestCall(t *testing.T) {
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
-				blockHeader := &ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed}
+				blockHeader := state.NewL2Header(&ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumOne.Uint64(), nil).Once()
@@ -376,7 +375,7 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
@@ -398,7 +397,7 @@ func TestCall(t *testing.T) {
 			expectedResult: []byte("hello world"),
 			expectedError:  nil,
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
-				blockHeader := &ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed}
+				blockHeader := state.NewL2Header(&ethTypes.Header{GasLimit: s.Config.MaxCumulativeGasUsed})
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumOne.Uint64(), nil).Once()
@@ -415,7 +414,7 @@ func TestCall(t *testing.T) {
 					dataMatch := hex.EncodeToHex(tx.Data()) == hex.EncodeToHex(*txArgs.Data)
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.
 					On("ProcessUnsignedTransaction", context.Background(), txMatchBy, common.HexToAddress(DefaultSenderAddress), nilUint64, true, m.DbTx).
@@ -440,7 +439,7 @@ func TestCall(t *testing.T) {
 				m.DbTx.On("Rollback", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 				m.State.On("GetLastL2BlockNumber", context.Background(), m.DbTx).Return(blockNumOne.Uint64(), nil).Once()
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetL2BlockHeaderByNumber", context.Background(), blockNumOne.Uint64(), m.DbTx).Return(nil, errors.New("failed to get block header")).Once()
 			},
@@ -478,7 +477,7 @@ func TestCall(t *testing.T) {
 					nonceMatch := tx.Nonce() == nonce
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
@@ -520,7 +519,7 @@ func TestCall(t *testing.T) {
 					nonceMatch := tx.Nonce() == nonce
 					return hasTx && gasMatch && toMatch && gasPriceMatch && valueMatch && dataMatch && nonceMatch
 				})
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOneUint64, m.DbTx).Return(block, nil).Once()
 				m.State.On("GetNonce", context.Background(), *txArgs.From, blockRoot).Return(nonce, nil).Once()
 				m.State.
@@ -678,7 +677,7 @@ func TestEstimateGas(t *testing.T) {
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -723,7 +722,7 @@ func TestEstimateGas(t *testing.T) {
 				m.DbTx.On("Commit", context.Background()).Return(nil).Once()
 				m.State.On("BeginStateTransaction", context.Background()).Return(m.DbTx, nil).Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -854,7 +853,7 @@ func TestGetBalance(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetLastL2Block", context.Background(), m.DbTx).
 					Return(block, nil).Once()
@@ -887,7 +886,7 @@ func TestGetBalance(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).
@@ -918,7 +917,7 @@ func TestGetBalance(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -946,7 +945,7 @@ func TestGetBalance(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1051,7 +1050,11 @@ func TestGetL2BlockByHash(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1150,8 +1153,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				block := ethTypes.NewBlock(ethTypes.CopyHeader(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
-					tc.ExpectedResult.Uncles(), []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(),
+					uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1203,9 +1210,15 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					Return(tc.ExpectedResult.Number().Uint64(), nil).
 					Once()
 
+				uncles := make([]*state.L2Header, 0, len(tc.ExpectedResult.Uncles()))
+				for _, uncle := range tc.ExpectedResult.Uncles() {
+					uncles = append(uncles, state.NewL2Header(uncle))
+				}
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+
 				m.State.
 					On("GetL2BlockByNumber", context.Background(), tc.ExpectedResult.Number().Uint64(), m.DbTx).
-					Return(tc.ExpectedResult, nil).
+					Return(block, nil).
 					Once()
 
 				for _, tx := range tc.ExpectedResult.Transactions() {
@@ -1271,11 +1284,11 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			ExpectedResult: ethTypes.NewBlock(&ethTypes.Header{Number: big.NewInt(2)}, nil, nil, nil, &trie.StackTrie{}),
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				lastBlockHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
+				lastBlockHeader := tc.ExpectedResult.Header()
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := ethTypes.NewBlock(lastBlockHeader, nil, nil, nil, &trie.StackTrie{})
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
 
-				expectedResultHeader := ethTypes.CopyHeader(tc.ExpectedResult.Header())
+				expectedResultHeader := tc.ExpectedResult.Header()
 				expectedResultHeader.ParentHash = lastBlock.Hash()
 				tc.ExpectedResult = ethTypes.NewBlock(expectedResultHeader, nil, nil, nil, &trie.StackTrie{})
 
@@ -1486,7 +1499,7 @@ func TestGetCode(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOne.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1515,7 +1528,7 @@ func TestGetCode(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOne.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1544,7 +1557,7 @@ func TestGetCode(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumOne, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumOne, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumOne.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1572,7 +1585,7 @@ func TestGetCode(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).
@@ -1683,7 +1696,7 @@ func TestGetStorageAt(t *testing.T) {
 					Once()
 
 				blockNumber := big.NewInt(1)
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumber, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumber, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1716,7 +1729,7 @@ func TestGetStorageAt(t *testing.T) {
 					Once()
 
 				blockNumber := big.NewInt(1)
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumber, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumber, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1749,7 +1762,7 @@ func TestGetStorageAt(t *testing.T) {
 					Once()
 
 				blockNumber := big.NewInt(1)
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumber, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumber, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumber.Uint64(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -1781,7 +1794,7 @@ func TestGetStorageAt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).
@@ -2927,7 +2940,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetLastL2Block", context.Background(), m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -2955,7 +2968,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.
 					On("GetL2BlockByHash", context.Background(), blockHash, m.DbTx).
 					Return(block, nil).
@@ -2991,7 +3004,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Return(blockNumTen.Uint64(), nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumTenUint64, m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -3049,7 +3062,7 @@ func TestGetTransactionCount(t *testing.T) {
 					Return(blockNumTen.Uint64(), nil).
 					Once()
 
-				block := ethTypes.NewBlockWithHeader(&ethTypes.Header{Number: blockNumTen, Root: blockRoot})
+				block := state.NewL2BlockWithHeader(state.NewL2Header(&ethTypes.Header{Number: blockNumTen, Root: blockRoot}))
 				m.State.On("GetL2BlockByNumber", context.Background(), blockNumTenUint64, m.DbTx).Return(block, nil).Once()
 
 				m.State.
@@ -3630,7 +3643,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3654,7 +3667,7 @@ func TestNewFilter(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3717,7 +3730,7 @@ func TestNewFilter(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
@@ -3768,7 +3781,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3779,7 +3792,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
@@ -3828,9 +3841,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "New pending transaction filter created successfully",
 		// 	ExpectedResult: "1",
 		// 	ExpectedError:  nil,
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("1", nil).
 		// 			Once()
 		// 	},
@@ -3839,9 +3852,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "failed to create new pending transaction filter",
 		// 	ExpectedResult: "",
 		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("", errors.New("failed to add new pending transaction filter")).
 		// 			Once()
 		// 	},
@@ -4898,7 +4911,7 @@ func TestSubscribeNewHeads(t *testing.T) {
 			Name: "Subscribe to new heads Successfully",
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("0x1", nil).
 					Once()
 			},
@@ -4908,7 +4921,7 @@ func TestSubscribeNewHeads(t *testing.T) {
 			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("", fmt.Errorf("failed to add filter to storage")).
 					Once()
 			},
@@ -4976,7 +4989,7 @@ func TestSubscribeNewLogs(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("0x1", nil).
 					Once()
 			},
@@ -5001,7 +5014,7 @@ func TestSubscribeNewLogs(t *testing.T) {
 					Once()
 
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&atomic.Pointer[websocket.Conn]{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("", fmt.Errorf("failed to add filter to storage")).
 					Once()
 			},
@@ -5055,4 +5068,131 @@ func TestSubscribeNewLogs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFilterLogs(t *testing.T) {
+	logs := []*ethTypes.Log{{
+		Address: common.HexToAddress("0x1"),
+		Topics: []common.Hash{
+			common.HexToHash("0xA"),
+			common.HexToHash("0xB"),
+		},
+	}}
+
+	// empty filter
+	filteredLogs := filterLogs(logs, &Filter{Parameters: LogFilter{}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address and another random address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by unknown address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by topic0
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by topic0 but allows any topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by any topic0 but forces topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to be any of the values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to wrong values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by forcing topic0 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 by forcing topic1 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 and topic1 but forcing topic2 that doesn't exist
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+}
+
+func TestContains(t *testing.T) {
+	items := []int{1, 2, 3}
+	assert.Equal(t, false, contains(items, 0))
+	assert.Equal(t, true, contains(items, 1))
+	assert.Equal(t, true, contains(items, 2))
+	assert.Equal(t, true, contains(items, 3))
+	assert.Equal(t, false, contains(items, 4))
+}
+
+func TestParalelize(t *testing.T) {
+	items := []int{
+		1, 2, 3, 4, 5, 6, 7, 8, 9,
+		10, 11, 12, 13, 14, 15, 16,
+	}
+
+	results := map[int][]int{}
+	mu := &sync.Mutex{}
+
+	parallelize(7, items, func(worker int, items []int) {
+		mu.Lock()
+		results[worker] = items
+		mu.Unlock()
+	})
+
+	assert.ElementsMatch(t, []int{1, 2, 3}, results[0])
+	assert.ElementsMatch(t, []int{4, 5, 6}, results[1])
+	assert.ElementsMatch(t, []int{7, 8, 9}, results[2])
+	assert.ElementsMatch(t, []int{10, 11, 12}, results[3])
+	assert.ElementsMatch(t, []int{13, 14, 15}, results[4])
+	assert.ElementsMatch(t, []int{16}, results[5])
 }

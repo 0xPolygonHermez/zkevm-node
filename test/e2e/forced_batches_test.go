@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/0xPolygonHermez/zkevm-node/config"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
@@ -195,7 +195,7 @@ func setInitialState(t *testing.T, opsman *operations.Manager) {
 	require.NoError(t, err)
 	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
 	require.NoError(t, err)
-	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.GenesisBlockNum, forkID6))
+	require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.BlockNumber, forkID6))
 	err = opsman.Setup()
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)

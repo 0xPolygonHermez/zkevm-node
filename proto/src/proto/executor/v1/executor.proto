@@ -277,18 +277,20 @@ message ProcessBatchRequestV2 {
     uint32 skip_verify_l1_info_root = 14;
     // flag to skip the restriction to start a batch with a changeL2Block transaction
     uint32 skip_first_change_l2_block = 15;
+    // flag to skip writing the block info root in the state
+    uint32 skip_write_block_info_root = 16;
     // lInfoTree information
-    map<uint32, L1DataV2> l1_info_tree_data = 16;
+    map<uint32, L1DataV2> l1_info_tree_data = 17;
     // For testing purposes only
-    map<string, string> db = 17;
-    map<string, string> contracts_bytecode = 18; // For debug/testing purpposes only. Don't fill this on production
-    TraceConfigV2 trace_config = 19;
-    string context_id = 20;
-    uint32 get_keys = 21; // if 1, the keys used to read or write storage values will be returned
+    map<string, string> db = 18;
+    map<string, string> contracts_bytecode = 19; // For debug/testing purpposes only. Don't fill this on production
+    TraceConfigV2 trace_config = 20;
+    string context_id = 21;
+    uint32 get_keys = 22; // if 1, the keys used to read or write storage values will be returned
     // The state override set is an optional address-to-state mapping,
     // where each entry specifies some state to be ephemerally overridden
     // prior to executing the call.
-    map<string, OverrideAccountV2> state_override = 22;
+    map<string, OverrideAccountV2> state_override = 23;
 }
 
 message L1DataV2 {
@@ -817,4 +819,6 @@ enum ExecutorError {
     EXECUTOR_ERROR_INVALID_L1_SMT_PROOF = 101;
     // EXECUTOR_ERROR_INVALID_BALANCE indicates that the input parameter balance value is invalid
     EXECUTOR_ERROR_INVALID_BALANCE = 102;
+    // EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH indicates that the binary instruction less than four opcode failed
+    EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH = 103;
 }

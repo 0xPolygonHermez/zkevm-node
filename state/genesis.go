@@ -19,12 +19,12 @@ import (
 
 // Genesis contains the information to populate state on creation
 type Genesis struct {
-	// GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1
-	GenesisBlockNum uint64
+	// BlockNumber is the block number where the polygonZKEVM smc was deployed on L1
+	BlockNumber uint64
 	// Root hash of the genesis block
 	Root common.Hash
-	// Contracts to be deployed to L2
-	GenesisActions []*GenesisAction
+	// Actions is the data to populate into the state trie
+	Actions []*GenesisAction
 	// Data of the first batch after the genesis(Batch 1)
 	FirstBatchData *BatchData
 }
@@ -64,7 +64,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 
 	uuid := uuid.New().String()
 
-	for _, action := range genesis.GenesisActions {
+	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
 		case int(merkletree.LeafTypeBalance):
@@ -174,18 +174,18 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 
 	// store L2 genesis block
-	header := &types.Header{
+	header := NewL2Header(&types.Header{
 		Number:     big.NewInt(0),
 		ParentHash: ZeroHash,
 		Coinbase:   ZeroAddress,
 		Root:       root,
 		Time:       uint64(block.ReceivedAt.Unix()),
-	}
+	})
 	rootHex := root.Hex()
 	log.Info("Genesis root ", rootHex)
 
 	receipts := []*types.Receipt{}
-	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, receipts, &trie.StackTrie{})
+	l2Block := NewL2Block(header, []*types.Transaction{}, []*L2Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
 	storeTxsEGPData := []StoreTxEGPData{}

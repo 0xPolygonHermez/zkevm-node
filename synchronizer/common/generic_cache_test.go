@@ -7,13 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type MockTimerProvider struct {
-	now time.Time
-}
-
-func (m *MockTimerProvider) Now() time.Time {
-	return m.now
-}
 func TestCacheGet(t *testing.T) {
 	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)

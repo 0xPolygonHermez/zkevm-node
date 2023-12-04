@@ -41,7 +41,7 @@ type storage interface {
 
 type stateInterface interface {
 	GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error)
 	GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)

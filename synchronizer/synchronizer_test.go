@@ -13,7 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/incaberry"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -85,7 +85,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*incaberry.SyncTrustedBatchesAction)
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_sync_incaberry.SyncTrustedBatchesAction)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
 	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
 }
@@ -95,7 +95,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 // but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
 		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
@@ -348,7 +348,7 @@ func TestForcedBatch(t *testing.T) {
 // but it used a feature that is not implemented in new one that is asking beyond the last block on L1
 func TestSequenceForcedBatch(t *testing.T) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
 		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
@@ -589,7 +589,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 
 func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 	genesis := state.Genesis{
-		GenesisBlockNum: uint64(123456),
+		BlockNumber: uint64(123456),
 	}
 	cfg := Config{
 		SyncInterval:          cfgTypes.Duration{Duration: 1 * time.Second},
@@ -783,7 +783,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 
 	m.State.
 		On("StoreTransaction", sync.ctx, uint64(stateBatchInTrustedNode.BatchNumber), mock.Anything, stateBatchInTrustedNode.Coinbase, uint64(batchInTrustedNode.Timestamp), mock.Anything, m.DbTx).
-		Return(&ethTypes.Header{}, nil).
+		Return(&state.L2Header{}, nil).
 		Once()
 
 	m.State.

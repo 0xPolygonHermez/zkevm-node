@@ -798,7 +798,10 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 	var batches []polygonzkevm.PolygonRollupBaseEtrogBatchData
 	for _, seq := range sequences {
 		batch := polygonzkevm.PolygonRollupBaseEtrogBatchData{
-			Transactions: seq.BatchL2Data,
+			Transactions:         seq.BatchL2Data,
+			ForcedGlobalExitRoot: seq.GlobalExitRoot,
+			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
+			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
 
 		batches = append(batches, batch)
