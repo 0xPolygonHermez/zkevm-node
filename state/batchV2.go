@@ -325,10 +325,13 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 	if len(processedBatch.BlockResponses) > 0 {
 		// Store processed txs into the batch
 		// TODO: Change for storeL2Block
-		err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.BlockResponses, nil, dbTx)
-		if err != nil {
-			log.Errorf("%s error StoreTransactions: %v", debugPrefix, err)
-			return common.Hash{}, noFlushID, noProverID, err
+		//err = s.StoreTransactions(ctx, processingCtx.BatchNumber, processedBatch.BlockResponses, nil, dbTx)
+		for _, blockResponse := range processedBatch.BlockResponses {
+			err = s.StoreL2Block(ctx, processingCtx.BatchNumber, blockResponse, nil, dbTx)
+			if err != nil {
+				log.Errorf("%s error StoreL2Block: %v", debugPrefix, err)
+				return common.Hash{}, noFlushID, noProverID, err
+			}
 		}
 	}
 	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, processed.ProverId, s.CloseBatchInStorage(ctx, ProcessingReceipt{
