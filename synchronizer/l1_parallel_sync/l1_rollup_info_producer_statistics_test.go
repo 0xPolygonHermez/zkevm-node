@@ -3,11 +3,12 @@ package l1_parallel_sync
 import (
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/stretchr/testify/require"
 )
 
 func TestProducerStatisticsPercent(t *testing.T) {
-	sut := newRollupInfoProducerStatistics(100, &mockTimerProvider{})
+	sut := newRollupInfoProducerStatistics(100, &common.MockTimerProvider{})
 	sut.updateLastBlockNumber(200)
 	require.Equal(t, float64(0.0), sut.getPercent())
 

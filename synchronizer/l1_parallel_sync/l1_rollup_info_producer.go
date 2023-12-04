@@ -23,6 +23,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 )
 
 const (
@@ -209,7 +210,7 @@ func NewL1DataRetriever(cfg ConfigProducer, ethermans []L1ParallelEthermanInterf
 		workers:                              newWorkerDecoratorLimitRetriesByTime(newWorkers(ethermans, workersConfig), cfg.MinTimeBetweenRetriesForRollupInfo),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(invalidBlockNumber),
 		outgoingChannel:                      outgoingChannel,
-		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber, DefaultTimeProvider{}),
+		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber, common.DefaultTimeProvider{}),
 		status:                               producerNoRunning,
 		cfg:                                  cfg,
 		channelCmds:                          make(chan producerCmd, lenCommandsChannels),
