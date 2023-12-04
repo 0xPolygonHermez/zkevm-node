@@ -537,7 +537,7 @@ func Test_Transactions(t *testing.T) {
 	}
 }
 
-// TestJSONRPC tests JSON RPC methods on a running environment.
+// TestTxPoolJSONRPC tests txpool JSON RPC methods on a running environment.
 func TestTxPoolJSONRPC(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
