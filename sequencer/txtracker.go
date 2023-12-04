@@ -29,6 +29,7 @@ type TxTracker struct {
 	EGPLog            state.EffectiveGasPriceLog
 	L1GasPrice        uint64
 	L2GasPrice        uint64
+	FlushId           uint64
 }
 
 // newTxTracker creates and inti a TxTracker

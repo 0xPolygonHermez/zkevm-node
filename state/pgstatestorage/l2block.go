@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -149,8 +150,8 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+	//TODO: Optmize this function using only one SQL (with several values) to insert all the txs, receips and logs
 	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
 

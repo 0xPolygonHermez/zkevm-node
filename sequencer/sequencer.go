@@ -185,7 +185,10 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	//TODO: uncoment this
+	return true
+
+	/*lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last isSynced batch, err: %v", err)
 		return false
@@ -208,5 +211,5 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 		return false
 	}
 
-	return true
+	return true*/
 }

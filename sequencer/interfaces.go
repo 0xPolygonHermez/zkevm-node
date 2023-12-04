@@ -82,7 +82,7 @@ type stateInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
-	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error
+	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error)
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)
@@ -126,9 +126,10 @@ type dbManagerInterface interface {
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error)
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
-	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
+	UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, reason *string) error
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
@@ -137,8 +138,9 @@ type dbManagerInterface interface {
 	GetDefaultMinGasPriceAllowed() uint64
 	GetL1AndL2GasPrice() (uint64, uint64)
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
-	StoreL2Block(ctx context.Context, l2BlockToStore l2BlockToStore) error
+	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
-	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex state.L1InfoTreeIndexType) []byte
+	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
+	DSSendL2Block(l2Block *L2Block) error
 }

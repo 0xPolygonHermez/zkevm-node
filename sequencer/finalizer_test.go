@@ -374,8 +374,7 @@ func TestNewFinalizer(t *testing.T) {
 	}
 }*/
 
-func assertEqualTransactionToStore(t *testing.T, expectedTx, actualTx transactionToStore) {
-	/*
+/*func assertEqualTransactionToStore(t *testing.T, expectedTx, actualTx transactionToStore) {
 	   require.Equal(t, expectedTx.from, actualTx.from)
 	   require.Equal(t, expectedTx.hash, actualTx.hash)
 	   require.Equal(t, expectedTx.response, actualTx.response)
@@ -385,8 +384,7 @@ func assertEqualTransactionToStore(t *testing.T, expectedTx, actualTx transactio
 	   require.Equal(t, expectedTx.oldStateRoot, actualTx.oldStateRoot)
 	   require.Equal(t, expectedTx.isForcedBatch, actualTx.isForcedBatch)
 	   require.Equal(t, expectedTx.flushId, actualTx.flushId)
-	*/
-}
+}*/
 
 func TestFinalizer_newWIPBatch(t *testing.T) {
 	// arrange
@@ -2312,21 +2310,23 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		batchConstraints: bc,
 		currentGERHash:   common.Hash{},
 		// closing signals
-		nextGER:                  common.Hash{},
-		nextGERDeadline:          0,
-		nextGERMux:               new(sync.Mutex),
-		nextForcedBatches:        make([]state.ForcedBatch, 0),
-		nextForcedBatchDeadline:  0,
-		nextForcedBatchesMux:     new(sync.Mutex),
-		handlingL2Reorg:          false,
-		effectiveGasPrice:        pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
-		eventLog:                 eventLog,
-		pendingL2BlocksToStore:   make(chan l2BlockToStore, pendingL2BlocksToStoreBufferSize), //TODO: review buffer size
-		pendingL2BlocksToStoreWG: new(sync.WaitGroup),
-		storedFlushID:            0,
-		storedFlushIDCond:        sync.NewCond(new(sync.Mutex)),
-		proverID:                 "",
-		lastPendingFlushID:       0,
-		pendingFlushIDCond:       sync.NewCond(new(sync.Mutex)),
+		nextGER:                    common.Hash{},
+		nextGERDeadline:            0,
+		nextGERMux:                 new(sync.Mutex),
+		nextForcedBatches:          make([]state.ForcedBatch, 0),
+		nextForcedBatchDeadline:    0,
+		nextForcedBatchesMux:       new(sync.Mutex),
+		handlingL2Reorg:            false,
+		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		eventLog:                   eventLog,
+		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToProcessWG: new(sync.WaitGroup),
+		pendingL2BlocksToStore:     make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToStoreWG:   new(sync.WaitGroup),
+		storedFlushID:              0,
+		storedFlushIDCond:          sync.NewCond(new(sync.Mutex)),
+		proverID:                   "",
+		lastPendingFlushID:         0,
+		pendingFlushIDCond:         sync.NewCond(new(sync.Mutex)),
 	}
 }

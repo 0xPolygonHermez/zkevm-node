@@ -263,7 +263,7 @@ func (d *dbManager) DeleteTransactionFromPool(ctx context.Context, txHash common
 	return d.txPool.DeleteTransactionByHash(ctx, txHash)
 }
 
-func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex state.L1InfoTreeIndexType) []byte {
+func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
 	changeL2Block := []byte{}
 	// changeL2Block transaction mark
 	changeL2Block = append(changeL2Block, changeL2BlockMark...)
@@ -280,13 +280,15 @@ func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex st
 }
 
 // StoreL2Block stores a l2 block into the state, update the batch data and changes the status of the block txs in the pool
-func (d *dbManager) StoreL2Block(ctx context.Context, l2BlockToStore l2BlockToStore) error {
-	//TODO: replace types.Header and types.Block with new structs (Thiago)
-	//TODO: How to process ifs the l2block belongs to a forced batch
-	log.Debugf("storing l2 block %d, txs %d, batch %d", l2BlockToStore.l2Block.number, len(l2BlockToStore.l2Block.transactions), l2BlockToStore.batchNumber)
+func (d *dbManager) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return state.ErrDBTxNil
+	}
+
+	log.Debugf("storing l2 block %d, txs %d, hash %d", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
-	d.checkStateInconsistency() //TODO: review this
+	//d.checkStateInconsistency() //TODO: review this
 
 	dbTx, err := d.BeginStateTransaction(ctx)
 	if err != nil {
@@ -294,140 +296,56 @@ func (d *dbManager) StoreL2Block(ctx context.Context, l2BlockToStore l2BlockToSt
 	}
 
 	header := &types.Header{
-		Number:     new(big.Int).SetUint64(l2BlockToStore.l2Block.number),
-		ParentHash: l2BlockToStore.l2Block.parentHash,
-		Coinbase:   l2BlockToStore.coinbase,
-		Root:       l2BlockToStore.stateRoot,
+		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
+		ParentHash: l2Block.ParentHash,
+		Coinbase:   l2Block.Coinbase,
+		Root:       l2Block.BlockHash, //BlockHash is the StateRoot in Etrog
 		//TODO: GasLimit:   state.cfg.MaxCumulativeGasUsed,
-		Time: uint64(l2BlockToStore.l2Block.timestamp.Unix()),
+		Time:    l2Block.Timestamp,
+		GasUsed: l2Block.GasUsed,
 	}
+
+	l2Header := state.NewL2Header(header)
+
+	l2Header.GlobalExitRoot = &l2Block.GlobalExitRoot
+	//l2header.LocalExitRoot = l2Block.
 
 	transactions := []*types.Transaction{}
 	storeTxsEGPData := []state.StoreTxEGPData{}
 	receipts := []*types.Receipt{}
 
-	for _, txToStore := range l2BlockToStore.l2Block.transactions {
+	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
 		// the transaction has not changed the state, so we don't store it
-		if executor.IsIntrinsicError(executor.RomErrorCode(txToStore.response.RomError)) {
+		if executor.IsIntrinsicError(executor.RomErrorCode(txResponse.RomError)) {
 			continue
 		}
 
-		header.GasUsed += txToStore.response.GasUsed //TODO: review block.gasUsed vs sum(tx.gasUsed). Verify in sanity check?
+		transactions = append(transactions, &txResponse.Tx)
 
-		transactions = append(transactions, &txToStore.response.Tx)
+		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
+		if txsEGPLog != nil {
+			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
+		}
 
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: txToStore.egpLog, EffectivePercentage: uint8(txToStore.response.EffectivePercentage)})
-
-		receipt := state.GenerateReceipt(header.Number, txToStore.response)
+		receipt := state.GenerateReceipt(header.Number, txResponse)
 		receipts = append(receipts, receipt)
 	}
 
 	// Create block to be able to calculate its hash
-	block := types.NewBlock(header, transactions, []*types.Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = l2BlockToStore.l2Block.timestamp
+	block := state.NewL2Block(l2Header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	block.ReceivedAt = time.Unix(int64(l2Block.Timestamp), 0)
 
 	for _, receipt := range receipts {
 		receipt.BlockHash = block.Hash()
 	}
 
 	// Store L2 block and its transactions
-	if err := d.state.AddL2Block(ctx, l2BlockToStore.batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := d.state.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
 		return err
 	}
 
-	// If the L2 block belongs to a regular batch (not forced) then we need to update de BatchL2Data
-	// also in this case we need to update the status of the L2 block txs in the pool
-	// TODO: review this
-	if !l2BlockToStore.forcedBatch {
-		batch, err := d.state.GetBatchByNumber(ctx, l2BlockToStore.batchNumber, dbTx)
-		if err != nil {
-			err2 := dbTx.Rollback(ctx)
-			if err2 != nil {
-				log.Errorf("failed to rollback dbTx when getting batch that gave err: %v. Rollback err: %v", err2, err)
-			}
-			return err
-		}
-
-		forkID := d.state.GetForkIDByBatchNumber(l2BlockToStore.batchNumber)
-
-		// Add changeL2Block to batch.BatchL2Data
-		changeL2BlockBytes := d.BuildChangeL2Block(l2BlockToStore.l2Block.deltaTimestamp, l2BlockToStore.l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-		batch.BatchL2Data = append(batch.BatchL2Data, changeL2BlockBytes...)
-
-		// Add transactions data to batch.BatchL2Data
-		for _, txToStore := range l2BlockToStore.l2Block.transactions {
-			txData, err := state.EncodeTransaction(txToStore.response.Tx, uint8(txToStore.response.EffectivePercentage), forkID)
-			if err != nil {
-				return err
-			}
-			batch.BatchL2Data = append(batch.BatchL2Data, txData...)
-		}
-
-		err = d.state.UpdateBatch(ctx, l2BlockToStore.batchNumber, batch.BatchL2Data, l2BlockToStore.localExitRoot, dbTx)
-		if err != nil {
-			err2 := dbTx.Rollback(ctx)
-			if err2 != nil {
-				log.Errorf("failed to rollback dbTx when updating batch l2 data that gave err: %v. Rollback err: %v", err2, err)
-			}
-			return err
-		}
-
-		for _, txToStore := range l2BlockToStore.l2Block.transactions {
-			// Change Tx status to selected
-			err = d.txPool.UpdateTxStatus(ctx, txToStore.response.TxHash, pool.TxStatusSelected, false, nil)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	err = dbTx.Commit(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Send data to streamer
-	if d.streamServer != nil {
-		forkID := d.state.GetForkIDByBatchNumber(l2BlockToStore.batchNumber)
-
-		l2Block := state.DSL2Block{
-			BatchNumber:   l2BlockToStore.batchNumber,
-			L2BlockNumber: header.Number.Uint64(),
-			Timestamp:     l2BlockToStore.l2Block.timestamp.Unix(),
-			//GlobalExitRoot: batch.GlobalExitRoot, //TODO: Replace for l2BlockToStore.l2Block.l1InfoTreeExitRoot.L1InfoTreeRoot
-			Coinbase:  l2BlockToStore.coinbase,
-			ForkID:    uint16(forkID),
-			BlockHash: header.Hash(),
-			StateRoot: header.Root,
-		}
-
-		l2Transactions := []state.DSL2Transaction{}
-
-		for _, txToStore := range l2BlockToStore.l2Block.transactions {
-			binaryTxData, err := txToStore.response.Tx.MarshalBinary()
-			if err != nil {
-				return err
-			}
-
-			l2Transaction := state.DSL2Transaction{
-				L2BlockNumber:               l2Block.L2BlockNumber,
-				EffectiveGasPricePercentage: uint8(txToStore.response.EffectivePercentage),
-				IsValid:                     1,
-				EncodedLength:               uint32(len(binaryTxData)),
-				Encoded:                     binaryTxData,
-			}
-
-			l2Transactions = append(l2Transactions, l2Transaction)
-		}
-
-		d.dataToStream <- state.DSL2FullBlock{ //TODO: review channel manages the slice of txs
-			DSL2Block: l2Block,
-			Txs:       l2Transactions,
-		}
-	}
-
-	log.Infof("successfully stored L2 block %d for batch %d, storing time %v", header.Number, l2BlockToStore.batchNumber, time.Since(start))
+	log.Debugf("successfully stored L2 block %d for batch %d, storing time %v", header.Number, batchNumber, time.Since(start))
 
 	return nil
 }
@@ -751,7 +669,7 @@ func (d *dbManager) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block
 	return d.state.GetLastBlock(ctx, dbTx)
 }
 
-func (d *dbManager) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error) {
+func (d *dbManager) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error) {
 	return d.state.GetLastL2Block(ctx, dbTx)
 }
 
@@ -769,6 +687,10 @@ func (d *dbManager) GetTransactionsByBatchNumber(ctx context.Context, batchNumbe
 
 func (d *dbManager) UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error {
 	return d.txPool.UpdateTxStatus(ctx, hash, newStatus, isWIP, failedReason)
+}
+
+func (d *dbManager) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	return d.state.UpdateBatch(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 }
 
 // GetLatestVirtualBatchTimestamp gets last virtual batch timestamp
@@ -813,4 +735,49 @@ func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (d *dbManager) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return d.state.GetForkIDByBatchNumber(batchNumber)
+}
+
+func (d *dbManager) DSSendL2Block(l2Block *L2Block) error {
+	blockResponse := l2Block.batchResponse.BlockResponses[0]
+	forkID := d.GetForkIDByBatchNumber(l2Block.batchNumber)
+
+	// Send data to streamer
+	if d.streamServer != nil {
+		l2Block := state.DSL2Block{
+			BatchNumber:    l2Block.batchNumber,
+			L2BlockNumber:  blockResponse.BlockNumber,
+			Timestamp:      int64(blockResponse.Timestamp),
+			GlobalExitRoot: blockResponse.BlockInfoRoot, //TODO: is it ok?
+			Coinbase:       l2Block.coinbase,
+			ForkID:         uint16(forkID),
+			BlockHash:      blockResponse.BlockHash,
+			StateRoot:      blockResponse.BlockHash, //TODO: in etrog the blockhash is the block root
+		}
+
+		l2Transactions := []state.DSL2Transaction{}
+
+		for _, txResponse := range blockResponse.TransactionResponses {
+			binaryTxData, err := txResponse.Tx.MarshalBinary()
+			if err != nil {
+				return err
+			}
+
+			l2Transaction := state.DSL2Transaction{
+				L2BlockNumber:               blockResponse.BlockNumber,
+				EffectiveGasPricePercentage: uint8(txResponse.EffectivePercentage),
+				IsValid:                     1,
+				EncodedLength:               uint32(len(binaryTxData)),
+				Encoded:                     binaryTxData,
+			}
+
+			l2Transactions = append(l2Transactions, l2Transaction)
+		}
+
+		d.dataToStream <- state.DSL2FullBlock{ //TODO: review channel manages the slice of txs
+			DSL2Block: l2Block,
+			Txs:       l2Transactions,
+		}
+	}
+
+	return nil
 }

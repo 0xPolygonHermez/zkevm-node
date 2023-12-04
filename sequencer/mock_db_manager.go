@@ -53,11 +53,11 @@ func (_m *DbManagerMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, err
 }
 
 // BuildChangeL2Block provides a mock function with given fields: deltaTimestamp, l1InfoTreeIndex
-func (_m *DbManagerMock) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex state.L1InfoTreeIndexType) []byte {
+func (_m *DbManagerMock) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
 	ret := _m.Called(deltaTimestamp, l1InfoTreeIndex)
 
 	var r0 []byte
-	if rf, ok := ret.Get(0).(func(uint32, state.L1InfoTreeIndexType) []byte); ok {
+	if rf, ok := ret.Get(0).(func(uint32, uint32) []byte); ok {
 		r0 = rf(deltaTimestamp, l1InfoTreeIndex)
 	} else {
 		if ret.Get(0) != nil {
@@ -115,6 +115,20 @@ func (_m *DbManagerMock) CreateFirstBatch(ctx context.Context, sequencerAddress 
 		r0 = rf(ctx, sequencerAddress)
 	} else {
 		r0 = ret.Get(0).(state.ProcessingContext)
+	}
+
+	return r0
+}
+
+// DSSendL2Block provides a mock function with given fields: l2Block
+func (_m *DbManagerMock) DSSendL2Block(l2Block *L2Block) error {
+	ret := _m.Called(l2Block)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(*L2Block) error); ok {
+		r0 = rf(l2Block)
+	} else {
+		r0 = ret.Error(0)
 	}
 
 	return r0
@@ -423,6 +437,32 @@ func (_m *DbManagerMock) GetLastClosedBatch(ctx context.Context) (*state.Batch, 
 
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastL2Block provides a mock function with given fields: ctx, dbTx
+func (_m *DbManagerMock) GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	var r0 *state.L2Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.L2Block, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.L2Block); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.L2Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -741,13 +781,27 @@ func (_m *DbManagerMock) ProcessForcedBatch(ForcedBatchNumber uint64, request st
 	return r0, r1
 }
 
-// StoreL2Block provides a mock function with given fields: ctx, l2BlockToStore1
-func (_m *DbManagerMock) StoreL2Block(ctx context.Context, l2BlockToStore1 l2BlockToStore) error {
-	ret := _m.Called(ctx, l2BlockToStore1)
+// StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
+func (_m *DbManagerMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, l2BlockToStore) error); ok {
-		r0 = rf(ctx, l2BlockToStore1)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
+func (_m *DbManagerMock) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, common.Hash, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
