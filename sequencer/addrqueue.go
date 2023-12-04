@@ -101,7 +101,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		if txTracker.ReceivedAt.Add(maxTime).Before(time.Now()) {
 			txs = append(txs, txTracker)
 			delete(a.notReadyTxs, txTracker.Nonce)
-			log.Debugf("Deleting notReadyTx %s from addrQueue %s", txTracker.HashStr, a.fromStr)
+			log.Debugf("deleting notReadyTx %s from addrQueue %s", txTracker.HashStr, a.fromStr)
 		}
 	}
 
@@ -109,7 +109,7 @@ func (a *addrQueue) ExpireTransactions(maxTime time.Duration) ([]*TxTracker, *Tx
 		prevReadyTx = a.readyTx
 		txs = append(txs, a.readyTx)
 		a.readyTx = nil
-		log.Debugf("Deleting readyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
+		log.Debugf("deleting readyTx %s from addrQueue %s", prevReadyTx.HashStr, a.fromStr)
 	}
 
 	return txs, prevReadyTx
@@ -125,14 +125,14 @@ func (a *addrQueue) deleteTx(txHash common.Hash) (deletedReadyTx *TxTracker) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
-		log.Infof("Deleting readyTx %s from addrQueue %s", txHashStr, a.fromStr)
+		log.Infof("deleting readyTx %s from addrQueue %s", txHashStr, a.fromStr)
 		prevReadyTx := a.readyTx
 		a.readyTx = nil
 		return prevReadyTx
 	} else {
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
-				log.Infof("Deleting notReadyTx %s from addrQueue %s", txHashStr, a.fromStr)
+				log.Infof("deleting notReadyTx %s from addrQueue %s", txHashStr, a.fromStr)
 				delete(a.notReadyTxs, txTracker.Nonce)
 			}
 		}
@@ -164,7 +164,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 	txsToDelete := make([]*TxTracker, 0)
 
 	if balance != nil {
-		log.Infof("Updating balance for addrQueue %s from %s to %s", a.fromStr, a.currentBalance.String(), balance.String())
+		log.Debugf("opdating balance for addrQueue %s from %s to %s", a.fromStr, a.currentBalance.String(), balance.String())
 		a.currentBalance = balance
 	}
 
@@ -179,7 +179,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 				}
 			}
 			for _, txTracker := range txsToDelete {
-				log.Infof("Deleting notReadyTx with nonce %d from addrQueue %s", txTracker.Nonce, a.fromStr)
+				log.Infof("deleting notReadyTx with nonce %d from addrQueue %s", txTracker.Nonce, a.fromStr)
 				delete(a.notReadyTxs, txTracker.Nonce)
 			}
 		}

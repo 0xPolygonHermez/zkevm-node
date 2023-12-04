@@ -54,7 +54,8 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		updateMT = cTrue
 	}
 
-	forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
+	//forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
+	forkID := uint64(7)
 
 	// Create Batch
 	var processBatchRequest = &executor.ProcessBatchRequestV2{
@@ -75,7 +76,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		processBatchRequest.SkipFirstChangeL2Block = cTrue
 	}
 
-	if request.SkipWriteBlockInfoRoot {
+	if request.SkipWriteBlockInfoRoot_V2 {
 		processBatchRequest.SkipWriteBlockInfoRoot = cTrue
 	}
 
@@ -265,7 +266,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	if caller != metrics.DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)
 	}
-	log.Infof("Batch: %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
+	log.Infof("batch %d took %v to be processed by the executor ", processBatchRequest.OldBatchNum+1, elapsed)
 
 	return res, err
 }
