@@ -362,8 +362,27 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	return result, nil
 }
 
-// ProcessUnsignedTransaction processes the given unsigned transaction.
+// internalProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
+	if err != nil {
+		return nil, err
+	}
+
+	// Get latest batch from the database to get globalExitRoot and Timestamp
+	lastBatch := lastBatches[0]
+
+	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+	if forkID < FORKID_ETROG {
+		return s.internalProcessUnsignedTransactionV1(ctx, tx, senderAddress, l2BlockNumber, forkID, lastBatches, l2BlockStateRoot, noZKEVMCounters, dbTx)
+	} else {
+		return s.internalProcessUnsignedTransactionV2(ctx, tx, senderAddress, l2BlockNumber, forkID, lastBatches, l2BlockStateRoot, noZKEVMCounters, dbTx)
+	}
+}
+
+// internalProcessUnsignedTransactionV1 processes the given unsigned transaction.
+// pre ETROG
+func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, forkID uint64, lastBatches []*Batch, l2BlockStateRoot common.Hash, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	var attempts = 1
 
 	if s.executorClient == nil {
@@ -371,10 +390,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 	}
 	if s.tree == nil {
 		return nil, ErrStateTreeNil
-	}
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
-	if err != nil {
-		return nil, err
 	}
 
 	// Get latest batch from the database to get globalExitRoot and Timestamp
@@ -405,7 +420,6 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		}
 	}
 
-	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
 	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
 	if err != nil {
 		return nil, err
@@ -418,47 +432,47 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 		return nil, err
 	}
 
-	// Create Batch
-	processBatchRequest := &executor.ProcessBatchRequest{
-		OldBatchNum:      lastBatch.BatchNumber,
-		BatchL2Data:      batchL2Data,
+	// Create Batch V1
+	processBatchRequestV1 := &executor.ProcessBatchRequest{
 		From:             senderAddress.String(),
+		OldBatchNum:      lastBatch.BatchNumber,
 		OldStateRoot:     stateRoot.Bytes(),
-		GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		EthTimestamp:     timestamp,
-		Coinbase:         lastBatch.Coinbase.String(),
-		UpdateMerkleTree: cFalse,
-		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		ChainId:          s.cfg.ChainID,
+		UpdateMerkleTree: cFalse,
 		ContextId:        uuid.NewString(),
-	}
 
+		// v1 fields
+		GlobalExitRoot: lastBatch.GlobalExitRoot.Bytes(),
+		EthTimestamp:   timestamp,
+	}
 	if noZKEVMCounters {
-		processBatchRequest.NoCounters = cTrue
+		processBatchRequestV1.NoCounters = cTrue
 	}
-
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.From]: %v", processBatchRequest.From)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
-	log.Debugf("internalProcessUnsignedTransaction[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.From]: %v", processBatchRequestV1.From)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.OldBatchNum]: %v", processBatchRequestV1.OldBatchNum)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequestV1.OldStateRoot))
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequestV1.OldAccInputHash))
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.ForkId]: %v", processBatchRequestV1.ForkId)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.Coinbase]: %v", processBatchRequestV1.Coinbase)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.ChainId]: %v", processBatchRequestV1.ChainId)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.UpdateMerkleTree]: %v", processBatchRequestV1.UpdateMerkleTree)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.ContextId]: %v", processBatchRequestV1.ContextId)
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequestV1.GlobalExitRoot))
+	log.Debugf("internalProcessUnsignedTransactionV1[processBatchRequestV1.EthTimestamp]: %v", processBatchRequestV1.EthTimestamp)
 
 	// Send Batch to the Executor
-	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequestV1)
 	if err != nil {
 		if status.Code(err) == codes.ResourceExhausted || (processBatchResponse != nil && processBatchResponse.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR)) {
 			log.Errorf("error processing unsigned transaction ", err)
 			for attempts < s.cfg.MaxResourceExhaustedAttempts {
 				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
 				log.Errorf("retrying to process unsigned transaction")
-				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequest)
+				processBatchResponse, err = s.executorClient.ProcessBatch(ctx, processBatchRequestV1)
 				if status.Code(err) == codes.ResourceExhausted || (processBatchResponse != nil && processBatchResponse.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR)) {
 					log.Errorf("error processing unsigned transaction ", err)
 					attempts++
@@ -493,7 +507,7 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	if err == nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequestV1)
 		return nil, err
 	}
 
@@ -504,6 +518,149 @@ func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *type
 
 	if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
 		err := executor.RomErr(processBatchResponse.Responses[0].Error)
+		if !isEVMRevertError(err) {
+			return response, err
+		}
+	}
+
+	return response, nil
+}
+
+// internalProcessUnsignedTransactionV2 processes the given unsigned transaction.
+// post ETROG
+func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, forkID uint64, lastBatches []*Batch, l2BlockStateRoot common.Hash, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	var attempts = 1
+
+	if s.executorClient == nil {
+		return nil, ErrExecutorNil
+	}
+	if s.tree == nil {
+		return nil, ErrStateTreeNil
+	}
+
+	// Get latest batch from the database to get globalExitRoot and Timestamp
+	lastBatch := lastBatches[0]
+
+	// Get batch before latest to get state root and local exit root
+	previousBatch := lastBatches[0]
+	if len(lastBatches) > 1 {
+		previousBatch = lastBatches[1]
+	}
+
+	stateRoot := l2BlockStateRoot
+	if l2BlockNumber != nil {
+		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		stateRoot = l2Block.Root()
+	}
+
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	nonce := loadedNonce.Uint64()
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		return nil, err
+	}
+
+	currentL1InfoRoot := s.GetCurrentL1InfoRoot()
+	// Create a batch to be sent to the executor
+	processBatchRequestV2 := &executor.ProcessBatchRequestV2{
+		From:             senderAddress.String(),
+		OldBatchNum:      lastBatch.BatchNumber,
+		OldStateRoot:     lastBatch.StateRoot.Bytes(),
+		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
+		Coinbase:         lastBatch.Coinbase.String(),
+		ForkId:           forkID,
+		BatchL2Data:      batchL2Data,
+		ChainId:          s.cfg.ChainID,
+		UpdateMerkleTree: cFalse,
+		ContextId:        uuid.NewString(),
+
+		// v2 fields
+		L1InfoRoot:             currentL1InfoRoot.Bytes(),
+		TimestampLimit:         uint64(time.Now().Unix()),
+		SkipFirstChangeL2Block: cTrue,
+		SkipWriteBlockInfoRoot: cTrue,
+	}
+	if noZKEVMCounters {
+		processBatchRequestV2.NoCounters = cTrue
+	}
+
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldBatchNum]: %v", processBatchRequestV2.OldBatchNum)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequestV2.OldStateRoot))
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequestV2.OldAccInputHash))
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.Coinbase]: %v", processBatchRequestV2.Coinbase)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ForkId]: %v", processBatchRequestV2.ForkId)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ChainId]: %v", processBatchRequestV2.ChainId)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.UpdateMerkleTree]: %v", processBatchRequestV2.UpdateMerkleTree)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.ContextId]: %v", processBatchRequestV2.ContextId)
+
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequestV2.L1InfoRoot))
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.TimestampLimit]: %v", processBatchRequestV2.TimestampLimit)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.SkipFirstChangeL2Block]: %v", processBatchRequestV2.SkipFirstChangeL2Block)
+	log.Debugf("internalProcessUnsignedTransactionV2[processBatchRequestV2.SkipWriteBlockInfoRoot]: %v", processBatchRequestV2.SkipWriteBlockInfoRoot)
+
+	// Send Batch to the Executor
+	processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
+	if err != nil {
+		if status.Code(err) == codes.ResourceExhausted || (processBatchResponseV2 != nil && processBatchResponseV2.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR)) {
+			log.Errorf("error processing unsigned transaction ", err)
+			for attempts < s.cfg.MaxResourceExhaustedAttempts {
+				time.Sleep(s.cfg.WaitOnResourceExhaustion.Duration)
+				log.Errorf("retrying to process unsigned transaction")
+				processBatchResponseV2, err = s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
+				if status.Code(err) == codes.ResourceExhausted || (processBatchResponseV2 != nil && processBatchResponseV2.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR)) {
+					log.Errorf("error processing unsigned transaction ", err)
+					attempts++
+					continue
+				}
+				break
+			}
+		}
+
+		if err != nil {
+			if status.Code(err) == codes.ResourceExhausted || (processBatchResponseV2 != nil && processBatchResponseV2.Error == executor.ExecutorError(executor.ExecutorError_EXECUTOR_ERROR_DB_ERROR)) {
+				log.Error("reporting error as time out")
+				return nil, runtime.ErrGRPCResourceExhaustedAsTimeout
+			}
+			// Log the error
+			event := &event.Event{
+				ReceivedAt:  time.Now(),
+				Source:      event.Source_Node,
+				Level:       event.Level_Error,
+				EventID:     event.EventID_ExecutorError,
+				Description: fmt.Sprintf("error processing unsigned transaction %s: %v", tx.Hash(), err),
+			}
+
+			err2 := s.eventLog.LogEvent(context.Background(), event)
+			if err2 != nil {
+				log.Errorf("error logging event %v", err2)
+			}
+			log.Errorf("error processing unsigned transaction ", err)
+			return nil, err
+		}
+	}
+
+	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponseV2.Error)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		return nil, err
+	}
+
+	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+	if err != nil {
+		return nil, err
+	}
+
+	if processBatchResponseV2.BlockResponses[0].Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
+		err := executor.RomErr(processBatchResponseV2.BlockResponses[0].Responses[0].Error)
 		if !isEVMRevertError(err) {
 			return response, err
 		}
@@ -693,10 +850,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		if forkID < FORKID_ETROG {
-			log.Errorf("Only supported forkID >= ETROG")
-			return false, false, gasUsed, nil, err
+			log.Errorf("only supported forkID >= ETROG")
+			return false, false, gasUsed, nil, fmt.Errorf("only supported forkID >= ETROG")
 		}
-		currentl1InfoRoot := s.GetCurrentL1InfoRoot()
+		currentL1InfoRoot := s.GetCurrentL1InfoRoot()
 
 		// Create a batch to be sent to the executor
 		processBatchRequest := &executor.ProcessBatchRequestV2{
@@ -705,7 +862,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			OldAccInputHash:        previousBatch.AccInputHash.Bytes(),
 			Coinbase:               lastBatch.Coinbase.String(),
 			ForkId:                 forkID,
-			L1InfoRoot:             currentl1InfoRoot.Bytes(),
+			L1InfoRoot:             currentL1InfoRoot.Bytes(),
 			TimestampLimit:         uint64(time.Now().Unix()),
 			BatchL2Data:            batchL2Data,
 			ChainId:                s.cfg.ChainID,
