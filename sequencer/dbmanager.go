@@ -10,10 +10,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -268,11 +266,11 @@ func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex ui
 	// changeL2Block transaction mark
 	changeL2Block = append(changeL2Block, changeL2BlockMark...)
 	// changeL2Block deltaTimeStamp
-	deltaTimestampBytes := make([]byte, 4)
+	deltaTimestampBytes := make([]byte, 4) //nolint:gomnd
 	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
 	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
 	// changeL2Block l1InfoTreeIndexBytes
-	l1InfoTreeIndexBytes := make([]byte, 4)
+	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
 	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, uint32(l1InfoTreeIndex))
 	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
 
@@ -281,73 +279,7 @@ func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex ui
 
 // StoreL2Block stores a l2 block into the state, update the batch data and changes the status of the block txs in the pool
 func (d *dbManager) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
-	if dbTx == nil {
-		return state.ErrDBTxNil
-	}
-
-	log.Debugf("storing l2 block %d, txs %d, hash %d", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
-	start := time.Now()
-
-	//d.checkStateInconsistency() //TODO: review this
-
-	dbTx, err := d.BeginStateTransaction(ctx)
-	if err != nil {
-		return err
-	}
-
-	header := &types.Header{
-		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
-		ParentHash: l2Block.ParentHash,
-		Coinbase:   l2Block.Coinbase,
-		Root:       l2Block.BlockHash, //BlockHash is the StateRoot in Etrog
-		//TODO: GasLimit:   state.cfg.MaxCumulativeGasUsed,
-		Time:    l2Block.Timestamp,
-		GasUsed: l2Block.GasUsed,
-	}
-
-	l2Header := state.NewL2Header(header)
-
-	l2Header.GlobalExitRoot = &l2Block.GlobalExitRoot
-	//l2header.LocalExitRoot = l2Block.
-
-	transactions := []*types.Transaction{}
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	receipts := []*types.Receipt{}
-
-	for i, txResponse := range l2Block.TransactionResponses {
-		// if the transaction has an intrinsic invalid tx error it means
-		// the transaction has not changed the state, so we don't store it
-		if executor.IsIntrinsicError(executor.RomErrorCode(txResponse.RomError)) {
-			continue
-		}
-
-		transactions = append(transactions, &txResponse.Tx)
-
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
-		if txsEGPLog != nil {
-			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
-		}
-
-		receipt := state.GenerateReceipt(header.Number, txResponse)
-		receipts = append(receipts, receipt)
-	}
-
-	// Create block to be able to calculate its hash
-	block := state.NewL2Block(l2Header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
-	block.ReceivedAt = time.Unix(int64(l2Block.Timestamp), 0)
-
-	for _, receipt := range receipts {
-		receipt.BlockHash = block.Hash()
-	}
-
-	// Store L2 block and its transactions
-	if err := d.state.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
-		return err
-	}
-
-	log.Debugf("successfully stored L2 block %d for batch %d, storing time %v", header.Number, batchNumber, time.Since(start))
-
-	return nil
+	return d.state.StoreL2Block(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
 }
 
 // GetWIPBatch returns ready WIP batch
