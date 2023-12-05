@@ -39,6 +39,7 @@ var (
 		MaxArithmetics:       236585,
 		MaxBinaries:          473170,
 		MaxSteps:             7570538,
+		MaxSHA256Hashes:      1596,
 	}
 )
 

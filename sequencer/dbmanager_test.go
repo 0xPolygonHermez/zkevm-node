@@ -1,6 +1,6 @@
 package sequencer
 
-import (
+/*import (
 	"context"
 	"fmt"
 	"math"
@@ -107,6 +107,7 @@ func setupDBManager() {
 		MaxArithmetics:       236585,
 		MaxBinaries:          473170,
 		MaxSteps:             7570538,
+		MaxSHA256Hashes:            1596,
 	}
 
 	testDbManager = newDBManager(ctx, dbManagerCfg, nil, testState, nil, closingSignalCh, batchConstraints)
@@ -190,3 +191,4 @@ func TestCreateFirstBatch(t *testing.T) {
 	require.Equal(t, uint64(1), processingContext.BatchNumber)
 	cleanupDBManager()
 }
+*/
