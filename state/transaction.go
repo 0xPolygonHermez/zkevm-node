@@ -692,37 +692,47 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			return false, false, gasUsed, nil, err
 		}
 
-		// Create a batch to be sent to the executor
-		processBatchRequest := &executor.ProcessBatchRequest{
-			OldBatchNum:      lastBatch.BatchNumber,
-			BatchL2Data:      batchL2Data,
-			From:             senderAddress.String(),
-			OldStateRoot:     stateRoot.Bytes(),
-			GlobalExitRoot:   lastBatch.GlobalExitRoot.Bytes(),
-			OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-			EthTimestamp:     uint64(lastBatch.Timestamp.Unix()),
-			Coinbase:         lastBatch.Coinbase.String(),
-			UpdateMerkleTree: cFalse,
-			ChainId:          s.cfg.ChainID,
-			ForkId:           forkID,
-			ContextId:        uuid.NewString(),
+		if forkID < FORKID_ETROG {
+			log.Errorf("Only supported forkID >= ETROG")
+			return false, false, gasUsed, nil, err
 		}
+		currentl1InfoRoot := s.GetCurrentL1InfoRoot()
 
-		log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
-		// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
-		log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
-		log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-		log.Debugf("EstimateGas[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-		log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-		log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
-		log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
-		log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-		log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
-		log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
-		log.Debugf("EstimateGas[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
-
+		// Create a batch to be sent to the executor
+		processBatchRequest := &executor.ProcessBatchRequestV2{
+			OldBatchNum:            lastBatch.BatchNumber,
+			OldStateRoot:           lastBatch.StateRoot.Bytes(),
+			OldAccInputHash:        previousBatch.AccInputHash.Bytes(),
+			Coinbase:               lastBatch.Coinbase.String(),
+			ForkId:                 forkID,
+			L1InfoRoot:             currentl1InfoRoot.Bytes(),
+			TimestampLimit:         uint64(time.Now().Unix()),
+			BatchL2Data:            batchL2Data,
+			ChainId:                s.cfg.ChainID,
+			UpdateMerkleTree:       cFalse,
+			ContextId:              uuid.NewString(),
+			SkipFirstChangeL2Block: cTrue,
+			SkipWriteBlockInfoRoot: cTrue,
+		}
+		//TODO: Add logs
+		/*
+			log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
+			// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+			log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
+			log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
+			log.Debugf("EstimateGas[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
+			log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
+			log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
+			log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
+			log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+			log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+			log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+			log.Debugf("EstimateGas[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+			log.Debugf("EstimateGas[processBatchRequest.L1InfoRoot_V2]: %v", processBatchRequest.L1InfoRoot_V2)
+			log.Debugf("EstimateGas[processBatchRequest.TimestampLimit_V2]: %v", processBatchRequest.TimestampLimit_V2)
+		*/
 		txExecutionOnExecutorTime := time.Now()
-		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 		if err != nil {
 			log.Errorf("error estimating gas: %v", err)
@@ -730,14 +740,16 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 		if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponse.Error)
-			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
+			//TODO: Add eventLog
+			//s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
 			return false, false, gasUsed, nil, err
 		}
-		gasUsed = processBatchResponse.Responses[0].GasUsed
+		gasUsed = processBatchResponse.BlockResponses[0].GasUsed
 
+		txResponse := processBatchResponse.BlockResponses[0].Responses[0]
 		// Check if an out of gas error happened during EVM execution
-		if processBatchResponse.Responses[0].Error != executor.RomError_ROM_ERROR_NO_ERROR {
-			err := executor.RomErr(processBatchResponse.Responses[0].Error)
+		if txResponse.Error != executor.RomError_ROM_ERROR_NO_ERROR {
+			err := executor.RomErr(txResponse.Error)
 
 			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
 				// Specifying the transaction failed, but not providing an error
@@ -749,7 +761,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 			if isEVMRevertError(err) {
 				// The EVM reverted during execution, attempt to extract the
 				// error message and return it
-				returnValue := processBatchResponse.Responses[0].ReturnValue
+				returnValue := txResponse.ReturnValue
 				return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
 			}
 
