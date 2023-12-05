@@ -16,6 +16,7 @@ func TestIsWithinConstraints(t *testing.T) {
 		MaxArithmetics:       2000,
 		MaxBinaries:          3000,
 		MaxSteps:             4000,
+		MaxSHA256Hashes:      5000,
 	}
 
 	testCases := []struct {
@@ -34,6 +35,7 @@ func TestIsWithinConstraints(t *testing.T) {
 				UsedArithmetics:      1000,
 				UsedBinaries:         2000,
 				UsedSteps:            2000,
+				UsedSha256Hashes_V2:  4000,
 			},
 			expected: true,
 		},
@@ -48,6 +50,7 @@ func TestIsWithinConstraints(t *testing.T) {
 				UsedArithmetics:      3000,
 				UsedBinaries:         4000,
 				UsedSteps:            5000,
+				UsedSha256Hashes_V2:  6000,
 			},
 			expected: false,
 		},

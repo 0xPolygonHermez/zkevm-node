@@ -6,9 +6,14 @@ ALTER TABLE state.exit_root
 CREATE INDEX IF NOT EXISTS exit_root_l1_info_tree_index ON state.exit_root (l1_info_tree_index);
 
 ALTER TABLE state.transaction
-    ADD COLUMN l2_hash VARCHAR UNIQUE;
+    ADD COLUMN l2_hash VARCHAR UNIQUE,
+    ADD COLUMN used_sha256_hashes INTEGER;
+;
 
 CREATE INDEX IF NOT EXISTS transaction_l2_hash ON state.transaction (l2_hash);
+
+ALTER TABLE state.batch
+    ADD COLUMN wip BOOLEAN NOT NULL;
 
 -- +migrate Down
 ALTER TABLE state.exit_root
@@ -18,6 +23,11 @@ ALTER TABLE state.exit_root
 DROP INDEX IF EXISTS state.exit_root_l1_info_tree_index;
 
 ALTER TABLE state.transaction
-    DROP COLUMN l2_hash;
+    DROP COLUMN l2_hash,
+    DROP COLUMN used_sha256_hashes;
 
 DROP INDEX IF EXISTS state.transaction_l2_hash;
+
+ALTER TABLE state.batch
+    DROP COLUMN wip;
+

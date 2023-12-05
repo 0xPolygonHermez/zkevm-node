@@ -1547,6 +1547,10 @@
 								"MaxSteps": {
 									"type": "integer",
 									"default": 7570538
+								},
+								"MaxSHA256Hashes": {
+									"type": "integer",
+									"default": 1596
 								}
 							},
 							"additionalProperties": false,

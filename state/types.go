@@ -160,6 +160,7 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.UsedArithmetics += other.UsedArithmetics
 	z.UsedBinaries += other.UsedBinaries
 	z.UsedSteps += other.UsedSteps
+	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
 }
 
 // Sub subtract zk counters with passed zk counters (not safe)

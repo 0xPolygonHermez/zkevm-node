@@ -2,6 +2,7 @@ package pgstatestorage
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -516,7 +517,7 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 }
 
 func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)"
 
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("%w. Got %d, should be 0", state.ErrUnexpectedBatch, batch.BatchNumber)
@@ -544,7 +545,7 @@ func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Bat
 // in this batch yet. In other words it's the creation of a WIP batch.
 // Note that this will add a batch with batch number N + 1, where N it's the greatest batch number on the state.
 func (p *PostgresStorage) OpenBatchInStorage(ctx context.Context, batchContext state.ProcessingContext, dbTx pgx.Tx) error {
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data) VALUES ($1, $2, $3, $4, $5, $6)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data, wip) VALUES ($1, $2, $3, $4, $5, $6, TRUE)"
 
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(
@@ -559,10 +560,30 @@ func (p *PostgresStorage) OpenBatchInStorage(ctx context.Context, batchContext s
 	return err
 }
 
+// OpenWIPBatchInStorage adds a new wip batch into the state storage
+func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, state_root, local_exit_root, acc_input_hash, timestamp, coinbase, forced_batch_num, raw_txs_data, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(
+		ctx, openBatchSQL,
+		batch.BatchNumber,
+		batch.GlobalExitRoot.String(),
+		batch.StateRoot.String(),
+		batch.LocalExitRoot.String(),
+		batch.AccInputHash.String(),
+		batch.Timestamp.UTC(),
+		batch.Coinbase.String(),
+		batch.ForcedBatchNum,
+		batch.BatchL2Data,
+	)
+	return err
+}
+
 // CloseBatchInStorage closes a batch in the state storage
 func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	const closeBatchSQL = `UPDATE state.batch 
-		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6
+		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE
 		  WHERE batch_num = $7`
 
 	e := p.getExecQuerier(dbTx)
@@ -576,9 +597,43 @@ func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state
 	return err
 }
 
+// CloseWIPBatchInStorage is used by sequencer to close the wip batch in the state storage
+func (p *PostgresStorage) CloseWIPBatchInStorage(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
+	const closeWIPBatchSQL = `UPDATE state.batch SET batch_resources = $1, closing_reason = $2, wip = FALSE WHERE batch_num = $3`
+
+	e := p.getExecQuerier(dbTx)
+	batchResourcesJsonBytes, err := json.Marshal(receipt.BatchResources)
+	if err != nil {
+		return err
+	}
+	_, err = e.Exec(ctx, closeWIPBatchSQL, string(batchResourcesJsonBytes), receipt.ClosingReason, receipt.BatchNumber)
+
+	return err
+}
+
+// GetWIPBatchInStorage returns the wip batch in the state
+func (p *PostgresStorage) GetWIPBatchInStorage(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	const getBatchByNumberSQL = `
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num
+		  FROM state.batch 
+		 WHERE batch_num = $1 AND wip = TRUE`
+
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, getBatchByNumberSQL, batchNumber)
+	batch, err := scanBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &batch, nil
+}
+
 // IsBatchClosed indicates if the batch referenced by batchNum is closed or not
 func (p *PostgresStorage) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
-	const isBatchClosedSQL = "SELECT global_exit_root IS NOT NULL AND state_root IS NOT NULL FROM state.batch WHERE batch_num = $1 LIMIT 1"
+	const isBatchClosedSQL = "SELECT not(wip) FROM state.batch WHERE batch_num = $1"
 
 	q := p.getExecQuerier(dbTx)
 	var isClosed bool
@@ -737,7 +792,7 @@ func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (
 	const getLastClosedBatchSQL = `
 		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data
 			FROM state.batch bt
-			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			WHERE wip = FALSE
 			ORDER BY bt.batch_num DESC
 			LIMIT 1;`
 
@@ -758,7 +813,7 @@ func (p *PostgresStorage) GetLastClosedBatchNumber(ctx context.Context, dbTx pgx
 	const getLastClosedBatchSQL = `
 		SELECT bt.batch_num
 			FROM state.batch bt
-			WHERE global_exit_root IS NOT NULL AND state_root IS NOT NULL
+			WHERE wip = FALSE
 			ORDER BY bt.batch_num DESC
 			LIMIT 1;`
 
@@ -782,12 +837,12 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 	return err
 }
 
-// UpdateBatch updates the data in a batch
-func (p *PostgresStorage) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
-	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, local_exit_root = $3 WHERE batch_num = $1"
+// UpdateWIPBatch updates the data in a batch
+func (p *PostgresStorage) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, state_root = $3, local_exit_root = $4, acc_input_hash = $5 WHERE batch_num = $1"
 
 	e := p.getExecQuerier(dbTx)
-	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data, localExitRoot.String())
+	_, err := e.Exec(ctx, updateL2DataSQL, receipt.BatchNumber, receipt.BatchL2Data, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), receipt.AccInputHash.String())
 	return err
 }
 
@@ -825,4 +880,22 @@ func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context,
 		return 0, err
 	}
 	return blockNum, nil
+}
+
+func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
+	changeL2BlockMark := []byte{0x0B}
+	changeL2Block := []byte{}
+
+	// changeL2Block transaction mark
+	changeL2Block = append(changeL2Block, changeL2BlockMark...)
+	// changeL2Block deltaTimeStamp
+	deltaTimestampBytes := make([]byte, 4) //nolint:gomnd
+	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
+	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
+	// changeL2Block l1InfoTreeIndexBytes
+	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
+	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, uint32(l1InfoTreeIndex))
+	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
+
+	return changeL2Block
 }

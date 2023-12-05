@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -28,8 +29,8 @@ import (
 const numberOfForcesBatches = 10
 
 var (
+	stateDBCfg                                   = dbutils.NewStateConfigFromEnv()
 	localStateDb                                 *pgxpool.Pool
-	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
 	localMtDBServiceClient                       hashdb.HashDBServiceClient
@@ -39,12 +40,29 @@ var (
 	testGER                                      = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testAddr                                     = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testRawData                                  = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
+	stateCfg                                     = state.Config{
+		MaxCumulativeGasUsed: 800000,
+		ChainID:              1000,
+		MaxLogsCount:         10000,
+		MaxLogsBlockRange:    10000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          5,
+			Version:         "",
+		}},
+	}
 )
 
 type mocks struct {
 	Etherman *EthermanMock
 }
 
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
+}
 func setupTest(t *testing.T) {
 	initOrResetDB()
 
@@ -75,21 +93,6 @@ func setupTest(t *testing.T) {
 
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
 	localState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, localStateDb), localExecutorClient, localStateTree, eventLog, nil)
-
-	batchConstraints := state.BatchConstraintsCfg{
-		MaxTxsPerBatch:       300,
-		MaxBatchBytesSize:    120000,
-		MaxCumulativeGasUsed: 30000000,
-		MaxKeccakHashes:      2145,
-		MaxPoseidonHashes:    252357,
-		MaxPoseidonPaddings:  135191,
-		MaxMemAligns:         236585,
-		MaxArithmetics:       236585,
-		MaxBinaries:          473170,
-		MaxSteps:             7570538,
-	}
-
-	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, batchConstraints)
 
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
@@ -136,7 +139,7 @@ func TestClosingSignalsManager(t *testing.T) {
 	}
 
 	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(localCtx, localTestDbManager, channels, cfg, m.Etherman)
+	closingSignalsManager := newClosingSignalsManager(localCtx, localState, channels, cfg, m.Etherman)
 	closingSignalsManager.Start()
 
 	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)

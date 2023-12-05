@@ -264,7 +264,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		return ErrDBTxNil
 	}
 
-	log.Debugf("storing l2 block %d, txs %d, hash %d", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
+	log.Debugf("storing l2 block %d, txs %d, hash %s", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
 	header := &types.Header{

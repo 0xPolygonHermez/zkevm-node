@@ -65,8 +65,8 @@ func (m migrationTest0013) InsertDataIntoTransactionsTable(db *sql.DB) error {
 		return err
 	}
 	const insertBatch = `
-		INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num) 
-		VALUES (0,'0x0000', '0x0000', '0x0000', '0x0000', now(), '0x0000', null, null)`
+		INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) 
+		VALUES (0,'0x0000', '0x0000', '0x0000', '0x0000', now(), '0x0000', null, null, true)`
 
 	// insert batch
 	_, err := db.Exec(insertBatch)
@@ -85,8 +85,8 @@ func (m migrationTest0013) InsertDataIntoTransactionsTable(db *sql.DB) error {
 	}
 
 	const insertTx = `
-		INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, l2_hash)
-		VALUES ('0x0001', 'ABCDEF', '{}', 0, 255, '0x0002')`
+		INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, l2_hash, used_sha256_hashes)
+		VALUES ('0x0001', 'ABCDEF', '{}', 0, 255, '0x0002', 1000)`
 
 	// insert tx
 	_, err = db.Exec(insertTx)
@@ -140,6 +140,18 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 1, result)
 
+	// Check column used_sha256_hashes exists in state.transactions table
+	const getUsedSHA256HashesColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='used_sha256_hashes'`
+	row = db.QueryRow(getUsedSHA256HashesColumn)
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 1, result)
+
+	// Check column wip exists in state.batch table
+	const getWIPColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='batch' and column_name='wip'`
+	row = db.QueryRow(getL2HashColumn)
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 1, result)
+
 	// Try to insert data into the transactions table
 	err = m.InsertDataIntoTransactionsTable(db)
 	assert.NoError(t, err)
@@ -156,6 +168,18 @@ func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	const getL2HashColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='transaction' and column_name='l2_hash'`
 	row := db.QueryRow(getL2HashColumn)
 	var result int
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 0, result)
+
+	// Check column wip doesn't exists in state.batch table
+	const getUsedSHA256HashesColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='batch' and column_name='used_sha256_hashes'`
+	row = db.QueryRow(getUsedSHA256HashesColumn)
+	assert.NoError(t, row.Scan(&result))
+	assert.Equal(t, 0, result)
+
+	// Check column wip doesn't exists in state.batch table
+	const getWIPColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='batch' and column_name='wip'`
+	row = db.QueryRow(getWIPColumn)
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 0, result)
 }

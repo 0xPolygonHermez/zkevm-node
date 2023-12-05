@@ -3726,6 +3726,7 @@ MaxConns=200
 | - [MaxArithmetics](#State_Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
 | - [MaxBinaries](#State_Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
 | - [MaxSteps](#State_Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+| - [MaxSHA256Hashes](#State_Batch_Constraints_MaxSHA256Hashes )           | No      | integer | No         | -          | -                 |
 
 ##### <a name="State_Batch_Constraints_MaxTxsPerBatch"></a>20.9.1.1. `State.Batch.Constraints.MaxTxsPerBatch`
 
@@ -3845,6 +3846,18 @@ MaxBinaries=473170
 ```
 [State.Batch.Constraints]
 MaxSteps=7570538
+```
+
+##### <a name="State_Batch_Constraints_MaxSHA256Hashes"></a>20.9.1.11. `State.Batch.Constraints.MaxSHA256Hashes`
+
+**Type:** : `integer`
+
+**Default:** `1596`
+
+**Example setting the default value** (1596):
+```
+[State.Batch.Constraints]
+MaxSHA256Hashes=1596
 ```
 
 ### <a name="State_MaxLogsCount"></a>20.10. `State.MaxLogsCount`
