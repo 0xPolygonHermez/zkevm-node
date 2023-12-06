@@ -280,6 +280,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	l2Header := NewL2Header(header)
 
 	l2Header.GlobalExitRoot = &l2Block.GlobalExitRoot
+	l2Header.BlockInfoRoot = &l2Block.BlockInfoRoot
 	//TODO: l2header.LocalExitRoot??
 
 	transactions := []*types.Transaction{}
@@ -364,25 +365,33 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 
 // internalProcessUnsignedTransaction processes the given unsigned transaction.
 func (s *State) internalProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint: gomnd
+	var l2Block *L2Block
+	var err error
+	if l2BlockNumber == nil {
+		l2Block, err = s.GetLastL2Block(ctx, dbTx)
+	} else {
+		l2Block, err = s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	// Get latest batch from the database to get globalExitRoot and Timestamp
-	lastBatch := lastBatches[0]
+	batch, err := s.GetBatchByL2BlockNumber(ctx, l2Block.NumberU64(), dbTx)
+	if err != nil {
+		return nil, err
+	}
 
-	forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
+	forkID := s.GetForkIDByBatchNumber(batch.BatchNumber)
 	if forkID < FORKID_ETROG {
-		return s.internalProcessUnsignedTransactionV1(ctx, tx, senderAddress, l2BlockNumber, forkID, lastBatches, l2BlockStateRoot, noZKEVMCounters, dbTx)
+		return s.internalProcessUnsignedTransactionV1(ctx, tx, senderAddress, *batch, *l2Block, forkID, noZKEVMCounters, dbTx)
 	} else {
-		return s.internalProcessUnsignedTransactionV2(ctx, tx, senderAddress, l2BlockNumber, forkID, lastBatches, l2BlockStateRoot, noZKEVMCounters, dbTx)
+		return s.internalProcessUnsignedTransactionV2(ctx, tx, senderAddress, *batch, *l2Block, forkID, noZKEVMCounters, dbTx)
 	}
 }
 
 // internalProcessUnsignedTransactionV1 processes the given unsigned transaction.
 // pre ETROG
-func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, forkID uint64, lastBatches []*Batch, l2BlockStateRoot common.Hash, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *types.Transaction, senderAddress common.Address, batch Batch, l2Block L2Block, forkID uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	var attempts = 1
 
 	if s.executorClient == nil {
@@ -392,35 +401,26 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 		return nil, ErrStateTreeNil
 	}
 
-	// Get latest batch from the database to get globalExitRoot and Timestamp
-	lastBatch := lastBatches[0]
-
-	// Get batch before latest to get state root and local exit root
-	previousBatch := lastBatches[0]
-	if len(lastBatches) > 1 {
-		previousBatch = lastBatches[1]
-	}
-
-	stateRoot := l2BlockStateRoot
-	timestamp := uint64(lastBatch.Timestamp.Unix())
-	if l2BlockNumber != nil {
-		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+	timestamp := l2Block.Time()
+	previousBatch := batch
+	if batch.BatchNumber != 0 {
+		pb, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
 		if err != nil {
 			return nil, err
 		}
-		stateRoot = l2Block.Root()
-
-		latestL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		if *l2BlockNumber == latestL2BlockNumber {
-			timestamp = uint64(time.Now().Unix())
-		}
+		previousBatch = *pb
 	}
 
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	latestL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	if l2Block.NumberU64() == latestL2BlockNumber {
+		timestamp = uint64(time.Now().Unix())
+	}
+
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, batch.StateRoot.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -435,18 +435,18 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 	// Create Batch V1
 	processBatchRequestV1 := &executor.ProcessBatchRequest{
 		From:             senderAddress.String(),
-		OldBatchNum:      lastBatch.BatchNumber,
-		OldStateRoot:     stateRoot.Bytes(),
+		OldBatchNum:      batch.BatchNumber,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		ForkId:           forkID,
-		Coinbase:         lastBatch.Coinbase.String(),
+		Coinbase:         batch.Coinbase.String(),
 		BatchL2Data:      batchL2Data,
 		ChainId:          s.cfg.ChainID,
 		UpdateMerkleTree: cFalse,
 		ContextId:        uuid.NewString(),
 
 		// v1 fields
-		GlobalExitRoot: lastBatch.GlobalExitRoot.Bytes(),
+		GlobalExitRoot: batch.GlobalExitRoot.Bytes(),
 		EthTimestamp:   timestamp,
 	}
 	if noZKEVMCounters {
@@ -528,7 +528,7 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 
 // internalProcessUnsignedTransactionV2 processes the given unsigned transaction.
 // post ETROG
-func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, forkID uint64, lastBatches []*Batch, l2BlockStateRoot common.Hash, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *types.Transaction, senderAddress common.Address, batch Batch, l2Block L2Block, forkID uint64, noZKEVMCounters bool, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	var attempts = 1
 
 	if s.executorClient == nil {
@@ -538,29 +538,26 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, ErrStateTreeNil
 	}
 
-	// Get latest batch from the database to get globalExitRoot and Timestamp
-	lastBatch := lastBatches[0]
-
-	// Get batch before latest to get state root and local exit root
-	previousBatch := lastBatches[0]
-	if len(lastBatches) > 1 {
-		previousBatch = lastBatches[1]
-	}
-
-	stateRoot := l2BlockStateRoot
-	if l2BlockNumber != nil {
-		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+	previousL2Block := l2Block
+	if l2Block.NumberU64() > 0 {
+		pb, err := s.GetL2BlockByNumber(ctx, l2Block.NumberU64()-1, dbTx)
 		if err != nil {
 			return nil, err
 		}
-		stateRoot = l2Block.Root()
+		previousL2Block = *pb
 	}
 
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
 	if err != nil {
 		return nil, err
 	}
 	nonce := loadedNonce.Uint64()
+
+	l2BlockTime := l2Block.Time()
+	previousL2BlockTime := previousL2Block.Time()
+	deltaTimestamp := uint32(l2BlockTime - previousL2BlockTime)
+	l1InfoTreeIndex := uint32(0)
+	transactions := s.BuildChangeL2Block(deltaTimestamp, l1InfoTreeIndex)
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
@@ -568,22 +565,23 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, err
 	}
 
-	currentL1InfoRoot := s.GetCurrentL1InfoRoot()
+	transactions = append(transactions, batchL2Data...)
+
 	// Create a batch to be sent to the executor
 	processBatchRequestV2 := &executor.ProcessBatchRequestV2{
 		From:             senderAddress.String(),
-		OldBatchNum:      lastBatch.BatchNumber,
-		OldStateRoot:     lastBatch.StateRoot.Bytes(),
-		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		Coinbase:         lastBatch.Coinbase.String(),
+		OldBatchNum:      batch.BatchNumber,
+		OldStateRoot:     previousL2Block.Root().Bytes(),
+		OldAccInputHash:  batch.AccInputHash.Bytes(),
+		Coinbase:         batch.Coinbase.String(),
 		ForkId:           forkID,
-		BatchL2Data:      batchL2Data,
+		BatchL2Data:      transactions,
 		ChainId:          s.cfg.ChainID,
 		UpdateMerkleTree: cFalse,
 		ContextId:        uuid.NewString(),
 
 		// v2 fields
-		L1InfoRoot:             currentL1InfoRoot.Bytes(),
+		L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
 		TimestampLimit:         uint64(time.Now().Unix()),
 		SkipFirstChangeL2Block: cTrue,
 		SkipWriteBlockInfoRoot: cTrue,
