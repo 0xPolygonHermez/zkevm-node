@@ -10,7 +10,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"sync"
 	"syscall"
 	"time"
 
@@ -51,10 +50,6 @@ type Server struct {
 	srv        *http.Server
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
-
-	connCounterMutex *sync.Mutex
-	httpConnCounter  int64
-	wsConnCounter    int64
 }
 
 // Service defines a struct that will provide public methods to be exposed
@@ -90,10 +85,9 @@ func NewServer(
 	}
 
 	srv := &Server{
-		config:           cfg,
-		handler:          handler,
-		chainID:          chainID,
-		connCounterMutex: &sync.Mutex{},
+		config:  cfg,
+		handler: handler,
+		chainID: chainID,
 	}
 	return srv
 }
@@ -246,7 +240,6 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	s.increaseHttpConnCounter()
-	defer s.decreaseHttpConnCounter()
 
 	start := time.Now()
 	w.Header().Set("Content-Type", contentType)
@@ -407,7 +400,6 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	}(wsConn)
 
 	s.increaseWsConnCounter()
-	defer s.decreaseWsConnCounter()
 
 	// recover
 	defer func() {
@@ -446,47 +438,21 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) increaseHttpConnCounter() {
-	s.connCounterMutex.Lock()
-	s.httpConnCounter++
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) decreaseHttpConnCounter() {
-	s.connCounterMutex.Lock()
-	s.httpConnCounter--
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
+	metrics.CountConn(metrics.HTTPConnLabel)
 }
 
 func (s *Server) increaseWsConnCounter() {
-	s.connCounterMutex.Lock()
-	s.wsConnCounter++
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) decreaseWsConnCounter() {
-	s.connCounterMutex.Lock()
-	s.wsConnCounter--
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) logConnCounters() {
-	totalConnCounter := s.httpConnCounter + s.wsConnCounter
-	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", s.httpConnCounter, s.wsConnCounter, totalConnCounter)
+	metrics.CountConn(metrics.WSConnLabel)
 }
 
 func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	log.Infof("Invalid Request: %v", err.Error())
+	log.Debugf("Invalid Request: %v", err.Error())
 	http.Error(w, err.Error(), code)
 }
 
 func handleError(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
-	log.Errorf("Error processing request: %v", err)
 
 	if errors.Is(err, syscall.EPIPE) {
 		// if it is a broken pipe error, return
@@ -494,6 +460,7 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 
 	// if it is a different error, write it to the response
+	log.Errorf("Error processing request: %v", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
@@ -506,9 +473,9 @@ func RPCErrorResponse(code int, message string, err error, logError bool) (inter
 func RPCErrorResponseWithData(code int, message string, data *[]byte, err error, logError bool) (interface{}, types.Error) {
 	if logError {
 		if err != nil {
-			log.Errorf("%v: %v", message, err.Error())
+			log.Debugf("%v: %v", message, err.Error())
 		} else {
-			log.Error(message)
+			log.Debug(message)
 		}
 	}
 	return nil, types.NewRPCErrorWithData(code, message, data)
