@@ -12,6 +12,7 @@ const (
 	requestPrefix       = prefix + "request_"
 	requestsHandledName = requestPrefix + "handled"
 	requestDurationName = requestPrefix + "duration"
+	connName            = requestPrefix + "connection"
 
 	requestHandledTypeLabelName = "type"
 )
@@ -19,6 +20,10 @@ const (
 // RequestHandledLabel represents the possible values for the
 // `jsonrpc_request_handled` metric `type` label.
 type RequestHandledLabel string
+
+// ConnLabel represents the possible values for the
+// `jsonrpc_request_connection` metric `type` label.
+type ConnLabel string
 
 const (
 	// RequestHandledLabelInvalid represents an request of type invalid
@@ -29,6 +34,11 @@ const (
 	RequestHandledLabelSingle RequestHandledLabel = "single"
 	// RequestHandledLabelBatch represents an request of type batch
 	RequestHandledLabelBatch RequestHandledLabel = "batch"
+
+	// HTTPConnLabel represents a HTTP connection
+	HTTPConnLabel ConnLabel = "HTTP"
+	// WSConnLabel represents a WS connection
+	WSConnLabel ConnLabel = "WS"
 )
 
 // Register the metrics for the jsonrpc package.
@@ -61,6 +71,12 @@ func Register() {
 
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterHistograms(histograms...)
+}
+
+// CountConn increments the connection counter vector by one for the
+// given label.
+func CountConn(label ConnLabel) {
+	metrics.CounterVecInc(connName, string(label))
 }
 
 // RequestHandled increments the requests handled counter vector by one for the

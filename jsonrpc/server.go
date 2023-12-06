@@ -10,7 +10,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"sync"
 	"syscall"
 	"time"
 
@@ -51,10 +50,6 @@ type Server struct {
 	srv        *http.Server
 	wsSrv      *http.Server
 	wsUpgrader websocket.Upgrader
-
-	connCounterMutex *sync.Mutex
-	httpConnCounter  int64
-	wsConnCounter    int64
 }
 
 // Service defines a struct that will provide public methods to be exposed
@@ -90,10 +85,9 @@ func NewServer(
 	}
 
 	srv := &Server{
-		config:           cfg,
-		handler:          handler,
-		chainID:          chainID,
-		connCounterMutex: &sync.Mutex{},
+		config:  cfg,
+		handler: handler,
+		chainID: chainID,
 	}
 	return srv
 }
@@ -246,7 +240,6 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	}
 
 	s.increaseHttpConnCounter()
-	defer s.decreaseHttpConnCounter()
 
 	start := time.Now()
 	w.Header().Set("Content-Type", contentType)
@@ -407,7 +400,6 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 	}(wsConn)
 
 	s.increaseWsConnCounter()
-	defer s.decreaseWsConnCounter()
 
 	// recover
 	defer func() {
@@ -446,36 +438,11 @@ func (s *Server) handleWs(w http.ResponseWriter, req *http.Request) {
 }
 
 func (s *Server) increaseHttpConnCounter() {
-	s.connCounterMutex.Lock()
-	s.httpConnCounter++
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) decreaseHttpConnCounter() {
-	s.connCounterMutex.Lock()
-	s.httpConnCounter--
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
+	metrics.CountConn(metrics.HTTPConnLabel)
 }
 
 func (s *Server) increaseWsConnCounter() {
-	s.connCounterMutex.Lock()
-	s.wsConnCounter++
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) decreaseWsConnCounter() {
-	s.connCounterMutex.Lock()
-	s.wsConnCounter--
-	s.logConnCounters()
-	s.connCounterMutex.Unlock()
-}
-
-func (s *Server) logConnCounters() {
-	totalConnCounter := s.httpConnCounter + s.wsConnCounter
-	log.Infof("[ HTTP conns: %v | WS conns: %v | Total conns: %v ]", s.httpConnCounter, s.wsConnCounter, totalConnCounter)
+	metrics.CountConn(metrics.WSConnLabel)
 }
 
 func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
