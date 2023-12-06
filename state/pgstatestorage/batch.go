@@ -782,8 +782,8 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 	return err
 }
 
-// UpdateBatchL2DataAndLER updates data tx data in a batch and the local exit root
-func (p *PostgresStorage) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+// UpdateBatch updates the data in a batch
+func (p *PostgresStorage) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
 	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, local_exit_root = $3 WHERE batch_num = $1"
 
 	e := p.getExecQuerier(dbTx)

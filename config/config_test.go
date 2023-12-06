@@ -93,6 +93,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(64),
 		},
 		{
+			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks",
+			expectedValue: uint64(64),
+		},
+		{
 			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
@@ -105,8 +113,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
+			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoTree",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L2BlockTime",
+			expectedValue: types.NewDuration(3 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
@@ -114,6 +126,10 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L2BlockTime",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{

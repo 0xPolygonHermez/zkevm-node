@@ -1679,11 +1679,14 @@ MaxTxLifetime="3h0m0s"
 | - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                                                                                                    |
 | - [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                            |
+| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
+| - [L1InfoRootFinalityNumberOfBlocks](#Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks )                                   | No      | integer | No         | -          | L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final                                                                                                                              |
 | - [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
+| - [WaitForCheckingL1InfoRoot](#Sequencer_Finalizer_WaitForCheckingL1InfoRoot )                                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [L2BlockTime](#Sequencer_Finalizer_L2BlockTime )                                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
 
@@ -1793,7 +1796,35 @@ ResourcePercentageToCloseBatch=10
 GERFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.6. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+
+**Type:** : `integer`
+
+**Default:** `64`
+
+**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+
+**Example setting the default value** (64):
+```
+[Sequencer.Finalizer]
+ForcedBatchesFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.6.7. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
+
+**Type:** : `integer`
+
+**Default:** `64`
+
+**Description:** L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
+
+**Example setting the default value** (64):
+```
+[Sequencer.Finalizer]
+L1InfoRootFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
@@ -1819,7 +1850,7 @@ GERFinalityNumberOfBlocks=64
 ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.9. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
@@ -1845,7 +1876,7 @@ ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ClosingSignalsManagerWaitForCheckingGER="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.10. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
@@ -1871,21 +1902,33 @@ ClosingSignalsManagerWaitForCheckingGER="10s"
 ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.6.11. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
 
-**Type:** : `integer`
+**Title:** Duration
 
-**Default:** `64`
+**Type:** : `string`
 
-**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+**Default:** `"0s"`
 
-**Example setting the default value** (64):
+**Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("0s"):
 ```
 [Sequencer.Finalizer]
-ForcedBatchesFinalityNumberOfBlocks=64
+WaitForCheckingL1InfoRoot="0s"
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.10. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.12. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
@@ -1911,7 +1954,33 @@ ForcedBatchesFinalityNumberOfBlocks=64
 TimestampResolution="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.6.13. `Sequencer.Finalizer.L2BlockTime`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"3s"`
+
+**Description:** L2BlockTime is the resolution of the timestamp used to close a L2 block
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("3s"):
+```
+[Sequencer.Finalizer]
+L2BlockTime="3s"
+```
+
+#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.14. `Sequencer.Finalizer.StopSequencerOnBatchNum`
 
 **Type:** : `integer`
 
@@ -1925,7 +1994,7 @@ TimestampResolution="10s"
 StopSequencerOnBatchNum=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.12. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.15. `Sequencer.Finalizer.SequentialReprocessFullBatch`
 
 **Type:** : `boolean`
 

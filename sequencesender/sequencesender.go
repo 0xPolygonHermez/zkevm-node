@@ -162,17 +162,19 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		}
 
 		seq := types.Sequence{
-			GlobalExitRoot: batch.GlobalExitRoot,
-			Timestamp:      batch.Timestamp.Unix(),
+			GlobalExitRoot: batch.GlobalExitRoot,   //TODO: set empty for regular batches
+			Timestamp:      batch.Timestamp.Unix(), //TODO: set empty for regular batches
 			BatchL2Data:    batch.BatchL2Data,
 			BatchNumber:    batch.BatchNumber,
 		}
 
 		if batch.ForcedBatchNum != nil {
+			//TODO: Assign GER, timestamp(forcedAt) and l1block.parentHash to seq
 			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
 			}
+
 			seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
 		}
 

@@ -35,9 +35,10 @@ type L2ReorgEvent struct {
 
 // ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
 type ClosingSignalCh struct {
-	ForcedBatchCh chan state.ForcedBatch
-	GERCh         chan common.Hash
-	L2ReorgCh     chan L2ReorgEvent
+	ForcedBatchCh        chan state.ForcedBatch
+	GERCh                chan common.Hash
+	L1InfoTreeExitRootCh chan state.L1InfoTreeExitRootStorageEntry
+	L2ReorgCh            chan L2ReorgEvent
 }
 
 // New init sequencer
@@ -70,9 +71,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 	metrics.Register()
 
 	closingSignalCh := ClosingSignalCh{
-		ForcedBatchCh: make(chan state.ForcedBatch),
-		GERCh:         make(chan common.Hash),
-		L2ReorgCh:     make(chan L2ReorgEvent),
+		ForcedBatchCh:        make(chan state.ForcedBatch),
+		GERCh:                make(chan common.Hash),
+		L1InfoTreeExitRootCh: make(chan state.L1InfoTreeExitRootStorageEntry),
+		L2ReorgCh:            make(chan L2ReorgEvent),
 	}
 
 	err := s.pool.MarkWIPTxsAsPending(ctx)
@@ -106,7 +108,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		streamServer = dbManager.streamServer
 	}
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
+	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, worker, dbManager, s.state, s.etherman, s.address, s.isSynced, closingSignalCh, s.batchCfg.Constraints, s.eventLog, streamServer)
 	go finalizer.Start(ctx)
 
 	closingSignalsManager := newClosingSignalsManager(ctx, finalizer.dbManager, closingSignalCh, finalizer.cfg, s.etherman)
@@ -183,7 +185,10 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	//TODO: uncoment this
+	return true
+
+	/*lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last isSynced batch, err: %v", err)
 		return false
@@ -206,5 +211,5 @@ func (s *Sequencer) isSynced(ctx context.Context) bool {
 		return false
 	}
 
-	return true
+	return true*/
 }
