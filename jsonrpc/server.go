@@ -480,7 +480,7 @@ func (s *Server) logConnCounters() {
 
 func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelInvalid)
-	log.Infof("Invalid Request: %v", err.Error())
+	log.Debugf("Invalid Request: %v", err.Error())
 	http.Error(w, err.Error(), code)
 }
 
