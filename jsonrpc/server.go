@@ -486,7 +486,6 @@ func handleInvalidRequest(w http.ResponseWriter, err error, code int) {
 
 func handleError(w http.ResponseWriter, err error) {
 	defer metrics.RequestHandled(metrics.RequestHandledLabelError)
-	log.Errorf("Error processing request: %v", err)
 
 	if errors.Is(err, syscall.EPIPE) {
 		// if it is a broken pipe error, return
@@ -494,6 +493,7 @@ func handleError(w http.ResponseWriter, err error) {
 	}
 
 	// if it is a different error, write it to the response
+	log.Errorf("Error processing request: %v", err)
 	http.Error(w, err.Error(), http.StatusInternalServerError)
 }
 
@@ -506,9 +506,9 @@ func RPCErrorResponse(code int, message string, err error, logError bool) (inter
 func RPCErrorResponseWithData(code int, message string, data *[]byte, err error, logError bool) (interface{}, types.Error) {
 	if logError {
 		if err != nil {
-			log.Errorf("%v: %v", message, err.Error())
+			log.Debugf("%v: %v", message, err.Error())
 		} else {
-			log.Error(message)
+			log.Debug(message)
 		}
 	}
 	return nil, types.NewRPCErrorWithData(code, message, data)
