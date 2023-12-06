@@ -119,7 +119,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			copy(data, result.ReturnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), &data)
 		} else if result.Failed() {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, result.Err.Error(), nil)
+			return nil, types.NewRPCError(types.DefaultErrorCode, result.Err.Error())
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -198,8 +198,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
 			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
-			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
-			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
+			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -888,7 +887,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 
 		// TODO: this is temporary patch remove this log
 		realIp := httpRequest.Header.Get("X-Real-IP")
-		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+		log.Debugf("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
 
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
