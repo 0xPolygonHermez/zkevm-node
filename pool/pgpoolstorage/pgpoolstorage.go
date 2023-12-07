@@ -144,11 +144,11 @@ func (p *PostgresPoolStorage) GetTxsByStatus(ctx context.Context, status pool.Tx
 	)
 	if limit == 0 {
 		sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-				used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC`
+				used_arithmetics, used_binaries, used_steps, used_sha256_hashes, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC`
 		rows, err = p.db.Query(ctx, sql, status.String())
 	} else {
 		sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-				used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2`
+				used_arithmetics, used_binaries, used_steps, used_sha256_hashes, failed_reason FROM pool.transaction WHERE status = $1 ORDER BY gas_price DESC LIMIT $2`
 		rows, err = p.db.Query(ctx, sql, status.String(), limit)
 	}
 	if err != nil {
@@ -177,7 +177,7 @@ func (p *PostgresPoolStorage) GetNonWIPPendingTxs(ctx context.Context) ([]pool.T
 	)
 
 	sql = `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
-		used_arithmetics, used_binaries, used_steps, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1`
+		used_arithmetics, used_binaries, used_steps, used_sha256_hashes, failed_reason FROM pool.transaction WHERE is_wip IS FALSE and status = $1`
 	rows, err = p.db.Query(ctx, sql, pool.TxStatusPending)
 
 	if err != nil {
@@ -511,7 +511,7 @@ func (p *PostgresPoolStorage) IsTxPending(ctx context.Context, hash common.Hash)
 // GetTxsByFromAndNonce get all the transactions from the pool with the same from and nonce
 func (p *PostgresPoolStorage) GetTxsByFromAndNonce(ctx context.Context, from common.Address, nonce uint64) ([]pool.Transaction, error) {
 	sql := `SELECT encoded, status, received_at, is_wip, ip, cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, 
-				   used_poseidon_paddings, used_mem_aligns,	used_arithmetics, used_binaries, used_steps, failed_reason
+				   used_poseidon_paddings, used_mem_aligns,	used_arithmetics, used_binaries, used_steps, used_sha256_hashes, failed_reason
 	          FROM pool.transaction
 			 WHERE from_address = $1
 			   AND nonce = $2`
