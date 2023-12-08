@@ -459,9 +459,14 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		Caller:            stateMetrics.SequencerCallerLabel,
 	}
 
-	executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+	if f.wipBatch.isEmpty() {
+		executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+		executorBatchRequest.SkipFirstChangeL2Block_V2 = false
+	} else {
+		executorBatchRequest.Transactions = []byte{}
+		executorBatchRequest.SkipFirstChangeL2Block_V2 = true
+	}
 	executorBatchRequest.SkipWriteBlockInfoRoot_V2 = true
-	executorBatchRequest.SkipFirstChangeL2Block_V2 = !f.wipBatch.isEmpty()
 
 	hashStr := "nil"
 	if tx != nil {
@@ -539,7 +544,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
 	}
 
-	log.Infof("processing batch. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoRoot_V2.String())
+	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoRoot_V2.String())
 	processBatchResponse, err := f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
@@ -576,8 +581,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
 	f.wipBatch.imAccInputHash = processBatchResponse.NewAccInputHash
 
-	log.Infof("batch processed. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
-		f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
+	log.Infof("processed tx: %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
+		hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
 
 	return nil, nil
 }
@@ -779,11 +784,11 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 	// Delete the transaction from the worker
 	if isForced {
 		f.worker.DeleteForcedTx(txHash, txFrom)
-		log.Debug("forced tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debugf("forced tx deleted from worker. txHash: %s, from: %s", txHash.String(), txFrom.Hex())
 		return
 	} else {
 		f.worker.DeleteTx(txHash, txFrom)
-		log.Debug("tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debugf("tx deleted from worker. txHash: %s, from: %s", txHash.String(), txFrom.Hex())
 	}
 
 	start := time.Now()
@@ -1081,13 +1086,15 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		}
 
 		// Log batch detailed info
-		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
+		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot, batch.GlobalExitRoot)
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			for j, rawTx := range rawL2block.Transactions {
 				log.Infof("[reprocessFullBatch] BatchNumber: %d, block postion: % d, tx position %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
 			}
 		}
 	}
+
+	log.Debugf("[reprocessFullBatch] reprocessing batch: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batchNum, initialStateRoot, expectedNewStateRoot)
 
 	batch, err := f.state.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {

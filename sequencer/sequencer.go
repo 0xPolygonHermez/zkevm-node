@@ -33,8 +33,6 @@ type Sequencer struct {
 	streamServer *datastreamer.StreamServer
 	dataToStream chan state.DSL2FullBlock
 
-	batchConstraints state.BatchConstraintsCfg
-
 	closingSignalCh ClosingSignalCh
 
 	numberOfStateInconsistencies uint64
