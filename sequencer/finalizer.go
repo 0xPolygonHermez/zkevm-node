@@ -22,7 +22,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	ethereumTypes "github.com/ethereum/go-ethereum/core/types"
 )
 
 const (
@@ -452,8 +451,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:       f.wipBatch.batchNumber,
-		OldStateRoot:      f.wipBatch.stateRoot,
-		OldAccInputHash:   f.wipBatch.accInputHash,
+		OldStateRoot:      f.wipBatch.imStateRoot,
+		OldAccInputHash:   f.wipBatch.imAccInputHash,
 		Coinbase:          f.wipBatch.coinbase,
 		L1InfoRoot_V2:     mockL1InfoRoot,
 		TimestampLimit_V2: uint64(f.wipL2Block.timestamp.Unix()),
@@ -564,7 +563,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		return nil, err
 	}
 
-	oldStateRoot := f.wipBatch.stateRoot
+	oldStateRoot := f.wipBatch.imStateRoot
 	if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
 		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
 		if err != nil {
@@ -573,9 +572,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}
 
 	// Update wip batch
-	f.wipBatch.stateRoot = processBatchResponse.NewStateRoot
+	f.wipBatch.imStateRoot = processBatchResponse.NewStateRoot
 	f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
-	f.wipBatch.accInputHash = processBatchResponse.NewAccInputHash
+	f.wipBatch.imAccInputHash = processBatchResponse.NewAccInputHash
 
 	log.Infof("batch processed. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
 		f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
@@ -1071,20 +1070,28 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 }
 
 // reprocessFullBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
-	reprocessError := func(batch *state.Batch, txs []ethereumTypes.Transaction) {
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, initialAccInputHash common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+	reprocessError := func(batch *state.Batch) {
 		f.reprocessFullBatchError.Store(true)
+
+		rawL2Blocks, err := state.DecodeBatchV2(batch.BatchL2Data)
+		if err != nil {
+			log.Errorf("[reprocessFullBatch] error decoding BatchL2Data for batch %d. Error: %s", batch.BatchNumber, err)
+			return
+		}
 
 		// Log batch detailed info
 		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
-		for i, tx := range txs {
-			log.Infof("[reprocessFullBatch] BatchNumber: %d, tx position %d, tx hash: %s", batch.BatchNumber, i, tx.Hash())
+		for i, rawL2block := range rawL2Blocks.Blocks {
+			for j, rawTx := range rawL2block.Transactions {
+				log.Infof("[reprocessFullBatch] BatchNumber: %d, block postion: % d, tx position %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
+			}
 		}
 	}
 
 	batch, err := f.state.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		log.Errorf("[reprocessFullBatch] failed to get batch %d, err: %v", batchNum, err)
+		log.Errorf("[reprocessFullBatch] failed to get batch %d, err: %s", batchNum, err)
 		f.reprocessFullBatchError.Store(true)
 		return nil, ErrGetBatchByNumber
 	}
@@ -1097,20 +1104,13 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	// TODO: review this request for reprocess full batch
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:       batch.BatchNumber,
-		GlobalExitRoot_V1: batch.GlobalExitRoot,
+		L1InfoRoot_V2:     mockL1InfoRoot,
 		OldStateRoot:      initialStateRoot,
+		OldAccInputHash:   initialAccInputHash,
 		Transactions:      batch.BatchL2Data,
 		Coinbase:          batch.Coinbase,
-		Timestamp_V1:      batch.Timestamp,
+		TimestampLimit_V2: uint64(time.Now().Unix()),
 		Caller:            caller,
-	}
-
-	forkID := f.state.GetForkIDByBatchNumber(batchNum)
-	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
-	if err != nil {
-		log.Errorf("[reprocessFullBatch] error decoding BatchL2Data for batch %d. Error: %v", batch.BatchNumber, err)
-		reprocessError(batch, []ethereumTypes.Transaction{})
-		return nil, ErrDecodeBatchL2Data
 	}
 
 	var result *state.ProcessBatchResponse
@@ -1118,23 +1118,23 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	result, err = f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
 	if err != nil {
 		log.Errorf("[reprocessFullBatch] failed to process batch %d. Error: %s", batch.BatchNumber, err)
-		reprocessError(batch, txs)
+		reprocessError(batch)
 		return nil, ErrProcessBatch
 	}
 
 	if result.ExecutorError != nil {
-		log.Errorf("[reprocessFullBatch] executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
-		reprocessError(batch, txs)
+		log.Errorf("[reprocessFullBatch] executor error when reprocessing batch %d, error: %s", batch.BatchNumber, result.ExecutorError)
+		reprocessError(batch)
 		return nil, ErrExecutorError
 	}
 
 	if result.IsRomOOCError {
 		log.Errorf("[reprocessFullBatch] failed to process batch %d because OutOfCounters", batch.BatchNumber)
-		reprocessError(batch, txs)
+		reprocessError(batch)
 
 		payload, err := json.Marshal(executorBatchRequest)
 		if err != nil {
-			log.Errorf("[reprocessFullBatch] error marshaling payload: %v", err)
+			log.Errorf("[reprocessFullBatch] error marshaling payload: %s", err)
 		} else {
 			event := &event.Event{
 				ReceivedAt:  time.Now(),
@@ -1147,7 +1147,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
-				log.Errorf("[reprocessFullBatch] error storing payload: %v", err)
+				log.Errorf("[reprocessFullBatch] error storing payload: %s", err)
 			}
 		}
 
@@ -1156,7 +1156,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 
 	if result.NewStateRoot != expectedNewStateRoot {
 		log.Errorf("[reprocessFullBatch] new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
-		reprocessError(batch, txs)
+		reprocessError(batch)
 		return nil, ErrStateRootNoMatch
 	}
 
@@ -1321,7 +1321,7 @@ func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.Batch
 			UsedArithmetics:      constraints.MaxArithmetics,
 			UsedBinaries:         constraints.MaxBinaries,
 			UsedSteps:            constraints.MaxSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes, //TODO: Define default max value for MaxSHA256Hashes
+			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}

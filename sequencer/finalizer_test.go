@@ -871,7 +871,7 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		batchNumber:        batchNum,
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   oldHash,
-		stateRoot:          oldHash,
+		imStateRoot:        oldHash,
 		timestamp:          now(),
 		globalExitRoot:     oldHash,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
@@ -1893,7 +1893,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
+			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, f.wipBatch.initialAccInputHash, newHash)
 
 			// assert
 			if tc.expectedError != nil {
@@ -2298,7 +2298,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			batchNumber:        1,
 			coinbase:           seqAddr,
 			initialStateRoot:   oldHash,
-			stateRoot:          newHash,
+			imStateRoot:        newHash,
 			localExitRoot:      newHash,
 			timestamp:          now(),
 			globalExitRoot:     oldHash,
