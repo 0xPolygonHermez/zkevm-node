@@ -8,11 +8,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 type BatchStepsExecutorEtrogStateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*ethTypes.Header, error)
+	//StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*ethTypes.Header, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
@@ -35,6 +34,7 @@ type BatchStepsExecutorEtrogStateInterface interface {
 	//ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
 	//ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
 	GetCurrentL1InfoRoot() common.Hash
+	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 }
 
 type BatchStepsExecutorEtrogSynchronizerInterface interface {
@@ -62,29 +62,44 @@ func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *BatchStepsExecutorEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
 	log.Infof("Batch %d needs to be synchronized", uint64(data.TrustedBatch.Number))
-	return nil, ErrNotImplemented
-	/*
-	   err := b.openBatch(ctx, data.TrustedBatch, dbTx)
 
-	   	if err != nil {
-	   		log.Error("error openning batch. Error: ", err)
-	   		return nil, err
-	   	}
+	err := b.openBatch(ctx, data.TrustedBatch, dbTx)
+	if err != nil {
+		log.Error("error openning batch. Error: ", err)
+		return nil, err
+	}
 
-	   processBatchResp, err := b.processAndStoreTxs(ctx, trustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+	if err != nil {
+		log.Error("error procesingAndStoringTxs. Error: ", err)
+		return nil, err
+	}
 
-	   	if err != nil {
-	   		log.Error("error procesingAndStoringTxs. Error: ", err)
-	   		return nil, err
-	   	}
+	return processBatchResp, nil
 
-	   return nil, ErrNotImplemented
-	*/
 }
 
 // IncrementalProcess process a batch that we have processed before, and we have the intermediate state root, so is going to be process only new Tx
 func (b *BatchStepsExecutorEtrog) IncrementalProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	return nil, ErrNotImplemented
+	var err error
+	if err := checkThatL2DataIsIncremental(data); err != nil {
+		log.Error("error checkThatL2DataIsIncremental. Error: ", err)
+		return nil, err
+	}
+	batchNumber := uint64(data.TrustedBatch.Number)
+	newBatchL2Data := data.TrustedBatch.BatchL2Data[len(data.StateBatch.BatchL2Data):]
+	err = b.state.UpdateBatchL2Data(ctx, batchNumber, data.TrustedBatch.BatchL2Data, dbTx)
+	if err != nil {
+		log.Errorf("error UpdateBatchL2Data batch %d", batchNumber)
+		return nil, err
+	}
+	data.TrustedBatch.BatchL2Data = newBatchL2Data
+	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+	if err != nil {
+		log.Error("error procesingAndStoringTxs. Error: ", err)
+		return nil, err
+	}
+	return processBatchResp, nil
 }
 
 // ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
@@ -144,7 +159,6 @@ func (b *BatchStepsExecutorEtrog) openBatch(ctx context.Context, trustedBatch *t
 }
 
 func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, trustedBatch *types.Batch, request state.ProcessRequest, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-
 	processBatchResp, err := b.state.ProcessBatchV2(ctx, request, true)
 	if err != nil {
 		log.Errorf("error processing sequencer batch for batch: %v", trustedBatch.Number)
@@ -161,15 +175,10 @@ func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, truste
 		return processBatchResp, nil
 	}
 	for _, block := range processBatchResp.BlockResponses {
-		for _, tx := range block.TransactionResponses {
-			if state.IsStateRootChanged(executor.RomErrorCode(tx.RomError)) {
-				log.Infof("TrustedBatch info: %+v", processBatchResp)
-				log.Infof("Storing trusted tx %+v", tx)
-				if _, err = b.state.StoreTransaction(ctx, uint64(trustedBatch.Number), tx, trustedBatch.Coinbase, uint64(trustedBatch.Timestamp), nil, dbTx); err != nil {
-					log.Errorf("failed to store transactions for batch: %v. Tx: %s", trustedBatch.Number, tx.TxHash.String())
-					return nil, err
-				}
-			}
+		log.Infof("Storing trusted tx %+v", block.BlockNumber)
+		if err = b.state.StoreL2Block(ctx, uint64(trustedBatch.Number), block, nil, dbTx); err != nil {
+			log.Errorf("failed to store block for batch: %v. BlockNumber: %s err:%v", trustedBatch.Number, block.BlockNumber, err)
+			return nil, err
 		}
 	}
 	return processBatchResp, nil
@@ -187,4 +196,24 @@ func getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) stat
 		Transactions: data.TrustedBatch.BatchL2Data,
 	}
 	return request
+}
+
+func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
+	incommingData := data.TrustedBatch.BatchL2Data
+	previousData := data.StateBatch.BatchL2Data
+	if len(incommingData) < len(previousData) {
+		return errors.New("the new batch has less data than the one in node!")
+	}
+	if len(incommingData) == len(previousData) {
+		return errors.New("the new batch has the same data than the one in node!")
+	}
+	if hash(incommingData) != hash(previousData) {
+		return errors.New("the new batch has different data than the one in node!")
+	}
+}
+
+func hash(data []byte) common.Hash {
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write(data)
+	return common.BytesToHash(sha.Sum(nil))
 }
