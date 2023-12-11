@@ -243,16 +243,19 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 		}
 	}
 	waitToBeMined := confirmationLevel != PoolConfirmationLevel
+	var initialNonce uint64
+	if waitToBeMined {
+		initialNonce, err = client.NonceAt(ctx, auth.From, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
 	sentTxs, err := applyTxs(ctx, txs, auth, client, waitToBeMined)
 	if err != nil {
 		return nil, err
 	}
 	if confirmationLevel == PoolConfirmationLevel {
 		return nil, nil
-	}
-	initialNonce, err := client.NonceAt(ctx, auth.From, nil)
-	if err != nil {
-		return nil, err
 	}
 	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
 	for i, tx := range sentTxs {
