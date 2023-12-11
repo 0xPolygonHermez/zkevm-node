@@ -355,8 +355,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 		// Gererate full batches
 		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
-		log.Debugf("Full batches: %+v", fullBatches)
-
 		currentBatchNumber += limit
 
 		for _, batch := range fullBatches {
