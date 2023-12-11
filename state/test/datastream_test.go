@@ -28,14 +28,15 @@ func TestL2BlockStartEncode(t *testing.T) {
 
 func TestL2TransactionEncode(t *testing.T) {
 	l2Transaction := state.DSL2Transaction{
-		EffectiveGasPricePercentage: 128,                   // 1 byte
-		IsValid:                     1,                     // 1 byte
-		EncodedLength:               5,                     // 4 bytes
-		Encoded:                     []byte{1, 2, 3, 4, 5}, // 5 bytes
+		EffectiveGasPricePercentage: 128,                          // 1 byte
+		IsValid:                     1,                            // 1 byte
+		StateRoot:                   common.HexToHash("0x010203"), // 32 bytes
+		EncodedLength:               5,                            // 4 bytes
+		Encoded:                     []byte{1, 2, 3, 4, 5},        // 5 bytes
 	}
 
 	encoded := l2Transaction.Encode()
-	expected := []byte{128, 1, 5, 0, 0, 0, 1, 2, 3, 4, 5}
+	expected := []byte{128, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 0, 0, 1, 2, 3, 4, 5}
 	assert.Equal(t, expected, encoded)
 }
 
