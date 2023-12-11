@@ -254,6 +254,10 @@ func TestForcedBatch(t *testing.T) {
 				On("AddBlock", ctx, stateBlock, m.DbTx).
 				Return(nil).
 				Once()
+			m.State.
+				On("GetBatchL2DataByNumber", ctx, uint64(2), nil).
+				Return(txs, nil).
+				Once()
 
 			fb := []state.ForcedBatch{{
 				BlockNumber:       lastBlock.BlockNumber,
