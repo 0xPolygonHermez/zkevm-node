@@ -317,6 +317,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, etm,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
+		&dataCommitteeClient.ClientFactory{},
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -409,7 +410,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 		log.Fatal(err)
 	}
 
-	auth, err := etherman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+	auth, pk, err := etherman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -419,7 +420,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -512,7 +513,7 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 	}
 
 	for _, privateKey := range cfg.EthTxManager.PrivateKeys {
-		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
+		_, _, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
 		if err != nil {
 			log.Fatal(err)
 		}

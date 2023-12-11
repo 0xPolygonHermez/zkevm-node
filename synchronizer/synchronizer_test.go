@@ -33,6 +33,7 @@ type mocks struct {
 	DbTx         *dbTxMock
 	ZKEVMClient  *zkEVMClientMock
 	//EventLog     *eventLogMock
+	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -41,6 +42,9 @@ type mocks struct {
 func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	ethermanForL1 := []EthermanInterface{m.Etherman}
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -68,6 +72,9 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	ethermanForL1 := []EthermanInterface{m.Etherman}
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -105,6 +112,9 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
 	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
@@ -178,7 +188,7 @@ func TestForcedBatch(t *testing.T) {
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
 				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
-					Transactions:       []byte{},
+					TransactionsHash:   []byte{},
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					Timestamp:          uint64(t.Unix()),
 					MinForcedTimestamp: 1000, //ForcedBatch
@@ -352,6 +362,9 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
 	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 

@@ -29,7 +29,8 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					"chainId": 420,
 					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 					"maticTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"cdkDataCommitteeContract": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 				},
 				"genesis": [
 					{
@@ -77,6 +78,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					ZkEVMAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 					MaticAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+					DataCommitteeAddr:         common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 				},
 				Genesis: state.Genesis{
 					Root:            common.HexToHash("0xBEEF"),

@@ -33,14 +33,15 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance             = 400000
-	DefaultMaxCumulativeGasUsed         = 800000
-	DefaultL1ZkEVMSmartContract         = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
-	DefaultL1NetworkURL                 = "http://localhost:8545"
-	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
-	DefaultL1ChainID             uint64 = 1337
+	DefaultSequencerAddress               = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey            = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance               = 400000
+	DefaultMaxCumulativeGasUsed           = 800000
+	DefaultL1ZkEVMSmartContract           = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
+	DefaultL1DataCommitteeContract        = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+	DefaultL1NetworkURL                   = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL          = "ws://localhost:8546"
+	DefaultL1ChainID               uint64 = 1337
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
 	PermissionlessL2NetworkURL          = "http://localhost:8125"
@@ -249,9 +250,12 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	if confirmationLevel == PoolConfirmationLevel {
 		return nil, nil
 	}
-
+	initialNonce, err := client.NonceAt(ctx, auth.From, nil)
+	if err != nil {
+		return nil, err
+	}
 	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
-	for _, tx := range sentTxs {
+	for i, tx := range sentTxs {
 		// check transaction nonce against transaction reported L2 block number
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
@@ -260,7 +264,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
-		expectedNonce := receipt.BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
+		expectedNonce := initialNonce + uint64(i)
 		if tx.Nonce() != expectedNonce {
 			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}
@@ -626,4 +630,24 @@ func initOrResetDB() {
 	if err := dbutils.InitOrResetPool(poolDBCfg); err != nil {
 		panic(err)
 	}
+}
+
+// StartDACDB starts the data availability node DB
+func (m *Manager) StartDACDB() error {
+	return StartComponent("dac-db", func() (bool, error) { return true, nil })
+}
+
+// StopDACDB stops the data availability node DB
+func (m *Manager) StopDACDB() error {
+	return StopComponent("dac-db")
+}
+
+// StartPermissionlessNodeForcedToSYncThroughDAC starts a permissionless node that is froced to sync through the DAC
+func (m *Manager) StartPermissionlessNodeForcedToSYncThroughDAC() error {
+	return StartComponent("permissionless-dac", func() (bool, error) { return true, nil })
+}
+
+// StopPermissionlessNodeForcedToSYncThroughDAC stops the permissionless node that is froced to sync through the DAC
+func (m *Manager) StopPermissionlessNodeForcedToSYncThroughDAC() error {
+	return StopComponent("permissionless-dac")
 }

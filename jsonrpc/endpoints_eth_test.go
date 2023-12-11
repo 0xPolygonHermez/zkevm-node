@@ -5182,3 +5182,210 @@ func TestParalelize(t *testing.T) {
 	assert.ElementsMatch(t, []int{13, 14, 15}, results[4])
 	assert.ElementsMatch(t, []int{16}, results[5])
 }
+
+func TestSendRawTransactionJSONRPCCallWithPolicyApplied(t *testing.T) {
+	// Set up the sender
+	allowedPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
+	require.NoError(t, err)
+	allowed, err := bind.NewKeyedTransactorWithChainID(allowedPrivateKey, big.NewInt(1))
+	require.NoError(t, err)
+
+	disallowedPrivateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0xdeadbeef8721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
+	require.NoError(t, err)
+	disallowed, err := bind.NewKeyedTransactorWithChainID(disallowedPrivateKey, big.NewInt(1))
+	require.NoError(t, err)
+	require.NotNil(t, disallowed)
+
+	allowedContract := common.HexToAddress("0x1")
+	disallowedContract := common.HexToAddress("0x2")
+
+	senderDenied := types.NewRPCError(types.AccessDeniedCode, "sender disallowed send_tx by policy")
+	contractDenied := types.NewRPCError(types.AccessDeniedCode, "contract disallowed send_tx by policy")
+	deployDenied := types.NewRPCError(types.AccessDeniedCode, "sender disallowed deploy by policy")
+
+	cfg := getDefaultConfig()
+	s, m, _ := newMockedServer(t, cfg)
+	defer s.Stop()
+
+	type testCase struct {
+		Name           string
+		Input          string
+		ExpectedResult *common.Hash
+		ExpectedError  types.Error
+		Prepare        func(t *testing.T, tc *testCase)
+		SetupMocks     func(t *testing.T, m *mocksWrapper, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Sender & contract on allow list, accepted",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := ethTypes.NewTransaction(1, allowedContract, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				signedTx, err := allowed.Signer(allowed.From, tx)
+				require.NoError(t, err)
+
+				txBinary, err := signedTx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = state.HashPtr(signedTx.Hash())
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("AddTx", context.Background(), mock.IsType(ethTypes.Transaction{}), "").
+					Return(nil).
+					Once()
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, allowedContract).
+					Return(true, nil).
+					Once()
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, allowed.From).
+					Return(true, nil).
+					Once()
+			},
+		},
+		{
+			Name: "Contract not on allow list, rejected",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := ethTypes.NewTransaction(1, disallowedContract, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				signedTx, err := allowed.Signer(allowed.From, tx)
+				require.NoError(t, err)
+
+				txBinary, err := signedTx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = nil
+				tc.ExpectedError = contractDenied
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, disallowedContract).
+					Return(false, contractDenied).
+					Once()
+			},
+		},
+		{
+			Name: "Sender not on allow list, rejected",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := ethTypes.NewTransaction(1, allowedContract, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				signedTx, err := disallowed.Signer(disallowed.From, tx)
+				require.NoError(t, err)
+
+				txBinary, err := signedTx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = nil
+				tc.ExpectedError = senderDenied
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, allowedContract).
+					Return(true, nil).
+					Once()
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, disallowed.From).
+					Return(false, senderDenied).
+					Once()
+			},
+		},
+		{
+			Name: "Unsigned tx with allowed contract, accepted", // for backward compatibility
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := ethTypes.NewTransaction(1, allowedContract, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				txBinary, err := tx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = state.HashPtr(tx.Hash())
+				tc.ExpectedError = nil
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("AddTx", context.Background(), mock.IsType(ethTypes.Transaction{}), "").
+					Return(nil).
+					Once()
+				// policy does not reject this case for backward compat
+			},
+		},
+		{
+			Name: "Unsigned tx with disallowed contract, rejected",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tx := ethTypes.NewTransaction(1, disallowedContract, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				signedTx, err := disallowed.Signer(disallowed.From, tx)
+				require.NoError(t, err)
+
+				txBinary, err := signedTx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = nil
+				tc.ExpectedError = contractDenied
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.SendTx, disallowedContract).
+					Return(false, contractDenied).
+					Once()
+			},
+		},
+		{
+			Name: "Send invalid tx input", // for backward compatibility
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Input = "0x1234"
+				tc.ExpectedResult = nil
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "invalid tx input")
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {},
+		},
+		{
+			Name: "Sender not on deploy allow list, rejected",
+			Prepare: func(t *testing.T, tc *testCase) {
+				deployAddr := common.HexToAddress("0x0")
+				tx := ethTypes.NewTransaction(1, deployAddr, big.NewInt(1), uint64(1), big.NewInt(1), []byte{})
+
+				signedTx, err := disallowed.Signer(disallowed.From, tx)
+				require.NoError(t, err)
+
+				txBinary, err := signedTx.MarshalBinary()
+				require.NoError(t, err)
+
+				rawTx := hex.EncodeToHex(txBinary)
+				require.NoError(t, err)
+
+				tc.Input = rawTx
+				tc.ExpectedResult = nil
+				tc.ExpectedError = deployDenied
+			},
+			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
+				m.Pool.
+					On("CheckPolicy", context.Background(), pool.Deploy, disallowed.From).
+					Return(false, nil).
+					Once()
+			},
+		},
+	}
+}

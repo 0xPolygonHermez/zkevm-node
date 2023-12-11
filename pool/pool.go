@@ -92,6 +92,13 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 			time.Sleep(cfg.IntervalToRefreshGasPrices.Duration)
 		}
 	}(&cfg, p)
+	p.refreshBlockedAddresses()
+	go func(cfg *Config, p *Pool) {
+		for {
+			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(&cfg, p)
 
 	return p
 }
@@ -689,4 +696,9 @@ func IntrinsicGas(tx types.Transaction) (uint64, error) {
 		gas += z * txDataZeroGas
 	}
 	return gas, nil
+}
+
+// CheckPolicy checks if an address is allowed by policy name
+func (p *Pool) CheckPolicy(ctx context.Context, policy PolicyName, address common.Address) (bool, error) {
+	return p.storage.CheckPolicy(ctx, policy, address)
 }

@@ -46,3 +46,12 @@ type stateInterface interface {
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 }
+type policy interface {
+	CheckPolicy(ctx context.Context, policy PolicyName, address common.Address) (bool, error)
+	AddAddressesToPolicy(ctx context.Context, policy PolicyName, addresses []common.Address) error
+	RemoveAddressesFromPolicy(ctx context.Context, policy PolicyName, addresses []common.Address) error
+	ClearPolicy(ctx context.Context, policy PolicyName) error
+	DescribePolicies(ctx context.Context) ([]Policy, error)
+	DescribePolicy(ctx context.Context, name PolicyName) (Policy, error)
+	ListAcl(ctx context.Context, policy PolicyName, query []common.Address) ([]common.Address, error)
+}

@@ -38,3 +38,13 @@ func (Duration) JSONSchema() *jsonschema.Schema {
 		},
 	}
 }
+
+// MarshalJSON marshalls time duration into text.
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + d.String() + `"`), nil
+}
+
+// MarshalText marshalls time duration into text.
+func (d *Duration) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}

@@ -23,6 +23,7 @@ type EthermanInterface interface {
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
 	GetLatestVerifiedBatchNum() (uint64, error)
+	GetCurrentDataCommittee() (*etherman.DataCommittee, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -62,6 +63,7 @@ type stateInterface interface {
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
+	GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error)
 }
 
 type ethTxManager interface {

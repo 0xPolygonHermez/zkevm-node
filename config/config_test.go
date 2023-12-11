@@ -153,6 +153,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(80000),
 		},
 		{
+			path:          "SequenceSender.MaxBatchesForL1",
+			expectedValue: uint64(300),
+		},
+		{
 			path:          "Etherman.URL",
 			expectedValue: "http://localhost:8545",
 		},
@@ -171,6 +175,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
 			expectedValue: common.HexToAddress("0x4d9427DCA0406358445bC0a8F88C26b704004f74"),
+		},
+		{
+			path:          "NetworkConfig.L1Config.DataCommitteeAddr",
+			expectedValue: common.HexToAddress("0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
@@ -510,7 +518,8 @@ func Test_Defaults(t *testing.T) {
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagNetwork, "testnet", "")
+	flagSet.String(config.FlagNetwork, "custom", "")
+	flagSet.String(config.FlagCustomNetwork, "../test/config/test.genesis.config.json", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 	cfg, err := config.Load(ctx, true)
 	if err != nil {
@@ -548,7 +557,8 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 	}()
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagNetwork, "testnet", "")
+	flagSet.String(config.FlagNetwork, "custom", "")
+	flagSet.String(config.FlagCustomNetwork, "../test/config/test.genesis.config.json", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 
 	os.Setenv("ZKEVM_NODE_LOG_OUTPUTS", "a,b,c")

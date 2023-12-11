@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -64,8 +65,11 @@ type ClientSynchronizer struct {
 	// later the value is checked to be the same (in function checkFlushID)
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
-	previousExecutorFlushID uint64
-	l1SyncOrchestration     *l1SyncOrchestration
+	previousExecutorFlushID    uint64
+	l1SyncOrchestration        *l1SyncOrchestration
+	committeeMembers           []etherman.DataCommitteeMember
+	selectedCommitteeMember    int
+	dataCommitteeClientFactory client.ClientFactoryInterface
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -80,26 +84,29 @@ func NewSynchronizer(
 	eventLog *event.EventLog,
 	genesis state.Genesis,
 	cfg Config,
-	runInDevelopmentMode bool) (Synchronizer, error) {
+	runInDevelopmentMode bool,
+	clientFactory client.ClientFactoryInterface,
+) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
 	res := &ClientSynchronizer{
-		isTrustedSequencer:      isTrustedSequencer,
-		state:                   st,
-		etherMan:                ethMan,
-		etherManForL1:           etherManForL1,
-		pool:                    pool,
-		ctx:                     ctx,
-		cancelCtx:               cancel,
-		ethTxManager:            ethTxManager,
-		zkEVMClient:             zkEVMClient,
-		eventLog:                eventLog,
-		genesis:                 genesis,
-		cfg:                     cfg,
-		proverID:                "",
-		previousExecutorFlushID: 0,
-		l1SyncOrchestration:     nil,
+		isTrustedSequencer:         isTrustedSequencer,
+		state:                      st,
+		etherMan:                   ethMan,
+		etherManForL1:              etherManForL1,
+		pool:                       pool,
+		ctx:                        ctx,
+		cancelCtx:                  cancel,
+		ethTxManager:               ethTxManager,
+		zkEVMClient:                zkEVMClient,
+		eventLog:                   eventLog,
+		genesis:                    genesis,
+		cfg:                        cfg,
+		proverID:                   "",
+		previousExecutorFlushID:    0,
+		l1SyncOrchestration:        nil,
+		dataCommitteeClientFactory: clientFactory,
 	}
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -115,7 +122,8 @@ func NewSynchronizer(
 		log.Fatalf("L1SynchronizationMode is not valid. Valid values are: %s, %s", ParallelMode, SequentialMode)
 	}
 
-	return res, nil
+	err := res.loadCommittee()
+	return res, err
 }
 
 var waitDuration = time.Duration(0)
@@ -890,6 +898,10 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
+		batchL2Data, err := s.getBatchL2Data(sbatch.BatchNumber, sbatch.TransactionsHash)
+		if err != nil {
+			return err
+		}
 		virtualBatch := state.VirtualBatch{
 			BatchNumber:   sbatch.BatchNumber,
 			TxHash:        sbatch.TxHash,
@@ -902,7 +914,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			GlobalExitRoot: sbatch.GlobalExitRoot,
 			Timestamp:      time.Unix(int64(sbatch.Timestamp), 0),
 			Coinbase:       sbatch.Coinbase,
-			BatchL2Data:    sbatch.Transactions,
+			BatchL2Data:    batchL2Data,
 		}
 		// ForcedBatch must be processed
 		if sbatch.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
@@ -929,9 +941,9 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			}
 			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.MinForcedTimestamp ||
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
-				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) {
+				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(batchL2Data) {
 				log.Warnf("ForcedBatch stored: %+v. RawTxsData: %s", forcedBatches, common.Bytes2Hex(forcedBatches[0].RawTxsData))
-				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(sbatch.Transactions))
+				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(batchL2Data))
 				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
