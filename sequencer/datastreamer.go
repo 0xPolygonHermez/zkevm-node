@@ -8,16 +8,16 @@ import (
 
 func (f *finalizer) DSSendL2Block(l2Block *L2Block) error {
 	blockResponse := l2Block.batchResponse.BlockResponses[0]
-	forkID := f.state.GetForkIDByBatchNumber(l2Block.batchNumber)
+	forkID := f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber)
 
 	// Send data to streamer
 	if f.streamServer != nil {
 		l2Block := state.DSL2Block{
-			BatchNumber:    l2Block.batchNumber,
+			BatchNumber:    f.wipBatch.batchNumber,
 			L2BlockNumber:  blockResponse.BlockNumber,
 			Timestamp:      int64(blockResponse.Timestamp),
 			GlobalExitRoot: blockResponse.BlockInfoRoot, //TODO: is it ok?
-			Coinbase:       l2Block.coinbase,
+			Coinbase:       f.wipBatch.coinbase,
 			ForkID:         uint16(forkID),
 			BlockHash:      blockResponse.BlockHash,
 			StateRoot:      blockResponse.BlockHash, //TODO: in etrog the blockhash is the block root

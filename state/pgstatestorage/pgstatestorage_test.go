@@ -13,11 +13,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -223,23 +223,23 @@ func TestAddAndGetSequences(t *testing.T) {
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (0)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (0, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (1, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (2, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (3)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (3, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (4)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (4, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (5)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (5, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (6)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (6, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (7)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (7, FALSE)")
 	require.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (8)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (8, FALSE)")
 	require.NoError(t, err)
 
 	sequence := state.Sequence{
@@ -1098,7 +1098,7 @@ func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint3
 			},
 			PreviousBlockHash: common.HexToHash("0x03"),
 		},
-		L1InfoTreeRoot: common.HexToHash("0x04"),
+		L1InfoTreeRoot:  common.HexToHash("0x04"),
 		L1InfoTreeIndex: index,
 	}
 	return &exitRoot

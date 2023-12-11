@@ -247,6 +247,8 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.TimestampLimit]: %v", processBatchRequest.TimestampLimit)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipFirstChangeL2Block]: %v", processBatchRequest.SkipFirstChangeL2Block)
+		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipWriteBlockInfoRoot]: %v", processBatchRequest.SkipWriteBlockInfoRoot)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)

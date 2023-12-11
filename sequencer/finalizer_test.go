@@ -145,235 +145,246 @@ func TestNewFinalizer(t *testing.T) {
 	assert.Equal(t, f.batchConstraints, bc)
 }
 
-/*func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
-	f = setupFinalizer(true)
-	ctx = context.Background()
-	txTracker := &TxTracker{
-		Hash:              txHash,
-		From:              senderAddr,
-		Nonce:             1,
-		GasPrice:          gasPrice,
-		EffectiveGasPrice: effectiveGasPrice,
-		L1GasPrice:        l1GasPrice,
-		EGPLog: state.EffectiveGasPriceLog{
-			ValueFinal:     new(big.Int).SetUint64(0),
-			ValueFirst:     new(big.Int).SetUint64(0),
-			ValueSecond:    new(big.Int).SetUint64(0),
-			FinalDeviation: new(big.Int).SetUint64(0),
-			MaxDeviation:   new(big.Int).SetUint64(0),
-			GasPrice:       new(big.Int).SetUint64(0),
-		},
-		BatchResources: state.BatchResources{
-			Bytes: 1000,
-			ZKCounters: state.ZKCounters{
-				GasUsed: 500,
-			},
-		},
-		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
-	}
+func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
+	/*
+	   f = setupFinalizer(true)
+	   ctx = context.Background()
 
-	txResponse := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
-		StateRoot: newHash2,
-		RomError:  nil,
-		GasUsed:   100000,
-	}
-	blockResponse := &state.ProcessBlockResponse{
-		TransactionResponses: []*state.ProcessTransactionResponse{
-			txResponse,
-		},
-	}
-	batchResponse := &state.ProcessBatchResponse{
-		BlockResponses: []*state.ProcessBlockResponse{
-			blockResponse,
-		},
-	}
-	txResponseIntrinsicError := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
-		StateRoot: newHash2,
-		RomError:  runtime.ErrIntrinsicInvalidNonce,
-	}
-	blockResponseIntrinsicError := &state.ProcessBlockResponse{
-		TransactionResponses: []*state.ProcessTransactionResponse{
-			txResponseIntrinsicError,
-		},
-	}
-	txResponseOOCError := &state.ProcessTransactionResponse{
-		TxHash:    txHash,
-		StateRoot: newHash2,
-		RomError:  runtime.ErrOutOfCountersKeccak,
-	}
-	blockResponseOOCError := &state.ProcessBlockResponse{
-		TransactionResponses: []*state.ProcessTransactionResponse{
-			txResponseOOCError,
-		},
-	}
-	testCases := []struct {
-		name                       string
-		executorResponse           *state.ProcessBatchResponse
-		oldStateRoot               common.Hash
-		expectedStoredTx           transactionToStore
-		expectedMoveToNotReadyCall bool
-		expectedDeleteTxCall       bool
-		expectedUpdateTxCall       bool
-		expectedError              error
-		expectedUpdateTxStatus     pool.TxStatus
-	}{
-		{
-			name: "Successful transaction",
-			executorResponse: &state.ProcessBatchResponse{
-				BlockResponses: []*state.ProcessBlockResponse{
-					blockResponse,
-				},
-				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
-					senderAddr: {
-						Address: senderAddr,
-						Nonce:   &nonce2,
-						Balance: big.NewInt(100),
-					},
-					receiverAddr: {
-						Address: receiverAddr,
-						Nonce:   nil,
-						Balance: big.NewInt(100),
-					},
-				},
-			},
-			oldStateRoot: oldHash,
-			expectedStoredTx: transactionToStore{
-				hash:          txHash,
-				from:          senderAddr,
-				batchNumber:   f.wipBatch.batchNumber,
-				coinbase:      f.wipBatch.coinbase,
-				timestamp:     f.wipBatch.timestamp,
-				oldStateRoot:  oldHash,
-				batchResponse: batchResponse,
-				response:      txResponse,
-				isForcedBatch: false,
-			},
-		},
-		{
-			name: "Batch resources underflow err",
-			executorResponse: &state.ProcessBatchResponse{
-				UsedZkCounters: state.ZKCounters{
-					GasUsed: f.wipBatch.remainingResources.ZKCounters.GasUsed + 1,
-				},
-				BlockResponses: []*state.ProcessBlockResponse{
-					blockResponse,
-				},
-				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
-					senderAddr: {
-						Address: senderAddr,
-						Nonce:   &nonce1,
-						Balance: big.NewInt(100),
-					},
-				},
-			},
-			oldStateRoot:         oldHash,
-			expectedUpdateTxCall: true,
-			expectedError:        state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
-		},
-		{
-			name: "Intrinsic err",
-			executorResponse: &state.ProcessBatchResponse{
-				IsRomOOCError: false,
-				UsedZkCounters: state.ZKCounters{
-					GasUsed: 1,
-				},
-				BlockResponses: []*state.ProcessBlockResponse{
-					blockResponseIntrinsicError,
-				},
-				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
-					senderAddr: {
-						Address: senderAddr,
-						Nonce:   &nonce1,
-						Balance: big.NewInt(100),
-					},
-				},
-			},
-			oldStateRoot:               oldHash,
-			expectedMoveToNotReadyCall: true,
-			expectedError:              txResponseIntrinsicError.RomError,
-		},
-		{
-			name: "Out Of Counters err",
-			executorResponse: &state.ProcessBatchResponse{
-				IsRomOOCError: true,
-				UsedZkCounters: state.ZKCounters{
-					UsedKeccakHashes: bc.MaxKeccakHashes + 1,
-				},
-				BlockResponses: []*state.ProcessBlockResponse{
-					blockResponseOOCError,
-				},
-			},
-			oldStateRoot:           oldHash,
-			expectedError:          txResponseOOCError.RomError,
-			expectedDeleteTxCall:   true,
-			expectedUpdateTxStatus: pool.TxStatusInvalid,
-		},
-	}
+	   	txTracker := &TxTracker{
+	   		Hash:              txHash,
+	   		From:              senderAddr,
+	   		Nonce:             1,
+	   		GasPrice:          gasPrice,
+	   		EffectiveGasPrice: effectiveGasPrice,
+	   		L1GasPrice:        l1GasPrice,
+	   		EGPLog: state.EffectiveGasPriceLog{
+	   			ValueFinal:     new(big.Int).SetUint64(0),
+	   			ValueFirst:     new(big.Int).SetUint64(0),
+	   			ValueSecond:    new(big.Int).SetUint64(0),
+	   			FinalDeviation: new(big.Int).SetUint64(0),
+	   			MaxDeviation:   new(big.Int).SetUint64(0),
+	   			GasPrice:       new(big.Int).SetUint64(0),
+	   		},
+	   		BatchResources: state.BatchResources{
+	   			Bytes: 1000,
+	   			ZKCounters: state.ZKCounters{
+	   				GasUsed: 500,
+	   			},
+	   		},
+	   		RawTx: []byte{0, 0, 1, 2, 3, 4, 5},
+	   	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			storedTxs := make([]transactionToStore, 0)
-			f.pendingL2BlocksToStore = make(chan transactionToStore)
+	   	txResponse := &state.ProcessTransactionResponse{
+	   		TxHash:    txHash,
+	   		StateRoot: newHash2,
+	   		RomError:  nil,
+	   		GasUsed:   100000,
+	   	}
 
-			if tc.expectedStoredTx.batchResponse != nil {
-				done = make(chan bool) // init a new done channel
-				go func() {
-					for tx := range f.pendingL2BlocksToStore {
-						storedTxs = append(storedTxs, tx)
-						f.pendingL2BlocksToStoreWG.Done()
-					}
-					done <- true // signal that the goroutine is done
-				}()
-			}
-			if tc.expectedDeleteTxCall {
-				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
-			}
-			if tc.expectedMoveToNotReadyCall {
-				addressInfo := tc.executorResponse.ReadWriteAddresses[senderAddr]
-				workerMock.On("MoveTxToNotReady", txHash, senderAddr, addressInfo.Nonce, addressInfo.Balance).Return([]*TxTracker{}).Once()
-			}
-			if tc.expectedUpdateTxCall {
-				workerMock.On("UpdateTxZKCounters", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
-			}
-			if tc.expectedError == nil {
-				//stateMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
-				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
-				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
-				workerMock.On("AddPendingTxToStore", txTracker.Hash, txTracker.From).Return().Once()
-			}
-			if tc.expectedUpdateTxStatus != "" {
-				stateMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
-			}
+	   	blockResponse := &state.ProcessBlockResponse{
+	   		TransactionResponses: []*state.ProcessTransactionResponse{
+	   			txResponse,
+	   		},
+	   	}
 
-			errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
-			if errWg != nil {
-				errWg.Wait()
-			}
+	   	batchResponse := &state.ProcessBatchResponse{
+	   		BlockResponses: []*state.ProcessBlockResponse{
+	   			blockResponse,
+	   		},
+	   	}
 
-			if tc.expectedError != nil {
-				require.Equal(t, tc.expectedError, err)
-			} else {
-				require.Nil(t, err)
-			}
+	   	txResponseIntrinsicError := &state.ProcessTransactionResponse{
+	   		TxHash:    txHash,
+	   		StateRoot: newHash2,
+	   		RomError:  runtime.ErrIntrinsicInvalidNonce,
+	   	}
 
-			if tc.expectedStoredTx.batchResponse != nil {
-				close(f.pendingL2BlocksToStore) // close the channel
-				<-done                          // wait for the goroutine to finish
-				f.pendingL2BlocksToStoreWG.Wait()
-				require.Len(t, storedTxs, 1)
-				actualTx := storedTxs[0] //nolint:gosec
-				assertEqualTransactionToStore(t, tc.expectedStoredTx, actualTx)
-			} else {
-				require.Empty(t, storedTxs)
-			}
+	   	blockResponseIntrinsicError := &state.ProcessBlockResponse{
+	   		TransactionResponses: []*state.ProcessTransactionResponse{
+	   			txResponseIntrinsicError,
+	   		},
+	   	}
 
-			workerMock.AssertExpectations(t)
-			stateMock.AssertExpectations(t)
-		})
-	}
-}*/
+	   	txResponseOOCError := &state.ProcessTransactionResponse{
+	   		TxHash:    txHash,
+	   		StateRoot: newHash2,
+	   		RomError:  runtime.ErrOutOfCountersKeccak,
+	   	}
+
+	   	blockResponseOOCError := &state.ProcessBlockResponse{
+	   		TransactionResponses: []*state.ProcessTransactionResponse{
+	   			txResponseOOCError,
+	   		},
+	   	}
+
+	   	testCases := []struct {
+	   		name                       string
+	   		executorResponse           *state.ProcessBatchResponse
+	   		oldStateRoot               common.Hash
+	   		expectedStoredTx           transactionToStore
+	   		expectedMoveToNotReadyCall bool
+	   		expectedDeleteTxCall       bool
+	   		expectedUpdateTxCall       bool
+	   		expectedError              error
+	   		expectedUpdateTxStatus     pool.TxStatus
+	   	}{
+
+	   		{
+	   			name: "Successful transaction",
+	   			executorResponse: &state.ProcessBatchResponse{
+	   				BlockResponses: []*state.ProcessBlockResponse{
+	   					blockResponse,
+	   				},
+	   				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
+	   					senderAddr: {
+	   						Address: senderAddr,
+	   						Nonce:   &nonce2,
+	   						Balance: big.NewInt(100),
+	   					},
+	   					receiverAddr: {
+	   						Address: receiverAddr,
+	   						Nonce:   nil,
+	   						Balance: big.NewInt(100),
+	   					},
+	   				},
+	   			},
+	   			oldStateRoot: oldHash,
+	   			expectedStoredTx: transactionToStore{
+	   				hash:          txHash,
+	   				from:          senderAddr,
+	   				batchNumber:   f.wipBatch.batchNumber,
+	   				coinbase:      f.wipBatch.coinbase,
+	   				timestamp:     f.wipBatch.timestamp,
+	   				oldStateRoot:  oldHash,
+	   				batchResponse: batchResponse,
+	   				response:      txResponse,
+	   				isForcedBatch: false,
+	   			},
+	   		},
+	   		{
+	   			name: "Batch resources underflow err",
+	   			executorResponse: &state.ProcessBatchResponse{
+	   				UsedZkCounters: state.ZKCounters{
+	   					GasUsed: f.wipBatch.remainingResources.ZKCounters.GasUsed + 1,
+	   				},
+	   				BlockResponses: []*state.ProcessBlockResponse{
+	   					blockResponse,
+	   				},
+	   				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
+	   					senderAddr: {
+	   						Address: senderAddr,
+	   						Nonce:   &nonce1,
+	   						Balance: big.NewInt(100),
+	   					},
+	   				},
+	   			},
+	   			oldStateRoot:         oldHash,
+	   			expectedUpdateTxCall: true,
+	   			expectedError:        state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
+	   		},
+	   		{
+	   			name: "Intrinsic err",
+	   			executorResponse: &state.ProcessBatchResponse{
+	   				IsRomOOCError: false,
+	   				UsedZkCounters: state.ZKCounters{
+	   					GasUsed: 1,
+	   				},
+	   				BlockResponses: []*state.ProcessBlockResponse{
+	   					blockResponseIntrinsicError,
+	   				},
+	   				ReadWriteAddresses: map[common.Address]*state.InfoReadWrite{
+	   					senderAddr: {
+	   						Address: senderAddr,
+	   						Nonce:   &nonce1,
+	   						Balance: big.NewInt(100),
+	   					},
+	   				},
+	   			},
+	   			oldStateRoot:               oldHash,
+	   			expectedMoveToNotReadyCall: true,
+	   			expectedError:              txResponseIntrinsicError.RomError,
+	   		},
+	   		{
+	   			name: "Out Of Counters err",
+	   			executorResponse: &state.ProcessBatchResponse{
+	   				IsRomOOCError: true,
+	   				UsedZkCounters: state.ZKCounters{
+	   					UsedKeccakHashes: bc.MaxKeccakHashes + 1,
+	   				},
+	   				BlockResponses: []*state.ProcessBlockResponse{
+	   					blockResponseOOCError,
+	   				},
+	   			},
+	   			oldStateRoot:           oldHash,
+	   			expectedError:          txResponseOOCError.RomError,
+	   			expectedDeleteTxCall:   true,
+	   			expectedUpdateTxStatus: pool.TxStatusInvalid,
+	   		},
+	   	}
+
+	   	for _, tc := range testCases {
+	   		t.Run(tc.name, func(t *testing.T) {
+	   			storedTxs := make([]transactionToStore, 0)
+	   			f.pendingL2BlocksToStore = make(chan transactionToStore)
+
+	   			if tc.expectedStoredTx.batchResponse != nil {
+	   				done = make(chan bool) // init a new done channel
+	   				go func() {
+	   					for tx := range f.pendingL2BlocksToStore {
+	   						storedTxs = append(storedTxs, tx)
+	   						f.pendingL2BlocksToStoreWG.Done()
+	   					}
+	   					done <- true // signal that the goroutine is done
+	   				}()
+	   			}
+	   			if tc.expectedDeleteTxCall {
+	   				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
+	   			}
+	   			if tc.expectedMoveToNotReadyCall {
+	   				addressInfo := tc.executorResponse.ReadWriteAddresses[senderAddr]
+	   				workerMock.On("MoveTxToNotReady", txHash, senderAddr, addressInfo.Nonce, addressInfo.Balance).Return([]*TxTracker{}).Once()
+	   			}
+	   			if tc.expectedUpdateTxCall {
+	   				workerMock.On("UpdateTxZKCounters", txTracker.Hash, txTracker.From, tc.executorResponse.UsedZkCounters).Return().Once()
+	   			}
+	   			if tc.expectedError == nil {
+	   				//stateMock.On("GetGasPrices", ctx).Return(pool.GasPrices{L1GasPrice: 0, L2GasPrice: 0}, nilErr).Once()
+	   				workerMock.On("DeleteTx", txTracker.Hash, txTracker.From).Return().Once()
+	   				workerMock.On("UpdateAfterSingleSuccessfulTxExecution", txTracker.From, tc.executorResponse.ReadWriteAddresses).Return([]*TxTracker{}).Once()
+	   				workerMock.On("AddPendingTxToStore", txTracker.Hash, txTracker.From).Return().Once()
+	   			}
+	   			if tc.expectedUpdateTxStatus != "" {
+	   				stateMock.On("UpdateTxStatus", ctx, txHash, tc.expectedUpdateTxStatus, false, mock.Anything).Return(nil).Once()
+	   			}
+
+	   			errWg, err := f.handleProcessTransactionResponse(ctx, txTracker, tc.executorResponse, tc.oldStateRoot)
+	   			if errWg != nil {
+	   				errWg.Wait()
+	   			}
+
+	   			if tc.expectedError != nil {
+	   				require.Equal(t, tc.expectedError, err)
+	   			} else {
+	   				require.Nil(t, err)
+	   			}
+
+	   			if tc.expectedStoredTx.batchResponse != nil {
+	   				close(f.pendingL2BlocksToStore) // close the channel
+	   				<-done                          // wait for the goroutine to finish
+	   				f.pendingL2BlocksToStoreWG.Wait()
+	   				require.Len(t, storedTxs, 1)
+	   				actualTx := storedTxs[0] //nolint:gosec
+	   				assertEqualTransactionToStore(t, tc.expectedStoredTx, actualTx)
+	   			} else {
+	   				require.Empty(t, storedTxs)
+	   			}
+
+	   			workerMock.AssertExpectations(t)
+	   			stateMock.AssertExpectations(t)
+	   		})
+	   	}
+	*/
+}
 
 /*func assertEqualTransactionToStore(t *testing.T, expectedTx, actualTx transactionToStore) {
 	   require.Equal(t, expectedTx.from, actualTx.from)
@@ -871,7 +882,7 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		batchNumber:        batchNum,
 		coinbase:           f.sequencerAddress,
 		initialStateRoot:   oldHash,
-		stateRoot:          oldHash,
+		imStateRoot:        oldHash,
 		timestamp:          now(),
 		globalExitRoot:     oldHash,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
@@ -950,59 +961,61 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 }
 
 // TestFinalizer_closeBatch tests the closeBatch method.
-func TestFinalizer_closeBatch(t *testing.T) {
-	/*
-	   // arrange
-	   f = setupFinalizer(true)
-	   txs := make([]types.Transaction, 0)
-	   effectivePercentages := constants.EffectivePercentage
-	   usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
+func TestFinalizer_closeWIPBatch(t *testing.T) {
+	// arrange
+	f = setupFinalizer(true)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
 
-	   	receipt := ClosingBatchParameters{
-	   		BatchNumber:    f.wipBatch.batchNumber,
-	   		BatchResources: usedResources,
-	   	}
+	receipt := state.ProcessingReceipt{
+		BatchNumber:    f.wipBatch.batchNumber,
+		BatchResources: usedResources,
+		ClosingReason:  f.wipBatch.closingReason,
+	}
 
-	   managerErr := fmt.Errorf("some err")
+	managerErr := fmt.Errorf("some err")
 
-	   	testCases := []struct {
-	   		name        string
-	   		managerErr  error
-	   		expectedErr error
-	   	}{
+	testCases := []struct {
+		name        string
+		managerErr  error
+		expectedErr error
+	}{
 
-	   		{
-	   			name:        "Success",
-	   			managerErr:  nil,
-	   			expectedErr: nil,
-	   		},
-	   		{
-	   			name:        "Error Manager",
-	   			managerErr:  managerErr,
-	   			expectedErr: fmt.Errorf("failed to get transactions from transactions, err: %w", managerErr),
-	   		},
-	   	}
+		{
+			name:        "Success",
+			managerErr:  nil,
+			expectedErr: nil,
+		},
+		{
+			name:        "Error Manager",
+			managerErr:  managerErr,
+			expectedErr: managerErr,
+		},
+	}
 
-	   	for _, tc := range testCases {
-	   		t.Run(tc.name, func(t *testing.T) {
-	   			// arrange
-	   			stateMock.Mock.On("CloseBatch", ctx, receipt).Return(tc.managerErr).Once()
-	   			stateMock.Mock.On("GetTransactionsByBatchNumber", ctx, receipt.BatchNumber).Return(txs, effectivePercentages, tc.managerErr).Once()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// arrange
+			stateMock.Mock.On("CloseWIPBatch", ctx, receipt, mock.Anything).Return(tc.managerErr).Once()
+			stateMock.On("BeginStateTransaction", ctx).Return(dbTxMock, nilErr).Once()
+			if tc.managerErr == nil {
+				dbTxMock.On("Commit", ctx).Return(nilErr).Once()
+			} else {
+				dbTxMock.On("Rollback", ctx).Return(nilErr).Once()
+			}
 
-	   			// act
-	   			err := f.closeWIPBatch(ctx)
+			// act
+			err := f.closeWIPBatch(ctx)
 
-	   			// assert
-	   			if tc.expectedErr != nil {
-	   				assert.Error(t, err)
-	   				assert.EqualError(t, err, tc.expectedErr.Error())
-	   				assert.ErrorIs(t, err, tc.managerErr)
-	   			} else {
-	   				assert.NoError(t, err)
-	   			}
-	   		})
-	   	}
-	*/
+			// assert
+			if tc.expectedErr != nil {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tc.expectedErr.Error())
+				assert.ErrorIs(t, err, tc.managerErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestFinalizer_isDeadlineEncountered(t *testing.T) {
@@ -1772,7 +1785,7 @@ func TestFinalizer_updateWorkerAfterSuccessfulProcessing(t *testing.T) {
 			workerMock.On("UpdateAfterSingleSuccessfulTxExecution", tc.txTracker.From, tc.processBatchResponse.ReadWriteAddresses).
 				Return(txsToDelete)
 			if tc.expectedUpdateCount > 0 {
-				stateMock.On("UpdateTxStatus", mock.Anything, mock.Anything, pool.TxStatusFailed, false, mock.Anything).Times(tc.expectedUpdateCount).Return(nil)
+				poolMock.On("UpdateTxStatus", mock.Anything, mock.Anything, pool.TxStatusFailed, false, mock.Anything).Times(tc.expectedUpdateCount).Return(nil)
 			}
 
 			// act
@@ -1825,19 +1838,6 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			expectedError:           ErrGetBatchByNumber,
 		},
 		{
-			name:     "Error decoding BatchL2Data",
-			batchNum: 1,
-			mockGetBatchByNumber: &state.Batch{
-				BatchNumber:    1,
-				BatchL2Data:    []byte("invalidBatchL2Data"),
-				GlobalExitRoot: oldHash,
-				Coinbase:       common.Address{},
-				Timestamp:      time.Now(),
-			},
-			expectedDecodeErr: ErrDecodeBatchL2Data,
-			expectedError:     ErrDecodeBatchL2Data,
-		},
-		{
 			name:     "Error processing batch",
 			batchNum: 1,
 			mockGetBatchByNumber: &state.Batch{
@@ -1885,15 +1885,15 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			// arrange
 			f := setupFinalizer(true)
 			stateMock.On("GetBatchByNumber", context.Background(), tc.batchNum, nil).Return(tc.mockGetBatchByNumber, tc.mockGetBatchByNumberErr).Once()
-			if tc.name != "Error while getting batch by number" {
-				stateMock.On("GetForkIDByBatchNumber", f.wipBatch.batchNumber).Return(uint64(5)).Once()
-			}
+			/*			if tc.name != "Error while getting batch by number" {
+						stateMock.On("GetForkIDByBatchNumber", f.wipBatch.batchNumber).Return(uint64(7)).Once()
+					}*/
 			if tc.mockGetBatchByNumberErr == nil && tc.expectedDecodeErr == nil {
-				stateMock.On("ProcessBatch", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
+				stateMock.On("ProcessBatchV2", context.Background(), mock.Anything, false).Return(tc.expectedExecutorResponse, tc.expectedExecutorErr)
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
+			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, f.wipBatch.initialAccInputHash, newHash)
 
 			// assert
 			if tc.expectedError != nil {
@@ -1948,7 +1948,7 @@ func TestFinalizer_getLastStateRoot(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			stateMock.On("GetLastNBatches", context.Background(), uint(2)).Return(tc.mockBatches, tc.mockError).Once()
+			stateMock.On("GetLastNBatches", context.Background(), uint(2), nil).Return(tc.mockBatches, tc.mockError).Once()
 
 			// act
 			stateRoot, err := f.getLastStateRoot(context.Background())
@@ -2156,6 +2156,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	assert.Equal(t, expected, f.nextForcedBatchDeadline)
 }
 
+// TODO: remove this test
 func TestFinalizer_setNextGERDeadline(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
@@ -2286,6 +2287,7 @@ func Test_sortForcedBatches(t *testing.T) {
 
 func setupFinalizer(withWipBatch bool) *finalizer {
 	wipBatch := new(Batch)
+	poolMock = new(PoolMock)
 	stateMock = new(StateMock)
 	workerMock = new(WorkerMock)
 	dbTxMock = new(DbTxMock)
@@ -2298,7 +2300,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			batchNumber:        1,
 			coinbase:           seqAddr,
 			initialStateRoot:   oldHash,
-			stateRoot:          newHash,
+			imStateRoot:        newHash,
 			localExitRoot:      newHash,
 			timestamp:          now(),
 			globalExitRoot:     oldHash,
@@ -2317,6 +2319,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		isSynced:         isSynced,
 		sequencerAddress: seqAddr,
 		worker:           workerMock,
+		pool:             poolMock,
 		state:            stateMock,
 		wipBatch:         wipBatch,
 		batchConstraints: bc,

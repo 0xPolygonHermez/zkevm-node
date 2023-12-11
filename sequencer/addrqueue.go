@@ -164,7 +164,7 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 	txsToDelete := make([]*TxTracker, 0)
 
 	if balance != nil {
-		log.Debugf("opdating balance for addrQueue %s from %s to %s", a.fromStr, a.currentBalance.String(), balance.String())
+		log.Debugf("updating balance for addrQueue %s from %s to %s", a.fromStr, a.currentBalance.String(), balance.String())
 		a.currentBalance = balance
 	}
 
