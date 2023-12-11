@@ -3,10 +3,12 @@ package state
 import (
 	"context"
 	"encoding/binary"
+	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -25,6 +27,10 @@ const (
 	EntryTypeUpdateGER datastreamer.EntryType = 4
 	// BookMarkTypeL2Block represents a L2 block bookmark
 	BookMarkTypeL2Block byte = 0
+	// System smart contract address
+	systemSC = "0x000000000000000000000000000000005ca1ab1e"
+	// posConstant is the constant used to compute the position of the intermediary state root
+	posConstant = 1
 )
 
 // DSBatch represents a data stream batch
@@ -92,10 +98,11 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 
 // DSL2Transaction represents a data stream L2 transaction
 type DSL2Transaction struct {
-	L2BlockNumber               uint64 // Not included in the encoded data
-	EffectiveGasPricePercentage uint8  // 1 byte
-	IsValid                     uint8  // 1 byte
-	EncodedLength               uint32 // 4 bytes
+	L2BlockNumber               uint64      // Not included in the encoded data
+	EffectiveGasPricePercentage uint8       // 1 byte
+	IsValid                     uint8       // 1 byte
+	StateRoot                   common.Hash // 32 bytes
+	EncodedLength               uint32      // 4 bytes
 	Encoded                     []byte
 }
 
@@ -104,6 +111,7 @@ func (l DSL2Transaction) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, byte(l.EffectiveGasPricePercentage))
 	bytes = append(bytes, byte(l.IsValid))
+	bytes = append(bytes, l.StateRoot[:]...)
 	bytes = binary.LittleEndian.AppendUint32(bytes, l.EncodedLength)
 	bytes = append(bytes, l.Encoded...)
 	return bytes
@@ -113,8 +121,9 @@ func (l DSL2Transaction) Encode() []byte {
 func (l DSL2Transaction) Decode(data []byte) DSL2Transaction {
 	l.EffectiveGasPricePercentage = uint8(data[0])
 	l.IsValid = uint8(data[1])
-	l.EncodedLength = binary.LittleEndian.Uint32(data[2:6])
-	l.Encoded = data[6:]
+	l.StateRoot = common.BytesToHash(data[2:34])
+	l.EncodedLength = binary.LittleEndian.Uint32(data[34:38])
+	l.Encoded = data[38:]
 	return l
 }
 
@@ -202,6 +211,7 @@ type DSState interface {
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
@@ -418,6 +428,14 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				}
 
 				for _, tx := range l2block.Txs {
+					// Populate intermediary state root
+					position := GetSystemSCPosition(l2block.L2BlockNumber)
+					imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(systemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
+					if err != nil {
+						return err
+					}
+					tx.StateRoot = common.BigToHash(imStateRoot)
+
 					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
 					if err != nil {
 						return err
@@ -445,6 +463,22 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	}
 
 	return err
+}
+
+// GetSystemSCPosition computes the position of the intermediary state root for the system smart contract
+func GetSystemSCPosition(blockNumber uint64) []byte {
+	v1 := big.NewInt(0).SetUint64(blockNumber).Bytes()
+	v2 := big.NewInt(0).SetUint64(uint64(posConstant)).Bytes()
+
+	// Add 0s to make v1 and v2 32 bytes long
+	for len(v1) < 32 {
+		v1 = append([]byte{0}, v1...)
+	}
+	for len(v2) < 32 {
+		v2 = append([]byte{0}, v2...)
+	}
+
+	return keccak256.Hash(v1, v2)
 }
 
 // computeFullBatches computes the full batches

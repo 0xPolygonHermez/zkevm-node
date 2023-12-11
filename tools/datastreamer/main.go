@@ -190,8 +190,20 @@ func generate(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 	defer stateSqlDB.Close()
-	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
+	stateDBStorage := state.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Debug("Connected to the database")
+
+	mtDBServerConfig := merkletree.Config{URI: c.MerkleTree.URI}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(cliCtx.Context, mtDBServerConfig)
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+	log.Debug("Connected to the merkle tree")
+
+	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil)
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false)
 	if err != nil {
@@ -239,7 +251,7 @@ func reprocess(cliCtx *cli.Context) error {
 	if currentL2BlockNumber == 0 {
 		printColored(color.FgHiYellow, "\n\nSetting Genesis block\n\n")
 
-		mtDBServerConfig := merkletree.Config{URI: c.MerkeTree.URI}
+		mtDBServerConfig := merkletree.Config{URI: c.MerkleTree.URI}
 		var mtDBCancel context.CancelFunc
 		mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 		defer func() {
@@ -668,6 +680,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EffectiveGasPricePercentage))
 		printColored(color.FgGreen, "Is Valid........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%t\n", dsTx.IsValid == 1))
+		printColored(color.FgGreen, "State Root......: ")
+		printColored(color.FgHiWhite, fmt.Sprint(dsTx.StateRoot.Hex()+"\n"))
 		printColored(color.FgGreen, "Encoded Length..: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EncodedLength))
 		printColored(color.FgGreen, "Encoded.........: ")

@@ -53,3 +53,10 @@ func TestL2BlockEndEncode(t *testing.T) {
 
 	assert.Equal(t, expected, encoded)
 }
+
+func TestCalculateSCPosition(t *testing.T) {
+	blockNumber := uint64(2934867)
+	expected := common.HexToHash("0xaa93c484856be45716623765b429a967296594ca362e61e91d671fb422e0f744")
+	position := state.GetSystemSCPosition(blockNumber)
+	assert.Equal(t, expected, common.BytesToHash(position))
+}

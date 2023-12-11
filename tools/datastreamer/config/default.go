@@ -25,7 +25,7 @@ MaxConns = 200
 URI = "zkevm-prover:50071"
 MaxGRPCMessageSize = 100000000
 
-[MerkeTree]
+[MerkleTree]
 URI = "zkevm-prover:50061"
 
 [Log]

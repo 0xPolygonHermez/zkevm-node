@@ -30,13 +30,13 @@ type OnlineConfig struct {
 
 // Config is the configuration for the tool
 type Config struct {
-	ChainID   uint64              `mapstructure:"ChainID"`
-	Online    OnlineConfig        `mapstructure:"Online"`
-	Offline   datastreamer.Config `mapstructure:"Offline"`
-	StateDB   db.Config           `mapstructure:"StateDB"`
-	Executor  executor.Config     `mapstructure:"Executor"`
-	MerkeTree merkletree.Config   `mapstructure:"MerkeTree"`
-	Log       log.Config          `mapstructure:"Log"`
+	ChainID    uint64              `mapstructure:"ChainID"`
+	Online     OnlineConfig        `mapstructure:"Online"`
+	Offline    datastreamer.Config `mapstructure:"Offline"`
+	StateDB    db.Config           `mapstructure:"StateDB"`
+	Executor   executor.Config     `mapstructure:"Executor"`
+	MerkleTree merkletree.Config   `mapstructure:"MerkleTree"`
+	Log        log.Config          `mapstructure:"Log"`
 }
 
 // Default parses the default configuration values.
