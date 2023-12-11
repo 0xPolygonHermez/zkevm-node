@@ -218,6 +218,7 @@ func generate(cliCtx *cli.Context) error {
 	}
 
 	maxL2Block := lastL2BlockHeader.Number.Uint64()
+	imStateRoots = make(map[uint64][]byte, maxL2Block)
 
 	for x := 0; x < c.MerkleTree.MaxThreads; x++ {
 		start := uint64(x) * (maxL2Block / uint64(c.MerkleTree.MaxThreads))
