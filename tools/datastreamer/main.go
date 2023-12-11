@@ -226,11 +226,11 @@ func generate(cliCtx *cli.Context) error {
 		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) - 1
 
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
-			log.Debugf("Thread %d: Start: %d, End: %d\n", x, start, end)
+			log.Debugf("Thread %d: Start: %d, End: %d\n", i, start, end)
 			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
-		}()
+		}(x)
 	}
 
 	wg.Wait()
