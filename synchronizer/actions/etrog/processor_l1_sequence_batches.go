@@ -359,11 +359,10 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 		log.Warnf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String())
 		reorgReasons.WriteString(fmt.Sprintf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String()))
 	}
-	// TODO: Check if we need to compare the timestamp
-	//if batch.Timestamp.Unix() != tBatch.Timestamp.Unix() {
-	//	log.Warnf("Different field Timestamp. Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
-	//	reorgReasons.WriteString(fmt.Sprintf("Different field Timestamp. Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
-	//}
+	if batch.Timestamp.Unix() < tBatch.Timestamp.Unix() { // TODO: this timestamp will be different in permissionless nodes and the trusted node
+		log.Warnf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
+		reorgReasons.WriteString(fmt.Sprintf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
+	}
 	if batch.Coinbase.String() != tBatch.Coinbase.String() {
 		log.Warnf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String())
 		reorgReasons.WriteString(fmt.Sprintf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String()))
@@ -372,7 +371,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
 
-		if tBatch.StateRoot == (common.Hash{}) {
+		if tBatch.StateRoot == (common.Hash{}) { // TODO: change this check by tBatch.LocalExitRoot == (common.Hash{}) if sequencer stores intermediary stateRoots in batch table
 			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
 		} else {
 			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
