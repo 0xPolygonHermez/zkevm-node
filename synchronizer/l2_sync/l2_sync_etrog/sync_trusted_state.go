@@ -51,7 +51,9 @@ type BatchStepsExecutorEtrog struct {
 func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface,
 	state l2_shared.StateInterface, stateBatchExecutor BatchStepsExecutorEtrogStateInterface,
 	sync l2_shared.SyncInterface) *l2_shared.SyncTrustedStateTemplate {
-	executorSteps := &BatchStepsExecutorEtrog{state: stateBatchExecutor}
+	executorSteps := &BatchStepsExecutorEtrog{
+		state: stateBatchExecutor,
+		sync:  sync}
 	executor := &l2_shared.SyncTrustedStateBatchExecutorTemplate{
 		Steps: executorSteps,
 	}
@@ -210,6 +212,7 @@ func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
 	if hash(incommingData) != hash(previousData) {
 		return errors.New("the new batch has different data than the one in node!")
 	}
+	return nil
 }
 
 func hash(data []byte) common.Hash {

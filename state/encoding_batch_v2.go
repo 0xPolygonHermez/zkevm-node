@@ -78,6 +78,18 @@ var (
 	ErrInvalidRLP = errors.New("invalid rlp codification")
 )
 
+func (b *BatchRawV2) String() string {
+	res := ""
+	nTxs := 0
+	for i, block := range b.Blocks {
+		res += fmt.Sprintf("Block[%d/%d]: deltaTimestamp: %d, indexL1InfoTree: %d nTxs: %d\n", i, len(b.Blocks),
+			block.DeltaTimestamp, block.IndexL1InfoTree, len(block.Transactions))
+		nTxs += len(block.Transactions)
+	}
+	res = fmt.Sprintf("BATCHv2, nBlocks: %d nTxs:%d \n", len(b.Blocks), nTxs) + res
+	return res
+}
+
 // EncodeBatchV2 encodes a batch of transactions into a byte slice.
 func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	var err error

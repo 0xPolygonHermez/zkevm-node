@@ -8,6 +8,7 @@ package l2_shared
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -71,6 +72,12 @@ func NewSyncTrustedStateTemplate(steps BatchExecutor, zkEVMClient ZkEVMClientInt
 	}
 }
 
+// CleanTrustedState Clean cache of TrustedBatches and StateRoot
+func (s *SyncTrustedStateTemplate) CleanTrustedState() {
+	s.TrustedState.LastTrustedBatches = nil
+	s.TrustedState.LastStateRoot = nil
+}
+
 func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
 	log.Info("syncTrustedState: Getting trusted state info")
 	if latestSyncedBatch == 0 {
@@ -80,7 +87,7 @@ func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestS
 	lastTrustedStateBatchNumber, err := s.zkEVMClient.BatchNumber(ctx)
 
 	if err != nil {
-		log.Warn("syncTrustedState: error syncing trusted state. Error: ", err)
+		log.Warn("syncTrustedState: error getting last batchNumber from Trusted Node. Error: ", err)
 		return err
 	}
 	log.Infof("syncTrustedState: latestSyncedBatch:%d syncTrustedState:%d", latestSyncedBatch, lastTrustedStateBatchNumber)
@@ -99,45 +106,46 @@ func isSyncrhonizedTrustedState(lastTrustedStateBatchNumber uint64, latestSynced
 func (s *SyncTrustedStateTemplate) syncTrustedBatchesToFrom(ctx context.Context, latestSyncedBatch uint64, lastTrustedStateBatchNumber uint64) error {
 	batchNumberToSync := latestSyncedBatch
 	for batchNumberToSync <= lastTrustedStateBatchNumber {
+		debugPrefix := fmt.Sprintf("syncTrustedState: batch[%d/%d]", batchNumberToSync, lastTrustedStateBatchNumber)
 		start := time.Now()
 		batchToSync, err := s.zkEVMClient.BatchByNumber(ctx, big.NewInt(0).SetUint64(batchNumberToSync))
 		metrics.GetTrustedBatchInfoTime(time.Since(start))
 		if err != nil {
-			log.Warnf("syncTrustedState: failed to get batch %d from trusted state. Error: %v", batchNumberToSync, err)
+			log.Warnf("%s failed to get batch %d from trusted state. Error: %v", debugPrefix, batchNumberToSync, err)
 			return err
 		}
 
 		dbTx, err := s.state.BeginStateTransaction(ctx)
 		if err != nil {
-			log.Errorf("syncTrustedState: error creating db transaction to sync trusted batch %d: %v", batchNumberToSync, err)
+			log.Errorf("%s error creating db transaction to sync trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
 			return err
 		}
 		start = time.Now()
 		cbatches, err := s.getCurrentBatches(ctx, s.TrustedState.LastTrustedBatches, batchToSync, dbTx)
 		if err != nil {
-			log.Errorf("syncTrustedState: error getting current batches to sync trusted batch %d: %v", batchNumberToSync, err)
+			log.Errorf("%s error getting current batches to sync trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
 			return rollback(ctx, dbTx, err)
 		}
 		previousStatus := TrustedState{
 			LastTrustedBatches: cbatches,
 			LastStateRoot:      s.TrustedState.LastStateRoot,
 		}
-		//cbatches, lastStateRoot, err := s.steps.ProcessTrustedBatch(ctx, batchToSync, dbTx)
+		log.Debugf("%s processing trusted batch %d", debugPrefix, batchNumberToSync)
 		newTrustedState, err := s.steps.ProcessTrustedBatch(ctx, batchToSync, previousStatus, dbTx)
 		metrics.ProcessTrustedBatchTime(time.Since(start))
 		if err != nil {
-			log.Errorf("syncTrustedState: error processing trusted batch %d: %v", batchNumberToSync, err)
+			log.Errorf("%s error processing trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
 			return rollback(ctx, dbTx, err)
 		}
-		log.Debug("syncTrustedState: Checking FlushID to commit trustedState data to db")
+		log.Debug("%s Checking FlushID to commit trustedState data to db", debugPrefix)
 		err = s.sync.CheckFlushID(dbTx)
 		if err != nil {
-			log.Errorf("syncTrustedState: error checking flushID. Error: %v", err)
+			log.Errorf("%s error checking flushID. Error: %v", debugPrefix, err)
 			return rollback(ctx, dbTx, err)
 		}
 
 		if err := dbTx.Commit(ctx); err != nil {
-			log.Errorf("syncTrustedState: error committing db transaction to sync trusted batch %v: %v", batchNumberToSync, err)
+			log.Errorf("%s error committing db transaction to sync trusted batch %v: %v", debugPrefix, batchNumberToSync, err)
 			return err
 		}
 		//s.TrustedState.LastTrustedBatches = cbatches
@@ -146,7 +154,7 @@ func (s *SyncTrustedStateTemplate) syncTrustedBatchesToFrom(ctx context.Context,
 		batchNumberToSync++
 	}
 
-	log.Info("syncTrustedState: Trusted state fully synchronized")
+	log.Infof("syncTrustedState: Trusted state fully synchronized from %d to %d", latestSyncedBatch, lastTrustedStateBatchNumber)
 	return nil
 }
 

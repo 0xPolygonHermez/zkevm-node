@@ -25,7 +25,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -113,7 +113,8 @@ func NewSynchronizer(
 		l1SyncOrchestration:     nil,
 		l1EventProcessors:       nil,
 	}
-	res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
+	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedStateEtrogExecutor(res.zkEVMClient, res.state, res.state, res)
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:

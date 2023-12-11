@@ -79,6 +79,13 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		processBatchRequest.SkipWriteBlockInfoRoot = cTrue
 	}
 
+	batchData, err := DecodeBatchV2(processBatchRequest.BatchL2Data)
+	if err != nil {
+		log.Errorf("Error decoding batch: %v", err)
+		return nil, err
+	}
+	log.Debug("BatchData: ", batchData)
+
 	res, err := s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, request.Caller)
 	if err != nil {
 		return nil, err
