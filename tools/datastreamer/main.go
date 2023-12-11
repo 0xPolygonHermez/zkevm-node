@@ -235,6 +235,8 @@ func generate(cliCtx *cli.Context) error {
 
 	wg.Wait()
 
+	log.Debugf("Intermediate state roots: %v\n", imStateRoots)
+
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -255,11 +257,9 @@ func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[u
 			log.Errorf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		log.Debugf("L2 Block: %d, State Root: %s\n", x, common.Bytes2Hex(imStateRoot.Bytes()))
 		imStateRootMux.Lock()
 		(*isStateRoots)[x] = imStateRoot.Bytes()
 		imStateRootMux.Unlock()
-		log.Debugf("L2 Block in MAP: %d, State Root: %s\n", x, common.Bytes2Hex(imStateRoot.Bytes()))
 	}
 }
 
