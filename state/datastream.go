@@ -436,6 +436,8 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 							return err
 						}
 						tx.StateRoot = common.BigToHash(imStateRoot)
+					} else {
+						tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
 					}
 
 					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())

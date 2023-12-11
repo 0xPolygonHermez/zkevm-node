@@ -235,8 +235,6 @@ func generate(cliCtx *cli.Context) error {
 
 	wg.Wait()
 
-	log.Debugf("Intermediate state roots: %v\n", imStateRoots)
-
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
