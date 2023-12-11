@@ -460,7 +460,7 @@ services:
       - "/bin/sh"
 
 zkevm-node-forced-DAC:
-    container_name: cdk-validium-permissionless-node-forced-DAC
+    container_name: zkevm-node-forced-DAC
     image: zkevm-node
     ports:
       - 8125:8125

@@ -13,3 +13,4 @@ gen polygonzkevmbridge
 gen matic
 gen polygonzkevmglobalexitroot
 gen mockverifier
+gen cdkdatacommittee

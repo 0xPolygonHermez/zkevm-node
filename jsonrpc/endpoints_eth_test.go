@@ -5203,8 +5203,8 @@ func TestSendRawTransactionJSONRPCCallWithPolicyApplied(t *testing.T) {
 	contractDenied := types.NewRPCError(types.AccessDeniedCode, "contract disallowed send_tx by policy")
 	deployDenied := types.NewRPCError(types.AccessDeniedCode, "sender disallowed deploy by policy")
 
-	cfg := getDefaultConfig()
-	s, m, _ := newMockedServer(t, cfg)
+	cfg := getSequencerDefaultConfig()
+	s, m, _ := newMockedServerWithCustomConfig(t, cfg)
 	defer s.Stop()
 
 	type testCase struct {
@@ -5387,5 +5387,30 @@ func TestSendRawTransactionJSONRPCCallWithPolicyApplied(t *testing.T) {
 					Once()
 			},
 		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(t, m, tc)
+
+			res, err := s.JSONRPCCall("eth_sendRawTransaction", tc.Input)
+			require.NoError(t, err)
+
+			assert.Equal(t, float64(1), res.ID)
+			assert.Equal(t, "2.0", res.JSONRPC)
+
+			if res.Result != nil || tc.ExpectedResult != nil {
+				var result common.Hash
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+				assert.Equal(t, *tc.ExpectedResult, result)
+			}
+			if res.Error != nil || tc.ExpectedError != nil {
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), res.Error.Code)
+				assert.Equal(t, tc.ExpectedError.Error(), res.Error.Message)
+			}
+		})
 	}
 }

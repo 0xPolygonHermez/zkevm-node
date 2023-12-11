@@ -7,12 +7,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/0xPolygon/cdk-data-availability/batch"
 	"github.com/0xPolygon/cdk-data-availability/client"
-	"github.com/0xPolygon/cdk-data-availability/sequence"
+	jTypes "github.com/0xPolygon/cdk-data-availability/rpc"
+	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
-	jTypes "github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -41,12 +40,12 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 	}
 
 	// Authenticate as trusted sequencer by signing the sequences
-	sequence := sequence.Sequence{
-		Batches:         []batch.Batch{},
+	sequence := daTypes.Sequence{
+		Batches:         []daTypes.Batch{},
 		OldAccInputHash: accInputHash,
 	}
 	for _, seq := range sequences {
-		sequence.Batches = append(sequence.Batches, batch.Batch{
+		sequence.Batches = append(sequence.Batches, daTypes.Batch{
 			Number:         jTypes.ArgUint64(seq.BatchNumber),
 			GlobalExitRoot: seq.GlobalExitRoot,
 			Timestamp:      jTypes.ArgUint64(seq.Timestamp),
@@ -92,7 +91,7 @@ func (s *SequenceSender) getSignaturesAndAddrsFromDataCommittee(ctx context.Cont
 	return buildSignaturesAndAddrs(signatureMsgs(msgs), committee.Members), nil
 }
 
-func requestSignatureFromMember(ctx context.Context, signedSequence sequence.SignedSequence, member ethman.DataCommitteeMember, ch chan signatureMsg) {
+func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequence, member ethman.DataCommitteeMember, ch chan signatureMsg) {
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)

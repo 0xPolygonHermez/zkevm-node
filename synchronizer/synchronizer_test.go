@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -45,7 +46,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	m.Etherman.
 		On("GetCurrentDataCommittee").
 		Return(&etherman.DataCommittee{}, nil)
-	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false, nil)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -75,7 +76,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	m.Etherman.
 		On("GetCurrentDataCommittee").
 		Return(&etherman.DataCommittee{}, nil)
-	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false, nil)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -115,7 +116,7 @@ func TestForcedBatch(t *testing.T) {
 	m.Etherman.
 		On("GetCurrentDataCommittee").
 		Return(&etherman.DataCommittee{}, nil)
-	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
+	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false, nil)
 	require.NoError(t, err)
 
 	// state preparation
@@ -182,13 +183,14 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			t := time.Now()
+			txs := []byte{}
 			sequencedBatch := etherman.SequencedBatch{
 				BatchNumber:   uint64(2),
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
-				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
-					TransactionsHash:   []byte{},
+				CDKValidiumBatchData: polygonzkevm.CDKValidiumBatchData{
+					TransactionsHash:   crypto.Keccak256Hash(txs),
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					Timestamp:          uint64(t.Unix()),
 					MinForcedTimestamp: 1000, //ForcedBatch
@@ -200,7 +202,7 @@ func TestForcedBatch(t *testing.T) {
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
 				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
+				RawTxsData:        txs,
 				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
@@ -258,7 +260,7 @@ func TestForcedBatch(t *testing.T) {
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
 				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
+				RawTxsData:        txs,
 				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
@@ -273,7 +275,7 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			trustedBatch := &state.Batch{
-				BatchL2Data:    sequencedBatch.Transactions,
+				BatchL2Data:    txs,
 				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 				Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
 				Coinbase:       sequencedBatch.Coinbase,
@@ -365,7 +367,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 	m.Etherman.
 		On("GetCurrentDataCommittee").
 		Return(&etherman.DataCommittee{}, nil)
-	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
+	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false, nil)
 	require.NoError(t, err)
 
 	// state preparation
@@ -435,7 +437,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 				BatchNumber: uint64(2),
 				Coinbase:    common.HexToAddress("0x222"),
 				TxHash:      common.HexToHash("0x333"),
-				PolygonZkEVMForcedBatchData: polygonzkevm.PolygonZkEVMForcedBatchData{
+				CDKValidiumForcedBatchData: polygonzkevm.CDKValidiumForcedBatchData{
 					Transactions:       []byte{},
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					MinForcedTimestamp: 1000, //ForcedBatch

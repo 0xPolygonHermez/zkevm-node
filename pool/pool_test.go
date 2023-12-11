@@ -2035,7 +2035,7 @@ func Test_PolicyAcl(t *testing.T) {
 	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
 	require.NoError(t, err)
 
-	p := pool.NewPool(cfg, s, nil, uint64(1), nil)
+	p := pool.NewPool(cfg, bc, s, nil, uint64(1), nil)
 
 	randAddr := func() common.Address {
 		buf := make([]byte, 20)

@@ -15,10 +15,10 @@ import (
 	"time"
 
 	"github.com/0xPolygon/cdk-data-availability/config"
-	cTypes "github.com/0xPolygonHermez/zkevm-node/config/types"
-	"github.com/0xPolygonHermez/zkevm-node/db"
+	cTypes "github.com/0xPolygon/cdk-data-availability/config/types"
+	"github.com/0xPolygon/cdk-data-availability/db"
+	"github.com/0xPolygon/cdk-data-availability/rpc"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -110,9 +110,9 @@ func TestDataCommittee(t *testing.T) {
 	// Spin up M DAC nodes
 	dacNodeConfig := config.Config{
 		L1: config.L1Config{
-			RpcURL:               "http://cdk-validium-mock-l1-network:8545",
-			WsURL:                "ws://cdk-validium-mock-l1-network:8546",
-			CDKValidiumAddress:   operations.DefaultL1CDKValidiumSmartContract,
+			RpcURL:               "http://zkevm-mock-l1-network:8545",
+			WsURL:                "ws://zkevm-mock-l1-network:8546",
+			CDKValidiumAddress:   operations.DefaultL1ZkEVMSmartContract,
 			DataCommitteeAddress: operations.DefaultL1DataCommitteeContract,
 			Timeout:              cTypes.Duration{Duration: time.Second},
 			RetryPeriod:          cTypes.Duration{Duration: time.Second},
@@ -125,15 +125,14 @@ func TestDataCommittee(t *testing.T) {
 			Name:      "committee_db",
 			User:      "committee_user",
 			Password:  "committee_password",
-			Host:      "cdk-validium-data-node-db",
+			Host:      "zkevm-data-node-db",
 			Port:      "5432",
 			EnableLog: false,
 			MaxConns:  10,
 		},
-		RPC: jsonrpc.Config{
-			Host:                             "0.0.0.0",
-			EnableL2SuggestedGasPricePolling: false,
-			MaxRequestsPerIPAndSecond:        100,
+		RPC: rpc.Config{
+			Host:                      "0.0.0.0",
+			MaxRequestsPerIPAndSecond: 100,
 		},
 	}
 	defer func() {

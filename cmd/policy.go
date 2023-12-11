@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/0xPolygon/cdk-validium-node/config"
-	"github.com/0xPolygon/cdk-validium-node/pool"
-	"github.com/0xPolygon/cdk-validium-node/pool/pgpoolstorage"
+	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/urfave/cli/v2"
 )

@@ -168,14 +168,14 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
 	require.NoError(t, err)
 	t.Log("Blocks: ", blocks)
-	var sequences []polygonzkevm.PolygonZkEVMBatchData
-	sequences = append(sequences, polygonzkevm.PolygonZkEVMBatchData{
+	var sequences []polygonzkevm.CDKValidiumBatchData
+	sequences = append(sequences, polygonzkevm.CDKValidiumBatchData{
 		GlobalExitRoot:     ger,
 		Timestamp:          currentBlock.Time(),
 		MinForcedTimestamp: uint64(blocks[2].ForcedBatches[0].ForcedAt.Unix()),
 		TransactionsHash:   crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	})
-	sequences = append(sequences, polygonzkevm.PolygonZkEVMBatchData{
+	sequences = append(sequences, polygonzkevm.CDKValidiumBatchData{
 		GlobalExitRoot:     ger,
 		Timestamp:          currentBlock.Time() + 1,
 		MinForcedTimestamp: 0,
@@ -216,13 +216,13 @@ func TestVerifyBatchEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	rawTxs := "f84901843b9aca00827b0c945fbdb2315678afecb367f032d93f642f64180aa380a46057361d00000000000000000000000000000000000000000000000000000000000000048203e9808073efe1fa2d3e27f26f32208550ea9b0274d49050b816cadab05a771f4275d0242fd5d92b3fb89575c070e6c930587c520ee65a3aa8cfe382fcad20421bf51d621c"
-	tx := polygonzkevm.PolygonZkEVMBatchData{
+	tx := polygonzkevm.CDKValidiumBatchData{
 		GlobalExitRoot:     common.Hash{},
 		Timestamp:          initBlock.Time(),
 		MinForcedTimestamp: 0,
 		TransactionsHash:   crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	}
-	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonZkEVMBatchData{tx}, auth.From, []byte{})
+	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.CDKValidiumBatchData{tx}, auth.From, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -281,12 +281,12 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	require.NoError(t, err)
 	t.Log("Blocks: ", blocks)
 
-	forceBatchData := polygonzkevm.PolygonZkEVMForcedBatchData{
+	forceBatchData := polygonzkevm.CDKValidiumForcedBatchData{
 		Transactions:       blocks[1].ForcedBatches[0].RawTxsData,
 		GlobalExitRoot:     blocks[1].ForcedBatches[0].GlobalExitRoot,
 		MinForcedTimestamp: uint64(blocks[1].ForcedBatches[0].ForcedAt.Unix()),
 	}
-	_, err = etherman.ZkEVM.SequenceForceBatches(auth, []polygonzkevm.PolygonZkEVMForcedBatchData{forceBatchData})
+	_, err = etherman.ZkEVM.SequenceForceBatches(auth, []polygonzkevm.CDKValidiumForcedBatchData{forceBatchData})
 	require.NoError(t, err)
 	ethBackend.Commit()
 
