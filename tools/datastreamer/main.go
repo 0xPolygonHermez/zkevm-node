@@ -255,6 +255,7 @@ func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[u
 			log.Errorf("Error: %v\n", err)
 			os.Exit(1)
 		}
+		log.Debugf("L2 Block: %d, State Root: %s\n", x, hex.Encode(imStateRoot.Bytes())
 		imStateRootMux.Lock()
 		(*isStateRoots)[x] = imStateRoot.Bytes()
 		imStateRootMux.Unlock()
