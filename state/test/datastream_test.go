@@ -1,7 +1,9 @@
 package test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -56,8 +58,13 @@ func TestL2BlockEndEncode(t *testing.T) {
 }
 
 func TestCalculateSCPosition(t *testing.T) {
+	a := time.Now()
 	blockNumber := uint64(2934867)
 	expected := common.HexToHash("0xaa93c484856be45716623765b429a967296594ca362e61e91d671fb422e0f744")
 	position := state.GetSystemSCPosition(blockNumber)
 	assert.Equal(t, expected, common.BytesToHash(position))
+	b := time.Now()
+
+	c := b.Sub(a)
+	fmt.Println(c)
 }

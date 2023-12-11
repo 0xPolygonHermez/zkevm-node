@@ -138,4 +138,5 @@ type dbManagerInterface interface {
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
 }

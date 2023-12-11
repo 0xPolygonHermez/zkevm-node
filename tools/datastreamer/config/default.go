@@ -27,6 +27,7 @@ MaxGRPCMessageSize = 100000000
 
 [MerkleTree]
 URI = "zkevm-prover:50061"
+MaxThreads = 20
 
 [Log]
 Environment = "development" # "production" or "development"

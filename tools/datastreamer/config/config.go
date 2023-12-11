@@ -28,6 +28,12 @@ type OnlineConfig struct {
 	StreamType datastreamer.StreamType `mapstructure:"StreamType"`
 }
 
+// MTConfig is the configuration for the merkle tree
+type MTConfig struct {
+	merkletree.Config
+	MaxThreads int `mapstructure:"MaxThreads"`
+}
+
 // Config is the configuration for the tool
 type Config struct {
 	ChainID    uint64              `mapstructure:"ChainID"`
@@ -35,7 +41,7 @@ type Config struct {
 	Offline    datastreamer.Config `mapstructure:"Offline"`
 	StateDB    db.Config           `mapstructure:"StateDB"`
 	Executor   executor.Config     `mapstructure:"Executor"`
-	MerkleTree merkletree.Config   `mapstructure:"MerkleTree"`
+	MerkleTree MTConfig            `mapstructure:"MerkleTree"`
 	Log        log.Config          `mapstructure:"Log"`
 }
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -205,7 +207,26 @@ func generate(cliCtx *cli.Context) error {
 
 	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil)
 
-	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false)
+	// Calculate intermediate state roots
+	var imStateRoots map[uint64][]byte
+	var imStateRootsMux *sync.Mutex = new(sync.Mutex)
+
+	lastL2BlockHeader, err := stateDB.GetLastL2BlockHeader(cliCtx.Context, nil)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	maxL2Block := lastL2BlockHeader.Number.Uint64()
+
+	for x := 0; x < c.MerkleTree.MaxThreads; x++ {
+		start := uint64(x) * (maxL2Block / uint64(c.MerkleTree.MaxThreads))
+		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) - 1
+
+		go getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
+	}
+
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -214,6 +235,21 @@ func generate(cliCtx *cli.Context) error {
 	printColored(color.FgGreen, "Process finished\n")
 
 	return nil
+}
+
+func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State, stateRoot common.Hash) {
+	for x := start; x <= end; x++ {
+		// Populate intermediate state root
+		position := state.GetSystemSCPosition(x)
+		imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), stateRoot)
+		if err != nil {
+			log.Errorf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		imStateRootMux.Lock()
+		(*isStateRoots)[x] = imStateRoot.Bytes()
+		imStateRootMux.Unlock()
+	}
 }
 
 func reprocess(cliCtx *cli.Context) error {

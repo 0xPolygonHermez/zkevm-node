@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/jackc/pgx/v4"
 )
@@ -27,9 +28,9 @@ const (
 	EntryTypeUpdateGER datastreamer.EntryType = 4
 	// BookMarkTypeL2Block represents a L2 block bookmark
 	BookMarkTypeL2Block byte = 0
-	// System smart contract address
-	systemSC = "0x000000000000000000000000000000005ca1ab1e"
-	// posConstant is the constant used to compute the position of the intermediary state root
+	// SystemSC is the system smart contract address
+	SystemSC = "0x000000000000000000000000000000005ca1ab1e"
+	// posConstant is the constant used to compute the position of the intermediate state root
 	posConstant = 1
 )
 
@@ -212,10 +213,11 @@ type DSState interface {
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*types.Header, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
-func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool) error {
+func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool, imStateRoots *map[uint64][]byte) error {
 	header := streamServer.GetHeader()
 
 	var currentBatchNumber uint64 = 0
@@ -426,13 +428,15 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				}
 
 				for _, tx := range l2block.Txs {
-					// Populate intermediary state root
-					position := GetSystemSCPosition(l2block.L2BlockNumber)
-					imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(systemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
-					if err != nil {
-						return err
+					// Populate intermediate state root
+					if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
+						position := GetSystemSCPosition(l2block.L2BlockNumber)
+						imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
+						if err != nil {
+							return err
+						}
+						tx.StateRoot = common.BigToHash(imStateRoot)
 					}
-					tx.StateRoot = common.BigToHash(imStateRoot)
 
 					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
 					if err != nil {
@@ -463,7 +467,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	return err
 }
 
-// GetSystemSCPosition computes the position of the intermediary state root for the system smart contract
+// GetSystemSCPosition computes the position of the intermediate state root for the system smart contract
 func GetSystemSCPosition(blockNumber uint64) []byte {
 	v1 := big.NewInt(0).SetUint64(blockNumber).Bytes()
 	v2 := big.NewInt(0).SetUint64(uint64(posConstant)).Bytes()
