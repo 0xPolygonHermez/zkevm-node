@@ -204,6 +204,14 @@ func (d *dbManager) sendDataToStreamer() {
 			}
 
 			for _, l2Transaction := range l2Transactions {
+				// Populate intermediate state root
+				position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
+				imStateRoot, err := d.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+				if err != nil {
+					log.Errorf("failed to get storage at for l2block %v: %v", l2Block.L2BlockNumber, err)
+				}
+				l2Transaction.StateRoot = common.BigToHash(imStateRoot)
+
 				_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
 				if err != nil {
 					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
@@ -268,11 +276,11 @@ func (d *dbManager) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex ui
 	// changeL2Block transaction mark
 	changeL2Block = append(changeL2Block, changeL2BlockMark...)
 	// changeL2Block deltaTimeStamp
-	deltaTimestampBytes := make([]byte, 4)
+	deltaTimestampBytes := make([]byte, 4) // nolint:gomnd
 	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
 	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
 	// changeL2Block l1InfoTreeIndexBytes
-	l1InfoTreeIndexBytes := make([]byte, 4)
+	l1InfoTreeIndexBytes := make([]byte, 4) // nolint:gomnd
 	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, uint32(l1InfoTreeIndex))
 	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
 
@@ -321,7 +329,8 @@ func (d *dbManager) StoreL2Block(ctx context.Context, batchNumber uint64, l2Bloc
 			continue
 		}
 
-		transactions = append(transactions, &txResponse.Tx)
+		tx := txResponse.Tx
+		transactions = append(transactions, &tx)
 
 		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
 		if txsEGPLog != nil {
@@ -780,4 +789,9 @@ func (d *dbManager) DSSendL2Block(l2Block *L2Block) error {
 	}
 
 	return nil
+}
+
+// GetStorageAt returns the storage at a given address and position
+func (d *dbManager) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	return d.state.GetStorageAt(ctx, address, position, root)
 }
