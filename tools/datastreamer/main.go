@@ -228,6 +228,7 @@ func generate(cliCtx *cli.Context) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			log.Debugf("Thread %d: Start: %d, End: %d\n", x, start, end)
 			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
 		}()
 	}
