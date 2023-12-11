@@ -210,6 +210,7 @@ func generate(cliCtx *cli.Context) error {
 	// Calculate intermediate state roots
 	var imStateRoots map[uint64][]byte
 	var imStateRootsMux *sync.Mutex = new(sync.Mutex)
+	var wg sync.WaitGroup
 
 	lastL2BlockHeader, err := stateDB.GetLastL2BlockHeader(cliCtx.Context, nil)
 	if err != nil {
@@ -224,8 +225,14 @@ func generate(cliCtx *cli.Context) error {
 		start := uint64(x) * (maxL2Block / uint64(c.MerkleTree.MaxThreads))
 		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) - 1
 
-		go getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
+		}()
 	}
+
+	wg.Wait()
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
