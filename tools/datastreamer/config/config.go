@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -30,8 +29,8 @@ type OnlineConfig struct {
 
 // MTConfig is the configuration for the merkle tree
 type MTConfig struct {
-	merkletree.Config
-	MaxThreads int `mapstructure:"MaxThreads"`
+	URI        string `mapstructure:"URI"`
+	MaxThreads int    `mapstructure:"MaxThreads"`
 }
 
 // Config is the configuration for the tool
