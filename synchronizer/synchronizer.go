@@ -858,19 +858,15 @@ const (
 func (s *ClientSynchronizer) setInitialBatch(blockNumber uint64, dbTx pgx.Tx) error {
 	log.Debug("Setting initial transaction batch 1")
 	// Process FirstTransaction included in batch 1
-	//TODO: Check if adding this prefix is a good solution
-	prefix := common.Hex2Bytes(L2BlockHeaderForGenesis)
-	genesisTransactions := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
-	batchL2Data := append(prefix, genesisTransactions...)
+	batchL2Data := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
 	l1InfoRoot := s.state.GetCurrentL1InfoRoot()
 	processCtx := state.ProcessingContextV2{
 		BatchNumber: 1,
 		Coinbase:    s.genesis.FirstBatchData.Sequencer,
-		// TODO: If use s.genesis.FirstBatchData.Timestamp fails
-		//Timestamp:   time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
-		Timestamp:   time.Now(),
+		Timestamp:   time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
 		L1InfoRoot:  &l1InfoRoot,
 		BatchL2Data: &batchL2Data,
+		ForcedBlockHashL1: &s.genesis.FirstBatchData.ForcedBlockHashL1,
 	}
 	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatchV2(s.ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 	if err != nil {
