@@ -371,7 +371,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 		return nil, err
 	}
 
-	// Substract the bytes needed to store the changeL2Block tx into the new batch
+	// Subtract the bytes needed to store the changeL2Block tx into the new batch
 	batch.remainingResources.Bytes = batch.remainingResources.Bytes - changeL2BlockSize
 
 	return batch, err
