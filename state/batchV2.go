@@ -17,12 +17,13 @@ import (
 // ProcessingContext is the necessary data that a batch needs to provide to the runtime,
 // without the historical state data (processing receipt from previous batch)
 type ProcessingContextV2 struct {
-	BatchNumber    uint64
-	Coinbase       common.Address
-	Timestamp      time.Time    // Batch timeStamp and also TimestampLimit
-	L1InfoRoot     *common.Hash // If null is used the current L1InfoRoot
-	ForcedBatchNum *uint64
-	BatchL2Data    *[]byte
+	BatchNumber       uint64
+	Coinbase          common.Address
+	Timestamp         time.Time    // Batch timeStamp and also TimestampLimit
+	L1InfoRoot        *common.Hash // If null is used the current L1InfoRoot
+	ForcedBatchNum    *uint64
+	BatchL2Data       *[]byte
+	ForcedBlockHashL1 *common.Hash
 }
 
 // ProcessSequencerBatchV2 is used by the sequencers to process transactions into an open batch for forkID >= ETROG
@@ -30,7 +31,7 @@ func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64,
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatchV2 start")
 
-	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, nil, nil, caller, dbTx)
+	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, nil, nil, nil, caller, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,13 +79,6 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 	if request.SkipWriteBlockInfoRoot_V2 {
 		processBatchRequest.SkipWriteBlockInfoRoot = cTrue
 	}
-
-	batchData, err := DecodeBatchV2(processBatchRequest.BatchL2Data)
-	if err != nil {
-		log.Errorf("Error decoding batch: %v", err)
-		return nil, err
-	}
-	log.Debug("BatchData: ", batchData)
 
 	res, err := s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, request.Caller)
 	if err != nil {
@@ -169,9 +163,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTre
 
 // if timestampLimit is nil, it will be set to time.Now()
 // if l1InfoRoot is nil it will be set to the current L1InfoRoot
-func (s *State) processBatchV2(ctx context.Context,
-	batchNumber uint64, batchL2Data []byte,
-	timestampLimit *time.Time, l1InfoRoot *common.Hash,
+func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, timestampLimit *time.Time, l1InfoRoot, forcedBlockHashL1 *common.Hash,
 	caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
@@ -216,17 +208,21 @@ func (s *State) processBatchV2(ctx context.Context,
 	}
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequestV2{
-		OldBatchNum:      lastBatch.BatchNumber - 1,
-		Coinbase:         lastBatch.Coinbase.String(),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     previousBatch.StateRoot.Bytes(),
-		L1InfoRoot:       l1InfoRoot.Bytes(),
+		OldBatchNum:  lastBatch.BatchNumber - 1,
+		Coinbase:     lastBatch.Coinbase.String(),
+		BatchL2Data:  batchL2Data,
+		OldStateRoot: previousBatch.StateRoot.Bytes(),
+		// L1InfoRoot:       l1InfoRoot.Bytes() => This can be nil and so is set later
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		TimestampLimit:   timestampLimitUnix,
 		UpdateMerkleTree: cTrue,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           forkID,
 		ContextId:        uuid.NewString(),
+	}
+	if forcedBlockHashL1 != nil {
+		log.Debug("Setting ForcedBlockhashL1: ", forcedBlockHashL1)
+		processBatchRequest.ForcedBlockhashL1 = forcedBlockHashL1.Bytes()
 	}
 
 	if l1InfoRoot != nil {
@@ -364,13 +360,10 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 	processed, err := s.processBatchV2(ctx, processingCtx.BatchNumber, *BatchL2Data,
-		&processingCtx.Timestamp, processingCtx.L1InfoRoot, caller, dbTx)
+		&processingCtx.Timestamp, processingCtx.L1InfoRoot, processingCtx.ForcedBlockHashL1, caller, dbTx)
 	if err != nil {
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
-	}
-	if err := sanityCheckExecutorResponse(processed); err != nil {
-		log.Warnf("%s sanity check failed: %v", debugPrefix, err)
 	}
 
 	processedBatch, err := s.convertToProcessBatchResponseV2(processed)

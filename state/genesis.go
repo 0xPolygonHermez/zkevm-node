@@ -42,10 +42,11 @@ type GenesisAction struct {
 
 // BatchData represents the data of the first batch that contains initial transaction
 type BatchData struct {
-	Transactions   string         `json:"transactions"`
-	GlobalExitRoot common.Hash    `json:"globalExitRoot"`
-	Timestamp      uint64         `json:"timestamp"`
-	Sequencer      common.Address `json:"sequencer"`
+	Transactions      string         `json:"transactions"`
+	GlobalExitRoot    common.Hash    `json:"globalExitRoot"`
+	Timestamp         uint64         `json:"timestamp"`
+	Sequencer         common.Address `json:"sequencer"`
+	ForcedBlockHashL1 common.Hash    `json:"forcedBlockHashL1"`
 }
 
 // SetGenesis populates state with genesis information
