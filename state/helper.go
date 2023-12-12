@@ -276,7 +276,8 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
+// GenerateReceipt generates a receipt from a processed transaction
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),

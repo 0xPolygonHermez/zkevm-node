@@ -161,10 +161,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, updateMerkleTre
 	return processBatchResponse, err
 }
 
-// if timestampLimit is nil, it will be set to time.Now()
-// if l1InfoRoot is nil it will be set to the current L1InfoRoot
-func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, timestampLimit *time.Time, l1InfoRoot, forcedBlockHashL1 *common.Hash,
-	caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, timestampLimit *time.Time, l1InfoRoot, forcedBlockHashL1 *common.Hash, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -388,10 +385,4 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		AccInputHash:  processedBatch.NewAccInputHash,
 		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
-}
-
-// sanityCheckExecutorResponse checks that the executor response is consistent with the batch
-// TODO
-func sanityCheckExecutorResponse(processed *executor.ProcessBatchResponseV2) error {
-	return nil
 }

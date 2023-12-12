@@ -232,7 +232,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			})
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := generateReceipt(header.Number, processedTx)
+			receipt := GenerateReceipt(header.Number, processedTx)
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -305,7 +305,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
 		}
 
-		receipt := generateReceipt(header.Number, txResponse)
+		receipt := GenerateReceipt(header.Number, txResponse)
 		receipts = append(receipts, receipt)
 	}
 
@@ -703,7 +703,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	})
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt := generateReceipt(header.Number, processedTx)
+	receipt := GenerateReceipt(header.Number, processedTx)
 	receipts := []*types.Receipt{receipt}
 
 	// Create l2Block to be able to calculate its hash
