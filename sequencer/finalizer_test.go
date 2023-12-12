@@ -17,7 +17,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -104,7 +103,6 @@ var (
 	// stateRootHashes = []common.Hash{oldHash, newHash, newHash2}
 	txHash       = common.HexToHash("0xf9e4fe4bd2256f782c66cffd76acdb455a76111842bb7e999af2f1b7f4d8d092")
 	txHash2      = common.HexToHash("0xb281831a3401a04f3afa4ec586ef874f58c61b093643d408ea6aa179903df1a4")
-	tx           = types.NewTransaction(nonce1, receiverAddr, big.NewInt(1), 100000, big.NewInt(1), nil)
 	senderAddr   = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	receiverAddr = common.HexToAddress("0x1555324")
 	isSynced     = func(ctx context.Context) bool {

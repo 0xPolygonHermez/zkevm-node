@@ -292,7 +292,7 @@ func ProcessBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix str
 	return res
 }
 func BlockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) string {
-	res := prefix + fmt.Sprintf("ProcessBlockResponseV2:----------------------------- \n")
+	res := prefix + "ProcessBlockResponseV2:----------------------------- \n"
 	res += prefix + fmt.Sprintf("ParentHash:   %v\n", hex.EncodeToHex(r.ParentHash))
 	res += prefix + fmt.Sprintf("Coinbase:     %v\n", r.Coinbase)
 	res += prefix + fmt.Sprintf("GasLimit:     %v\n", r.GasLimit)
@@ -313,7 +313,7 @@ func BlockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) st
 }
 
 func TransactionResponseToString(r *executor.ProcessTransactionResponseV2, prefix string) string {
-	res := prefix + fmt.Sprintf("ProcessTransactionResponseV2:----------------------------------- \n")
+	res := prefix + "ProcessTransactionResponseV2:----------------------------------- \n"
 	res += prefix + fmt.Sprintf("TxHash: 	%v\n", hex.EncodeToHex(r.TxHash))
 	res += prefix + fmt.Sprintf("TxHashL2: 	%v\n", hex.EncodeToHex(r.TxHashL2))
 	res += prefix + fmt.Sprintf("Type: 		%v\n", r.Type)
@@ -327,7 +327,7 @@ func TransactionResponseToString(r *executor.ProcessTransactionResponseV2, prefi
 	return res
 }
 
-// ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
+// ProcessAndStoreClosedBatchV2 is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
 // the flushID (incremental value returned by executor),
 // the ProverID (executor running ID) the result of closing the batch.
 func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {

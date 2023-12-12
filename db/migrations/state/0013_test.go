@@ -148,7 +148,7 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 
 	// Check column wip exists in state.batch table
 	const getWIPColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='batch' and column_name='wip'`
-	row = db.QueryRow(getL2HashColumn)
+	row = db.QueryRow(getWIPColumn)
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 1, result)
 

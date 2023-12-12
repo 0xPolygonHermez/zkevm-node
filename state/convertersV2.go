@@ -133,7 +133,6 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		var tx *types.Transaction
 		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP {
 			if len(response.GetRlpTx()) > 0 {
-				tx = new(types.Transaction)
 				tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
 				if err != nil {
 					timestamp := time.Now()
