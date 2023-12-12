@@ -293,6 +293,9 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		if executor.IsIntrinsicError(executor.RomErrorCode(txResponse.RomError)) {
 			continue
 		}
+		if executor.IsInvalidL2Block(executor.RomErrorCode(txResponse.RomError)) {
+			continue
+		}
 
 		txResp := *txResponse
 		transactions = append(transactions, &txResp.Tx)

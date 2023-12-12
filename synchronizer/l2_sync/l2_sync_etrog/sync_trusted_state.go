@@ -51,12 +51,14 @@ type BatchStepsExecutorEtrog struct {
 func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface,
 	state l2_shared.StateInterface, stateBatchExecutor BatchStepsExecutorEtrogStateInterface,
 	sync l2_shared.SyncInterface) *l2_shared.SyncTrustedStateTemplate {
+
 	executorSteps := &BatchStepsExecutorEtrog{
 		state: stateBatchExecutor,
 		sync:  sync}
-	executor := &l2_shared.SyncTrustedStateBatchExecutorTemplate{
-		Steps: executorSteps,
-	}
+	//executor := &l2_shared.SyncTrustedStateBatchExecutorTemplate{
+	//	Steps: executorSteps,
+	//}
+	executor := l2_shared.NewSyncTrustedStateBatchExecutorTemplate(executorSteps, true)
 	a := l2_shared.NewSyncTrustedStateTemplate(executor, zkEVMClient, state, sync)
 	return a
 }
@@ -142,9 +144,12 @@ func (b *BatchStepsExecutorEtrog) openBatch(ctx context.Context, trustedBatch *t
 	log.Debugf("Opening batch %d", trustedBatch.Number)
 	var batchL2Data []byte = trustedBatch.BatchL2Data
 	processCtx := state.ProcessingContext{
-		BatchNumber:    uint64(trustedBatch.Number),
-		Coinbase:       common.HexToAddress(trustedBatch.Coinbase.String()),
-		Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
+		BatchNumber: uint64(trustedBatch.Number),
+		Coinbase:    common.HexToAddress(trustedBatch.Coinbase.String()),
+		//Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
+		// Instead of using trustedBatch use now, because the prevBatch could have a newer timestamp because
+		// use the tstamp of the L1Block where is the virtualization event
+		Timestamp:      time.Now(),
 		GlobalExitRoot: trustedBatch.GlobalExitRoot,
 		BatchL2Data:    &batchL2Data,
 	}
@@ -188,14 +193,13 @@ func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, truste
 
 func getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) state.ProcessRequest {
 	request := state.ProcessRequest{
-		BatchNumber:     uint64(data.TrustedBatch.Number),
-		OldStateRoot:    data.OldStateRoot,
-		OldAccInputHash: data.OldAccInputHash,
-		Coinbase:        common.HexToAddress(data.TrustedBatch.Coinbase.String()),
-		L1InfoRoot_V2:   l1InfoRoot,
-		//Timestamp:       time.Unix(int64(data.TrustedBatch.Timestamp), 0),
-		//TimestampLimit_V2: int64(data.TrustedBatch.Timestamp),
-		Transactions: data.TrustedBatch.BatchL2Data,
+		BatchNumber:       uint64(data.TrustedBatch.Number),
+		OldStateRoot:      data.OldStateRoot,
+		OldAccInputHash:   data.OldAccInputHash,
+		Coinbase:          common.HexToAddress(data.TrustedBatch.Coinbase.String()),
+		L1InfoRoot_V2:     l1InfoRoot,
+		TimestampLimit_V2: uint64(data.TrustedBatch.Timestamp),
+		Transactions:      data.TrustedBatch.BatchL2Data,
 	}
 	return request
 }

@@ -52,6 +52,17 @@ type SyncTrustedStateBatchExecutorSteps interface {
 
 type SyncTrustedStateBatchExecutorTemplate struct {
 	Steps SyncTrustedStateBatchExecutorSteps
+	// CheckBatchTimestampGreaterInsteadOfEqual if true, we consider equal two batches if the timestamp of trusted <= timestamp of state
+	// this is because in the permissionless the timestamp of a batch is equal to the timestamp of the l1block where is reported
+	// but trusted doesn't known this block and use now() instead. But for sure now() musbe <= l1block.tstamp
+	CheckBatchTimestampGreaterInsteadOfEqual bool
+}
+
+func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecutorSteps, checkBatchTimestampGreaterInsteadOfEqual bool) *SyncTrustedStateBatchExecutorTemplate {
+	return &SyncTrustedStateBatchExecutorTemplate{
+		Steps:                                    steps,
+		CheckBatchTimestampGreaterInsteadOfEqual: checkBatchTimestampGreaterInsteadOfEqual,
+	}
 }
 
 func (s *SyncTrustedStateBatchExecutorTemplate) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error) {
@@ -124,7 +135,7 @@ func (s *SyncTrustedStateBatchExecutorTemplate) getModeForProcessBatch(trustedNo
 			Description:  "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		if checkIfSynced(stateBatch, trustedNodeBatch) {
+		if checkIfSynced(stateBatch, trustedNodeBatch, s.CheckBatchTimestampGreaterInsteadOfEqual) {
 			result = ProcessData{
 				Mode:         NothingProcessMode,
 				OldStateRoot: common.Hash{},
@@ -165,7 +176,7 @@ func isTrustedBatchClosed(batch *types.Batch) bool {
 	return batch.StateRoot.String() != state.ZeroHash.String()
 }
 
-func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch) bool {
+func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) bool {
 	if stateBatch == nil || trustedBatch == nil {
 		log.Infof("checkIfSynced stateBatch or trustedBatch is nil, so is not synced")
 		return false
@@ -175,7 +186,12 @@ func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch) bool {
 	matchLER := stateBatch.LocalExitRoot.String() == trustedBatch.LocalExitRoot.String()
 	matchSR := stateBatch.StateRoot.String() == trustedBatch.StateRoot.String()
 	matchCoinbase := stateBatch.Coinbase.String() == trustedBatch.Coinbase.String()
-	matchTimestamp := uint64(stateBatch.Timestamp.Unix()) == uint64(trustedBatch.Timestamp)
+	matchTimestamp := false
+	if checkTimestampGreater {
+		matchTimestamp = uint64(stateBatch.Timestamp.Unix()) >= uint64(trustedBatch.Timestamp)
+	} else {
+		matchTimestamp = uint64(stateBatch.Timestamp.Unix()) == uint64(trustedBatch.Timestamp)
+	}
 	matchL2Data := hex.EncodeToString(stateBatch.BatchL2Data) == hex.EncodeToString(trustedBatch.BatchL2Data)
 
 	if matchNumber && matchGER && matchLER && matchSR &&
