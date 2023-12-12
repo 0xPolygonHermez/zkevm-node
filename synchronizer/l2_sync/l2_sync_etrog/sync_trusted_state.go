@@ -146,8 +146,7 @@ func (b *BatchStepsExecutorEtrog) openBatch(ctx context.Context, trustedBatch *t
 	processCtx := state.ProcessingContext{
 		BatchNumber: uint64(trustedBatch.Number),
 		Coinbase:    common.HexToAddress(trustedBatch.Coinbase.String()),
-		//Timestamp:      time.Unix(int64(trustedBatch.Timestamp), 0),
-		// Instead of using trustedBatch use now, because the prevBatch could have a newer timestamp because
+		// Instead of using trustedBatch.Timestamp use now, because the prevBatch could have a newer timestamp because
 		// use the tstamp of the L1Block where is the virtualization event
 		Timestamp:      time.Now(),
 		GlobalExitRoot: trustedBatch.GlobalExitRoot,
