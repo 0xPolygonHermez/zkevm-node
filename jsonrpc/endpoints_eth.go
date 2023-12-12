@@ -24,11 +24,6 @@ import (
 )
 
 const (
-	// DefaultSenderAddress is the address that jRPC will use
-	// to communicate with the state for eth_EstimateGas and eth_Call when
-	// the From field is not specified because it is optional
-	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-
 	// maxTopics is the max number of topics a log can have
 	maxTopics = 4
 )
@@ -101,7 +96,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			arg.Gas = &gas
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -119,7 +114,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			copy(data, result.ReturnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), &data)
 		} else if result.Failed() {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, result.Err.Error(), nil)
+			return nil, types.NewRPCError(types.DefaultErrorCode, result.Err.Error())
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -185,7 +180,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			}
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -198,8 +193,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
 			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
-			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
-			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
+			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -888,7 +882,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 
 		// TODO: this is temporary patch remove this log
 		realIp := httpRequest.Header.Get("X-Real-IP")
-		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+		log.Debugf("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
 
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]

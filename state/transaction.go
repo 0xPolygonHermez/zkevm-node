@@ -741,9 +741,6 @@ func CheckSupersetBatchTransactions(existingTxHashes []common.Hash, processedTxs
 func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (uint64, []byte, error) {
 	const ethTransferGas = 21000
 
-	var lowEnd uint64
-	var highEnd uint64
-
 	ctx := context.Background()
 
 	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint:gomnd
@@ -775,63 +772,68 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		previousBatch = lastBatches[1]
 	}
 
-	lowEnd, err = core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false, false)
-	if err != nil {
-		return 0, nil, err
-	}
+	highEnd := s.cfg.MaxCumulativeGasUsed
 
-	if lowEnd == ethTransferGas && transaction.To() != nil {
-		code, err := s.tree.GetCode(ctx, *transaction.To(), stateRoot.Bytes())
-		if err != nil {
-			log.Warnf("error while getting transaction.to() code %v", err)
-		} else if len(code) == 0 {
-			return lowEnd, nil, nil
-		}
-	}
-
-	if transaction.Gas() != 0 && transaction.Gas() > lowEnd {
-		highEnd = transaction.Gas()
-	} else {
-		highEnd = s.cfg.MaxCumulativeGasUsed
-	}
-
-	var availableBalance *big.Int
-
-	if senderAddress != ZeroAddress {
+	// if gas price is set, set the highEnd to the max amount
+	// of the account afford
+	isGasPriceSet := transaction.GasPrice().BitLen() != 0
+	if isGasPriceSet {
 		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
-		if err != nil {
-			if errors.Is(err, ErrNotFound) {
-				senderBalance = big.NewInt(0)
-			} else {
-				return 0, nil, err
-			}
+		if errors.Is(err, ErrNotFound) {
+			senderBalance = big.NewInt(0)
+		} else if err != nil {
+			return 0, nil, err
 		}
 
-		availableBalance = new(big.Int).Set(senderBalance)
-
+		availableBalance := new(big.Int).Set(senderBalance)
+		// check if the account has funds to pay the transfer value
 		if transaction.Value() != nil {
 			if transaction.Value().Cmp(availableBalance) > 0 {
-				return 0, nil, ErrInsufficientFunds
+				return 0, nil, ErrInsufficientFundsForTransfer
 			}
 
+			// deduct the value from the available balance
 			availableBalance.Sub(availableBalance, transaction.Value())
 		}
-	}
-
-	if transaction.GasPrice().BitLen() != 0 && // Gas price has been set
-		availableBalance != nil && // Available balance is found
-		availableBalance.Cmp(big.NewInt(0)) > 0 { // Available balance > 0
-		gasAllowance := new(big.Int).Div(availableBalance, transaction.GasPrice())
 
 		// Check the gas allowance for this account, make sure high end is capped to it
+		gasAllowance := new(big.Int).Div(availableBalance, transaction.GasPrice())
 		if gasAllowance.IsUint64() && highEnd > gasAllowance.Uint64() {
 			log.Debugf("Gas estimation high-end capped by allowance [%d]", gasAllowance.Uint64())
 			highEnd = gasAllowance.Uint64()
 		}
 	}
 
-	// Run the transaction with the specified gas value.
-	// Returns a status indicating if the transaction failed, if it was reverted and the accompanying error
+	// if the tx gas is set and it is smaller than the highEnd,
+	// limit the highEnd to the maximum allowed by the tx gas
+	if transaction.Gas() != 0 && transaction.Gas() < highEnd {
+		highEnd = transaction.Gas()
+	}
+
+	// set start values for lowEnd and highEnd:
+	lowEnd, err := core.IntrinsicGas(transaction.Data(), transaction.AccessList(), s.isContractCreation(transaction), true, false, false)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// if the intrinsic gas is the same as the constant value for eth transfer
+	// and the transaction has a receiver address
+	if lowEnd == ethTransferGas && transaction.To() != nil {
+		receiver := *transaction.To()
+		// check if the receiver address is not a smart contract
+		code, err := s.tree.GetCode(ctx, receiver, stateRoot.Bytes())
+		if err != nil {
+			log.Warnf("error while getting code for address %v: %v", receiver.String(), err)
+		} else if len(code) == 0 {
+			// in case it is just an account, we can avoid the execution and return
+			// the transfer constant amount
+			return lowEnd, nil, nil
+		}
+	}
+
+	// testTransaction runs the transaction with the specified gas value.
+	// it returns a status indicating if the transaction has failed, if it
+	// was reverted and the accompanying error
 	testTransaction := func(gas uint64, nonce uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
 		tx := types.NewTx(&types.LegacyTx{
 			Nonce:    nonce,
@@ -932,9 +934,10 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	txExecutions := []time.Duration{}
 	var totalExecutionTime time.Duration
 
-	// Check if the highEnd is a good value to make the transaction pass
-	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, nonce, false)
+	// Check if the highEnd is a good value to make the transaction pass, if it fails we
+	// can return immediately.
 	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
+	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, nonce, false)
 	if failed {
 		if reverted {
 			return 0, returnValue, err
@@ -942,12 +945,12 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 		// The transaction shouldn't fail, for whatever reason, at highEnd
 		return 0, nil, fmt.Errorf(
-			"unable to apply transaction even for the highest gas limit %d: %w",
+			"gas required exceeds allowance (%d)",
 			highEnd,
-			err,
 		)
 	}
 
+	// sets
 	if lowEnd < gasUsed {
 		lowEnd = gasUsed
 	}
@@ -956,9 +959,14 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	for (lowEnd < highEnd) && (highEnd-lowEnd) > 4096 {
 		txExecutionStart := time.Now()
 		mid := (lowEnd + highEnd) / 2 // nolint:gomnd
+		if mid > lowEnd*2 {
+			// Most txs don't need much higher gas limit than their gas used, and most txs don't
+			// require near the full block limit of gas, so the selection of where to bisect the
+			// range here is skewed to favor the low side.
+			mid = lowEnd * 2 // nolint:gomnd
+		}
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
-
 		failed, reverted, _, _, testErr := testTransaction(mid, nonce, true)
 		executionTime := time.Since(txExecutionStart)
 		totalExecutionTime += executionTime
@@ -980,9 +988,9 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	executions := int64(len(txExecutions))
 	if executions > 0 {
-		log.Infof("EstimateGas executed TX %v %d times in %d milliseconds", transaction.Hash(), executions, totalExecutionTime.Milliseconds())
+		log.Debugf("EstimateGas executed TX %v %d times in %d milliseconds", transaction.Hash(), executions, totalExecutionTime.Milliseconds())
 	} else {
-		log.Error("Estimate gas. Tx not executed")
+		log.Debug("Estimate gas. Tx not executed")
 	}
 	return highEnd, nil, nil
 }

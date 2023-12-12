@@ -395,10 +395,10 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 	//TODO: use better f.wipBatch.remainingResources.Sub() instead to subtract directly
 	// Subtract the bytes needed to store the changeL2Block of the new L2 block into the WIP batch
 	f.wipBatch.remainingResources.Bytes = f.wipBatch.remainingResources.Bytes - changeL2BlockSize
-	// Sustract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
-	f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes = f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes - 256 //TODO: config param
-	f.wipBatch.remainingResources.ZKCounters.UsedArithmetics = f.wipBatch.remainingResources.ZKCounters.UsedArithmetics - 1         //TODO: config param
-	// After do the sustracts we need to check if we have not reached the size limit for the batch
+	// Subtract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
+	f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes = f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes - 256 // nolint:gomnd //TODO: config param
+	f.wipBatch.remainingResources.ZKCounters.UsedArithmetics = f.wipBatch.remainingResources.ZKCounters.UsedArithmetics - 1         // nolint:gomnd //TODO: config param
+	// After do the subtracts we need to check if we have not reached the size limit for the batch
 	if f.isBatchResourcesExhausted() {
 		// If we have reached the limit then close the wip batch and create a new one
 		f.finalizeBatch(ctx)
