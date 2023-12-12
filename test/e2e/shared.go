@@ -229,3 +229,7 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 
 	return forcedBatch, nil
 }
+
+func ptr[T any](v T) *T {
+	return &v
+}
