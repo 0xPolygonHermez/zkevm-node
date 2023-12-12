@@ -294,7 +294,8 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 
 	txsEGPLog := []*state.EffectiveGasPriceLog{}
 	for _, tx := range l2Block.transactions {
-		txsEGPLog = append(txsEGPLog, &tx.EGPLog)
+		egpLog := tx.EGPLog
+		txsEGPLog = append(txsEGPLog, &egpLog)
 	}
 
 	// Store L2 block in the state
@@ -391,13 +392,13 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
-	//TODO: use better f.wipBatch.remainingResources.Sub() instead to substract directly
-	// Substract the bytes needed to store the changeL2Block of the new L2 block into the WIP batch
+	//TODO: use better f.wipBatch.remainingResources.Sub() instead to subtract directly
+	// Subtract the bytes needed to store the changeL2Block of the new L2 block into the WIP batch
 	f.wipBatch.remainingResources.Bytes = f.wipBatch.remainingResources.Bytes - changeL2BlockSize
-	// Substract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
+	// Sustract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
 	f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes = f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes - 256 //TODO: config param
 	f.wipBatch.remainingResources.ZKCounters.UsedArithmetics = f.wipBatch.remainingResources.ZKCounters.UsedArithmetics - 1         //TODO: config param
-	// After do the substracts we need to check if we have not reached the size limit for the batch
+	// After do the sustracts we need to check if we have not reached the size limit for the batch
 	if f.isBatchResourcesExhausted() {
 		// If we have reached the limit then close the wip batch and create a new one
 		f.finalizeBatch(ctx)
