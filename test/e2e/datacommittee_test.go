@@ -179,7 +179,7 @@ func TestDataCommittee(t *testing.T) {
 			"--name", "cdk-data-availability-"+strconv.Itoa(m.i),
 			"-v", cfgFile+":/app/config.json",
 			"-v", ksFile+":"+ksFile,
-			"--network", "cdk-validium",
+			"--network", "zkevm",
 			dacNodeContainer,
 			"/bin/sh", "-c",
 			"/app/cdk-data-availability run --cfg /app/config.json",
