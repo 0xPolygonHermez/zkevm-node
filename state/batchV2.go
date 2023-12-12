@@ -293,11 +293,13 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 	}
 
 	// Decode transactions
-	decodeBatch, err := DecodeBatchV2(*BatchL2Data)
-	if err != nil {
-		log.Errorf("%s error decoding batch: %v", debugPrefix, processingCtx.BatchNumber, err)
-		return common.Hash{}, noFlushID, noProverID, err
-	}
+	/*
+		decodeBatch, err := DecodeBatchV2(*BatchL2Data)
+		if err != nil {
+			log.Errorf("%s error decoding batch: %v", debugPrefix, processingCtx.BatchNumber, err)
+			return common.Hash{}, noFlushID, noProverID, err
+		}
+	*/
 
 	if dbTx == nil {
 		return common.Hash{}, noFlushID, noProverID, ErrDBTxNil
@@ -321,9 +323,11 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
 	}
-	if err := sanityCheckExecutorResponse(decodeBatch, processed); err != nil {
-		log.Warnf("%s sanity check failed: %v", debugPrefix, err)
-	}
+	/*
+		if err := sanityCheckExecutorResponse(decodeBatch, processed); err != nil {
+			log.Warnf("%s sanity check failed: %v", debugPrefix, err)
+		}
+	*/
 
 	processedBatch, err := s.convertToProcessBatchResponseV2(processed)
 	if err != nil {
