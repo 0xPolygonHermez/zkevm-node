@@ -209,6 +209,11 @@ func (s *Server) Stop() error {
 }
 
 func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
 	if req.Method == http.MethodOptions {
 		return
 	}
@@ -242,10 +247,6 @@ func (s *Server) handle(w http.ResponseWriter, req *http.Request) {
 	s.increaseHttpConnCounter()
 
 	start := time.Now()
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	var respLen int
 	if single {
 		respLen = s.handleSingleRequest(req, w, data)

@@ -333,12 +333,13 @@ func TestBatchRequests(t *testing.T) {
 
 func TestRequestValidation(t *testing.T) {
 	type testCase struct {
-		Name               string
-		Method             string
-		Content            []byte
-		ContentType        string
-		ExpectedStatusCode int
-		ExpectedMessage    string
+		Name                    string
+		Method                  string
+		Content                 []byte
+		ContentType             string
+		ExpectedStatusCode      int
+		ExpectedResponseHeaders map[string][]string
+		ExpectedMessage         string
 	}
 
 	testCases := []testCase{
@@ -346,63 +347,120 @@ func TestRequestValidation(t *testing.T) {
 			Name:               "OPTION request",
 			Method:             http.MethodOptions,
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedMessage:    "",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"application/json"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "",
 		},
 		{
 			Name:               "GET request",
 			Method:             http.MethodGet,
 			ExpectedStatusCode: http.StatusOK,
-			ExpectedMessage:    "zkEVM JSON RPC Server",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"application/json"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "zkEVM JSON RPC Server",
 		},
 		{
 			Name:               "HEAD request",
 			Method:             http.MethodHead,
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
-			ExpectedMessage:    "",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "",
 		},
 		{
 			Name:               "PUT request",
 			Method:             http.MethodPut,
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
-			ExpectedMessage:    "method PUT not allowed\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "method PUT not allowed\n",
 		},
 		{
 			Name:               "PATCH request",
 			Method:             http.MethodPatch,
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
-			ExpectedMessage:    "method PATCH not allowed\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "method PATCH not allowed\n",
 		},
 		{
 			Name:               "DELETE request",
 			Method:             http.MethodDelete,
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
-			ExpectedMessage:    "method DELETE not allowed\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "method DELETE not allowed\n",
 		},
 		{
 			Name:               "CONNECT request",
 			Method:             http.MethodConnect,
 			ExpectedStatusCode: http.StatusNotFound,
-			ExpectedMessage:    "404 page not found\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type": {"text/plain; charset=utf-8"},
+			},
+			ExpectedMessage: "404 page not found\n",
 		},
 		{
 			Name:               "TRACE request",
 			Method:             http.MethodTrace,
 			ExpectedStatusCode: http.StatusMethodNotAllowed,
-			ExpectedMessage:    "method TRACE not allowed\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "method TRACE not allowed\n",
 		},
 		{
 			Name:               "Request content bigger than limit",
 			Method:             http.MethodPost,
 			Content:            make([]byte, maxRequestContentLength+1),
 			ExpectedStatusCode: http.StatusRequestEntityTooLarge,
-			ExpectedMessage:    "content length too large (5242881>5242880)\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "content length too large (5242881>5242880)\n",
 		},
 		{
 			Name:               "Invalid content type",
 			Method:             http.MethodPost,
 			ContentType:        "text/html",
 			ExpectedStatusCode: http.StatusUnsupportedMediaType,
-			ExpectedMessage:    "invalid content type, only application/json is supported\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "invalid content type, only application/json is supported\n",
 		},
 		{
 			Name:               "Empty request body",
@@ -410,7 +468,13 @@ func TestRequestValidation(t *testing.T) {
 			ContentType:        contentType,
 			Content:            []byte(""),
 			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedMessage:    "empty request body\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "empty request body\n",
 		},
 		{
 			Name:               "Invalid json",
@@ -418,7 +482,13 @@ func TestRequestValidation(t *testing.T) {
 			ContentType:        contentType,
 			Content:            []byte("this is not a json format string"),
 			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedMessage:    "invalid json object request body\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "invalid json object request body\n",
 		},
 		{
 			Name:               "Incomplete json object",
@@ -426,7 +496,13 @@ func TestRequestValidation(t *testing.T) {
 			ContentType:        contentType,
 			Content:            []byte("{ \"field\":"),
 			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedMessage:    "invalid json object request body\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "invalid json object request body\n",
 		},
 		{
 			Name:               "Incomplete json array",
@@ -434,7 +510,13 @@ func TestRequestValidation(t *testing.T) {
 			ContentType:        contentType,
 			Content:            []byte("[ { \"field\":"),
 			ExpectedStatusCode: http.StatusBadRequest,
-			ExpectedMessage:    "invalid json array request body\n",
+			ExpectedResponseHeaders: map[string][]string{
+				"Content-Type":                 {"text/plain; charset=utf-8"},
+				"Access-Control-Allow-Origin":  {"*"},
+				"Access-Control-Allow-Methods": {"POST, OPTIONS"},
+				"Access-Control-Allow-Headers": {"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization"},
+			},
+			ExpectedMessage: "invalid json array request body\n",
 		},
 	}
 
@@ -460,6 +542,10 @@ func TestRequestValidation(t *testing.T) {
 			message := string(resBody)
 			assert.Equal(t, tc.ExpectedStatusCode, httpRes.StatusCode)
 			assert.Equal(t, tc.ExpectedMessage, message)
+
+			for responseHeaderKey, responseHeaderValue := range tc.ExpectedResponseHeaders {
+				assert.ElementsMatch(t, httpRes.Header[responseHeaderKey], responseHeaderValue)
+			}
 		})
 	}
 }
