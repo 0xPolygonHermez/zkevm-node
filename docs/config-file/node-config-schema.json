@@ -1143,6 +1143,14 @@
 									"type": "array",
 									"maxItems": 20,
 									"minItems": 20
+								},
+								"forcedBlockHashL1": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 32,
+									"minItems": 32
 								}
 							},
 							"additionalProperties": false,
