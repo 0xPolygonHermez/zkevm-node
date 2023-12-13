@@ -63,7 +63,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
-		L1InfoRoot:       request.GlobalExitRoot_V1.Bytes(),
+		L1InfoRoot:       request.L1InfoRoot_V2.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
 		TimestampLimit:   request.TimestampLimit_V2,
 		UpdateMerkleTree: updateMT,
