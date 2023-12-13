@@ -59,7 +59,7 @@ type egpLogRecord struct {
 	LogReprocess      bool   `json:"Reprocess"`      // reprocessed (executed 2 times)
 	LogPercentage     uint64 `json:"Percentage"`     // user gas/final gas, coded percentage (0:not used, 1..255)
 	LogMaxDeviation   uint64 `json:"MaxDeviation"`   // max allowed deviation = LogValueFirst * finalDeviationPct
-	LogFinalDeviation uint64 `json:"FinalDeviation"` // final gas deviation = abs(LogValueFinal - LogValueFirst)
+	LogFinalDeviation uint64 `json:"FinalDeviation"` // final gas deviation = abs(LogValueSecond - LogValueFirst)
 }
 
 type egpStats struct {
@@ -448,25 +448,23 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 
 	// Compute EGP
 	egp.LogReprocess = false
-	effectiveGas := calcEffectiveGasPrice(egp.LogGasUsedFirst, egp, cfg)
-	egp.LogValueFirst = uint64(effectiveGas)
+	egp.LogValueFirst = uint64(calcEffectiveGasPrice(egp.LogGasUsedFirst, egp, cfg))
 
-	if effectiveGas < float64(egp.LogGasPrice) {
+	if egp.LogValueFirst < egp.LogGasPrice {
 		// Recompute NEGP
-		newEffectiveGas := calcEffectiveGasPrice(egp.LogGasUsedSecond, egp, cfg)
-		egp.LogValueSecond = uint64(newEffectiveGas)
+		egp.LogValueSecond = uint64(calcEffectiveGasPrice(egp.LogGasUsedSecond, egp, cfg))
 
 		// Gas price deviation
-		deviation := math.Abs(effectiveGas - newEffectiveGas)
-		egp.LogMaxDeviation = uint64(effectiveGas) * cfg.finalDeviationPct / 100
+		egp.LogFinalDeviation = uint64(math.Abs(float64(egp.LogValueSecond - egp.LogValueFirst)))
+		egp.LogMaxDeviation = egp.LogValueFirst * cfg.finalDeviationPct / 100
 
-		if deviation < float64(egp.LogMaxDeviation) {
-			// Final gas: first EGP
+		if egp.LogFinalDeviation < egp.LogMaxDeviation {
+			// Final gas: EGP
 			egp.LogValueFinal = egp.LogValueFirst
 		} else {
 			egp.LogReprocess = true
-			if newEffectiveGas < float64(egp.LogGasPrice) || (egp.LogGasPriceOC || egp.LogBalanceOC) {
-				// Final gas: gas price signed
+			if (egp.LogValueSecond < egp.LogGasPrice) || (egp.LogGasPriceOC || egp.LogBalanceOC) {
+				// Final gas: price signed
 				egp.LogValueFinal = egp.LogGasPrice
 			} else {
 				// Final gas: NEGP
@@ -476,42 +474,47 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 	} else {
 		egp.LogValueSecond = 0
 
-		// Final gas: gas price signed
+		// Final gas: price signed
 		egp.LogValueFinal = egp.LogGasPrice
 	}
 
-	// Final gas deviation
-	egp.LogFinalDeviation = uint64(math.Abs(float64(egp.LogValueFinal - egp.LogValueFirst)))
+	// Gas price effective percentage
+	egp.LogPercentage = ((egp.LogValueFinal*256)+egp.LogGasPrice-1)/egp.LogGasPrice - 1
 }
 
 // calcEffectiveGasPrice calculates the effective gas price
 func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) float64 {
-	// String 0x format to raw bytes
-	rawBytes, err := hex.DecodeString(tx.encoded[2:])
-	if err != nil {
-		logf("Error converting encoded string to slice bytes: %v", err)
+	// Calculate break even gas price
+	var breakEvenGasPrice float64
+	if gasUsed == 0 {
+		breakEvenGasPrice = float64(tx.LogGasPrice)
+	} else {
+		// String 0x format to raw bytes
+		rawBytes, err := hex.DecodeString(tx.encoded[2:])
+		if err != nil {
+			logf("Error converting encoded string to slice bytes: %v", err)
+		}
+
+		// Zero and non zero bytes
+		txZeroBytes := uint64(bytes.Count(rawBytes, []byte{0}))
+		txNonZeroBytes := uint64(len(rawBytes)) - txZeroBytes
+
+		// Calculates break even gas price
+		l2MinGasPrice := float64(tx.LogL1GasPrice) * cfg.l1GasPriceFactor
+		totalTxPrice := float64(gasUsed)*l2MinGasPrice + float64(((fixedBytesTx+txNonZeroBytes)*cfg.byteGasCost+txZeroBytes*cfg.zeroGasCost)*tx.LogL1GasPrice)
+		breakEvenGasPrice = totalTxPrice / float64(gasUsed) * cfg.netProfitFactor
 	}
 
-	// Zero and non zero bytes
-	txZeroBytes := uint64(bytes.Count(rawBytes, []byte{0}))
-	txNonZeroBytes := uint64(len(rawBytes)) - txZeroBytes
-
-	// Calculates break even gas price
-	l2MinGasPrice := float64(tx.LogL1GasPrice) * cfg.l1GasPriceFactor
-	totalTxPrice := float64(gasUsed)*l2MinGasPrice + float64(((fixedBytesTx+txNonZeroBytes)*cfg.byteGasCost+txZeroBytes*cfg.zeroGasCost)*tx.LogL1GasPrice)
-	breakEvenGasPrice := totalTxPrice / float64(gasUsed) * cfg.netProfitFactor
-
-	// Effective gas price
-	gasPriceRPC := float64(tx.LogL1GasPrice) * cfg.l2GasPriceSugFactor
+	// Calculate effective gas price
 	var ratioPriority float64
-	if float64(gasUsed) > gasPriceRPC {
-		ratioPriority = float64(gasUsed)/gasPriceRPC - 1
+	if gasUsed > tx.LogL2GasPrice {
+		ratioPriority = float64(gasUsed/tx.LogL2GasPrice) - 1
 	} else {
 		ratioPriority = 0
 	}
 	effectiveGasPrice := breakEvenGasPrice * (1 + ratioPriority)
 
-	logf("zBytes=%d | nzBytes: %d | l2min: %f | txPrice: %f | breakEven: %f | gasPriceRPC: %f | prio: %f | EGP: %f",
-		txZeroBytes, txNonZeroBytes, l2MinGasPrice, totalTxPrice, breakEvenGasPrice, gasPriceRPC, ratioPriority, effectiveGasPrice)
+	// logf("zBytes=%d | nzBytes: %d | l2min: %f | txPrice: %f | breakEven: %f | gasPriceRPC: %f | prio: %f | EGP: %f",
+	// 	txZeroBytes, txNonZeroBytes, l2MinGasPrice, totalTxPrice, breakEvenGasPrice, gasPriceRPC, ratioPriority, effectiveGasPrice)
 	return effectiveGasPrice
 }
