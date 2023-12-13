@@ -116,6 +116,7 @@ func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	return batchData, nil
 }
 
+// EncodeBlockHeaderV2 encodes a batch of l2blocks header into a byte slice.
 func EncodeBlockHeaderV2(batchData []byte, block L2BlockRaw) ([]byte, error) {
 	batchData = append(batchData, changeL2Block)
 	batchData = append(batchData, serializeUint32(block.DeltaTimestamp)...)

@@ -15,9 +15,11 @@ import (
 )
 
 var (
+	// ErrNotImplemented is returned when a method is not implemented
 	ErrNotImplemented = errors.New("not implemented")
 )
 
+// BatchStepsExecutorEtrogStateInterface contains the methods required to interact with the state.
 type BatchStepsExecutorEtrogStateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
@@ -37,11 +39,14 @@ type BatchStepsExecutorEtrogStateInterface interface {
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 }
 
+// BatchStepsExecutorEtrogSynchronizerInterface contains the methods required to interact with the synchronizer main class.
 type BatchStepsExecutorEtrogSynchronizerInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CheckFlushID(dbTx pgx.Tx) error
 }
 
+// BatchStepsExecutorEtrog is the implementation of the SyncTrustedStateBatchExecutorSteps that
+// have the functions to sync a fullBatch, incrementalBatch and reprocessBatch
 type BatchStepsExecutorEtrog struct {
 	state BatchStepsExecutorEtrogStateInterface
 	sync  BatchStepsExecutorEtrogSynchronizerInterface
@@ -51,7 +56,6 @@ type BatchStepsExecutorEtrog struct {
 func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface,
 	state l2_shared.StateInterface, stateBatchExecutor BatchStepsExecutorEtrogStateInterface,
 	sync l2_shared.SyncInterface) *l2_shared.SyncTrustedStateTemplate {
-
 	executorSteps := &BatchStepsExecutorEtrog{
 		state: stateBatchExecutor,
 		sync:  sync}
@@ -80,7 +84,6 @@ func (b *BatchStepsExecutorEtrog) FullProcess(ctx context.Context, data *l2_shar
 	}
 
 	return processBatchResp, nil
-
 }
 
 // IncrementalProcess process a batch that we have processed before, and we have the intermediate state root, so is going to be process only new Tx

@@ -861,11 +861,11 @@ func (s *ClientSynchronizer) setInitialBatch(blockNumber uint64, dbTx pgx.Tx) er
 	batchL2Data := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
 	l1InfoRoot := s.state.GetCurrentL1InfoRoot()
 	processCtx := state.ProcessingContextV2{
-		BatchNumber: 1,
-		Coinbase:    s.genesis.FirstBatchData.Sequencer,
-		Timestamp:   time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
-		L1InfoRoot:  &l1InfoRoot,
-		BatchL2Data: &batchL2Data,
+		BatchNumber:       1,
+		Coinbase:          s.genesis.FirstBatchData.Sequencer,
+		Timestamp:         time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
+		L1InfoRoot:        &l1InfoRoot,
+		BatchL2Data:       &batchL2Data,
 		ForcedBlockHashL1: &s.genesis.FirstBatchData.ForcedBlockHashL1,
 	}
 	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatchV2(s.ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)

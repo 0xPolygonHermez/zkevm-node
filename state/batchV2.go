@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// ProcessingContext is the necessary data that a batch needs to provide to the runtime,
+// ProcessingContextV2 is the necessary data that a batch needs to provide to the runtime,
 // without the historical state data (processing receipt from previous batch)
 type ProcessingContextV2 struct {
 	BatchNumber       uint64
@@ -255,7 +255,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	}
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
-	log.Debug(ProcessBatchResponseToString(res, ""))
+	log.Debug(processBatchResponseToString(res, ""))
 	if err != nil {
 		log.Errorf("Error s.executorClient.ProcessBatchV2: %v", err)
 		log.Errorf("Error s.executorClient.ProcessBatchV2: %s", err.Error())
@@ -273,7 +273,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	return res, err
 }
 
-func ProcessBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix string) string {
+func processBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix string) string {
 	res := prefix + "ProcessBatchResponseV2: \n"
 	res += prefix + fmt.Sprintf("NewStateRoot: 		%v\n", hex.EncodeToHex(r.NewStateRoot))
 	res += prefix + fmt.Sprintf("NewAccInputHash: 	%v\n", hex.EncodeToHex(r.NewAccInputHash))
@@ -287,11 +287,11 @@ func ProcessBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix str
 	res += prefix + fmt.Sprintf("ForkId: 			%v\n", r.ForkId)
 	for blockIndex, block := range r.BlockResponses {
 		newPrefix := prefix + "  " + fmt.Sprintf("BlockResponse[%v]: ", blockIndex)
-		res += BlockResponseToString(block, newPrefix)
+		res += blockResponseToString(block, newPrefix)
 	}
 	return res
 }
-func BlockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) string {
+func blockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) string {
 	res := prefix + "ProcessBlockResponseV2:----------------------------- \n"
 	res += prefix + fmt.Sprintf("ParentHash:   %v\n", hex.EncodeToHex(r.ParentHash))
 	res += prefix + fmt.Sprintf("Coinbase:     %v\n", r.Coinbase)
@@ -305,14 +305,14 @@ func BlockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) st
 	res += prefix + fmt.Sprintf("BlockHash:    %v\n", hex.EncodeToHex(r.BlockHash))
 	for txIndex, tx := range r.Responses {
 		newPrefix := prefix + "  " + fmt.Sprintf("TransactionResponse[%v]: ", txIndex)
-		res += TransactionResponseToString(tx, newPrefix)
+		res += transactionResponseToString(tx, newPrefix)
 	}
 	res += prefix + "----------------------------------------------------------------- [Block]\n"
 
 	return res
 }
 
-func TransactionResponseToString(r *executor.ProcessTransactionResponseV2, prefix string) string {
+func transactionResponseToString(r *executor.ProcessTransactionResponseV2, prefix string) string {
 	res := prefix + "ProcessTransactionResponseV2:----------------------------------- \n"
 	res += prefix + fmt.Sprintf("TxHash: 	%v\n", hex.EncodeToHex(r.TxHash))
 	res += prefix + fmt.Sprintf("TxHashL2: 	%v\n", hex.EncodeToHex(r.TxHashL2))

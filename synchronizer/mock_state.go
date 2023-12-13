@@ -243,6 +243,32 @@ func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, update
 	return r0, r1
 }
 
+// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
+func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
+
+	var r0 *executor.ProcessBatchResponseV2
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
+		return rf(ctx, batch, updateMerkleTree, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
+		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*executor.ProcessBatchResponseV2)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, updateMerkleTree, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
@@ -694,6 +720,32 @@ func (_m *stateMock) ProcessBatch(ctx context.Context, request state.ProcessRequ
 	return r0, r1
 }
 
+// ProcessBatchV2 provides a mock function with given fields: ctx, request, updateMerkleTree
+func (_m *stateMock) ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request, updateMerkleTree)
+
+	var r0 *state.ProcessBatchResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ctx, request, updateMerkleTree)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request, updateMerkleTree)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBatchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
+		r1 = rf(ctx, request, updateMerkleTree)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Reset provides a mock function with given fields: ctx, blockNumber, dbTx
 func (_m *stateMock) Reset(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, blockNumber, dbTx)
@@ -783,6 +835,20 @@ func (_m *stateMock) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBat
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, lastBatchNumberSeen, lastBatchNumberVerified, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
+func (_m *stateMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

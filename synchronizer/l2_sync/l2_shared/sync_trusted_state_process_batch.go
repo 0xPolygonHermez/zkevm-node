@@ -12,19 +12,21 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// BatchProcessMode is the mode for process a batch (full, incremental, reprocess, nothing)
 type BatchProcessMode string
 
 const (
-	// This batch is not on database, so is the first time we process it
+	// FullProcessMode This batch is not on database, so is the first time we process it
 	FullProcessMode BatchProcessMode = "full"
-	// We have processed this batch before, and we have the intermediate state root, so is going to be process only new Tx
+	// IncrementalProcessMode We have processed this batch before, and we have the intermediate state root, so is going to be process only new Tx
 	IncrementalProcessMode BatchProcessMode = "incremental"
-	// We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess it
+	// ReprocessProcessMode We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess it
 	ReprocessProcessMode BatchProcessMode = "reprocess"
-	// The batch is already synchronized, so we don't need to process it
+	// NothingProcessMode The batch is already synchronized, so we don't need to process it
 	NothingProcessMode BatchProcessMode = "nothing"
 )
 
+// ProcessData contains the data required to process a batch
 type ProcessData struct {
 	BatchNumber       uint64
 	Mode              BatchProcessMode
@@ -39,6 +41,7 @@ type ProcessData struct {
 	Description string
 }
 
+// SyncTrustedStateBatchExecutorSteps is the interface that known how to process a batch
 type SyncTrustedStateBatchExecutorSteps interface {
 	// FullProcess process a batch that is not on database, so is the first time we process it
 	FullProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
@@ -50,6 +53,9 @@ type SyncTrustedStateBatchExecutorSteps interface {
 	CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) error
 }
 
+// SyncTrustedStateBatchExecutorTemplate is a template to sync trusted state. It decide the process mode and call the steps
+//
+//	the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
 type SyncTrustedStateBatchExecutorTemplate struct {
 	Steps SyncTrustedStateBatchExecutorSteps
 	// CheckBatchTimestampGreaterInsteadOfEqual if true, we consider equal two batches if the timestamp of trusted <= timestamp of state
@@ -58,6 +64,7 @@ type SyncTrustedStateBatchExecutorTemplate struct {
 	CheckBatchTimestampGreaterInsteadOfEqual bool
 }
 
+// NewSyncTrustedStateBatchExecutorTemplate creates a new SyncTrustedStateBatchExecutorTemplate
 func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecutorSteps, checkBatchTimestampGreaterInsteadOfEqual bool) *SyncTrustedStateBatchExecutorTemplate {
 	return &SyncTrustedStateBatchExecutorTemplate{
 		Steps:                                    steps,
@@ -65,6 +72,7 @@ func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecuto
 	}
 }
 
+// ProcessTrustedBatch processes a trusted batch
 func (s *SyncTrustedStateBatchExecutorTemplate) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error) {
 	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
 	stateCurrentBatch := status.LastTrustedBatches[0]

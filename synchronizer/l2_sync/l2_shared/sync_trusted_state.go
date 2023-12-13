@@ -20,26 +20,33 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
 type ZkEVMClientInterface interface {
 	BatchNumber(ctx context.Context) (uint64, error)
 	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }
 
+// StateInterface contains the methods required to interact with the state.
 type StateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
 
+// BatchExecutor is a interface with the ProcessTrustedBatch methor
+//
+//	this method is responsible to process a trusted batch
 type BatchExecutor interface {
 	// ProcessTrustedBatch processes a trusted batch
-	//ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) ([]*state.Batch, *common.Hash, error)
 	ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error)
 }
 
+// SyncInterface contains the methods required to interact with the synchronizer main class.
 type SyncInterface interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CheckFlushID(dbTx pgx.Tx) error
 }
+
+// StateRootEntry is the state root entry, basically contains the batch number and the state root. The stateRoot could be a intermediate state root
 type StateRootEntry struct {
 	// Last batch processed
 	batchNumber uint64
@@ -47,13 +54,18 @@ type StateRootEntry struct {
 	// - If not closed is the intermediate state root
 	StateRoot common.Hash
 }
+
+// TrustedState is the trusted state, basically contains the batch cache and the last state root (could be a intermediate state root)
 type TrustedState struct {
 	// LastTrustedBatches [0] -> Current  batch, [1] -> previous batch
 	LastTrustedBatches []*state.Batch
-	// LastStateRoot is the last state root for LastStateRootBatchNumber
+	// LastStateRoot is the last state root, it have the batchNumber to be sure that is the expected one
 	LastStateRoot *StateRootEntry
 }
 
+// SyncTrustedStateTemplate is a template to sync trusted state. It implement the travesal of the trusted state
+//
+//	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
 type SyncTrustedStateTemplate struct {
 	steps        BatchExecutor
 	zkEVMClient  ZkEVMClientInterface
@@ -62,6 +74,7 @@ type SyncTrustedStateTemplate struct {
 	TrustedState TrustedState
 }
 
+// NewSyncTrustedStateTemplate creates a new SyncTrustedStateTemplate
 func NewSyncTrustedStateTemplate(steps BatchExecutor, zkEVMClient ZkEVMClientInterface, state StateInterface, sync SyncInterface) *SyncTrustedStateTemplate {
 	return &SyncTrustedStateTemplate{
 		steps:        steps,
@@ -78,6 +91,7 @@ func (s *SyncTrustedStateTemplate) CleanTrustedState() {
 	s.TrustedState.LastStateRoot = nil
 }
 
+// SyncTrustedState sync trusted state from latestSyncedBatch to lastTrustedStateBatchNumber
 func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
 	log.Info("syncTrustedState: Getting trusted state info")
 	if latestSyncedBatch == 0 {
