@@ -919,7 +919,7 @@ func (p *PostgresStorage) GetRawBatchTimestamps(ctx context.Context, batchNumber
 	`
 	var batchTimestamp, virtualBatchTimestamp *time.Time
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, sql, batchNumber).Scan(&virtualBatchTimestamp, &batchTimestamp)
+	err := e.QueryRow(ctx, sql, batchNumber).Scan(&batchTimestamp, &virtualBatchTimestamp)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil, nil
 	}

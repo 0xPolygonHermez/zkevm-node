@@ -86,23 +86,24 @@ func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order eth
 	return err
 }
 
-func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, timestamp time.Time, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
-			BatchNumber:   sbatch.BatchNumber,
-			TxHash:        sbatch.TxHash,
-			Coinbase:      sbatch.Coinbase,
-			BlockNumber:   blockNumber,
-			SequencerAddr: sbatch.SequencerAddr,
+			BatchNumber:    sbatch.BatchNumber,
+			TxHash:         sbatch.TxHash,
+			Coinbase:       sbatch.Coinbase,
+			BlockNumber:    blockNumber,
+			SequencerAddr:  sbatch.SequencerAddr,
+			BatchTimestamp: &l1BlockTimestamp,
 		}
 		batch := state.Batch{
 			BatchNumber:    sbatch.BatchNumber,
 			GlobalExitRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
-			Timestamp:      timestamp,
+			Timestamp:      l1BlockTimestamp,
 			Coinbase:       sbatch.Coinbase,
 			BatchL2Data:    sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
 		}
