@@ -3,30 +3,14 @@ package config
 // TestnetNetworkConfigJSON is the hardcoded network configuration to be used for the official mainnet setup
 const CardonaNetworkConfigJSON = `
 {
-	"l1Config": {
-	  "polygonZkEVMAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
-	  "polygonZkEVMBridgeAddress": "0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582",
-	  "polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF",
-	  "maticTokenAddress": "0x1850Dd35dE878238fb1dBa7aF7f929303AB6e8E4",
-	  "verifierAddress": "0xCA8fE74DfeF22258ea762FeA0078e95140687b87",
-	  "zkEVMDeployerContract": "0x36810012486fc134D0679c07f85fe5ba5A087D8C",
-	  "deployerAddress": "0xff6250d0E86A2465B0C1bF8e36409503d6a26963",
-	  "timelockContractAddress": "0xfd8ACe213595faC05d45714e8e2a63Df267E3545",
-	  "deploymentBlockNumber": 4789190,
-	  "genesisRoot": "0x91dfcdeb628dfdc51f3a2ee38cb17c78581e4e7ff91bcc2e327d24a9dfa46982",
-	  "trustedSequencer": "0x761d53b47334bEe6612c0Bd1467FB881435375B2",
-	  "trustedSequencerURL": "http://81.0.12.115:8545",
-	  "chainID": 11155111,
-	  "networkName": "zkevm-testnet",
-	  "admin": "0xff6250d0E86A2465B0C1bF8e36409503d6a26963",
-	  "trustedAggregator": "0x7bcC97d1F73B023734187299fC9Ea0915294c050",
-	  "proxyAdminAddress": "0x85cEB41028B1a5ED2b88E395145344837308b251",
-	  "forkID": 4,
-	  "salt": "0x0000000000000000000000000000000000000000000000000000000000000000",
-	  "version": "0.0.1"
+	"l1Config" : {
+		"chainId": 11155111,
+		"polygonZkEVMAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
+		"maticTokenAddress": "0x1850Dd35dE878238fb1dBa7aF7f929303AB6e8E4",
+		"polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF"
 	},
-	"genesisBlockNumber": 4789190,
 	"root": "0x91dfcdeb628dfdc51f3a2ee38cb17c78581e4e7ff91bcc2e327d24a9dfa46982",
+	"genesisBlockNumber": 4789190,
 	"genesis": [
 	  {
 		"contractName": "PolygonZkEVMDeployer",
