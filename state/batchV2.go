@@ -264,6 +264,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, res.Error, processBatchRequest)
 	}
+	//workarroundDuplicatedBlock(res)
 	elapsed := time.Since(now)
 	if caller != metrics.DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)

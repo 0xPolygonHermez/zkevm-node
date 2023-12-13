@@ -131,7 +131,7 @@ func (z *ZKEVMEndpoints) updateBatchTimestampAndReturnsTimeLimit(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	if timeData.IsV2 {
+	if timeData.LimitTimestampV2Apply {
 		if timeData.BatchTimestamp != nil {
 			batch.Timestamp = *timeData.BatchTimestamp
 		} else {

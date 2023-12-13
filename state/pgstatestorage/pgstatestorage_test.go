@@ -1193,6 +1193,10 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, virtualBatch, *read)
 
+	timeData, err := testState.GetBatchTimestamp(ctx, batchNumber, dbTx)
+	require.NoError(t, err)
+	require.NotNil(t, timeData)
+
 }
 
 func TestGetVirtualBatchWithNoTstamp(t *testing.T) {

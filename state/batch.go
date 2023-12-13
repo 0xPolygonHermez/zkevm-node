@@ -29,8 +29,8 @@ type BatchTimestampData struct {
 	BatchTimestamp *time.Time
 	// LimitTimestampV2 is the limit timestamp used to create this batch, for etrog it could be nil because it comes from L1 block timestamp
 	LimitTimestampV2 *time.Time
-	// IsV2 is true if the batch was created with >= ETROG and have limit timestamp
-	IsV2 bool
+	// LimitTimestampV2Apply is true if the batch was created with >= ETROG and have limit timestamp
+	LimitTimestampV2Apply bool
 }
 
 // Batch struct
@@ -553,14 +553,14 @@ func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx 
 	}
 	if forkid >= FORKID_ETROG {
 		return &BatchTimestampData{
-			BatchTimestamp:   virtualTimestamp,
-			LimitTimestampV2: batchTimestamp,
-			IsV2:             true,
+			BatchTimestamp:        virtualTimestamp,
+			LimitTimestampV2:      batchTimestamp,
+			LimitTimestampV2Apply: true,
 		}, nil
 	}
 	return &BatchTimestampData{
-		BatchTimestamp:   batchTimestamp,
-		LimitTimestampV2: nil,
-		IsV2:             false,
+		BatchTimestamp:        batchTimestamp,
+		LimitTimestampV2:      nil,
+		LimitTimestampV2Apply: false,
 	}, nil
 }
