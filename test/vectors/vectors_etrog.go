@@ -7,7 +7,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
-// StateTransitionTestCaseV2 holds the metadata needed to run a state transition test
+// StateTransitionTestCaseEtrog holds the metadata needed to run a state transition test
 type StateTransitionTestCaseEtrog struct {
 	Description          string               `json:"Description"`
 	Genesis              []GenesisEntityEtrog `json:"genesis"`
@@ -36,7 +36,7 @@ type LeafEtrog struct {
 	BytecodeLength  int               `json:"bytecodeLength"`
 }
 
-// GenesisEntity represents the state of an account or smart contract when the network
+// GenesisEntityEtrog represents the state of an account or smart contract when the network
 // starts
 type GenesisEntityEtrog struct {
 	Address         string            `json:"address"`
