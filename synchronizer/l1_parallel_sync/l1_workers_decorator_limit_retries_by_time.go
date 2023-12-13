@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 )
 
 const (
@@ -28,7 +29,7 @@ func (c *controlWorkerFlux) String() string {
 type workerDecoratorLimitRetriesByTime struct {
 	mutex sync.Mutex
 	workersInterface
-	processingRanges    Cache[blockRange, controlWorkerFlux]
+	processingRanges    common.Cache[blockRange, controlWorkerFlux]
 	minTimeBetweenCalls time.Duration
 }
 
@@ -36,7 +37,7 @@ func newWorkerDecoratorLimitRetriesByTime(workers workersInterface, minTimeBetwe
 	return &workerDecoratorLimitRetriesByTime{
 		workersInterface:    workers,
 		minTimeBetweenCalls: minTimeBetweenCalls,
-		processingRanges:    *NewCache[blockRange, controlWorkerFlux](DefaultTimeProvider{}, timeOfLiveOfEntries),
+		processingRanges:    *common.NewCache[blockRange, controlWorkerFlux](common.DefaultTimeProvider{}, timeOfLiveOfEntries),
 	}
 }
 

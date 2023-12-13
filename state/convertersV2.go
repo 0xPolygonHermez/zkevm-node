@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -16,6 +17,10 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+)
+
+var (
+	errL2BlockInvalid = errors.New("A L2 block fails, that invalidate totally the batch")
 )
 
 // TestConvertToProcessBatchResponseV2 for test purposes
@@ -63,7 +68,9 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 	results := make([]*ProcessBlockResponse, 0, len(responses))
 	for _, response := range responses {
 		result := new(ProcessBlockResponse)
-		transactionResponses, isRomLevelError, isRomOOCError, err := s.convertToProcessTransactionResponseV2(response.Responses)
+		transactionResponses, respisRomLevelError, respisRomOOCError, err := s.convertToProcessTransactionResponseV2(response.Responses)
+		isRomLevelError = isRomLevelError || respisRomLevelError
+		isRomOOCError = isRomOOCError || respisRomOOCError
 		if err != nil {
 			return nil, isRomLevelError, isRomOOCError, err
 		}
@@ -93,6 +100,13 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
 	for _, response := range responses {
+		if response.Error != executor.RomError_ROM_ERROR_NO_ERROR {
+			isRomLevelError = true
+		}
+		if executor.IsInvalidL2Block(response.Error) {
+			err := fmt.Errorf("fails L2 block: romError %v error:%w", response.Error, errL2BlockInvalid)
+			return nil, isRomLevelError, isRomOOCError, err
+		}
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.TxHashL2_V2 = common.BytesToHash(response.TxHashL2)
@@ -116,28 +130,31 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
 		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
 
-		tx := new(types.Transaction)
+		var tx *types.Transaction
+		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP {
+			if len(response.GetRlpTx()) > 0 {
+				tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
+				if err != nil {
+					timestamp := time.Now()
+					log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
 
-		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP && len(response.GetRlpTx()) > 0 {
-			tx, err = DecodeTx(common.Bytes2Hex(response.GetRlpTx()))
-			if err != nil {
-				timestamp := time.Now()
-				log.Errorf("error decoding rlp returned by executor %v at %v", err, timestamp)
+					event := &event.Event{
+						ReceivedAt: timestamp,
+						Source:     event.Source_Node,
+						Level:      event.Level_Error,
+						EventID:    event.EventID_ExecutorRLPError,
+						Json:       string(response.GetRlpTx()),
+					}
 
-				event := &event.Event{
-					ReceivedAt: timestamp,
-					Source:     event.Source_Node,
-					Level:      event.Level_Error,
-					EventID:    event.EventID_ExecutorRLPError,
-					Json:       string(response.GetRlpTx()),
+					eventErr := s.eventLog.LogEvent(context.Background(), event)
+					if eventErr != nil {
+						log.Errorf("error storing payload: %v", err)
+					}
+
+					return nil, isRomLevelError, isRomOOCError, err
 				}
-
-				eventErr := s.eventLog.LogEvent(context.Background(), event)
-				if eventErr != nil {
-					log.Errorf("error storing payload: %v", err)
-				}
-
-				return nil, isRomLevelError, isRomOOCError, err
+			} else {
+				log.Infof("no txs returned by executor")
 			}
 		} else {
 			log.Warnf("ROM_ERROR_INVALID_RLP returned by the executor")
@@ -324,4 +341,15 @@ func convertToKeys(keys [][]byte) []merkletree.Key {
 		result = append(result, merkletree.Key(key))
 	}
 	return result
+}
+
+func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error) {
+	result := ProcessingContext{
+		BatchNumber:    p.BatchNumber,
+		Coinbase:       p.Coinbase,
+		ForcedBatchNum: p.ForcedBatchNum,
+		BatchL2Data:    p.BatchL2Data,
+		Timestamp:      p.Timestamp,
+	}
+	return &result, nil
 }

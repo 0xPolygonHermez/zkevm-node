@@ -203,6 +203,11 @@ func IsInvalidBalanceError(error RomError) bool {
 	return error == RomError_ROM_ERROR_INTRINSIC_INVALID_BALANCE
 }
 
+// IsInvalidL2Block indicates if the error is related to L2Block and invalidate all the batch
+func IsInvalidL2Block(error RomError) bool {
+	return error == RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK || error == RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK || error == RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK
+}
+
 // ExecutorErr returns an instance of error related to the ExecutorError
 func ExecutorErr(errorCode ExecutorError) error {
 	switch errorCode {

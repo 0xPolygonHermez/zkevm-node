@@ -1,4 +1,4 @@
-package l1_parallel_sync
+package common
 
 import (
 	"testing"
@@ -7,15 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type mockTimerProvider struct {
-	now time.Time
-}
-
-func (m *mockTimerProvider) Now() time.Time {
-	return m.now
-}
 func TestCacheGet(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 
 	// Add an item to the cache
@@ -37,7 +30,7 @@ func TestCacheGet(t *testing.T) {
 }
 
 func TestCacheSet(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 
 	// Add an item to the cache
@@ -71,7 +64,7 @@ func TestCacheSet(t *testing.T) {
 }
 
 func TestCacheDelete(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 
 	// Add an item to the cache
@@ -88,7 +81,7 @@ func TestCacheDelete(t *testing.T) {
 	cache.Delete("key2")
 }
 func TestCacheClear(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 
 	// Add some items to the cache
@@ -109,7 +102,7 @@ func TestCacheClear(t *testing.T) {
 }
 
 func TestCacheDeleteOutdated(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 	now := time.Now()
 	timerProvider.now = now
@@ -133,7 +126,7 @@ func TestCacheDeleteOutdated(t *testing.T) {
 }
 
 func TestCacheGetDoesntReturnsOutdatedValues(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 	now := time.Now()
 	timerProvider.now = now
@@ -153,7 +146,7 @@ func TestCacheGetDoesntReturnsOutdatedValues(t *testing.T) {
 }
 
 func TestCacheGetExtendsTimeOfLiveOfItems(t *testing.T) {
-	timerProvider := &mockTimerProvider{}
+	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)
 	now := time.Now()
 	timerProvider.now = now

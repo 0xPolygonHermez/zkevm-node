@@ -2792,12 +2792,13 @@ BlockNumber=0
 **Type:** : `object`
 **Description:** Data of the first batch after the genesis(Batch 1)
 
-| Property                                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
-| ------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [transactions](#NetworkConfig_Genesis_FirstBatchData_transactions )     | No      | string           | No         | -          | -                 |
-| - [globalExitRoot](#NetworkConfig_Genesis_FirstBatchData_globalExitRoot ) | No      | array of integer | No         | -          | -                 |
-| - [timestamp](#NetworkConfig_Genesis_FirstBatchData_timestamp )           | No      | integer          | No         | -          | -                 |
-| - [sequencer](#NetworkConfig_Genesis_FirstBatchData_sequencer )           | No      | array of integer | No         | -          | -                 |
+| Property                                                                        | Pattern | Type             | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [transactions](#NetworkConfig_Genesis_FirstBatchData_transactions )           | No      | string           | No         | -          | -                 |
+| - [globalExitRoot](#NetworkConfig_Genesis_FirstBatchData_globalExitRoot )       | No      | array of integer | No         | -          | -                 |
+| - [timestamp](#NetworkConfig_Genesis_FirstBatchData_timestamp )                 | No      | integer          | No         | -          | -                 |
+| - [sequencer](#NetworkConfig_Genesis_FirstBatchData_sequencer )                 | No      | array of integer | No         | -          | -                 |
+| - [forcedBlockHashL1](#NetworkConfig_Genesis_FirstBatchData_forcedBlockHashL1 ) | No      | array of integer | No         | -          | -                 |
 
 ##### <a name="NetworkConfig_Genesis_FirstBatchData_transactions"></a>13.2.4.1. `NetworkConfig.Genesis.FirstBatchData.transactions`
 
@@ -2812,6 +2813,10 @@ BlockNumber=0
 **Type:** : `integer`
 
 ##### <a name="NetworkConfig_Genesis_FirstBatchData_sequencer"></a>13.2.4.4. `NetworkConfig.Genesis.FirstBatchData.sequencer`
+
+**Type:** : `array of integer`
+
+##### <a name="NetworkConfig_Genesis_FirstBatchData_forcedBlockHashL1"></a>13.2.4.5. `NetworkConfig.Genesis.FirstBatchData.forcedBlockHashL1`
 
 **Type:** : `array of integer`
 
@@ -3726,6 +3731,7 @@ MaxConns=200
 | - [MaxArithmetics](#State_Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
 | - [MaxBinaries](#State_Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
 | - [MaxSteps](#State_Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+| - [MaxSHA256Hashes](#State_Batch_Constraints_MaxSHA256Hashes )           | No      | integer | No         | -          | -                 |
 
 ##### <a name="State_Batch_Constraints_MaxTxsPerBatch"></a>20.9.1.1. `State.Batch.Constraints.MaxTxsPerBatch`
 
@@ -3845,6 +3851,18 @@ MaxBinaries=473170
 ```
 [State.Batch.Constraints]
 MaxSteps=7570538
+```
+
+##### <a name="State_Batch_Constraints_MaxSHA256Hashes"></a>20.9.1.11. `State.Batch.Constraints.MaxSHA256Hashes`
+
+**Type:** : `integer`
+
+**Default:** `1596`
+
+**Example setting the default value** (1596):
+```
+[State.Batch.Constraints]
+MaxSHA256Hashes=1596
 ```
 
 ### <a name="State_MaxLogsCount"></a>20.10. `State.MaxLogsCount`

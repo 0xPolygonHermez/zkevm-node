@@ -94,8 +94,38 @@ func (_m *StateMock) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) 
 	return r0, r1
 }
 
+// BuildChangeL2Block provides a mock function with given fields: deltaTimestamp, l1InfoTreeIndex
+func (_m *StateMock) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
+	ret := _m.Called(deltaTimestamp, l1InfoTreeIndex)
+
+	var r0 []byte
+	if rf, ok := ret.Get(0).(func(uint32, uint32) []byte); ok {
+		r0 = rf(deltaTimestamp, l1InfoTreeIndex)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+
+	return r0
+}
+
 // CloseBatch provides a mock function with given fields: ctx, receipt, dbTx
 func (_m *StateMock) CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, receipt, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingReceipt, pgx.Tx) error); ok {
+		r0 = rf(ctx, receipt, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// CloseWIPBatch provides a mock function with given fields: ctx, receipt, dbTx
+func (_m *StateMock) CloseWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, receipt, dbTx)
 
 	var r0 error
@@ -146,6 +176,32 @@ func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, update
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*executor.ProcessBatchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, updateMerkleTree, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
+func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
+
+	var r0 *executor.ProcessBatchResponseV2
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
+		return rf(ctx, batch, updateMerkleTree, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
+		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*executor.ProcessBatchResponseV2)
 		}
 	}
 
@@ -926,6 +982,32 @@ func (_m *StateMock) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uin
 	return r0, r1
 }
 
+// GetWIPBatch provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetWIPBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	var r0 *state.Batch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Batch, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Batch); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Batch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IsBatchClosed provides a mock function with given fields: ctx, batchNum, dbTx
 func (_m *StateMock) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNum, dbTx)
@@ -957,6 +1039,20 @@ func (_m *StateMock) OpenBatch(ctx context.Context, processingContext state.Proc
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, pgx.Tx) error); ok {
 		r0 = rf(ctx, processingContext, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// OpenWIPBatch provides a mock function with given fields: ctx, batch, dbTx
+func (_m *StateMock) OpenWIPBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batch, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, pgx.Tx) error); ok {
+		r0 = rf(ctx, batch, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1042,6 +1138,20 @@ func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint
 	return r0, r1
 }
 
+// StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
+func (_m *StateMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
 func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
 	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
@@ -1068,13 +1178,13 @@ func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, p
 	return r0, r1
 }
 
-// UpdateBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
-func (_m *StateMock) UpdateBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
+// UpdateWIPBatch provides a mock function with given fields: ctx, receipt, dbTx
+func (_m *StateMock) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, receipt, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, common.Hash, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingReceipt, pgx.Tx) error); ok {
+		r0 = rf(ctx, receipt, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
