@@ -135,6 +135,7 @@ func (z *ZKEVMEndpoints) updateBatchTimestamp(ctx context.Context, batch *state.
 		// Is not defined yet
 		batch.Timestamp = time.Time{}
 	}
+	return nil
 }
 
 // GetBatchByNumber returns information about a batch by batch number
