@@ -1156,3 +1156,79 @@ func TestGetLatestIndex(t *testing.T) {
 	t.Log("Initial index retrieved: ", idx)
 	require.Equal(t, state.ErrNotFound, err)
 }
+
+func TestGetVirtualBatchWithTstamp(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+
+	blockNumber := uint64(123)
+
+	// add l1 block
+	err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
+	require.NoError(t, err)
+
+	batchNumber := uint64(1234)
+
+	// add batch
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES ($1, false)", batchNumber)
+	require.NoError(t, err)
+	now := time.Now().Truncate(time.Second)
+	virtualBatch := state.VirtualBatch{BlockNumber: blockNumber,
+		BatchNumber:    batchNumber,
+		Coinbase:       addr,
+		SequencerAddr:  addr,
+		TxHash:         hash,
+		BatchTimestamp: &now}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+
+	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch, *read)
+
+}
+
+func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	// prepare data
+	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	hash := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+
+	blockNumber := uint64(123)
+
+	// add l1 block
+	err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
+	require.NoError(t, err)
+
+	batchNumber := uint64(1234)
+
+	// add batch
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES ($1, false)", batchNumber)
+	require.NoError(t, err)
+
+	virtualBatch := state.VirtualBatch{BlockNumber: blockNumber,
+		BatchNumber:   batchNumber,
+		Coinbase:      addr,
+		SequencerAddr: addr,
+		TxHash:        hash,
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
+	require.NoError(t, err)
+
+	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, (*time.Time)(nil), read.BatchTimestamp)
+
+}

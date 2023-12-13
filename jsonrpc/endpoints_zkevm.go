@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -123,6 +124,18 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 		return hex.EncodeUint64(lastBatch.BatchNumber), nil
 	})
 }
+func (z *ZKEVMEndpoints) updateBatchTimestamp(ctx context.Context, batch *state.Batch, dbTx pgx.Tx) error {
+	batchTime, err := z.state.GetBatchTimestamp(ctx, batch.BatchNumber, dbTx)
+	if err != nil {
+		return err
+	}
+	if batchTime != nil {
+		batch.Timestamp = *batchTime
+	} else {
+		// Is not defined yet
+		batch.Timestamp = time.Time{}
+	}
+}
 
 // GetBatchByNumber returns information about a batch by batch number
 func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
@@ -138,6 +151,11 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err, true)
+		}
+
+		err = z.updateBatchTimestamp(ctx, batch, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch timestamp from state by number %v", batchNumber), err, true)
 		}
 
 		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)

@@ -14,6 +14,9 @@ CREATE INDEX IF NOT EXISTS idx_transaction_l2_hash ON state.transaction (l2_hash
 ALTER TABLE state.batch
     ADD COLUMN wip BOOLEAN NOT NULL;
 
+ALTER TABLE state.virtual_batch
+    ADD COLUMN batch_timestamp TIMESTAMP WITH TIME ZONE NULL;
+
 -- +migrate Down
 ALTER TABLE state.exit_root
     DROP COLUMN prev_block_hash,
@@ -29,4 +32,7 @@ DROP INDEX IF EXISTS state.idx_transaction_l2_hash;
 
 ALTER TABLE state.batch
     DROP COLUMN wip;
+
+ALTER TABLE state.virtual_batch
+    DROP COLUMN batch_timestamp;
 
