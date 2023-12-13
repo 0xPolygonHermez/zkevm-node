@@ -23,6 +23,16 @@ const (
 	noProverID string = ""
 )
 
+// BatchTimestampData represents the batch timestamp data information
+type BatchTimestampData struct {
+	// BatchTimestamp is the Batch timestamp, for etrog it could be nil because it comes from L1 block timestamp
+	BatchTimestamp *time.Time
+	// LimitTimestampV2 is the limit timestamp used to create this batch, for etrog it could be nil because it comes from L1 block timestamp
+	LimitTimestampV2 *time.Time
+	// IsV2 is true if the batch was created with >= ETROG and have limit timestamp
+	IsV2 bool
+}
+
 // Batch struct
 type Batch struct {
 	BatchNumber   uint64
@@ -535,14 +545,22 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 //
 //	   for >= etrog is stored on virtual_batch.batch_timestamp
 //		  previous batches is stored on batch.timestamp
-func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, error) {
+func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*BatchTimestampData, error) {
 	forkid := s.GetForkIDByBatchNumber(batchNumber)
-	batchTimestamp, virtualTimestamp, err := s.GetBatchTimestamps(ctx, batchNumber, dbTx)
+	batchTimestamp, virtualTimestamp, err := s.GetRawBatchTimestamps(ctx, batchNumber, dbTx)
 	if err != nil {
 		return nil, err
 	}
 	if forkid >= FORKID_ETROG {
-		return virtualTimestamp, nil
+		return &BatchTimestampData{
+			BatchTimestamp:   virtualTimestamp,
+			LimitTimestampV2: batchTimestamp,
+			IsV2:             true,
+		}, nil
 	}
-	return batchTimestamp, nil
+	return &BatchTimestampData{
+		BatchTimestamp:   batchTimestamp,
+		LimitTimestampV2: nil,
+		IsV2:             false,
+	}, nil
 }

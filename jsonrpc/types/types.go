@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -346,6 +347,7 @@ type Batch struct {
 	LocalExitRoot       common.Hash         `json:"localExitRoot"`
 	AccInputHash        common.Hash         `json:"accInputHash"`
 	Timestamp           ArgUint64           `json:"timestamp"`
+	TimestampLimit      ArgUint64           `json:"TimestampLimit"`
 	SendSequencesTxHash *common.Hash        `json:"sendSequencesTxHash"`
 	VerifyBatchTxHash   *common.Hash        `json:"verifyBatchTxHash"`
 	Closed              bool                `json:"closed"`
@@ -355,7 +357,7 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
+func NewBatch(batch *state.Batch, timetstampLimit *time.Time, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
 	closed := batch.StateRoot.String() != state.ZeroHash.String() || batch.BatchNumber == 0
 	res := &Batch{
@@ -370,6 +372,10 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		LocalExitRoot:   batch.LocalExitRoot,
 		BatchL2Data:     ArgBytes(batchL2Data),
 		Closed:          closed,
+	}
+	if timetstampLimit != nil {
+		timestampLimit := ArgUint64(timetstampLimit.Unix())
+		res.TimestampLimit = timestampLimit
 	}
 	if batch.ForcedBatchNum != nil {
 		fb := ArgUint64(*batch.ForcedBatchNum)

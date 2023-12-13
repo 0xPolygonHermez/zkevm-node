@@ -908,9 +908,9 @@ func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIn
 	return changeL2Block
 }
 
-// GetBatchTimestamp returns the timestamp of the batch with the given number.
+// GetRawBatchTimestamps returns the timestamp of the batch with the given number.
 // it returns batch_num.tstamp and virtual_batch.batch_timestamp
-func (p *PostgresStorage) GetBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error) {
+func (p *PostgresStorage) GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error) {
 	const sql = `
 	SELECT b.timestamp AS batch_timestamp, v.batch_timestamp AS virtual_batch_timestamp
 		FROM state.batch AS b

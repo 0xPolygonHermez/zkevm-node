@@ -140,5 +140,5 @@ type storage interface {
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
 	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
-	GetBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error)
+	GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error)
 }
