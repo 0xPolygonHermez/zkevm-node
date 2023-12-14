@@ -1,6 +1,6 @@
 package config
 
-// TestnetNetworkConfigJSON is the hardcoded network configuration to be used for the official mainnet setup
+// CardonaNetworkConfigJSON is the hardcoded network configuration to be used for the official mainnet setup
 const CardonaNetworkConfigJSON = `
 {
 	"l1Config" : {
