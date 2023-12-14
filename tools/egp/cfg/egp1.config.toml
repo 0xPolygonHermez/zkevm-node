@@ -3,5 +3,6 @@ zeroGasCost = 4
 netProfitFactor = 1
 l1GasPriceFactor = 0.25
 l2GasPriceSugFactor = 0.5
-breakEvenFactor = 1
+breakEvenFactor = 1.1
 finalDeviationPct = 10
+minGasPriceAllowed = 1000000000

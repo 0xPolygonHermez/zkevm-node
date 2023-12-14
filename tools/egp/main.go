@@ -39,6 +39,7 @@ type egpConfig struct {
 	l2GasPriceSugFactor float64 // L2 gas price suggester factor
 	breakEvenFactor     float64 // break even gas price factor
 	finalDeviationPct   uint64  // max final deviation percentage
+	minGasPriceAllowed  uint64  // min gas price allowed
 }
 
 type egpLogRecord struct {
@@ -132,13 +133,14 @@ func main() {
 // defaultConfig parses the default configuration values
 func defaultConfig() (*egpConfig, error) {
 	cfg := egpConfig{
-		byteGasCost:         16,   // nolint:gomnd
-		zeroGasCost:         4,    // nolint:gomnd
-		netProfitFactor:     1,    // nolint:gomnd
-		l1GasPriceFactor:    0.25, // nolint:gomnd
-		l2GasPriceSugFactor: 0.5,  // nolint:gomnd
-		breakEvenFactor:     1,    // nolint:gomnd
-		finalDeviationPct:   10,   // nolint:gomnd
+		byteGasCost:         16,         // nolint:gomnd
+		zeroGasCost:         4,          // nolint:gomnd
+		netProfitFactor:     1,          // nolint:gomnd
+		l1GasPriceFactor:    0.25,       // nolint:gomnd
+		l2GasPriceSugFactor: 0.5,        // nolint:gomnd
+		breakEvenFactor:     1.1,        // nolint:gomnd
+		finalDeviationPct:   10,         // nolint:gomnd
+		minGasPriceAllowed:  1000000000, // nolint:gomnd
 	}
 
 	viper.SetConfigType("toml")
@@ -501,20 +503,24 @@ func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) flo
 
 		// Calculates break even gas price
 		l2MinGasPrice := float64(tx.LogL1GasPrice) * cfg.l1GasPriceFactor
+		if l2MinGasPrice < float64(cfg.minGasPriceAllowed) {
+			l2MinGasPrice = float64(cfg.minGasPriceAllowed)
+		}
 		totalTxPrice := float64(gasUsed)*l2MinGasPrice + float64(((fixedBytesTx+txNonZeroBytes)*cfg.byteGasCost+txZeroBytes*cfg.zeroGasCost)*tx.LogL1GasPrice)
 		breakEvenGasPrice = totalTxPrice / float64(gasUsed) * cfg.netProfitFactor
+
+		logf(">> gasUsed=%d | zBytes=%d | nzBytes: %d | l2min: %f | txPrice: %f", gasUsed, txZeroBytes, txNonZeroBytes, l2MinGasPrice, totalTxPrice)
 	}
 
 	// Calculate effective gas price
 	var ratioPriority float64
-	if gasUsed > tx.LogL2GasPrice {
-		ratioPriority = float64(gasUsed/tx.LogL2GasPrice) - 1
+	if tx.LogGasPrice > tx.LogL2GasPrice {
+		ratioPriority = math.Round(float64(tx.LogGasPrice / tx.LogL2GasPrice))
 	} else {
-		ratioPriority = 0
+		ratioPriority = 1
 	}
-	effectiveGasPrice := breakEvenGasPrice * (1 + ratioPriority)
+	effectiveGasPrice := breakEvenGasPrice * ratioPriority
 
-	// logf("zBytes=%d | nzBytes: %d | l2min: %f | txPrice: %f | breakEven: %f | gasPriceRPC: %f | prio: %f | EGP: %f",
-	// 	txZeroBytes, txNonZeroBytes, l2MinGasPrice, totalTxPrice, breakEvenGasPrice, gasPriceRPC, ratioPriority, effectiveGasPrice)
+	logf(">> breakEven: %f | prio: %f | EGP: %f", breakEvenGasPrice, ratioPriority, effectiveGasPrice)
 	return effectiveGasPrice
 }
