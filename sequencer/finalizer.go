@@ -457,6 +457,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		L1InfoRoot_V2:     mockL1InfoRoot,
 		TimestampLimit_V2: uint64(f.wipL2Block.timestamp.Unix()),
 		Caller:            stateMetrics.SequencerCallerLabel,
+		ForkID:            f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 	}
 
 	if f.wipBatch.isEmpty() {
