@@ -251,6 +251,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		SkipFirstChangeL2Block_V2: false,
 		SkipWriteBlockInfoRoot_V2: false,
 		Caller:                    stateMetrics.SequencerCallerLabel,
+		ForkID:                    f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 	}
 
 	var (
