@@ -203,11 +203,10 @@ func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2D
 	}
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequestV2{
-		OldBatchNum:  lastBatch.BatchNumber - 1,
-		Coinbase:     lastBatch.Coinbase.String(),
-		BatchL2Data:  batchL2Data,
-		OldStateRoot: previousBatch.StateRoot.Bytes(),
-		// L1InfoRoot:       l1InfoRoot.Bytes() => This can be nil and so is set later
+		OldBatchNum:      lastBatch.BatchNumber - 1,
+		Coinbase:         lastBatch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		OldStateRoot:     previousBatch.StateRoot.Bytes(),
 		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
 		TimestampLimit:   timestampLimitUnix,
 		UpdateMerkleTree: cTrue,
