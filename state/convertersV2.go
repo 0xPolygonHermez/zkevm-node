@@ -103,6 +103,9 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		if response.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			isRomLevelError = true
 		}
+		if executor.IsROMOutOfCountersError(response.Error) {
+			isRomOOCError = true
+		}
 		if executor.IsInvalidL2Block(response.Error) {
 			err := fmt.Errorf("fails L2 block: romError %v error:%w", response.Error, errL2BlockInvalid)
 			return nil, isRomLevelError, isRomOOCError, err

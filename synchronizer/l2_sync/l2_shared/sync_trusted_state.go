@@ -67,21 +67,23 @@ type TrustedState struct {
 //
 //	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
 type SyncTrustedStateTemplate struct {
-	steps        BatchExecutor
-	zkEVMClient  ZkEVMClientInterface
-	state        StateInterface
-	sync         SyncInterface
-	TrustedState TrustedState
+	steps                          BatchExecutor
+	zkEVMClient                    ZkEVMClientInterface
+	state                          StateInterface
+	sync                           SyncInterface
+	TrustedState                   TrustedState
+	ignoreTrustedBatchBelowOrEqual uint64
 }
 
 // NewSyncTrustedStateTemplate creates a new SyncTrustedStateTemplate
 func NewSyncTrustedStateTemplate(steps BatchExecutor, zkEVMClient ZkEVMClientInterface, state StateInterface, sync SyncInterface) *SyncTrustedStateTemplate {
 	return &SyncTrustedStateTemplate{
-		steps:        steps,
-		zkEVMClient:  zkEVMClient,
-		state:        state,
-		sync:         sync,
-		TrustedState: TrustedState{},
+		steps:                          steps,
+		zkEVMClient:                    zkEVMClient,
+		state:                          state,
+		sync:                           sync,
+		TrustedState:                   TrustedState{},
+		ignoreTrustedBatchBelowOrEqual: 1,
 	}
 }
 
@@ -106,19 +108,22 @@ func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestS
 	}
 	log.Infof("syncTrustedState: latestSyncedBatch:%d syncTrustedState:%d", latestSyncedBatch, lastTrustedStateBatchNumber)
 
-	if isSyncrhonizedTrustedState(lastTrustedStateBatchNumber, latestSyncedBatch) {
+	if isSyncrhonizedTrustedState(lastTrustedStateBatchNumber, latestSyncedBatch, s.ignoreTrustedBatchBelowOrEqual) {
 		log.Info("syncTrustedState: Trusted state is synchronized")
 		return nil
 	}
 	return s.syncTrustedBatchesToFrom(ctx, latestSyncedBatch, lastTrustedStateBatchNumber)
 }
 
-func isSyncrhonizedTrustedState(lastTrustedStateBatchNumber uint64, latestSyncedBatch uint64) bool {
+func isSyncrhonizedTrustedState(lastTrustedStateBatchNumber uint64, latestSyncedBatch uint64, ignoreTrustedBatchBelowOrEqual uint64) bool {
+	if lastTrustedStateBatchNumber <= ignoreTrustedBatchBelowOrEqual {
+		return true
+	}
 	return lastTrustedStateBatchNumber < latestSyncedBatch
 }
 
 func (s *SyncTrustedStateTemplate) syncTrustedBatchesToFrom(ctx context.Context, latestSyncedBatch uint64, lastTrustedStateBatchNumber uint64) error {
-	batchNumberToSync := latestSyncedBatch
+	batchNumberToSync := max(latestSyncedBatch, s.ignoreTrustedBatchBelowOrEqual+1)
 	for batchNumberToSync <= lastTrustedStateBatchNumber {
 		debugPrefix := fmt.Sprintf("syncTrustedState: batch[%d/%d]", batchNumberToSync, lastTrustedStateBatchNumber)
 		start := time.Now()
