@@ -670,6 +670,16 @@
 							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final",
 							"default": 64
 						},
+						"ForcedBatchesFinalityNumberOfBlocks": {
+							"type": "integer",
+							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"default": 64
+						},
+						"L1InfoRootFinalityNumberOfBlocks": {
+							"type": "integer",
+							"description": "L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final",
+							"default": 64
+						},
 						"ClosingSignalsManagerWaitForCheckingL1Timeout": {
 							"type": "string",
 							"title": "Duration",
@@ -700,16 +710,31 @@
 								"300ms"
 							]
 						},
-						"ForcedBatchesFinalityNumberOfBlocks": {
-							"type": "integer",
-							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
-							"default": 64
+						"WaitForCheckingL1InfoRoot": {
+							"type": "string",
+							"title": "Duration",
+							"description": "WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated",
+							"default": "0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
 						},
 						"TimestampResolution": {
 							"type": "string",
 							"title": "Duration",
 							"description": "TimestampResolution is the resolution of the timestamp used to close a batch",
 							"default": "10s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"L2BlockTime": {
+							"type": "string",
+							"title": "Duration",
+							"description": "L2BlockTime is the resolution of the timestamp used to close a L2 block",
+							"default": "3s",
 							"examples": [
 								"1m",
 								"300ms"
@@ -1118,6 +1143,14 @@
 									"type": "array",
 									"maxItems": 20,
 									"minItems": 20
+								},
+								"forcedBlockHashL1": {
+									"items": {
+										"type": "integer"
+									},
+									"type": "array",
+									"maxItems": 32,
+									"minItems": 32
 								}
 							},
 							"additionalProperties": false,
@@ -1522,6 +1555,10 @@
 								"MaxSteps": {
 									"type": "integer",
 									"default": 7570538
+								},
+								"MaxSHA256Hashes": {
+									"type": "integer",
+									"default": 1596
 								}
 							},
 							"additionalProperties": false,

@@ -1,4 +1,4 @@
-package state_test
+package test
 
 import (
 	"encoding/hex"
@@ -201,7 +201,7 @@ func TestMaliciousTransaction(t *testing.T) {
 		0xd2, 0x05, 0xf0, 0xa3, 0x6f, 0xdc, 0x6e, 0x4e, 0x4c, 0x5a, 0x7b, 0x88,
 		0xd4, 0x5b, 0x1b}
 
-	_, _, _, err = state.DecodeTxs(b, state.FORKID_BLUEBERRY)
+	_, _, _, err := state.DecodeTxs(b, state.FORKID_BLUEBERRY)
 	require.Error(t, err)
 	require.Equal(t, err, state.ErrInvalidData)
 }

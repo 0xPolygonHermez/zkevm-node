@@ -43,9 +43,9 @@ var (
 	// ongoing batch are not in the same order as the transactions stored in the
 	// database for the same batch.
 	ErrOutOfOrderProcessedTx = errors.New("the processed transactions are not in the same order as the stored transactions")
-	// ErrInsufficientFunds is returned if the total cost of executing a transaction
-	// is higher than the balance of the user's account.
-	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
+	// ErrInsufficientFundsForTransfer is returned if the transaction sender doesn't
+	// have enough funds for transfer(topmost call only).
+	ErrInsufficientFundsForTransfer = errors.New("insufficient funds for transfer")
 	// ErrExecutorNil indicates that the method requires an executor that is not nil
 	ErrExecutorNil = errors.New("the method requires an executor that is not nil")
 	// ErrStateTreeNil indicates that the method requires a state tree that is not nil

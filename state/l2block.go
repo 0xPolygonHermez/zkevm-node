@@ -26,6 +26,7 @@ type L2Header struct {
 	*gethHeader
 	LocalExitRoot  *common.Hash `json:"localExitRoot"`
 	GlobalExitRoot *common.Hash `json:"globalExitRoot"`
+	BlockInfoRoot  *common.Hash `json:"blockInfoRoot"`
 }
 
 // NewL2Header creates an instance of L2Header from a types.Header
@@ -60,6 +61,10 @@ func (h *L2Header) MarshalJSON() ([]byte, error) {
 
 	if h.GlobalExitRoot != nil {
 		m["globalExitRoot"] = h.GlobalExitRoot.String()
+	}
+
+	if h.GlobalExitRoot != nil {
+		m["blockInfoRoot"] = h.BlockInfoRoot.String()
 	}
 
 	b, err := json.Marshal(m)
@@ -98,6 +103,10 @@ func (h *L2Header) UnmarshalJSON(input []byte) error {
 		root := common.HexToHash(globalExitRoot.(string))
 		h.GlobalExitRoot = &root
 	}
+	if blockInfoRoot, found := m["blockInfoRoot"]; found {
+		root := common.HexToHash(blockInfoRoot.(string))
+		h.BlockInfoRoot = &root
+	}
 
 	return nil
 }
@@ -112,6 +121,16 @@ type L2Block struct {
 
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
+}
+
+// GlobalExitRoot returns the header GlobalExitRoot
+func (b *L2Block) GlobalExitRoot() *common.Hash {
+	return b.Header().GlobalExitRoot
+}
+
+// BlockInfoRoot returns the header BlockInfoRoot
+func (b *L2Block) BlockInfoRoot() *common.Hash {
+	return b.Header().BlockInfoRoot
 }
 
 // Header returns the block header (as a copy).

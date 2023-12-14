@@ -1,4 +1,4 @@
-package l1_parallel_sync
+package common
 
 import (
 	"time"

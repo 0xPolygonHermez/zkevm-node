@@ -27,7 +27,7 @@ type ProcessRequest struct {
 	TimestampLimit_V2         uint64
 	Caller                    metrics.CallerLabel
 	SkipFirstChangeL2Block_V2 bool
-	SkipWriteBlockInfoRoot    bool
+	SkipWriteBlockInfoRoot_V2 bool
 	ForkID                    uint64
 }
 
@@ -160,6 +160,7 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.UsedArithmetics += other.UsedArithmetics
 	z.UsedBinaries += other.UsedBinaries
 	z.UsedSteps += other.UsedSteps
+	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
 }
 
 // Sub subtract zk counters with passed zk counters (not safe)
@@ -227,6 +228,12 @@ func (r *BatchResources) Sub(other BatchResources) error {
 	}
 
 	return err
+}
+
+// SumUp sum ups the batch resources from other
+func (r *BatchResources) SumUp(other BatchResources) {
+	r.Bytes += other.Bytes
+	r.ZKCounters.SumUp(other.ZKCounters)
 }
 
 // InfoReadWrite has information about modified addresses during the execution

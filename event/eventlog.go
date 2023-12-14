@@ -31,6 +31,19 @@ func (e *EventLog) LogEvent(ctx context.Context, event *Event) error {
 // LogExecutorError is used to store Executor error for runtime debugging
 func (e *EventLog) LogExecutorError(ctx context.Context, responseError executor.ExecutorError, processBatchRequest *executor.ProcessBatchRequest) {
 	timestamp := time.Now()
+
+	// if it's a user related error, ignore it
+	if responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_KECCAK ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_BINARY ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_MEM ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_ARITH ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_PADDING ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON ||
+		responseError == executor.ExecutorError_EXECUTOR_ERROR_INVALID_BATCH_L2_DATA {
+		return
+	}
+
 	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
 	payload, err := json.Marshal(processBatchRequest)
 	if err != nil {

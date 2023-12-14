@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -60,7 +61,9 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_sync_incaberry.SyncTrustedBatchesAction)
+	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
+	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With3Tx))
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -82,7 +85,9 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
-	require.Equal(t, sync.trustedState.lastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
+	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_sync_incaberry.SyncTrustedBatchesAction)
+	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of SyncTrustedBatchesAction")
+	require.Equal(t, syncTrusted.TrustedState.LastTrustedBatches[0], rpcBatchTostateBatch(batch10With2Tx))
 }
 
 // issue #2220
@@ -182,7 +187,7 @@ func TestForcedBatch(t *testing.T) {
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
-				PolygonRollupBaseEtrogBatchData: polygonzkevm.PolygonRollupBaseEtrogBatchData{
+				PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
 					Transactions:         []byte{},
 					ForcedGlobalExitRoot: [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					ForcedTimestamp:      uint64(t.Unix()),

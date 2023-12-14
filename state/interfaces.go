@@ -39,6 +39,7 @@ type storage interface {
 	GetLastBatchTime(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
+	GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*VirtualBatch, error)
 	SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBatchNumberSeen, lastBatchNumberVerified uint64, dbTx pgx.Tx) error
 	SetInitSyncBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error)
@@ -53,7 +54,6 @@ type storage interface {
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error)
 	GetTxsHashesByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (encoded []common.Hash, err error)
 	AddVirtualBatch(ctx context.Context, virtualBatch *VirtualBatch, dbTx pgx.Tx) error
-	GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*VirtualBatch, error)
 	UpdateGERInOpenBatch(ctx context.Context, ger common.Hash, dbTx pgx.Tx) error
 	IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]ForcedBatch, error)
@@ -109,7 +109,7 @@ type storage interface {
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error)
 	GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
-	UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
+	UpdateWIPBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	AddTrustedReorg(ctx context.Context, reorg *TrustedReorg, dbTx pgx.Tx) error
@@ -126,13 +126,19 @@ type storage interface {
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	OpenBatchInStorage(ctx context.Context, batchContext ProcessingContext, dbTx pgx.Tx) error
+	OpenWIPBatchInStorage(ctx context.Context, batch Batch, dbTx pgx.Tx) error
+	GetWIPBatchInStorage(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error)
 	CloseBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
+	CloseWIPBatchInStorage(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error
 	GetLogsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Log, error)
 	AddL1InfoRootToExitRoot(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntry, dbTx pgx.Tx) error
 	GetAllL1InfoRootEntries(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
+	GetLatestL1InfoRoot(ctx context.Context, maxBlockNumber uint64) (L1InfoTreeExitRootStorageEntry, error)
 	UpdateForkIDIntervalsInMemory(intervals []ForkIDInterval)
 	AddForkIDInterval(ctx context.Context, newForkID ForkIDInterval, dbTx pgx.Tx) error
 	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
+	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
+	GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error)
 }

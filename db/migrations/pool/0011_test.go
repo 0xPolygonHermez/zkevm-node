@@ -14,7 +14,7 @@ func (m migrationTest0011) InsertData(db *sql.DB) error {
 	return nil
 }
 
-var indexes = []string{
+var indexesMigration11 = []string{
 	"idx_transaction_from_nonce",
 	"idx_transaction_status",
 	"idx_transaction_hash",
@@ -22,7 +22,7 @@ var indexes = []string{
 
 func (m migrationTest0011) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
 	// Check indexes adding
-	for _, idx := range indexes {
+	for _, idx := range indexesMigration11 {
 		// getIndex
 		const getIndex = `SELECT count(*) FROM pg_indexes WHERE indexname = $1;`
 		row := db.QueryRow(getIndex, idx)
@@ -34,7 +34,7 @@ func (m migrationTest0011) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 
 func (m migrationTest0011) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
 	// Check indexes removing
-	for _, idx := range indexes {
+	for _, idx := range indexesMigration11 {
 		// getIndex
 		const getIndex = `SELECT count(*) FROM pg_indexes WHERE indexname = $1;`
 		row := db.QueryRow(getIndex, idx)

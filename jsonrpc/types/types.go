@@ -371,6 +371,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		BatchL2Data:     ArgBytes(batchL2Data),
 		Closed:          closed,
 	}
+
 	if batch.ForcedBatchNum != nil {
 		fb := ArgUint64(*batch.ForcedBatchNum)
 		res.ForcedBatchNumber = &fb

@@ -9,22 +9,23 @@ import (
 
 type closingSignalsManager struct {
 	ctx                    context.Context
-	dbManager              dbManagerInterface
+	state                  stateInterface
 	closingSignalCh        ClosingSignalCh
 	cfg                    FinalizerCfg
 	lastForcedBatchNumSent uint64
 	etherman               etherman
 }
 
-func newClosingSignalsManager(ctx context.Context, dbManager dbManagerInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
-	return &closingSignalsManager{ctx: ctx, dbManager: dbManager, closingSignalCh: closingSignalCh, cfg: cfg, etherman: etherman}
+func newClosingSignalsManager(ctx context.Context, state stateInterface, closingSignalCh ClosingSignalCh, cfg FinalizerCfg, etherman etherman) *closingSignalsManager {
+	return &closingSignalsManager{ctx: ctx, state: state, closingSignalCh: closingSignalCh, cfg: cfg, etherman: etherman}
 }
 
 func (c *closingSignalsManager) Start() {
 	go c.checkForcedBatches()
-	go c.checkGERUpdate()
+	//go c.checkGERUpdate() //TODO: delete this go func and all GER related data and funcs
 }
 
+/*
 func (c *closingSignalsManager) checkGERUpdate() {
 	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
 	for err != nil {
@@ -60,13 +61,14 @@ func (c *closingSignalsManager) checkGERUpdate() {
 		}
 	}
 }
+*/
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
 		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
 
 		if c.lastForcedBatchNumSent == 0 {
-			lastTrustedForcedBatchNum, err := c.dbManager.GetLastTrustedForcedBatchNumber(c.ctx, nil)
+			lastTrustedForcedBatchNum, err := c.state.GetLastTrustedForcedBatchNumber(c.ctx, nil)
 			if err != nil {
 				log.Errorf("error getting last trusted forced batch number: %v", err)
 				continue
@@ -76,7 +78,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 			}
 		}
 		// Take into account L1 finality
-		lastBlock, err := c.dbManager.GetLastBlock(c.ctx, nil)
+		lastBlock, err := c.state.GetLastBlock(c.ctx, nil)
 		if err != nil {
 			log.Errorf("failed to get latest eth block number, err: %v", err)
 			continue
@@ -91,7 +93,7 @@ func (c *closingSignalsManager) checkForcedBatches() {
 			maxBlockNumber = blockNumber - finalityNumberOfBlocks
 		}
 
-		forcedBatches, err := c.dbManager.GetForcedBatchesSince(c.ctx, c.lastForcedBatchNumSent, maxBlockNumber, nil)
+		forcedBatches, err := c.state.GetForcedBatchesSince(c.ctx, c.lastForcedBatchNumSent, maxBlockNumber, nil)
 		if err != nil {
 			log.Errorf("error checking forced batches: %v", err)
 			continue

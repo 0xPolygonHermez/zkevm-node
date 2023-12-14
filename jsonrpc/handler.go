@@ -126,7 +126,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Infof("failed call: [%v]%v. Params: %v", err.ErrorCode(), err.Error(), string(req.Params))
+		log.Debugf("failed call: [%v]%v. Params: %v", err.ErrorCode(), err.Error(), string(req.Params))
 		return types.NewResponse(req.Request, nil, err)
 	}
 
@@ -233,7 +233,7 @@ func (h *Handler) getFnHandler(req types.Request) (*serviceData, *funcData, type
 
 	service, ok := h.serviceMap[serviceName]
 	if !ok {
-		log.Infof("Method %s not found", req.Method)
+		log.Debugf("Method %s not found", req.Method)
 		return nil, nil, types.NewRPCError(types.NotFoundErrorCode, methodNotFoundErrorMessage)
 	}
 	fd, ok := service.funcMap[funcName]

@@ -59,11 +59,15 @@ type stateInterface interface {
 	ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
+	CloseWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error)
+	ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error)
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
+	OpenWIPBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error
+	GetWIPBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error)
 	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
@@ -71,25 +75,29 @@ type stateInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
 	GetLatestGlobalExitRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.GlobalExitRoot, time.Time, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error)
-	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
-	UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error
+	UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
 	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
+	GetLatestL1InfoRoot(ctx context.Context, maxBlockNumber uint64) (state.L1InfoTreeExitRootStorageEntry, error)
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error)
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*state.DSL2Transaction, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
+	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
+	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
 }
 
 type workerInterface interface {
-	GetBestFittingTx(resources state.BatchResources) *TxTracker
+	GetBestFittingTx(resources state.BatchResources) (*TxTracker, error)
 	UpdateAfterSingleSuccessfulTxExecution(from common.Address, touchedAddresses map[common.Address]*state.InfoReadWrite) []*TxTracker
 	UpdateTxZKCounters(txHash common.Hash, from common.Address, ZKCounters state.ZKCounters)
 	AddTxTracker(ctx context.Context, txTracker *TxTracker) (replacedTx *TxTracker, dropReason error)
@@ -101,40 +109,4 @@ type workerInterface interface {
 	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
 	AddForcedTx(txHash common.Hash, addr common.Address)
 	DeleteForcedTx(txHash common.Hash, addr common.Address)
-}
-
-// The dbManager will need to handle the errors inside the functions which don't return error as they will be used async in the other abstractions.
-// Also if dbTx is missing this needs also to be handled in the dbManager
-type dbManagerInterface interface {
-	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
-	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
-	CreateFirstBatch(ctx context.Context, sequencerAddress common.Address) state.ProcessingContext
-	GetLastBatchNumber(ctx context.Context) (uint64, error)
-	DeleteTransactionFromPool(ctx context.Context, txHash common.Hash) error
-	CloseBatch(ctx context.Context, params ClosingBatchParameters) error
-	GetWIPBatch(ctx context.Context) (*WipBatch, error)
-	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64) (txs []types.Transaction, effectivePercentages []uint8, err error)
-	GetLastBatch(ctx context.Context) (*state.Batch, error)
-	GetLastNBatches(ctx context.Context, numBatches uint) ([]*state.Batch, error)
-	GetLastClosedBatch(ctx context.Context) (*state.Batch, error)
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	IsBatchClosed(ctx context.Context, batchNum uint64) (bool, error)
-	GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error)
-	ProcessForcedBatch(ForcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error)
-	GetForcedBatchesSince(ctx context.Context, forcedBatchNumber, maxBlockNumber uint64, dbTx pgx.Tx) ([]*state.ForcedBatch, error)
-	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*state.L2Header, error)
-	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
-	GetLastTrustedForcedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetBalanceByStateRoot(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, reason *string) error
-	GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
-	CountReorgs(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	FlushMerkleTree(ctx context.Context) error
-	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
-	GetDefaultMinGasPriceAllowed() uint64
-	GetL1AndL2GasPrice() (uint64, uint64)
-	GetStoredFlushID(ctx context.Context) (uint64, string, error)
-	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
-	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
-	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }

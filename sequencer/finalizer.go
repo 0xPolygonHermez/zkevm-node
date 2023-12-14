@@ -14,23 +14,24 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/pool"
+	poolPackage "github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	statePackage "github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	ethereumTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/jackc/pgx/v4"
 )
 
 const (
-	pendingTxsBufferSizeMultiplier = 10
+	pendingL2BlocksBufferSize = 100
+	changeL2BlockSize         = 9 //1 byte (tx type = 0B) + 4 bytes for deltaTimestamp + 4 for l1InfoTreeIndex
 )
 
 var (
-	now = time.Now
+	now            = time.Now
+	mockL1InfoRoot = common.Hash{}
 )
 
 // finalizer represents the finalizer component of the sequencer.
@@ -39,10 +40,12 @@ type finalizer struct {
 	isSynced                func(ctx context.Context) bool
 	sequencerAddress        common.Address
 	worker                  workerInterface
-	dbManager               dbManagerInterface
-	executor                stateInterface
-	wipBatch                *WipBatch
-	batchConstraints        state.BatchConstraintsCfg
+	pool                    txPool
+	state                   stateInterface
+	etherman                etherman
+	wipBatch                *Batch
+	wipL2Block              *L2Block
+	batchConstraints        statePackage.BatchConstraintsCfg
 	reprocessFullBatchError atomic.Bool
 	// closing signals
 	closingSignalCh ClosingSignalCh
@@ -51,20 +54,28 @@ type finalizer struct {
 	previousGERHash common.Hash // GER of the batch previous to the current WIP batch
 	nextGER         common.Hash
 	nextGERDeadline int64
-	nextGERMux      *sync.RWMutex
+	nextGERMux      *sync.Mutex
 	// forced batches
-	nextForcedBatches       []state.ForcedBatch
+	nextForcedBatches       []statePackage.ForcedBatch
 	nextForcedBatchDeadline int64
-	nextForcedBatchesMux    *sync.RWMutex
+	nextForcedBatchesMux    *sync.Mutex
+	// L1InfoTree
+	lastL1InfoTreeValid bool
+	lastL1InfoTree      statePackage.L1InfoTreeExitRootStorageEntry
+	lastL1InfoTreeMux   *sync.Mutex
+	lastL1InfoTreeCond  *sync.Cond
 	// L2 reorg
 	handlingL2Reorg bool
 	// event log
 	eventLog *event.EventLog
 	// effective gas price calculation instance
-	effectiveGasPrice *pool.EffectiveGasPrice
-	// pending txs to store in the state
-	pendingTransactionsToStore   chan transactionToStore
-	pendingTransactionsToStoreWG *sync.WaitGroup
+	effectiveGasPrice *poolPackage.EffectiveGasPrice
+	// pending L2 blocks to be processed (executor)
+	pendingL2BlocksToProcess   chan *L2Block
+	pendingL2BlocksToProcessWG *sync.WaitGroup
+	// pending L2 blocks to store in the state
+	pendingL2BlocksToStore   chan *L2Block
+	pendingL2BlocksToStoreWG *sync.WaitGroup
 	// executer flushid control
 	proverID           string
 	storedFlushID      uint64
@@ -73,85 +84,63 @@ type finalizer struct {
 	pendingFlushIDCond *sync.Cond
 	// stream server
 	streamServer *datastreamer.StreamServer
-}
-
-type transactionToStore struct {
-	hash          common.Hash
-	from          common.Address
-	response      *state.ProcessTransactionResponse
-	batchResponse *state.ProcessBatchResponse
-	batchNumber   uint64
-	timestamp     time.Time
-	coinbase      common.Address
-	oldStateRoot  common.Hash
-	isForcedBatch bool
-	flushId       uint64
-	egpLog        *state.EffectiveGasPriceLog
-}
-
-// WipBatch represents a work-in-progress batch.
-type WipBatch struct {
-	batchNumber        uint64
-	coinbase           common.Address
-	timestamp          time.Time
-	initialStateRoot   common.Hash
-	stateRoot          common.Hash
-	localExitRoot      common.Hash
-	globalExitRoot     common.Hash // 0x000...0 (ZeroHash) means to not update
-	oldAccInputHash    common.Hash
-	countOfTxs         int
-	remainingResources state.BatchResources
-	closingReason      state.ClosingReason
-}
-
-func (w *WipBatch) isEmpty() bool {
-	return w.countOfTxs == 0
+	dataToStream chan state.DSL2FullBlock
 }
 
 // newFinalizer returns a new instance of Finalizer.
 func newFinalizer(
 	cfg FinalizerCfg,
-	poolCfg pool.Config,
+	poolCfg poolPackage.Config,
 	worker workerInterface,
-	dbManager dbManagerInterface,
-	executor stateInterface,
+	pool txPool,
+	state stateInterface,
+	etherman etherman,
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
 	closingSignalCh ClosingSignalCh,
-	batchConstraints state.BatchConstraintsCfg,
+	batchConstraints statePackage.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 	streamServer *datastreamer.StreamServer,
+	dataToStream chan state.DSL2FullBlock,
 ) *finalizer {
 	f := finalizer{
 		cfg:              cfg,
 		isSynced:         isSynced,
 		sequencerAddress: sequencerAddr,
 		worker:           worker,
-		dbManager:        dbManager,
-		executor:         executor,
+		pool:             pool,
+		state:            state,
+		etherman:         etherman,
 		batchConstraints: batchConstraints,
 		// closing signals
 		closingSignalCh: closingSignalCh,
-		// GER
-		currentGERHash:  state.ZeroHash,
-		previousGERHash: state.ZeroHash,
-		nextGER:         common.Hash{},
+		// GER //TODO: Delete GER updates as in ETROG it's not used
+		currentGERHash:  statePackage.ZeroHash,
+		previousGERHash: statePackage.ZeroHash,
+		nextGER:         statePackage.ZeroHash,
 		nextGERDeadline: 0,
-		nextGERMux:      new(sync.RWMutex),
+		nextGERMux:      new(sync.Mutex),
 		// forced batches
-		nextForcedBatches:       make([]state.ForcedBatch, 0),
+		nextForcedBatches:       make([]statePackage.ForcedBatch, 0),
 		nextForcedBatchDeadline: 0,
-		nextForcedBatchesMux:    new(sync.RWMutex),
+		nextForcedBatchesMux:    new(sync.Mutex),
+		// L1InfoTree
+		lastL1InfoTreeValid: false,
+		lastL1InfoTreeMux:   new(sync.Mutex),
+		lastL1InfoTreeCond:  sync.NewCond(&sync.Mutex{}),
 		// L2 reorg
 		handlingL2Reorg: false,
 		// event log
 		eventLog: eventLog,
 		// effective gas price calculation instance
-		effectiveGasPrice: pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
-		// pending txs to store in the state
-		pendingTransactionsToStore:   make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
-		pendingTransactionsToStoreWG: new(sync.WaitGroup),
-		storedFlushID:                0,
+		effectiveGasPrice: poolPackage.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		// pending L2 blocks to be processed (executor)
+		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToProcessWG: new(sync.WaitGroup),
+		// pending L2 blocks to store in the state
+		pendingL2BlocksToStore:   make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToStoreWG: new(sync.WaitGroup),
+		storedFlushID:            0,
 		// executer flushid control
 		proverID:           "",
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
@@ -159,6 +148,7 @@ func newFinalizer(
 		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
 		// stream server
 		streamServer: streamServer,
+		dataToStream: dataToStream,
 	}
 
 	f.reprocessFullBatchError.Store(false)
@@ -168,8 +158,19 @@ func newFinalizer(
 
 // Start starts the finalizer.
 func (f *finalizer) Start(ctx context.Context) {
+	// Init mockL1InfoRoot to a mock value since it must be different to {0,0,...,0}
+	for i := 0; i < len(mockL1InfoRoot); i++ {
+		mockL1InfoRoot[i] = byte(i)
+	}
+
+	// Update L1InfoRoot
+	go f.checkL1InfoRootUpdate(ctx)
+
 	// Get the last batch if still wip or opens a new one
-	f.getWIPBatch(ctx)
+	f.initWIPBatch(ctx)
+
+	// Initializes the wip L2 block
+	f.initWIPL2Block(ctx)
 
 	// Closing signals receiver
 	go f.listenForClosingSignals(ctx)
@@ -177,135 +178,14 @@ func (f *finalizer) Start(ctx context.Context) {
 	// Update the prover id and flush id
 	go f.updateProverIdAndFlushId(ctx)
 
-	// Store Pending transactions
-	go f.storePendingTransactions(ctx)
+	// Process L2 Blocks
+	go f.processPendingL2Blocks(ctx)
+
+	// Store L2 Blocks
+	go f.storePendingL2Blocks(ctx)
 
 	// Processing transactions and finalizing batches
 	f.finalizeBatches(ctx)
-}
-
-// getLastStateRoot gets the state root from the latest batch
-func (f *finalizer) getLastStateRoot(ctx context.Context) (common.Hash, error) {
-	var oldStateRoot common.Hash
-
-	batches, err := f.dbManager.GetLastNBatches(ctx, 2) //nolint:gomnd
-	if err != nil {
-		return common.Hash{}, fmt.Errorf("failed to get last %d batches, err: %w", 2, err) //nolint:gomnd
-	}
-
-	if len(batches) == 1 { //nolint:gomnd
-		oldStateRoot = batches[0].StateRoot
-	} else if len(batches) == 2 { //nolint:gomnd
-		oldStateRoot = batches[1].StateRoot
-	}
-
-	return oldStateRoot, nil
-}
-
-// getWIPBatch gets the last batch if still wip or opens a new one
-func (f *finalizer) getWIPBatch(ctx context.Context) {
-	for !f.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		time.Sleep(time.Second)
-	}
-
-	lastBatchNum, err := f.dbManager.GetLastBatchNumber(ctx)
-	if err != nil {
-		log.Fatalf("failed to get last batch number. Error: %v", err)
-	}
-
-	if lastBatchNum == 0 {
-		// GENESIS batch
-		processingCtx := f.dbManager.CreateFirstBatch(ctx, f.sequencerAddress)
-		timestamp := processingCtx.Timestamp
-		oldStateRoot, err := f.getLastStateRoot(ctx)
-		if err != nil {
-			log.Fatalf("failed to get old state root. Error: %v", err)
-		}
-		f.wipBatch = &WipBatch{
-			globalExitRoot:     processingCtx.GlobalExitRoot,
-			initialStateRoot:   oldStateRoot,
-			stateRoot:          oldStateRoot,
-			batchNumber:        processingCtx.BatchNumber,
-			coinbase:           processingCtx.Coinbase,
-			timestamp:          timestamp,
-			remainingResources: getMaxRemainingResources(f.batchConstraints),
-		}
-	} else {
-		// Get the last batch if is still wip, if not open a new one
-		lastBatch, err := f.dbManager.GetBatchByNumber(ctx, lastBatchNum, nil)
-		if err != nil {
-			log.Fatalf("failed to get last batch. Error: %w", err)
-		}
-
-		isClosed, err := f.dbManager.IsBatchClosed(ctx, lastBatchNum)
-		if err != nil {
-			log.Fatalf("failed to check if batch is closed. Error: %w", err)
-		}
-
-		log.Infof("batch %d isClosed: %v", lastBatchNum, isClosed)
-
-		if isClosed { //open new wip batch
-			ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
-			if err != nil {
-				log.Fatalf("failed to get latest ger. Error: %w", err)
-			}
-
-			oldStateRoot := lastBatch.StateRoot
-			f.wipBatch, err = f.openNewWIPBatch(ctx, lastBatchNum+1, ger.GlobalExitRoot, oldStateRoot)
-			if err != nil {
-				log.Fatalf("failed to open new wip batch. Error: %w", err)
-			}
-		} else { /// get wip batch
-			f.wipBatch, err = f.dbManager.GetWIPBatch(ctx)
-			if err != nil {
-				log.Fatalf("failed to get wip batch. Error: %w", err)
-			}
-		}
-	}
-
-	log.Infof("initial batch: %d, initialStateRoot: %s, stateRoot: %s, coinbase: %s, GER: %s, LER: %s",
-		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot.String(), f.wipBatch.stateRoot.String(), f.wipBatch.coinbase.String(),
-		f.wipBatch.globalExitRoot.String(), f.wipBatch.localExitRoot.String())
-}
-
-// storePendingTransactions stores the pending transactions in the database
-func (f *finalizer) storePendingTransactions(ctx context.Context) {
-	for {
-		select {
-		case tx, ok := <-f.pendingTransactionsToStore:
-			if !ok {
-				// Channel is closed
-				return
-			}
-
-			// Wait until f.storedFlushID >= tx.flushId
-			f.storedFlushIDCond.L.Lock()
-			for f.storedFlushID < tx.flushId {
-				f.storedFlushIDCond.Wait()
-				// check if context is done after waking up
-				if ctx.Err() != nil {
-					f.storedFlushIDCond.L.Unlock()
-					return
-				}
-			}
-			f.storedFlushIDCond.L.Unlock()
-
-			// Now f.storedFlushID >= tx.flushId, we can store tx
-			f.storeProcessedTx(ctx, tx)
-
-			// Delete the tx from the pending list in the worker (addrQueue)
-			f.worker.DeletePendingTxToStore(tx.hash, tx.from)
-
-			f.pendingTransactionsToStoreWG.Done()
-		case <-ctx.Done():
-			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
-			f.pendingTransactionsToStoreWG.Wait()
-			return
-		default:
-			time.Sleep(100 * time.Millisecond) //nolint:gomnd
-		}
-	}
 }
 
 // updateProverIdAndFlushId updates the prover id and flush id
@@ -319,8 +199,8 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 		}
 		f.pendingFlushIDCond.L.Unlock()
 
-		for f.storedFlushID < f.lastPendingFlushID {
-			storedFlushID, proverID, err := f.dbManager.GetStoredFlushID(ctx)
+		for f.storedFlushID < f.lastPendingFlushID { //TODO: review this loop as could be is pulling all the time, no sleep
+			storedFlushID, proverID, err := f.state.GetStoredFlushID(ctx)
 			if err != nil {
 				log.Errorf("failed to get stored flush id, Err: %v", err)
 			} else {
@@ -334,6 +214,54 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 					f.storedFlushIDCond.Broadcast()
 					f.storedFlushIDCond.L.Unlock()
 				}
+			}
+		}
+	}
+}
+
+func (f *finalizer) checkL1InfoRootUpdate(ctx context.Context) {
+	var (
+		firstL1InfoRootUpdate = true
+		firstSleepSkipped     = false
+	)
+
+	for {
+		if firstSleepSkipped {
+			time.Sleep(f.cfg.WaitForCheckingL1InfoRoot.Duration)
+		} else {
+			firstSleepSkipped = true
+		}
+
+		lastL1BlockNumber, err := f.etherman.GetLatestBlockNumber(ctx)
+		if err != nil {
+			log.Errorf("error getting latest L1 block number: %v", err)
+		}
+
+		maxBlockNumber := uint64(0)
+		if f.cfg.L1InfoRootFinalityNumberOfBlocks <= lastL1BlockNumber {
+			maxBlockNumber = lastL1BlockNumber - f.cfg.L1InfoRootFinalityNumberOfBlocks
+		}
+
+		l1InfoRoot, err := f.state.GetLatestL1InfoRoot(ctx, maxBlockNumber)
+		if err != nil {
+			log.Errorf("error checking latest L1InfoRoot: %v", err)
+			continue
+		}
+
+		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {
+			firstL1InfoRootUpdate = false
+
+			log.Debugf("received new L1InfoRoot. L1InfoTreeIndex: %d", l1InfoRoot.L1InfoTreeIndex)
+
+			f.lastL1InfoTreeMux.Lock()
+			f.lastL1InfoTree = l1InfoRoot
+			f.lastL1InfoTreeMux.Unlock()
+
+			if !f.lastL1InfoTreeValid {
+				f.lastL1InfoTreeCond.L.Lock()
+				f.lastL1InfoTreeValid = true
+				f.lastL1InfoTreeCond.Broadcast()
+				f.lastL1InfoTreeCond.L.Unlock()
 			}
 		}
 	}
@@ -384,22 +312,6 @@ func (f *finalizer) updateLastPendingFlushID(newFlushID uint64) {
 	}
 }
 
-// addPendingTxToStore adds a pending tx that is ready to be stored in the state DB once its flushid has been stored by the executor
-func (f *finalizer) addPendingTxToStore(ctx context.Context, txToStore transactionToStore) {
-	f.pendingTransactionsToStoreWG.Add(1)
-
-	f.worker.AddPendingTxToStore(txToStore.hash, txToStore.from)
-
-	select {
-	case f.pendingTransactionsToStore <- txToStore:
-	case <-ctx.Done():
-		// If context is cancelled before we can send to the channel, we must decrement the WaitGroup count and
-		// delete the pending TxToStore added in the worker
-		f.pendingTransactionsToStoreWG.Done()
-		f.worker.DeletePendingTxToStore(txToStore.hash, txToStore.from)
-	}
-}
-
 // finalizeBatches runs the endless loop for processing transactions finalizing batches.
 func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
@@ -410,7 +322,18 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
 		}
 
-		tx := f.worker.GetBestFittingTx(f.wipBatch.remainingResources)
+		// We have reached the L2 block time, we need to close the current L2 block and open a new one
+		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockTime.Duration).After(time.Now()) {
+			f.finalizeL2Block(ctx)
+		}
+
+		tx, err := f.worker.GetBestFittingTx(f.wipBatch.remainingResources)
+
+		// If we have txs pending to process but none of them fits into the wip batch, we close the wip batch and open a new one
+		if err == ErrNoFittingTransaction { //TODO: review this with JEC
+			f.finalizeBatch(ctx)
+		}
+
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			log.Debugf("processing tx: %s", tx.Hash.Hex())
@@ -451,7 +374,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		if f.isDeadlineEncountered() {
 			f.finalizeBatch(ctx)
-		} else if f.maxTxsPerBatchReached() || f.isBatchResourcesFull() {
+		} else if f.maxTxsPerBatchReached() || f.isBatchResourcesExhausted() {
 			f.finalizeBatch(ctx)
 		}
 
@@ -489,44 +412,6 @@ func (f *finalizer) maxTxsPerBatchReached() bool {
 	return false
 }
 
-// finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) finalizeBatch(ctx context.Context) {
-	start := time.Now()
-	defer func() {
-		metrics.ProcessingTime(time.Since(start))
-	}()
-
-	var err error
-	f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
-	for err != nil { //TODO: we need to review is this for loop is needed or if it's better to halt if we have an error
-		log.Errorf("failed to create new work-in-progress batch, Err: %s", err)
-		f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
-	}
-}
-
-// halt halts the finalizer
-func (f *finalizer) halt(ctx context.Context, err error) {
-	event := &event.Event{
-		ReceivedAt:  time.Now(),
-		Source:      event.Source_Node,
-		Component:   event.Component_Sequencer,
-		Level:       event.Level_Critical,
-		EventID:     event.EventID_FinalizerHalt,
-		Description: fmt.Sprintf("finalizer halted due to error: %s", err),
-	}
-
-	eventErr := f.eventLog.LogEvent(ctx, event)
-	if eventErr != nil {
-		log.Errorf("error storing finalizer halt event: %v", eventErr)
-	}
-
-	for {
-		log.Errorf("fatal error: %s", err)
-		log.Error("halting the finalizer")
-		time.Sleep(5 * time.Second) //nolint:gomnd
-	}
-}
-
 // checkIfProverRestarted checks if the proverID changed
 func (f *finalizer) checkIfProverRestarted(proverID string) {
 	if f.proverID != "" && f.proverID != proverID {
@@ -548,104 +433,6 @@ func (f *finalizer) checkIfProverRestarted(proverID string) {
 	}
 }
 
-// closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*WipBatch, error) {
-	// Wait until all processed transactions are saved
-	startWait := time.Now()
-	f.pendingTransactionsToStoreWG.Wait()
-	endWait := time.Now()
-
-	log.Debugf("waiting for pending transactions to be stored took: %s", endWait.Sub(startWait).String())
-
-	var err error
-	if f.wipBatch.stateRoot == state.ZeroHash {
-		return nil, errors.New("state root must have value to close batch")
-	}
-
-	// We need to process the batch to update the state root before closing the batch
-	if f.wipBatch.initialStateRoot == f.wipBatch.stateRoot {
-		log.Info("reprocessing batch because the state root has not changed...")
-		_, err = f.processTransaction(ctx, nil, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Reprocess full batch as sanity check
-	if f.cfg.SequentialReprocessFullBatch {
-		// Do the full batch reprocess now
-		_, err := f.reprocessFullBatch(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.stateRoot)
-		if err != nil {
-			// There is an error reprocessing the batch. We halt the execution of the Sequencer at this point
-			f.halt(ctx, fmt.Errorf("halting Sequencer because of error reprocessing full batch %d (sanity check). Error: %s ", f.wipBatch.batchNumber, err))
-		}
-	} else {
-		// Do the full batch reprocess in parallel
-		go func() {
-			_, _ = f.reprocessFullBatch(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.stateRoot)
-		}()
-	}
-
-	// Close the current batch
-	err = f.closeWIPBatch(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, err: %w", err)
-	}
-
-	// Check if the batch is empty and sending a GER Update to the stream is needed
-	if f.streamServer != nil && f.wipBatch.isEmpty() && f.currentGERHash != f.previousGERHash {
-		updateGer := state.DSUpdateGER{
-			BatchNumber:    f.wipBatch.batchNumber,
-			Timestamp:      f.wipBatch.timestamp.Unix(),
-			GlobalExitRoot: f.wipBatch.globalExitRoot,
-			Coinbase:       f.sequencerAddress,
-			ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(f.wipBatch.batchNumber)),
-			StateRoot:      f.wipBatch.stateRoot,
-		}
-
-		err = f.streamServer.StartAtomicOp()
-		if err != nil {
-			log.Errorf("failed to start atomic op for Update GER on batch %v: %v", f.wipBatch.batchNumber, err)
-		}
-
-		_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
-		if err != nil {
-			log.Errorf("failed to add stream entry for Update GER on batch %v: %v", f.wipBatch.batchNumber, err)
-		}
-
-		err = f.streamServer.CommitAtomicOp()
-		if err != nil {
-			log.Errorf("failed to commit atomic op for Update GER on batch  %v: %v", f.wipBatch.batchNumber, err)
-		}
-	}
-
-	// Metadata for the next batch
-	stateRoot := f.wipBatch.stateRoot
-	lastBatchNumber := f.wipBatch.batchNumber
-
-	// Process Forced Batches
-	if len(f.nextForcedBatches) > 0 {
-		lastBatchNumber, stateRoot, err = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
-		if err != nil {
-			log.Warnf("failed to process forced batch, err: %s", err)
-		}
-	}
-
-	// Take into consideration the GER
-	f.nextGERMux.Lock()
-	if f.nextGER != state.ZeroHash {
-		f.previousGERHash = f.currentGERHash
-		f.currentGERHash = f.nextGER
-	}
-	f.nextGER = state.ZeroHash
-	f.nextGERDeadline = 0
-	f.nextGERMux.Unlock()
-
-	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, f.currentGERHash, stateRoot)
-
-	return batch, err
-}
-
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, err error) {
 	var txHash string
@@ -662,26 +449,28 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}()
 
 	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:     f.wipBatch.batchNumber,
-		OldStateRoot:    f.wipBatch.stateRoot,
-		OldAccInputHash: f.wipBatch.oldAccInputHash,
-		Coinbase:        f.wipBatch.coinbase,
-		Timestamp_V1:    f.wipBatch.timestamp,
-		Caller:          stateMetrics.SequencerCallerLabel,
+		BatchNumber:       f.wipBatch.batchNumber,
+		OldStateRoot:      f.wipBatch.imStateRoot,
+		OldAccInputHash:   f.wipBatch.imAccInputHash,
+		Coinbase:          f.wipBatch.coinbase,
+		L1InfoRoot_V2:     mockL1InfoRoot,
+		TimestampLimit_V2: uint64(f.wipL2Block.timestamp.Unix()),
+		Caller:            stateMetrics.SequencerCallerLabel,
+		ForkID:            f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 	}
 
-	forkID := f.dbManager.GetForkIDByBatchNumber(executorBatchRequest.BatchNumber)
-
-	// TODO: Check if we need to update the L1InfoRoot_V2
 	if f.wipBatch.isEmpty() {
-		executorBatchRequest.GlobalExitRoot_V1 = f.wipBatch.globalExitRoot
+		executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+		executorBatchRequest.SkipFirstChangeL2Block_V2 = false
 	} else {
-		executorBatchRequest.GlobalExitRoot_V1 = state.ZeroHash
+		executorBatchRequest.Transactions = []byte{}
+		executorBatchRequest.SkipFirstChangeL2Block_V2 = true
 	}
+	executorBatchRequest.SkipWriteBlockInfoRoot_V2 = true
 
 	hashStr := "nil"
 	if tx != nil {
-		executorBatchRequest.Transactions = tx.RawTx
+		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, tx.RawTx...)
 		hashStr = tx.HashStr
 
 		txGasPrice := tx.GasPrice
@@ -689,7 +478,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		// If it is the first time we process this tx then we calculate the EffectiveGasPrice
 		if firstTxProcess {
 			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
-			tx.L1GasPrice, tx.L2GasPrice = f.dbManager.GetL1AndL2GasPrice()
+			tx.L1GasPrice, tx.L2GasPrice = f.pool.GetL1AndL2GasPrice()
 			// Get the tx and l2 gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
 			txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
 
@@ -752,88 +541,49 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			return nil, err
 		}
 
-		if forkID >= state.FORKID_DRAGONFRUIT {
-			executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
-		}
-	} else {
-		executorBatchRequest.Transactions = []byte{}
+		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
 	}
 
-	if forkID < state.FORKID_ETROG {
-		//TODO: unify log.Infof in this section in only one
-		log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, GER: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.GlobalExitRoot_V1.String())
-		processBatchResponse, err := f.executor.ProcessBatch(ctx, executorBatchRequest, true)
-		if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
-			log.Errorf("failed to process transaction: %s", err)
-			return nil, err
-		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
-			err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
-			f.halt(ctx, err)
-		} else if processBatchResponse.IsExecutorLevelError && tx != nil {
-			log.Errorf("error received from executor. Error: %v", err)
-			// Delete tx from the worker
-			f.worker.DeleteTx(tx.Hash, tx.From)
+	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoRoot_V2.String())
+	processBatchResponse, err := f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
+	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
+		log.Errorf("failed to process transaction: %s", err)
+		return nil, err
+	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
+		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
+		f.halt(ctx, err)
+	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
+		log.Errorf("error received from executor. Error: %v", err)
+		// Delete tx from the worker
+		f.worker.DeleteTx(tx.Hash, tx.From)
 
-			// Set tx as invalid in the pool
-			errMsg := processBatchResponse.ExecutorError.Error()
-			err = f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
-			if err != nil {
-				log.Errorf("failed to update status to invalid in the pool for tx: %s, err: %s", tx.Hash.String(), err)
-			} else {
-				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
-			}
-			return nil, err
+		// Set tx as invalid in the pool
+		errMsg := processBatchResponse.ExecutorError.Error()
+		err = f.pool.UpdateTxStatus(ctx, tx.Hash, poolPackage.TxStatusInvalid, false, &errMsg)
+		if err != nil {
+			log.Errorf("failed to update status to invalid in the pool for tx: %s, err: %s", tx.Hash.String(), err)
+		} else {
+			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 		}
-
-		oldStateRoot := f.wipBatch.stateRoot
-		if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
-			errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
-			if err != nil {
-				return errWg, err
-			}
-		}
-		// Update in-memory batch
-		f.wipBatch.stateRoot = processBatchResponse.NewStateRoot
-		f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
-		log.Infof("processTransaction: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, oldStateRoot: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
-	} else {
-		// TODO: Clean duplicated code
-		log.Infof("processTransaction: single tx. Batch.BatchNumber: %d, BatchNumber: %d, OldStateRoot: %s, txHash: %s, L1InfoRoot: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoRoot_V2.String())
-		processBatchResponse, err := f.executor.ProcessBatchV2(ctx, executorBatchRequest, true)
-		if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
-			log.Errorf("failed to process transaction: %s", err)
-			return nil, err
-		} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
-			err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
-			f.halt(ctx, err)
-		} else if processBatchResponse.IsExecutorLevelError && tx != nil {
-			log.Errorf("error received from executor. Error: %v", err)
-			// Delete tx from the worker
-			f.worker.DeleteTx(tx.Hash, tx.From)
-
-			// Set tx as invalid in the pool
-			errMsg := processBatchResponse.ExecutorError.Error()
-			err = f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
-			if err != nil {
-				log.Errorf("failed to update status to invalid in the pool for tx: %s, err: %s", tx.Hash.String(), err)
-			} else {
-				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
-			}
-			return nil, err
-		}
-
-		oldStateRoot := f.wipBatch.stateRoot
-		if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
-			errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
-			if err != nil {
-				return errWg, err
-			}
-		}
-		// Update in-memory batch
-		f.wipBatch.stateRoot = processBatchResponse.NewStateRoot
-		f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
-		log.Infof("processTransaction: data loaded in memory. batch.batchNumber: %d, batchNumber: %d, result.NewStateRoot: %s, result.NewLocalExitRoot: %s, oldStateRoot: %s", f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
+		return nil, err
 	}
+
+	oldStateRoot := f.wipBatch.imStateRoot
+	if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
+		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+		if err != nil {
+			return errWg, err
+		}
+	}
+
+	// Update wip batch
+	f.wipBatch.imStateRoot = processBatchResponse.NewStateRoot
+	f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
+	f.wipBatch.imAccInputHash = processBatchResponse.NewAccInputHash
+
+	log.Infof("processed tx: %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
+		hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
+
 	return nil, nil
 }
 
@@ -906,23 +656,10 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		tx.EGPLog.ValueFinal, tx.EGPLog.ValueFirst, tx.EGPLog.ValueSecond, tx.EGPLog.Percentage, tx.EGPLog.FinalDeviation, tx.EGPLog.MaxDeviation, tx.EGPLog.GasUsedFirst, tx.EGPLog.GasUsedSecond,
 		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
-	txToStore := transactionToStore{
-		hash:          tx.Hash,
-		from:          tx.From,
-		response:      result.BlockResponses[0].TransactionResponses[0],
-		batchResponse: result,
-		batchNumber:   f.wipBatch.batchNumber,
-		timestamp:     f.wipBatch.timestamp,
-		coinbase:      f.wipBatch.coinbase,
-		oldStateRoot:  oldStateRoot,
-		isForcedBatch: false,
-		flushId:       result.FlushID,
-		egpLog:        &tx.EGPLog,
-	}
+	tx.FlushId = result.FlushID
+	f.wipL2Block.addTx(tx)
 
 	f.updateLastPendingFlushID(result.FlushID)
-
-	f.addPendingTxToStore(ctx, txToStore)
 
 	f.wipBatch.countOfTxs++
 
@@ -933,8 +670,28 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 // handleProcessForcedTxsResponse handles the transactions responses for the processed forced batch.
 func (f *finalizer) handleProcessForcedTxsResponse(ctx context.Context, request state.ProcessRequest, result *state.ProcessBatchResponse, oldStateRoot common.Hash) {
-	log.Infof("handleForcedTxsProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
+	/*log.Infof("handleForcedTxsProcessResp: batchNumber: %d, oldStateRoot: %s, newStateRoot: %s", request.BatchNumber, oldStateRoot.String(), result.NewStateRoot.String())
+	parentBlockHash := f.wipL2Block.parentHash
 	for _, blockResp := range result.BlockResponses {
+		if blockResp.BlockNumber != f.wipL2Block.number {
+			log.Fatalf("L2 block number mismatch when processing forced batch block response. blockResp.BlockNumber: %d, f.wipL2Block,number: %d", blockResp.BlockNumber, f.wipL2Block.number)
+			return
+		}
+
+		l2BlockToStore := l2BlockToStore{
+			l2Block: &L2Block{
+				number:       blockResp.BlockNumber,
+				hash:         blockResp.BlockHash,
+				parentHash:   parentBlockHash,
+				timestamp:    time.Unix(int64(blockResp.Timestamp), 0),
+				transactions: []transactionToStore{},
+			},
+			batchNumber: request.BatchNumber,
+			forcedBatch: true,
+			coinbase:    request.Coinbase,
+			stateRoot:   oldStateRoot,
+			flushId:     result.FlushID,
+		}
 		for _, txResp := range blockResp.TransactionResponses {
 			// Handle Transaction Error
 			if txResp.RomError != nil {
@@ -952,6 +709,7 @@ func (f *finalizer) handleProcessForcedTxsResponse(ctx context.Context, request 
 				log.Warnf("handleForcedTxsProcessResp: failed to get sender for tx (%s): %v", txResp.TxHash, err)
 			}
 
+			//TODO: How to manage L2 block for forced batch/txs
 			txToStore := transactionToStore{
 				hash:          txResp.TxHash,
 				from:          from,
@@ -975,7 +733,7 @@ func (f *finalizer) handleProcessForcedTxsResponse(ctx context.Context, request 
 				f.updateWorkerAfterSuccessfulProcessing(ctx, txResp.TxHash, from, true, result)
 			}
 		}
-	}
+	}*/
 }
 
 // compareTxEffectiveGasPrice compares newEffectiveGasPrice with tx.EffectiveGasPrice.
@@ -1022,36 +780,21 @@ func (f *finalizer) compareTxEffectiveGasPrice(ctx context.Context, tx *TxTracke
 	return nil
 }
 
-// storeProcessedTx stores the processed transaction in the database.
-func (f *finalizer) storeProcessedTx(ctx context.Context, txToStore transactionToStore) {
-	if txToStore.response != nil {
-		log.Infof("storeProcessedTx: storing processed txToStore: %s", txToStore.response.TxHash.String())
-	} else {
-		log.Info("storeProcessedTx: storing processed txToStore")
-	}
-	err := f.dbManager.StoreProcessedTxAndDeleteFromPool(ctx, txToStore)
-	if err != nil {
-		log.Info("halting the finalizer because of a database error on storing processed transaction")
-		f.halt(ctx, err)
-	}
-	metrics.TxProcessed(metrics.TxProcessedLabelSuccessful, 1)
-}
-
 func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, txHash common.Hash, txFrom common.Address, isForced bool, result *state.ProcessBatchResponse) {
 	// Delete the transaction from the worker
 	if isForced {
 		f.worker.DeleteForcedTx(txHash, txFrom)
-		log.Debug("forced tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debugf("forced tx deleted from worker. txHash: %s, from: %s", txHash.String(), txFrom.Hex())
 		return
 	} else {
 		f.worker.DeleteTx(txHash, txFrom)
-		log.Debug("tx deleted from worker", "txHash", txHash.String(), "from", txFrom.Hex())
+		log.Debugf("tx deleted from worker. txHash: %s, from: %s", txHash.String(), txFrom.Hex())
 	}
 
 	start := time.Now()
 	txsToDelete := f.worker.UpdateAfterSingleSuccessfulTxExecution(txFrom, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
-		err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
+		err := f.pool.UpdateTxStatus(ctx, txToDelete.Hash, poolPackage.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
 			log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
 			continue
@@ -1078,7 +821,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
+			err := f.pool.UpdateTxStatus(ctx, tx.Hash, poolPackage.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			} else {
@@ -1102,7 +845,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			txToDelete := txToDelete
 			go func() {
 				defer wg.Done()
-				err := f.dbManager.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
+				err := f.pool.UpdateTxStatus(ctx, txToDelete.Hash, poolPackage.TxStatusFailed, false, &failedReason)
 				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", txToDelete.Hash.String(), err)
@@ -1119,7 +862,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 		go func() {
 			defer wg.Done()
 			// Update the status of the transaction to failed
-			err := f.dbManager.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
+			err := f.pool.UpdateTxStatus(ctx, tx.Hash, poolPackage.TxStatusFailed, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx: %s, err: %s", tx.Hash.String(), err)
 			} else {
@@ -1137,7 +880,7 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 	defer f.nextForcedBatchesMux.Unlock()
 	f.nextForcedBatchDeadline = 0
 
-	lastTrustedForcedBatchNumber, err := f.dbManager.GetLastTrustedForcedBatchNumber(ctx, nil)
+	lastTrustedForcedBatchNumber, err := f.state.GetLastTrustedForcedBatchNumber(ctx, nil)
 	if err != nil {
 		return 0, common.Hash{}, fmt.Errorf("failed to get last trusted forced batch number, err: %w", err)
 	}
@@ -1150,7 +893,7 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 		}
 		// Process in-between unprocessed forced batches
 		for forcedBatch.ForcedBatchNumber > nextForcedBatchNum {
-			inBetweenForcedBatch, err := f.dbManager.GetForcedBatch(ctx, nextForcedBatchNum, nil)
+			inBetweenForcedBatch, err := f.state.GetForcedBatch(ctx, nextForcedBatchNum, nil)
 			if err != nil {
 				return 0, common.Hash{}, fmt.Errorf("failed to get in-between forced batch %d, err: %w", nextForcedBatchNum, err)
 			}
@@ -1166,18 +909,113 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumberInS
 	return lastBatchNumberInState, stateRoot, nil
 }
 
-func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
-	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:       lastBatchNumberInState + 1,
-		OldStateRoot:      stateRoot,
-		GlobalExitRoot_V1: forcedBatch.GlobalExitRoot,
-		Transactions:      forcedBatch.RawTxsData,
-		Coinbase:          f.sequencerAddress,
-		Timestamp_V1:      now(),
-		Caller:            stateMetrics.SequencerCallerLabel,
+// ProcessForcedBatch2 process a forced batch
+func (f *finalizer) processForcedBatch2(ctx context.Context, forcedBatchNumber uint64, request state.ProcessRequest) (*state.ProcessBatchResponse, error) {
+	// Open Batch
+	processingCtx := state.ProcessingContext{
+		BatchNumber:    request.BatchNumber,
+		Coinbase:       request.Coinbase,
+		Timestamp:      request.Timestamp_V1,
+		GlobalExitRoot: request.GlobalExitRoot_V1,
+		ForcedBatchNum: &forcedBatchNumber,
+	}
+	dbTx, err := f.state.BeginStateTransaction(ctx)
+	if err != nil {
+		log.Errorf("failed to begin state transaction for opening a forced batch, err: %v", err)
+		return nil, err
 	}
 
-	response, err := f.dbManager.ProcessForcedBatch(forcedBatch.ForcedBatchNumber, executorBatchRequest)
+	err = f.state.OpenBatch(ctx, processingCtx, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when opening a forced batch that gave err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to open a batch, err: %v", err)
+		return nil, err
+	}
+
+	// Fetch Forced Batch
+	forcedBatch, err := f.state.GetForcedBatch(ctx, forcedBatchNumber, dbTx)
+	if err != nil {
+		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
+			log.Errorf(
+				"failed to rollback dbTx when getting forced batch err: %v. Rollback err: %v",
+				rollbackErr, err,
+			)
+		}
+		log.Errorf("failed to get a forced batch, err: %v", err)
+		return nil, err
+	}
+
+	// Process Batch
+	processBatchResponse, err := f.state.ProcessSequencerBatch(ctx, request.BatchNumber, forcedBatch.RawTxsData, request.Caller, dbTx)
+	if err != nil {
+		log.Errorf("failed to process a forced batch, err: %v", err)
+		return nil, err
+	}
+
+	// Close Batch
+	txsBytes := uint64(0)
+	for _, blockResp := range processBatchResponse.BlockResponses {
+		for _, resp := range blockResp.TransactionResponses {
+			if !resp.ChangesStateRoot {
+				continue
+			}
+			txsBytes += resp.Tx.Size()
+		}
+	}
+	processingReceipt := state.ProcessingReceipt{
+		BatchNumber:   request.BatchNumber,
+		StateRoot:     processBatchResponse.NewStateRoot,
+		LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+		AccInputHash:  processBatchResponse.NewAccInputHash,
+		BatchL2Data:   forcedBatch.RawTxsData,
+		BatchResources: state.BatchResources{
+			ZKCounters: processBatchResponse.UsedZkCounters,
+			Bytes:      txsBytes,
+		},
+		ClosingReason: state.ForcedBatchClosingReason,
+	}
+
+	isClosed := false
+	tryToCloseAndCommit := true
+	for tryToCloseAndCommit {
+		if !isClosed {
+			closingErr := f.state.CloseBatch(ctx, processingReceipt, dbTx)
+			tryToCloseAndCommit = closingErr != nil
+			if tryToCloseAndCommit {
+				continue
+			}
+			isClosed = true
+		}
+
+		if err := dbTx.Commit(ctx); err != nil {
+			log.Errorf("failed to commit dbTx when processing a forced batch, err: %v", err)
+		}
+		tryToCloseAndCommit = err != nil
+	}
+
+	return processBatchResponse, nil
+}
+
+func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
+	//TODO: review this request for forced txs
+	executorBatchRequest := state.ProcessRequest{
+		BatchNumber:               lastBatchNumberInState + 1,
+		OldStateRoot:              stateRoot,
+		L1InfoRoot_V2:             forcedBatch.GlobalExitRoot,
+		Transactions:              forcedBatch.RawTxsData,
+		Coinbase:                  f.sequencerAddress,
+		TimestampLimit_V2:         uint64(forcedBatch.ForcedAt.Unix()), //TODO: review this is the TimeStampLimit we need to use
+		SkipFirstChangeL2Block_V2: false,
+		SkipWriteBlockInfoRoot_V2: false,
+		Caller:                    stateMetrics.SequencerCallerLabel,
+	}
+
+	response, err := f.processForcedBatch2(ctx, forcedBatch.ForcedBatchNumber, executorBatchRequest)
 	if err != nil {
 		// If there is EXECUTOR (Batch level) error, halt the finalizer.
 		f.halt(ctx, fmt.Errorf("failed to process forced batch, Executor err: %w", err))
@@ -1203,12 +1041,13 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 		f.handleProcessForcedTxsResponse(ctx, executorBatchRequest, response, stateRoot)
 	} else {
 		if f.streamServer != nil && f.currentGERHash != forcedBatch.GlobalExitRoot {
+			//TODO: review this datastream event
 			updateGer := state.DSUpdateGER{
 				BatchNumber:    executorBatchRequest.BatchNumber,
 				Timestamp:      executorBatchRequest.Timestamp_V1.Unix(),
 				GlobalExitRoot: executorBatchRequest.GlobalExitRoot_V1,
 				Coinbase:       f.sequencerAddress,
-				ForkID:         uint16(f.dbManager.GetForkIDByBatchNumber(executorBatchRequest.BatchNumber)),
+				ForkID:         uint16(f.state.GetForkIDByBatchNumber(executorBatchRequest.BatchNumber)),
 				StateRoot:      response.NewStateRoot,
 			}
 
@@ -1235,99 +1074,31 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	return lastBatchNumberInState, stateRoot
 }
 
-// openNewWIPBatch opens a new batch in the state and returns it as WipBatch
-func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNum uint64, ger, stateRoot common.Hash) (*WipBatch, error) {
-	dbTx, err := f.dbManager.BeginStateTransaction(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to begin state transaction to open batch, err: %w", err)
-	}
-
-	// open next batch
-	openBatchResp, err := f.openBatch(ctx, batchNum, ger, dbTx)
-	if err != nil {
-		if rollbackErr := dbTx.Rollback(ctx); rollbackErr != nil {
-			return nil, fmt.Errorf(
-				"failed to rollback dbTx: %s. Rollback err: %w",
-				rollbackErr.Error(), err,
-			)
-		}
-		return nil, err
-	}
-	if err := dbTx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("failed to commit database transaction for opening a batch, err: %w", err)
-	}
-
-	// Check if synchronizer is up-to-date
-	for !f.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		time.Sleep(time.Second)
-	}
-
-	return &WipBatch{
-		batchNumber:        batchNum,
-		coinbase:           f.sequencerAddress,
-		initialStateRoot:   stateRoot,
-		stateRoot:          stateRoot,
-		timestamp:          openBatchResp.Timestamp,
-		globalExitRoot:     ger,
-		remainingResources: getMaxRemainingResources(f.batchConstraints),
-		closingReason:      state.EmptyClosingReason,
-	}, err
-}
-
-// closeWIPBatch closes the current batch in the state
-func (f *finalizer) closeWIPBatch(ctx context.Context) error {
-	transactions, effectivePercentages, err := f.dbManager.GetTransactionsByBatchNumber(ctx, f.wipBatch.batchNumber)
-	if err != nil {
-		return fmt.Errorf("failed to get transactions from transactions, err: %w", err)
-	}
-	for i, tx := range transactions {
-		log.Infof("closeWIPBatch: BatchNum: %d, Tx position: %d, txHash: %s", f.wipBatch.batchNumber, i, tx.Hash().String())
-	}
-	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
-	receipt := ClosingBatchParameters{
-		BatchNumber:          f.wipBatch.batchNumber,
-		StateRoot:            f.wipBatch.stateRoot,
-		LocalExitRoot:        f.wipBatch.localExitRoot,
-		Txs:                  transactions,
-		EffectivePercentages: effectivePercentages,
-		BatchResources:       usedResources,
-		ClosingReason:        f.wipBatch.closingReason,
-	}
-	return f.dbManager.CloseBatch(ctx, receipt)
-}
-
-// openBatch opens a new batch in the state
-func (f *finalizer) openBatch(ctx context.Context, num uint64, ger common.Hash, dbTx pgx.Tx) (state.ProcessingContext, error) {
-	processingCtx := state.ProcessingContext{
-		BatchNumber:    num,
-		Coinbase:       f.sequencerAddress,
-		Timestamp:      now(),
-		GlobalExitRoot: ger,
-	}
-	err := f.dbManager.OpenBatch(ctx, processingCtx, dbTx)
-	if err != nil {
-		return state.ProcessingContext{}, fmt.Errorf("failed to open new batch, err: %w", err)
-	}
-
-	return processingCtx, nil
-}
-
 // reprocessFullBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
-	reprocessError := func(batch *state.Batch, txs []ethereumTypes.Transaction) {
+func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, initialAccInputHash common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
+	reprocessError := func(batch *state.Batch) {
 		f.reprocessFullBatchError.Store(true)
 
+		rawL2Blocks, err := state.DecodeBatchV2(batch.BatchL2Data)
+		if err != nil {
+			log.Errorf("[reprocessFullBatch] error decoding BatchL2Data for batch %d. Error: %s", batch.BatchNumber, err)
+			return
+		}
+
 		// Log batch detailed info
-		log.Infof("reprocessFullBatch: BatchNumber: %d, OldStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot.String(), expectedNewStateRoot.String(), batch.GlobalExitRoot.String())
-		for i, tx := range txs {
-			log.Infof("reprocessFullBatch: BatchNumber: %d, Tx position %d, Tx Hash: %s", batch.BatchNumber, i, tx.Hash())
+		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot, batch.GlobalExitRoot)
+		for i, rawL2block := range rawL2Blocks.Blocks {
+			for j, rawTx := range rawL2block.Transactions {
+				log.Infof("[reprocessFullBatch] BatchNumber: %d, block position: % d, tx position %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
+			}
 		}
 	}
 
-	batch, err := f.dbManager.GetBatchByNumber(ctx, batchNum, nil)
+	log.Debugf("[reprocessFullBatch] reprocessing batch: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batchNum, initialStateRoot, expectedNewStateRoot)
+
+	batch, err := f.state.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
-		log.Errorf("reprocessFullBatch: failed to get batch %d, err: %v", batchNum, err)
+		log.Errorf("[reprocessFullBatch] failed to get batch %d, err: %s", batchNum, err)
 		f.reprocessFullBatchError.Store(true)
 		return nil, ErrGetBatchByNumber
 	}
@@ -1337,53 +1108,40 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		caller = stateMetrics.SequencerCallerLabel
 	}
 
-	// TODO: L1InfoRoot
+	// TODO: review this request for reprocess full batch
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:       batch.BatchNumber,
-		GlobalExitRoot_V1: batch.GlobalExitRoot,
+		L1InfoRoot_V2:     mockL1InfoRoot,
 		OldStateRoot:      initialStateRoot,
+		OldAccInputHash:   initialAccInputHash,
 		Transactions:      batch.BatchL2Data,
 		Coinbase:          batch.Coinbase,
-		Timestamp_V1:      batch.Timestamp,
+		TimestampLimit_V2: uint64(time.Now().Unix()),
 		Caller:            caller,
-	}
-
-	forkID := f.dbManager.GetForkIDByBatchNumber(batchNum)
-	txs, _, _, err := state.DecodeTxs(batch.BatchL2Data, forkID)
-	if err != nil {
-		log.Errorf("reprocessFullBatch: error decoding BatchL2Data for batch %d. Error: %v", batch.BatchNumber, err)
-		reprocessError(batch, []ethereumTypes.Transaction{})
-		return nil, ErrDecodeBatchL2Data
-	}
-	for i, tx := range txs {
-		log.Infof("reprocessFullBatch: BatchNumber: %d, Tx position %d, Tx Hash: %s", batch.BatchNumber, i, tx.Hash())
 	}
 
 	var result *state.ProcessBatchResponse
 
-	if forkID < state.FORKID_ETROG {
-		result, err = f.executor.ProcessBatch(ctx, executorBatchRequest, false)
-		if err != nil {
-			log.Errorf("reprocessFullBatch: failed to process batch %d. Error: %s", batch.BatchNumber, err)
-			reprocessError(batch, txs)
-			return nil, ErrProcessBatch
-		}
-	} else {
-		result, err = f.executor.ProcessBatchV2(ctx, executorBatchRequest, false)
-		if err != nil {
-			log.Errorf("reprocessFullBatch: failed to process batch %d. Error: %s", batch.BatchNumber, err)
-			reprocessError(batch, txs)
-			return nil, ErrProcessBatch
-		}
+	result, err = f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
+	if err != nil {
+		log.Errorf("[reprocessFullBatch] failed to process batch %d. Error: %s", batch.BatchNumber, err)
+		reprocessError(batch)
+		return nil, ErrProcessBatch
+	}
+
+	if result.ExecutorError != nil {
+		log.Errorf("[reprocessFullBatch] executor error when reprocessing batch %d, error: %s", batch.BatchNumber, result.ExecutorError)
+		reprocessError(batch)
+		return nil, ErrExecutorError
 	}
 
 	if result.IsRomOOCError {
-		log.Errorf("reprocessFullBatch: failed to process batch %d because OutOfCounters", batch.BatchNumber)
-		reprocessError(batch, txs)
+		log.Errorf("[reprocessFullBatch] failed to process batch %d because OutOfCounters", batch.BatchNumber)
+		reprocessError(batch)
 
 		payload, err := json.Marshal(executorBatchRequest)
 		if err != nil {
-			log.Errorf("reprocessFullBatch: error marshaling payload: %v", err)
+			log.Errorf("[reprocessFullBatch] error marshaling payload: %s", err)
 		} else {
 			event := &event.Event{
 				ReceivedAt:  time.Now(),
@@ -1396,7 +1154,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
-				log.Errorf("reprocessFullBatch: error storing payload: %v", err)
+				log.Errorf("[reprocessFullBatch] error storing payload: %s", err)
 			}
 		}
 
@@ -1404,18 +1162,12 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	}
 
 	if result.NewStateRoot != expectedNewStateRoot {
-		log.Errorf("reprocessFullBatch: new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
-		reprocessError(batch, txs)
+		log.Errorf("[reprocessFullBatch] new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
+		reprocessError(batch)
 		return nil, ErrStateRootNoMatch
 	}
 
-	if result.ExecutorError != nil {
-		log.Errorf("reprocessFullBatch: executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
-		reprocessError(batch, txs)
-		return nil, ErrExecutorError
-	}
-
-	log.Infof("reprocessFullBatch: reprocess successfully done for batch %d", batch.BatchNumber)
+	log.Infof("[reprocessFullBatch]: reprocess successfully done for batch %d", batch.BatchNumber)
 	return result, nil
 }
 
@@ -1423,18 +1175,18 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
 	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
-		log.Infof("closing batch: %d, forced batch deadline encountered.", f.wipBatch.batchNumber)
+		log.Infof("closing batch %d, forced batch deadline encountered.", f.wipBatch.batchNumber)
 		return true
 	}
 	// Global Exit Root deadline
 	if f.nextGERDeadline != 0 && now().Unix() >= f.nextGERDeadline {
-		log.Infof("closing batch: %d, GER deadline encountered.", f.wipBatch.batchNumber)
+		log.Infof("closing batch %d, GER deadline encountered.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.GlobalExitRootDeadlineClosingReason
 		return true
 	}
 	// Timestamp resolution deadline
 	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
-		log.Infof("closing batch: %d, because of timestamp resolution.", f.wipBatch.batchNumber)
+		log.Infof("closing batch %d, because of timestamp resolution.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true
 	}
@@ -1460,7 +1212,7 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 
 	err := f.wipBatch.remainingResources.Sub(usedResources)
 	if err != nil {
-		log.Infof("current transaction exceeds the batch limit, updating metadata for tx in worker and continuing")
+		log.Infof("current transaction exceeds the remaining batch resources, updating metadata for tx in worker and continuing")
 		start := time.Now()
 		f.worker.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -1470,8 +1222,8 @@ func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, 
 	return nil
 }
 
-// isBatchResourcesFull checks if one of resources of the wip batch has reached the max value
-func (f *finalizer) isBatchResourcesFull() bool {
+// isBatchResourcesExhausted checks if one of resources of the wip batch has reached the max value
+func (f *finalizer) isBatchResourcesExhausted() bool {
 	resources := f.wipBatch.remainingResources
 	zkCounters := resources.ZKCounters
 	result := false
@@ -1500,14 +1252,50 @@ func (f *finalizer) isBatchResourcesFull() bool {
 	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		resourceDesc = "MaxCumulativeGasUsed"
 		result = true
+	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
+		resourceDesc = "MaxSHA256Hashes"
+		result = true
 	}
 
 	if result {
-		log.Infof("closing batch: %d, because it reached %s threshold limit", f.wipBatch.batchNumber, resourceDesc)
+		log.Infof("closing batch %d, because it reached %s limit", f.wipBatch.batchNumber, resourceDesc)
 		f.wipBatch.closingReason = state.BatchAlmostFullClosingReason
 	}
 
 	return result
+}
+
+// getConstraintThresholdUint64 returns the threshold for the given input
+func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
+	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
+}
+
+// getConstraintThresholdUint32 returns the threshold for the given input
+func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
+	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
+}
+
+// halt halts the finalizer
+func (f *finalizer) halt(ctx context.Context, err error) {
+	event := &event.Event{
+		ReceivedAt:  time.Now(),
+		Source:      event.Source_Node,
+		Component:   event.Component_Sequencer,
+		Level:       event.Level_Critical,
+		EventID:     event.EventID_FinalizerHalt,
+		Description: fmt.Sprintf("finalizer halted due to error: %s", err),
+	}
+
+	eventErr := f.eventLog.LogEvent(ctx, event)
+	if eventErr != nil {
+		log.Errorf("error storing finalizer halt event: %v", eventErr)
+	}
+
+	for {
+		log.Errorf("fatal error: %s", err)
+		log.Error("halting the finalizer")
+		time.Sleep(5 * time.Second) //nolint:gomnd
+	}
 }
 
 // getUsedBatchResources returns the max resources that can be used in a batch
@@ -1522,6 +1310,7 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
 			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
 			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
+			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
@@ -1539,17 +1328,8 @@ func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.Batch
 			UsedArithmetics:      constraints.MaxArithmetics,
 			UsedBinaries:         constraints.MaxBinaries,
 			UsedSteps:            constraints.MaxSteps,
+			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}
-}
-
-// getConstraintThresholdUint64 returns the threshold for the given input
-func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
-}
-
-// getConstraintThresholdUint32 returns the threshold for the given input
-func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
 }

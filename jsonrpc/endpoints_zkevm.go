@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -138,6 +139,15 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err, true)
+		}
+		batchTimestamp, err := z.state.GetBatchTimestamp(ctx, batchNumber, nil, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch timestamp from state by number %v", batchNumber), err, true)
+		}
+		if batchTimestamp == nil {
+			batch.Timestamp = time.Time{}
+		} else {
+			batch.Timestamp = *batchTimestamp
 		}
 
 		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)

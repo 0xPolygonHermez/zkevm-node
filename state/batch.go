@@ -25,16 +25,19 @@ const (
 
 // Batch struct
 type Batch struct {
-	BatchNumber    uint64
-	Coinbase       common.Address
-	BatchL2Data    []byte
-	StateRoot      common.Hash
-	LocalExitRoot  common.Hash
-	AccInputHash   common.Hash
+	BatchNumber   uint64
+	Coinbase      common.Address
+	BatchL2Data   []byte
+	StateRoot     common.Hash
+	LocalExitRoot common.Hash
+	AccInputHash  common.Hash
+	// Timestamp (<=incaberry) -> batch time
+	// 			 (>incaberry) -> minTimestamp used in batch creation, real timestamp is in virtual_batch.batch_timestamp
 	Timestamp      time.Time
 	Transactions   []types.Transaction
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
+	Resources      BatchResources
 }
 
 // ProcessingContext is the necessary data that a batch needs to provide to the runtime,
@@ -97,6 +100,9 @@ type VirtualBatch struct {
 	Coinbase      common.Address
 	SequencerAddr common.Address
 	BlockNumber   uint64
+	// TimestampBatchEtrog etrog: Batch timestamp comes from L1 block timestamp
+	//  for previous batches is NULL because the batch timestamp is in batch table
+	TimestampBatchEtrog *time.Time
 }
 
 // Sequence represents the sequence interval
@@ -138,6 +144,45 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return ErrTimestampGE
 	}
 	return s.OpenBatchInStorage(ctx, processingContext, dbTx)
+}
+
+// OpenWIPBatch adds a new WIP batch into the state
+func (s *State) OpenWIPBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error {
+	if dbTx == nil {
+		return ErrDBTxNil
+	}
+
+	//TODO: Use s.GetLastBatch to retrieve number and time and avoid to do 2 queries
+	// Check if the batch that is being opened has batch num + 1 compared to the latest batch
+	lastBatchNum, err := s.GetLastBatchNumber(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+	if lastBatchNum+1 != batch.BatchNumber {
+		return fmt.Errorf("%w number %d, should be %d", ErrUnexpectedBatch, batch.BatchNumber, lastBatchNum+1)
+	}
+	// Check if last batch is closed
+	isLastBatchClosed, err := s.IsBatchClosed(ctx, lastBatchNum, dbTx)
+	if err != nil {
+		return err
+	}
+	if !isLastBatchClosed {
+		return ErrLastBatchShouldBeClosed
+	}
+	// Check that timestamp is equal or greater compared to previous batch
+	prevTimestamp, err := s.GetLastBatchTime(ctx, dbTx)
+	if err != nil {
+		return err
+	}
+	if prevTimestamp.Unix() > batch.Timestamp.Unix() {
+		return ErrTimestampGE
+	}
+	return s.OpenWIPBatchInStorage(ctx, batch, dbTx)
+}
+
+// GetWIPBatch returns the wip batch in the state
+func (s *State) GetWIPBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*Batch, error) {
+	return s.GetWIPBatchInStorage(ctx, batchNumber, dbTx)
 }
 
 // ProcessSequencerBatch is used by the sequencers to process transactions into an open batch
@@ -377,7 +422,7 @@ func (s *State) isBatchClosable(ctx context.Context, receipt ProcessingReceipt, 
 	return nil
 }
 
-// CloseBatch is used by sequencer to close the current batch
+// CloseBatch is used to close a batch
 func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -389,6 +434,11 @@ func (s *State) CloseBatch(ctx context.Context, receipt ProcessingReceipt, dbTx 
 	}
 
 	return s.CloseBatchInStorage(ctx, receipt, dbTx)
+}
+
+// CloseWIPBatch is used by sequencer to close the wip batch
+func (s *State) CloseWIPBatch(ctx context.Context, receipt ProcessingReceipt, dbTx pgx.Tx) error {
+	return s.CloseWIPBatchInStorage(ctx, receipt, dbTx)
 }
 
 // ProcessAndStoreClosedBatch is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,
@@ -480,4 +530,25 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 		return nil, ErrNotFound
 	}
 	return batches[0], nil
+}
+
+// GetBatchTimestamp returns the batch timestamp.
+//
+//	   for >= etrog is stored on virtual_batch.batch_timestamp
+//		  previous batches is stored on batch.timestamp
+func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, forcedForkId *uint64, dbTx pgx.Tx) (*time.Time, error) {
+	var forkid uint64
+	if forcedForkId != nil {
+		forkid = *forcedForkId
+	} else {
+		forkid = s.GetForkIDByBatchNumber(batchNumber)
+	}
+	batchTimestamp, virtualTimestamp, err := s.GetRawBatchTimestamps(ctx, batchNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	if forkid >= FORKID_ETROG {
+		return virtualTimestamp, nil
+	}
+	return batchTimestamp, nil
 }

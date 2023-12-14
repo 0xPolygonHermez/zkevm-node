@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 )
 
@@ -17,10 +18,10 @@ type l1RollupInfoProducerStatistics struct {
 	startTime                       time.Time
 	lastShowUpTime                  time.Time
 	accumulatedTimeProcessingRollup time.Duration
-	timeProvider                    TimeProvider
+	timeProvider                    common.TimeProvider
 }
 
-func newRollupInfoProducerStatistics(startingBlockNumber uint64, timeProvider TimeProvider) l1RollupInfoProducerStatistics {
+func newRollupInfoProducerStatistics(startingBlockNumber uint64, timeProvider common.TimeProvider) l1RollupInfoProducerStatistics {
 	return l1RollupInfoProducerStatistics{
 		initialBlockNumber:              startingBlockNumber,
 		startTime:                       timeProvider.Now(),

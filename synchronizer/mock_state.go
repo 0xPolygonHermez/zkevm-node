@@ -17,6 +17,8 @@ import (
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 
+	time "time"
+
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -243,6 +245,32 @@ func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, update
 	return r0, r1
 }
 
+// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx
+func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+	ret := _m.Called(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
+
+	var r0 *executor.ProcessBatchResponseV2
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
+		return rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
+		r0 = rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*executor.ProcessBatchResponseV2)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
@@ -267,6 +295,22 @@ func (_m *stateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	}
 
 	return r0, r1
+}
+
+// GetCurrentL1InfoRoot provides a mock function with given fields:
+func (_m *stateMock) GetCurrentL1InfoRoot() common.Hash {
+	ret := _m.Called()
+
+	var r0 common.Hash
+	if rf, ok := ret.Get(0).(func() common.Hash); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	return r0
 }
 
 // GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
@@ -612,8 +656,74 @@ func (_m *stateMock) ProcessAndStoreClosedBatch(ctx context.Context, processingC
 	return r0, r1, r2, r3
 }
 
+// ProcessAndStoreClosedBatchV2 provides a mock function with given fields: ctx, processingCtx, dbTx, caller
+func (_m *stateMock) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error) {
+	ret := _m.Called(ctx, processingCtx, dbTx, caller)
+
+	var r0 common.Hash
+	var r1 uint64
+	var r2 string
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) (common.Hash, uint64, string, error)); ok {
+		return rf(ctx, processingCtx, dbTx, caller)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) common.Hash); ok {
+		r0 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) uint64); ok {
+		r1 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		r1 = ret.Get(1).(uint64)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) string); ok {
+		r2 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+
+	if rf, ok := ret.Get(3).(func(context.Context, state.ProcessingContextV2, pgx.Tx, metrics.CallerLabel) error); ok {
+		r3 = rf(ctx, processingCtx, dbTx, caller)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
+}
+
 // ProcessBatch provides a mock function with given fields: ctx, request, updateMerkleTree
 func (_m *stateMock) ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, request, updateMerkleTree)
+
+	var r0 *state.ProcessBatchResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ctx, request, updateMerkleTree)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessRequest, bool) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, request, updateMerkleTree)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBatchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
+		r1 = rf(ctx, request, updateMerkleTree)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// ProcessBatchV2 provides a mock function with given fields: ctx, request, updateMerkleTree
+func (_m *stateMock) ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, request, updateMerkleTree)
 
 	var r0 *state.ProcessBatchResponse
@@ -727,6 +837,20 @@ func (_m *stateMock) SetLastBatchInfoSeenOnEthereum(ctx context.Context, lastBat
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, lastBatchNumberSeen, lastBatchNumberVerified, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
+func (_m *stateMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -126,12 +126,13 @@
 **Type:** : `object`
 **Description:** Data of the first batch after the genesis(Batch 1)
 
-| Property                                            | Pattern | Type             | Deprecated | Definition | Title/Description |
-| --------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [transactions](#firstBatchData_transactions )     | No      | string           | No         | -          | -                 |
-| - [globalExitRoot](#firstBatchData_globalExitRoot ) | No      | array of integer | No         | -          | -                 |
-| - [timestamp](#firstBatchData_timestamp )           | No      | integer          | No         | -          | -                 |
-| - [sequencer](#firstBatchData_sequencer )           | No      | array of integer | No         | -          | -                 |
+| Property                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
+| --------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [transactions](#firstBatchData_transactions )           | No      | string           | No         | -          | -                 |
+| - [globalExitRoot](#firstBatchData_globalExitRoot )       | No      | array of integer | No         | -          | -                 |
+| - [timestamp](#firstBatchData_timestamp )                 | No      | integer          | No         | -          | -                 |
+| - [sequencer](#firstBatchData_sequencer )                 | No      | array of integer | No         | -          | -                 |
+| - [forcedBlockHashL1](#firstBatchData_forcedBlockHashL1 ) | No      | array of integer | No         | -          | -                 |
 
 ### <a name="firstBatchData_transactions"></a>5.1. `firstBatchData.transactions`
 
@@ -146,6 +147,10 @@
 **Type:** : `integer`
 
 ### <a name="firstBatchData_sequencer"></a>5.4. `firstBatchData.sequencer`
+
+**Type:** : `array of integer`
+
+### <a name="firstBatchData_forcedBlockHashL1"></a>5.5. `firstBatchData.forcedBlockHashL1`
 
 **Type:** : `array of integer`
 
