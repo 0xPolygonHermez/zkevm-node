@@ -188,19 +188,19 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 }
 
 // GetBatchTimestamp provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.BatchTimestampData, error) {
+func (_m *StateMock) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	var r0 *state.BatchTimestampData
+	var r0 *time.Time
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.BatchTimestampData, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*time.Time, error)); ok {
 		return rf(ctx, batchNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.BatchTimestampData); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *time.Time); ok {
 		r0 = rf(ctx, batchNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.BatchTimestampData)
+			r0 = ret.Get(0).(*time.Time)
 		}
 	}
 
