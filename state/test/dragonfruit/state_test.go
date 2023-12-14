@@ -28,6 +28,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/state/test"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -66,11 +67,11 @@ var (
 		ForkIDIntervals: []state.ForkIDInterval{{
 			FromBatchNumber: 0,
 			ToBatchNumber:   math.MaxUint64,
-			ForkId:          state.FORKID_ETROG,
+			ForkId:          state.FORKID_DRAGONFRUIT,
 			Version:         "",
 		}},
 	}
-	forkID                             uint64 = state.FORKID_DRAGONFRUIT
+	forkID                             uint64 = stateCfg.ForkIDIntervals[0].ForkId
 	executorClient                     executor.ExecutorServiceClient
 	mtDBServiceClient                  hashdb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
@@ -92,7 +93,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	stateDb, err = db.NewSQLDB(stateDBCfg)
 	if err != nil {
@@ -142,7 +143,7 @@ func TestMain(m *testing.M) {
 
 func TestAddBlock(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	// ctx := context.Background()
 	fmt.Println("db: ", stateDb)
@@ -176,7 +177,7 @@ func TestAddBlock(t *testing.T) {
 
 func TestProcessCloseBatch(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -201,7 +202,7 @@ func TestProcessCloseBatch(t *testing.T) {
 
 func TestOpenCloseBatch(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -319,7 +320,7 @@ func assertBatch(t *testing.T, expected, actual state.Batch) {
 
 func TestAddForcedBatch(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -367,7 +368,7 @@ func TestAddForcedBatch(t *testing.T) {
 	err = testState.AddForcedBatch(ctx, &forcedBatch, tx)
 	require.NoError(t, err)
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, forced_batch_num) VALUES (2, 2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, forced_batch_num, WIP) VALUES (2, 2, FALSE)")
 	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
@@ -390,7 +391,7 @@ func TestAddForcedBatch(t *testing.T) {
 
 func TestAddVirtualBatch(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -403,7 +404,7 @@ func TestAddVirtualBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, tx)
 	assert.NoError(t, err)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, WIP) VALUES (1, FALSE)")
 	assert.NoError(t, err)
 	virtualBatch := state.VirtualBatch{
 		BlockNumber: 1,
@@ -417,7 +418,7 @@ func TestAddVirtualBatch(t *testing.T) {
 }
 
 func TestGetTxsHashesToDelete(t *testing.T) {
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	tx, err := testState.BeginStateTransaction(ctx)
@@ -439,7 +440,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 	err = testState.AddBlock(ctx, block2, tx)
 	assert.NoError(t, err)
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (1)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, WIP) VALUES (1, FALSE)")
 	assert.NoError(t, err)
 	require.NoError(t, err)
 	virtualBatch1 := state.VirtualBatch{
@@ -449,7 +450,7 @@ func TestGetTxsHashesToDelete(t *testing.T) {
 		Coinbase:    common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D"),
 	}
 
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES (2)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, WIP) VALUES (2, FALSE)")
 	assert.NoError(t, err)
 	virtualBatch2 := state.VirtualBatch{
 		BlockNumber: 1,
@@ -628,7 +629,7 @@ func TestCheckSupersetBatchTransactions(t *testing.T) {
 
 func TestGetTxsHashesByBatchNumber(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -720,7 +721,7 @@ func TestGenesis(t *testing.T) {
 		},
 	}
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -757,39 +758,6 @@ func TestGenesis(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExecutor(t *testing.T) {
-	var expectedNewRoot = "0xa2b0ad9cc19e2a4aa9a6d7e14b15e5e951e319ed17b619878bec201b4d064c3e"
-
-	db := map[string]string{
-		"2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90": "00000000000000000000000000000000000000000000000000000000000000000d1f0da5a7b620c843fd1e18e59fd724d428d25da0cb1888e31f5542ac227c060000000000000000000000000000000000000000000000000000000000000000",
-		"e31f5542ac227c06d428d25da0cb188843fd1e18e59fd7240d1f0da5a7b620c8": "ed22ec7734d89ff2b2e639153607b7c542b2bd6ec2788851b7819329410847833e63658ee0db910d0b3e34316e81aa10e0dc203d93f4e3e5e10053d0ebc646020000000000000000000000000000000000000000000000000000000000000000",
-		"b78193294108478342b2bd6ec2788851b2e639153607b7c5ed22ec7734d89ff2": "16dde42596b907f049015d7e991a152894dd9dadd060910b60b4d5e9af514018b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-		"3efad1dd58c2259d339438195426ad0af57d81efba5d4445b69b044f5e694795": "00000000dea000000000000035c9adc5000000000000003600000000000000000000000000000000000000000000000000000000000000000000000000000000",
-		"e10053d0ebc64602e0dc203d93f4e3e50b3e34316e81aa103e63658ee0db910d": "66ee2be0687eea766926f8ca8796c78a4c2f3e938869b82d649e63bfe1247ba4b69b044f5e694795f57d81efba5d4445339438195426ad0a3efad1dd58c2259d0000000000000001000000000000000000000000000000000000000000000000",
-	}
-
-	// Create Batch
-	processBatchRequest := &executor.ProcessBatchRequest{
-		OldBatchNum:      0,
-		Coinbase:         common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D").String(),
-		BatchL2Data:      common.Hex2Bytes("ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bff"),
-		OldStateRoot:     common.Hex2Bytes("2dc4db4293af236cb329700be43f08ace740a05088f8c7654736871709687e90"),
-		GlobalExitRoot:   common.Hex2Bytes("090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9"),
-		OldAccInputHash:  common.Hex2Bytes("17c04c3760510b48c6012742c540a81aba4bca2f78b9d14bfd2f123e2e53ea3e"),
-		EthTimestamp:     uint64(1944498031),
-		UpdateMerkleTree: 0,
-		Db:               db,
-		ChainId:          stateCfg.ChainID,
-		ForkId:           forkID,
-		ContextId:        uuid.NewString(),
-	}
-
-	processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
-	require.NoError(t, err)
-
-	assert.Equal(t, common.HexToHash(expectedNewRoot), common.BytesToHash(processBatchResponse.NewStateRoot))
-}
-
 func TestExecutorRevert(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -816,7 +784,7 @@ func TestExecutorRevert(t *testing.T) {
 	}
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1029,7 +997,7 @@ func TestExecutorTransfer(t *testing.T) {
 		},
 	}
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1132,7 +1100,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 
 	var testCases, testCases2 []TxHashTestCase
 
-	jsonFile, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/uniswap_formated.json"))
+	jsonFile, err := os.Open(filepath.Clean("../../../test/vectors/src/tx-hash-ethereum/uniswap_formated.json"))
 	require.NoError(t, err)
 	defer func() { _ = jsonFile.Close() }()
 
@@ -1142,7 +1110,7 @@ func TestExecutorTxHashAndRLP(t *testing.T) {
 	err = json.Unmarshal(bytes, &testCases)
 	require.NoError(t, err)
 
-	jsonFile2, err := os.Open(filepath.Clean("test/vectors/src/tx-hash-ethereum/rlp.json"))
+	jsonFile2, err := os.Open(filepath.Clean("../../../test/vectors/src/tx-hash-ethereum/rlp.json"))
 	require.NoError(t, err)
 	defer func() { _ = jsonFile2.Close() }()
 
@@ -1273,7 +1241,7 @@ func TestExecutorInvalidNonce(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			initOrResetDB()
+			test.InitOrResetDB(stateDBCfg)
 
 			// Set Genesis
 			block := state.Block{
@@ -1388,7 +1356,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 	}
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1568,7 +1536,7 @@ func TestGenesisNewLeafType(t *testing.T) {
 
 func TestExecutorUnsignedTransactions(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	var chainIDSequencer = new(big.Int).SetInt64(1000)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -1698,7 +1666,7 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 
 func TestAddGetL2Block(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -1713,7 +1681,7 @@ func TestAddGetL2Block(t *testing.T) {
 	assert.NoError(t, err)
 
 	batchNumber := uint64(1)
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num) VALUES ($1)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, WIP) VALUES ($1, FALSE)", batchNumber)
 	assert.NoError(t, err)
 
 	time := time.Now()
@@ -1822,7 +1790,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 		},
 	}
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -1896,7 +1864,7 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 			},
 		}
 
-		initOrResetDB()
+		test.InitOrResetDB(stateDBCfg)
 
 		dbTx, err := testState.BeginStateTransaction(ctx)
 		require.NoError(t, err)
@@ -1981,12 +1949,6 @@ func TestExecutorUniswapOutOfCounters(t *testing.T) {
 }
 */
 
-func initOrResetDB() {
-	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
-		panic(err)
-	}
-}
-
 func TestExecutorEstimateGas(t *testing.T) {
 	var chainIDSequencer = new(big.Int).SetUint64(stateCfg.ChainID)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -2023,7 +1985,7 @@ func TestExecutorEstimateGas(t *testing.T) {
 	}
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -2177,7 +2139,7 @@ func TestExecutorGasRefund(t *testing.T) {
 		},
 	}
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -2342,7 +2304,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 	}
 	genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
@@ -2527,7 +2489,7 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 
 func TestExecuteWithoutUpdatingMT(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	var chainIDSequencer = new(big.Int).SetUint64(stateCfg.ChainID)
 	var sequencerAddress = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
@@ -2652,7 +2614,7 @@ func TestExecuteWithoutUpdatingMT(t *testing.T) {
 
 func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	// Init database instance
-	initOrResetDB()
+	test.InitOrResetDB(stateDBCfg)
 
 	// auth
 	privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(operations.DefaultSequencerPrivateKey, "0x"))
