@@ -108,6 +108,12 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 		wipStateBatchCountOfTxs = wipStateBatchCountOfTxs + len(rawBlock.Transactions)
 	}
 
+	remainingResources := getMaxRemainingResources(f.batchConstraints)
+	err = remainingResources.Sub(wipStateBatch.Resources)
+	if err != nil {
+		return nil, err
+	}
+
 	wipBatch := &Batch{
 		batchNumber:         wipStateBatch.BatchNumber,
 		coinbase:            wipStateBatch.Coinbase,
@@ -121,51 +127,8 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 		timestamp:           wipStateBatch.Timestamp,
 		globalExitRoot:      wipStateBatch.GlobalExitRoot,
 		countOfTxs:          wipStateBatchCountOfTxs,
+		remainingResources:  remainingResources,
 	}
-
-	// Init counters to MAX values
-	var totalBytes uint64 = f.batchConstraints.MaxBatchBytesSize
-	var batchZkCounters = state.ZKCounters{
-		GasUsed:              f.batchConstraints.MaxCumulativeGasUsed,
-		UsedKeccakHashes:     f.batchConstraints.MaxKeccakHashes,
-		UsedPoseidonHashes:   f.batchConstraints.MaxPoseidonHashes,
-		UsedPoseidonPaddings: f.batchConstraints.MaxPoseidonPaddings,
-		UsedMemAligns:        f.batchConstraints.MaxMemAligns,
-		UsedArithmetics:      f.batchConstraints.MaxArithmetics,
-		UsedBinaries:         f.batchConstraints.MaxBinaries,
-		UsedSteps:            f.batchConstraints.MaxSteps,
-		UsedSha256Hashes_V2:  f.batchConstraints.MaxSHA256Hashes,
-	}
-
-	//TODO: We execute the batch to get the used counter. To avoid this We can update the counters in the state.batch table for the wip batch
-	if wipStateBatchCountOfTxs > 0 {
-		//TODO: Change wipStateBatch.GlobalExitRoot for L1InfoRoot and wipStateBatch.Timestamp for the TimeLimit
-		batchResponse, err := f.state.ExecuteBatchV2(ctx, *wipStateBatch, wipStateBatch.GlobalExitRoot, wipStateBatch.Timestamp, false, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		zkCounters := &state.ZKCounters{
-			GasUsed:              batchResponse.GasUsed, //TODO: review this is ok
-			UsedKeccakHashes:     batchResponse.CntKeccakHashes,
-			UsedPoseidonHashes:   batchResponse.CntPoseidonHashes,
-			UsedPoseidonPaddings: batchResponse.CntPoseidonPaddings,
-			UsedMemAligns:        batchResponse.CntMemAligns,
-			UsedArithmetics:      batchResponse.CntArithmetics,
-			UsedBinaries:         batchResponse.CntBinaries,
-			UsedSteps:            batchResponse.CntSteps,
-			UsedSha256Hashes_V2:  batchResponse.CntSha256Hashes,
-		}
-
-		err = batchZkCounters.Sub(*zkCounters)
-		if err != nil {
-			return nil, err
-		}
-
-		totalBytes -= uint64(len(wipStateBatch.BatchL2Data))
-	}
-
-	wipBatch.remainingResources = state.BatchResources{ZKCounters: batchZkCounters, Bytes: totalBytes}
 
 	return wipBatch, nil
 }
@@ -206,7 +169,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 		}
 	} else {
 		// Get the last batch in trusted state
-		lastBatch, err := f.state.GetBatchByNumber(ctx, lastBatchNum, nil)
+		lastStateBatch, err := f.state.GetBatchByNumber(ctx, lastBatchNum, nil)
 		if err != nil {
 			log.Fatalf("failed to get last batch. Error: %s", err)
 		}
@@ -224,12 +187,12 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 				log.Fatalf("failed to get latest GER. Error: %s", err)
 			}
 
-			f.wipBatch, err = f.openNewWIPBatch(ctx, lastBatch.BatchNumber+1, ger.GlobalExitRoot, lastBatch.StateRoot, lastBatch.LocalExitRoot, lastBatch.AccInputHash)
+			f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, ger.GlobalExitRoot, lastStateBatch.StateRoot, lastStateBatch.LocalExitRoot, lastStateBatch.AccInputHash)
 			if err != nil {
 				log.Fatalf("failed to open new wip batch. Error: %s", err)
 			}
 		} else { /// if it's not closed, it is the wip state batch, set it as wip batch in the finalizer
-			f.wipBatch, err = f.setWIPBatch(ctx, lastBatch)
+			f.wipBatch, err = f.setWIPBatch(ctx, lastStateBatch)
 			if err != nil {
 				log.Fatalf("failed to set wip batch. Error: %s", err)
 			}
@@ -241,7 +204,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 		f.wipBatch.globalExitRoot, f.wipBatch.localExitRoot)
 }
 
-// finalizeBatch retries to until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+// finalizeBatch retries until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeBatch(ctx context.Context) {
 	start := time.Now()
 	defer func() {
