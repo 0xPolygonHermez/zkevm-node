@@ -426,7 +426,11 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
+<<<<<<< HEAD
     image: hermeznetwork/zkevm-prover:v4.0.0-RC9
+=======
+    image: hermeznetwork/zkevm-prover:v4.0.0-RC8
+>>>>>>> develop
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
