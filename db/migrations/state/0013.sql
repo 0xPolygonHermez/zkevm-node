@@ -31,8 +31,8 @@ ALTER TABLE state.transaction
 DROP INDEX IF EXISTS state.idx_transaction_l2_hash;
 
 ALTER TABLE state.batch
-    DROP COLUMN wip;
+    DROP COLUMN IF EXISTS wip;
 
 ALTER TABLE state.virtual_batch
-    DROP COLUMN timestamp_batch_etrog;
+    DROP COLUMN IF EXISTS timestamp_batch_etrog;
 
