@@ -100,12 +100,12 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 	now := g.timeProvider.Now()
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
-			BatchNumber:    sbatch.BatchNumber,
-			TxHash:         sbatch.TxHash,
-			Coinbase:       sbatch.Coinbase,
-			BlockNumber:    blockNumber,
-			SequencerAddr:  sbatch.SequencerAddr,
-			BatchTimestamp: &l1BlockTimestamp,
+			BatchNumber:         sbatch.BatchNumber,
+			TxHash:              sbatch.TxHash,
+			Coinbase:            sbatch.Coinbase,
+			BlockNumber:         blockNumber,
+			SequencerAddr:       sbatch.SequencerAddr,
+			TimestampBatchEtrog: &l1BlockTimestamp,
 		}
 		batch := state.Batch{
 			BatchNumber:    sbatch.BatchNumber,

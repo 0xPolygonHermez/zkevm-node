@@ -483,16 +483,16 @@ func scanForcedBatch(row pgx.Row) (state.ForcedBatch, error) {
 
 // AddVirtualBatch adds a new virtual batch to the storage.
 func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *state.VirtualBatch, dbTx pgx.Tx) error {
-	if virtualBatch.BatchTimestamp == nil {
+	if virtualBatch.TimestampBatchEtrog == nil {
 		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr) VALUES ($1, $2, $3, $4, $5)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
-		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, batch_timestamp) VALUES ($1, $2, $3, $4, $5, $6)"
+		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog) VALUES ($1, $2, $3, $4, $5, $6)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.BatchTimestamp.UTC())
+			virtualBatch.TimestampBatchEtrog.UTC())
 		return err
 	}
 }
@@ -507,12 +507,12 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	)
 
 	const getVirtualBatchSQL = `
-    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, batch_timestamp
+    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog
       FROM state.virtual_batch
      WHERE batch_num = $1`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.BatchTimestamp)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
@@ -912,7 +912,7 @@ func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIn
 // it returns batch_num.tstamp and virtual_batch.batch_timestamp
 func (p *PostgresStorage) GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error) {
 	const sql = `
-	SELECT b.timestamp AS batch_timestamp, v.batch_timestamp AS virtual_batch_timestamp
+	SELECT b.timestamp AS batch_timestamp, v.timestamp_batch_etrog AS virtual_batch_timestamp
 		FROM state.batch AS b
 		LEFT JOIN state.virtual_batch AS v ON b.batch_num = v.batch_num
 		WHERE b.batch_num = $1;

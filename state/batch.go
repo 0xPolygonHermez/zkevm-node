@@ -99,9 +99,9 @@ type VirtualBatch struct {
 	Coinbase      common.Address
 	SequencerAddr common.Address
 	BlockNumber   uint64
-	// BatchTimestamp etrog: Batch timestamp comes from L1 block timestamp
+	// TimestampBatchEtrog etrog: Batch timestamp comes from L1 block timestamp
 	//  for previous batches is NULL because the batch timestamp is in batch table
-	BatchTimestamp *time.Time
+	TimestampBatchEtrog *time.Time
 }
 
 // Sequence represents the sequence interval
@@ -535,8 +535,13 @@ func (s *State) GetLastBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error) {
 //
 //	   for >= etrog is stored on virtual_batch.batch_timestamp
 //		  previous batches is stored on batch.timestamp
-func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, error) {
-	forkid := s.GetForkIDByBatchNumber(batchNumber)
+func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, forcedForkId *uint64, dbTx pgx.Tx) (*time.Time, error) {
+	var forkid uint64
+	if forcedForkId != nil {
+		forkid = *forcedForkId
+	} else {
+		forkid = s.GetForkIDByBatchNumber(batchNumber)
+	}
 	batchTimestamp, virtualTimestamp, err := s.GetRawBatchTimestamps(ctx, batchNumber, dbTx)
 	if err != nil {
 		return nil, err

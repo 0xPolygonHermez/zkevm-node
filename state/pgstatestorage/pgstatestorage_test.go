@@ -1176,26 +1176,34 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 
 	batchNumber := uint64(1234)
 
+	timestampBatch := time.Date(2023, 12, 14, 14, 30, 45, 0, time.Local)
+	virtualTimestampBatch := time.Date(2023, 12, 14, 12, 00, 45, 0, time.Local)
+
 	// add batch
-	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES ($1, false)", batchNumber)
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, timestamp, wip) VALUES ($1,$2, false)", batchNumber, timestampBatch)
 	require.NoError(t, err)
-	now := time.Now().Truncate(time.Second)
+
 	virtualBatch := state.VirtualBatch{BlockNumber: blockNumber,
-		BatchNumber:    batchNumber,
-		Coinbase:       addr,
-		SequencerAddr:  addr,
-		TxHash:         hash,
-		BatchTimestamp: &now}
+		BatchNumber:         batchNumber,
+		Coinbase:            addr,
+		SequencerAddr:       addr,
+		TxHash:              hash,
+		TimestampBatchEtrog: &virtualTimestampBatch}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
 
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, virtualBatch, *read)
-
-	timeData, err := testState.GetBatchTimestamp(ctx, batchNumber, dbTx)
+	forcedForkId := uint64(state.FORKID_ETROG)
+	timeData, err := testState.GetBatchTimestamp(ctx, batchNumber, &forcedForkId, dbTx)
 	require.NoError(t, err)
-	require.NotNil(t, timeData)
+	require.Equal(t, virtualTimestampBatch, *timeData)
+
+	forcedForkId = uint64(state.FORKID_INCABERRY)
+	timeData, err = testState.GetBatchTimestamp(ctx, batchNumber, &forcedForkId, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, timestampBatch, *timeData)
 
 }
 
@@ -1233,6 +1241,6 @@ func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
 
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
-	require.Equal(t, (*time.Time)(nil), read.BatchTimestamp)
+	require.Equal(t, (*time.Time)(nil), read.TimestampBatchEtrog)
 
 }

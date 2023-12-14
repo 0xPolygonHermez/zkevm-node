@@ -15,7 +15,7 @@ ALTER TABLE state.batch
     ADD COLUMN wip BOOLEAN NOT NULL;
 
 ALTER TABLE state.virtual_batch
-    ADD COLUMN batch_timestamp TIMESTAMP WITH TIME ZONE NULL;
+    ADD COLUMN timestamp_batch_etrog TIMESTAMP WITH TIME ZONE NULL;
 
 -- +migrate Down
 ALTER TABLE state.exit_root
@@ -34,5 +34,5 @@ ALTER TABLE state.batch
     DROP COLUMN wip;
 
 ALTER TABLE state.virtual_batch
-    DROP COLUMN batch_timestamp;
+    DROP COLUMN timestamp_batch_etrog;
 
