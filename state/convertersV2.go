@@ -168,8 +168,6 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 			log.Debugf("ProcessTransactionResponseV2[TxHash]: %v", result.TxHash)
 			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
 				log.Debugf("ProcessTransactionResponseV2[Nonce]: %v", result.Tx.Nonce())
-				isRomLevelError = true
-				isRomOOCError = executor.IsROMOutOfCountersError(response.Error)
 			}
 			log.Debugf("ProcessTransactionResponseV2[StateRoot]: %v", result.StateRoot.String())
 			log.Debugf("ProcessTransactionResponseV2[Error]: %v", result.RomError)
