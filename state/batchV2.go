@@ -16,6 +16,7 @@ import (
 )
 
 var (
+	// ErrExecutingBatchOOC process batch fails because OOC (Out of counters)
 	ErrExecutingBatchOOC = errors.New("Batch execution fails because: out of counters")
 )
 
