@@ -23,6 +23,7 @@ import (
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
+	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
@@ -114,7 +115,7 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
-	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedStateEtrogExecutor(res.zkEVMClient, res.state, res.state, res)
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedStateEtrogExecutor(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{})
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -286,7 +287,7 @@ func (s *ClientSynchronizer) Sync() error {
 					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
 					return rollbackErr
 				}
-				return fmt.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
+				return fmt.Errorf("calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
 			}
 			// Waiting for the flushID to be stored
 			err = s.checkFlushID(dbTx)

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -36,8 +38,8 @@ type ProcessData struct {
 	// The batch in trusted node, it NEVER will be nil
 	TrustedBatch *types.Batch
 	// Current batch in state DB, it could be nil
-	StateBatch *state.Batch
-
+	StateBatch  *state.Batch
+	Now         time.Time
 	Description string
 }
 
@@ -62,13 +64,17 @@ type SyncTrustedStateBatchExecutorTemplate struct {
 	// this is because in the permissionless the timestamp of a batch is equal to the timestamp of the l1block where is reported
 	// but trusted doesn't known this block and use now() instead. But for sure now() musbe <= l1block.tstamp
 	CheckBatchTimestampGreaterInsteadOfEqual bool
+	timeProvider                             syncCommon.TimeProvider
 }
 
 // NewSyncTrustedStateBatchExecutorTemplate creates a new SyncTrustedStateBatchExecutorTemplate
-func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecutorSteps, checkBatchTimestampGreaterInsteadOfEqual bool) *SyncTrustedStateBatchExecutorTemplate {
+func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecutorSteps,
+	checkBatchTimestampGreaterInsteadOfEqual bool,
+	timeProvider syncCommon.TimeProvider) *SyncTrustedStateBatchExecutorTemplate {
 	return &SyncTrustedStateBatchExecutorTemplate{
 		Steps:                                    steps,
 		CheckBatchTimestampGreaterInsteadOfEqual: checkBatchTimestampGreaterInsteadOfEqual,
+		timeProvider:                             timeProvider,
 	}
 }
 
@@ -174,6 +180,7 @@ func (s *SyncTrustedStateBatchExecutorTemplate) getModeForProcessBatch(trustedNo
 	result.StateBatch = stateBatch
 	result.TrustedBatch = trustedNodeBatch
 	result.OldAccInputHash = statePreviousBatch.AccInputHash
+	result.Now = s.timeProvider.Now()
 	return result, nil
 }
 

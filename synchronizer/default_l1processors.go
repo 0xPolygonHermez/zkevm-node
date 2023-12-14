@@ -4,6 +4,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/etrog"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/incaberry"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 )
 
 func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1EventProcessors {
@@ -14,7 +15,7 @@ func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1Ev
 	p.Register(incaberry.NewProcessL1SequenceForcedBatches(sync.state, sync))
 	p.Register(incaberry.NewProcessorForkId(sync.state, sync))
 	p.Register(etrog.NewProcessorL1InfoTreeUpdate(sync.state))
-	p.Register(etrog.NewProcessorL1SequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync))
+	p.Register(etrog.NewProcessorL1SequenceBatches(sync.state, sync.etherMan, sync.pool, sync.eventLog, sync, common.DefaultTimeProvider{}))
 	p.Register(incaberry.NewProcessorL1VerifyBatch(sync.state))
 	return p.Build()
 }

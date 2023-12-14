@@ -125,24 +125,6 @@ func (z *ZKEVMEndpoints) VerifiedBatchNumber() (interface{}, types.Error) {
 	})
 }
 
-// updateBatchTimestamp returns timestampLimit
-func (z *ZKEVMEndpoints) updateBatchTimestampAndReturnsTimeLimit(ctx context.Context, batch *state.Batch, dbTx pgx.Tx) (*time.Time, error) {
-	timeData, err := z.state.GetBatchTimestamp(ctx, batch.BatchNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-	if timeData.LimitTimestampV2Apply {
-		if timeData.BatchTimestamp != nil {
-			batch.Timestamp = *timeData.BatchTimestamp
-		} else {
-			batch.Timestamp = time.Time{}
-		}
-		return timeData.LimitTimestampV2, nil
-	}
-
-	return nil, nil
-}
-
 // GetBatchByNumber returns information about a batch by batch number
 func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx bool) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
@@ -158,9 +140,14 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err, true)
 		}
-		timestampLimit, err := z.updateBatchTimestampAndReturnsTimeLimit(ctx, batch, dbTx)
+		batchTimestamp, err := z.state.GetBatchTimestamp(ctx, batchNumber, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch timestamp from state by number %v", batchNumber), err, true)
+		}
+		if batchTimestamp == nil {
+			batch.Timestamp = time.Time{}
+		} else {
+			batch.Timestamp = *batchTimestamp
 		}
 
 		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
@@ -200,7 +187,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		}
 
 		batch.Transactions = txs
-		rpcBatch, err := types.NewBatch(batch, timestampLimit, virtualBatch, verifiedBatch, blocks, receipts, fullTx, true, ger)
+		rpcBatch, err := types.NewBatch(batch, virtualBatch, verifiedBatch, blocks, receipts, fullTx, true, ger)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build the batch %v response", batchNumber), err, true)
 		}
