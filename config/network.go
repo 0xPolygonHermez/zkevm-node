@@ -33,6 +33,7 @@ type network string
 
 const mainnet network = "mainnet"
 const testnet network = "testnet"
+const cardona network = "cardona"
 const custom network = "custom"
 
 // GenesisFromJSON is the config file for network_custom
@@ -69,6 +70,8 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 		networkJSON = MainnetNetworkConfigJSON
 	case string(testnet):
 		networkJSON = TestnetNetworkConfigJSON
+	case string(cardona):
+		networkJSON = CardonaNetworkConfigJSON
 	case string(custom):
 		var err error
 		cfgPath := ctx.String(FlagCustomNetwork)
@@ -77,7 +80,7 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 			panic(err.Error())
 		}
 	default:
-		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, custom)
+		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, cardona, custom)
 	}
 	config, err := LoadGenesisFromJSONString(networkJSON)
 	if err != nil {

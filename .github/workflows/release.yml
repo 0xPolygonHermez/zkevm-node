@@ -33,8 +33,18 @@ jobs:
         uses: olegtarasov/get-tag@v2.1.2
         id: tagName
 
-      - name: Put testnet and mainnet artifacts into a single zip
+      - name: Put cardona, testnet and mainnet artifacts into a single zip
         run: |
+          # CARDONA
+          mkdir -p cardona/config/environments/cardona
+          mkdir -p cardona/db/scripts
+          cp config/environments/cardona/* cardona/config/environments/cardona
+          cp docker-compose.yml cardona
+          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/cardona/g' cardona/docker-compose.yml
+          cp db/scripts/init_prover_db.sql cardona/db/scripts
+          mv cardona/config/environments/cardona/example.env cardona
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" cardona/docker-compose.yml
+          zip -r cardona.zip cardona
           # TESTNET
           mkdir -p testnet/config/environments/testnet
           mkdir -p testnet/db/scripts
@@ -56,10 +66,10 @@ jobs:
           sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" mainnet/docker-compose.yml
           zip -r mainnet.zip mainnet
 
-      - name: Publish testnet and mainnet  zip into release
+      - name: Publish cardona, testnet and mainnet  zip into release
         uses: AButler/upload-release-assets@v2.0
         with:
-          files: 'testnet.zip;mainnet.zip'
+          files: 'cardona.zip;testnet.zip;mainnet.zip'
           repo-token: ${{ secrets.TOKEN_RELEASE }}
           release-tag: ${{ steps.tagName.outputs.tag }}
         
