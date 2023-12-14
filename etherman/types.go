@@ -36,14 +36,15 @@ type GlobalExitRoot struct {
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
 	BatchNumber   uint64
+	L1InfoRoot    *common.Hash
 	SequencerAddr common.Address
 	TxHash        common.Hash
 	Nonce         uint64
 	Coinbase      common.Address
 	// Struct used in preEtrog forks
-	oldpolygonzkevm.PolygonZkEVMBatchData
+	*oldpolygonzkevm.PolygonZkEVMBatchData
 	// Struct used in Etrog
-	polygonzkevm.PolygonRollupBaseEtrogBatchData
+	*polygonzkevm.PolygonRollupBaseEtrogBatchData
 }
 
 // ForcedBatch represents a ForcedBatch

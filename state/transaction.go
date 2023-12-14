@@ -574,7 +574,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 	processBatchRequestV2 := &executor.ProcessBatchRequestV2{
 		From:             senderAddress.String(),
 		OldBatchNum:      batch.BatchNumber,
-		OldStateRoot:     previousL2Block.Root().Bytes(),
+		OldStateRoot:     l2Block.Root().Bytes(),
 		OldAccInputHash:  batch.AccInputHash.Bytes(),
 		Coinbase:         batch.Coinbase.String(),
 		ForkId:           forkID,
@@ -586,7 +586,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		// v2 fields
 		L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
 		TimestampLimit:         uint64(time.Now().Unix()),
-		SkipFirstChangeL2Block: cTrue,
+		SkipFirstChangeL2Block: cFalse,
 		SkipWriteBlockInfoRoot: cTrue,
 	}
 	if noZKEVMCounters {

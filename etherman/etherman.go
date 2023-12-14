@@ -1023,7 +1023,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 
 	var sequences []SequencedBatch
 	if sb.NumBatch != 1 {
-		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce)
+		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
 		if err != nil {
 			return fmt.Errorf("error decoding the sequences: %v", err)
 		}
@@ -1106,7 +1106,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
@@ -1140,11 +1140,12 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                     bn,
+			L1InfoRoot:                      &l1InfoRoot,
 			SequencerAddr:                   sequencer,
 			TxHash:                          txHash,
 			Nonce:                           nonce,
 			Coinbase:                        coinbase,
-			PolygonRollupBaseEtrogBatchData: seq,
+			PolygonRollupBaseEtrogBatchData: &seq,
 		}
 	}
 
@@ -1189,7 +1190,7 @@ func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer co
 			TxHash:                txHash,
 			Nonce:                 nonce,
 			Coinbase:              coinbase,
-			PolygonZkEVMBatchData: seq,
+			PolygonZkEVMBatchData: &seq,
 		}
 	}
 
