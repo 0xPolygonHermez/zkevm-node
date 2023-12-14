@@ -96,7 +96,6 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 }
 
 // ExecuteBatchV2 is used by the synchronizer to reprocess batches to compare generated state root vs stored one
-// It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
 func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
