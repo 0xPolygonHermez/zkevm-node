@@ -27,6 +27,17 @@
     "expectedOldRoot": "0x76b362a9afd679ea13a456ab103786492c65946be653589c1fd627841d0c6fdd",
     "txs": [
       {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": ""
+      },
+      {
         "id": 0,
         "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
         "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
@@ -37,7 +48,7 @@
         "chainId": 1000,
         "rawTx": "0xf86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f3a01cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e7a05d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad73",
         "customRawTx": "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bff",
-        "reason": ""
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
       },
       {
         "id": 1,
@@ -50,7 +61,7 @@
         "chainId": 1000,
         "rawTx": "0xf86f80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff893635c9adc5dea00000808207f4a00d7790e34c262fc9bca95e5c9f8f7ae1625e1338580eb0a0e707dcb76fef0b64a0385c32f57ec5f520129252ed65f226c6cb50fa16fc07f1e45a9054797f1b462b",
         "customRawTx": "0xef80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff893635c9adc5dea00000808203e880800d7790e34c262fc9bca95e5c9f8f7ae1625e1338580eb0a0e707dcb76fef0b64385c32f57ec5f520129252ed65f226c6cb50fa16fc07f1e45a9054797f1b462b1cff",
-        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+        "reason": ""
       }
     ],
     "expectedNewRoot": "0x3f86fa3dc55b523d5f1a67542fa6f19b492a4d823189120c6ae94b679fa7c2cf",
@@ -116,6 +127,17 @@
     "expectedOldRoot": "0x4a9bfcb163ec91c5beb22e6aca41592433092c8c7821b01d37fd0de483f9265d",
     "txs": [
       {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": ""
+      },
+      {
         "id": 0,
         "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
         "to": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
@@ -126,7 +148,7 @@
         "chainId": 1000,
         "rawTx": "0xf86e80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808207f3a01cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e7a05d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad73",
         "customRawTx": "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731bff",
-        "reason": ""
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
       },
       {
         "id": 1,
@@ -205,6 +227,17 @@
     "expectedOldRoot": "0xa88244596a08b2d267f764ef93304d682aac646f8603eaaad50d68b303eb9fe2",
     "txs": [
       {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+      },
+      {
         "id": 0,
         "from": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
         "to": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -215,7 +248,7 @@
         "chainId": 1000,
         "rawTx": "0xf86e80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185b001808207f4a0434895045aad1b57cc65e4a0f009c7d2ad00c86871c3ed99aa195cc5274f0e66a01cb67c3076b39ced0a5ddca4c88a5612bd090f397e5c65cf8a54dd340fb5df9b",
         "customRawTx": "0xee80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185b001808203e88080434895045aad1b57cc65e4a0f009c7d2ad00c86871c3ed99aa195cc5274f0e661cb67c3076b39ced0a5ddca4c88a5612bd090f397e5c65cf8a54dd340fb5df9b1cff",
-        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
+        "reason": ""
       },
       {
         "id": 1,
@@ -294,6 +327,17 @@
     "expectedOldRoot": "0xa88244596a08b2d267f764ef93304d682aac646f8603eaaad50d68b303eb9fe2",
     "txs": [
       {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": ""
+      },
+      {
         "id": 0,
         "from": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
         "to": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -304,7 +348,7 @@
         "chainId": 1000,
         "rawTx": "0xf86e80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185afff808207f4a04fa932b8f1c5173c51364a8b5d4d947a61cdc92f787578155a2d23c40bf87fe3a04e50bf9e1a413be8ca4480da23941772c155c51cf28085a4281e742ccfea5bc1",
         "customRawTx": "0xee80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185afff808203e880804fa932b8f1c5173c51364a8b5d4d947a61cdc92f787578155a2d23c40bf87fe34e50bf9e1a413be8ca4480da23941772c155c51cf28085a4281e742ccfea5bc11cff",
-        "reason": ""
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
       },
       {
         "id": 1,
@@ -383,6 +427,17 @@
     "expectedOldRoot": "0xa88244596a08b2d267f764ef93304d682aac646f8603eaaad50d68b303eb9fe2",
     "txs": [
       {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": ""
+      },
+      {
         "id": 0,
         "from": "0x4d5Cf5032B2a844602278b01199ED191A86c93ff",
         "to": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",
@@ -393,7 +448,7 @@
         "chainId": 1000,
         "rawTx": "0xf86e80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185afff808207f4a04fa932b8f1c5173c51364a8b5d4d947a61cdc92f787578155a2d23c40bf87fe3a04e50bf9e1a413be8ca4480da23941772c155c51cf28085a4281e742ccfea5bc1",
         "customRawTx": "0xee80843b9aca0082520894617b3a3528f9cdd6630fd3301b9c8911f7bf063d89056bc74b13f185afff808203e880804fa932b8f1c5173c51364a8b5d4d947a61cdc92f787578155a2d23c40bf87fe34e50bf9e1a413be8ca4480da23941772c155c51cf28085a4281e742ccfea5bc11cff",
-        "reason": ""
+        "reason": "TX INVALID: Not enough funds to pay total transaction cost"
       },
       {
         "id": 1,
@@ -477,6 +532,17 @@
     ],
     "expectedOldRoot": "0x76b362a9afd679ea13a456ab103786492c65946be653589c1fd627841d0c6fdd",
     "txs": [
+      {
+        "type": 11,
+        "deltaTimestamp": 1944498031,
+        "l1Info": {
+          "globalExitRoot": "0x090bcaf734c4f06c93954a827b45a6e8c67b8e0fd1e0a35a1c5982d6961828f9",
+          "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+          "timestamp": "42"
+        },
+        "indexL1InfoTree": 0,
+        "reason": ""
+      },
       {
         "id": 4,
         "from": "0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D",

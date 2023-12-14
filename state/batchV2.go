@@ -55,8 +55,6 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		updateMT = cTrue
 	}
 
-	forkID := s.GetForkIDByBatchNumber(request.BatchNumber)
-
 	// Create Batch
 	var processBatchRequest = &executor.ProcessBatchRequestV2{
 		OldBatchNum:      request.BatchNumber - 1,
@@ -68,7 +66,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		TimestampLimit:   request.TimestampLimit_V2,
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
-		ForkId:           forkID,
+		ForkId:           request.ForkID,
 		ContextId:        uuid.NewString(),
 	}
 
@@ -293,16 +291,16 @@ func processBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix str
 }
 func blockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) string {
 	res := prefix + "ProcessBlockResponseV2:----------------------------- \n"
-	res += prefix + fmt.Sprintf("ParentHash:   %v\n", hex.EncodeToHex(r.ParentHash))
-	res += prefix + fmt.Sprintf("Coinbase:     %v\n", r.Coinbase)
-	res += prefix + fmt.Sprintf("GasLimit:     %v\n", r.GasLimit)
-	res += prefix + fmt.Sprintf("BlockNumber:  %v\n", r.BlockNumber)
-	res += prefix + fmt.Sprintf("Timestamp:    %v\n", r.Timestamp)
-	res += prefix + fmt.Sprintf("GlobalExitRoot: %v\n", hex.EncodeToHex(r.Ger))
-	res += prefix + fmt.Sprintf("BlockHashL1:  %v\n", hex.EncodeToHex(r.BlockHashL1))
-	res += prefix + fmt.Sprintf("GasUsed:      %v\n", r.GasUsed)
-	res += prefix + fmt.Sprintf("BlockInfoRoot:%v\n", hex.EncodeToHex(r.BlockInfoRoot))
-	res += prefix + fmt.Sprintf("BlockHash:    %v\n", hex.EncodeToHex(r.BlockHash))
+	res += prefix + fmt.Sprintf("ParentHash:	%v\n", common.BytesToHash(r.ParentHash))
+	res += prefix + fmt.Sprintf("Coinbase:		%v\n", r.Coinbase)
+	res += prefix + fmt.Sprintf("GasLimit:		%v\n", r.GasLimit)
+	res += prefix + fmt.Sprintf("BlockNumber:	%v\n", r.BlockNumber)
+	res += prefix + fmt.Sprintf("Timestamp:		%v\n", r.Timestamp)
+	res += prefix + fmt.Sprintf("GlobalExitRoot:%v\n", common.BytesToHash(r.Ger))
+	res += prefix + fmt.Sprintf("BlockHashL1:	%v\n", common.BytesToHash(r.BlockHashL1))
+	res += prefix + fmt.Sprintf("GasUsed:		%v\n", r.GasUsed)
+	res += prefix + fmt.Sprintf("BlockInfoRoot:	%v\n", common.BytesToHash(r.BlockInfoRoot))
+	res += prefix + fmt.Sprintf("BlockHash:		%v\n", common.BytesToHash(r.BlockHash))
 	for txIndex, tx := range r.Responses {
 		newPrefix := prefix + "  " + fmt.Sprintf("TransactionResponse[%v]: ", txIndex)
 		res += transactionResponseToString(tx, newPrefix)
@@ -314,14 +312,14 @@ func blockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) st
 
 func transactionResponseToString(r *executor.ProcessTransactionResponseV2, prefix string) string {
 	res := prefix + "ProcessTransactionResponseV2:----------------------------------- \n"
-	res += prefix + fmt.Sprintf("TxHash: 	%v\n", hex.EncodeToHex(r.TxHash))
-	res += prefix + fmt.Sprintf("TxHashL2: 	%v\n", hex.EncodeToHex(r.TxHashL2))
-	res += prefix + fmt.Sprintf("Type: 		%v\n", r.Type)
-	res += prefix + fmt.Sprintf("Error: 	%v\n", r.Error)
-	res += prefix + fmt.Sprintf("GasUsed: 	%v\n", r.GasUsed)
-	res += prefix + fmt.Sprintf("GasLeft: 	%v\n", r.GasLeft)
-	res += prefix + fmt.Sprintf("GasRefund: %v\n", r.GasRefunded)
-	res += prefix + fmt.Sprintf("StateRoot: %v\n", hex.EncodeToHex(r.StateRoot))
+	res += prefix + fmt.Sprintf("TxHash:	%v\n", common.BytesToHash(r.TxHash))
+	res += prefix + fmt.Sprintf("TxHashL2:	%v\n", common.BytesToHash(r.TxHashL2))
+	res += prefix + fmt.Sprintf("Type:		%v\n", r.Type)
+	res += prefix + fmt.Sprintf("Error:	%v\n", r.Error)
+	res += prefix + fmt.Sprintf("GasUsed:	%v\n", r.GasUsed)
+	res += prefix + fmt.Sprintf("GasLeft:	%v\n", r.GasLeft)
+	res += prefix + fmt.Sprintf("GasRefund:%v\n", r.GasRefunded)
+	res += prefix + fmt.Sprintf("StateRoot:%v\n", common.BytesToHash(r.StateRoot))
 	res += prefix + "----------------------------------------------------------------- [Transaction]\n"
 
 	return res
