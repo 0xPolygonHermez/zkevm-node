@@ -17,6 +17,8 @@ import (
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 
+	time "time"
+
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -243,25 +245,25 @@ func (_m *stateMock) ExecuteBatch(ctx context.Context, batch state.Batch, update
 	return r0, r1
 }
 
-// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, updateMerkleTree, dbTx
-func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
-	ret := _m.Called(ctx, batch, updateMerkleTree, dbTx)
+// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx
+func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+	ret := _m.Called(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
 
 	var r0 *executor.ProcessBatchResponseV2
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
-		return rf(ctx, batch, updateMerkleTree, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
+		return rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, bool, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
-		r0 = rf(ctx, batch, updateMerkleTree, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
+		r0 = rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*executor.ProcessBatchResponseV2)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, bool, pgx.Tx) error); ok {
-		r1 = rf(ctx, batch, updateMerkleTree, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, common.Hash, time.Time, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, l1InfoRoot, timestampLimit, updateMerkleTree, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
