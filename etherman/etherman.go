@@ -1138,6 +1138,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	sequencedBatches := make([]SequencedBatch, len(sequences))
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+		s := seq
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:                     bn,
 			L1InfoRoot:                      &l1InfoRoot,
@@ -1145,7 +1146,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			TxHash:                          txHash,
 			Nonce:                           nonce,
 			Coinbase:                        coinbase,
-			PolygonRollupBaseEtrogBatchData: &seq,
+			PolygonRollupBaseEtrogBatchData: &s,
 		}
 	}
 
@@ -1184,13 +1185,14 @@ func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer co
 	sequencedBatches := make([]SequencedBatch, len(sequences))
 	for i, seq := range sequences {
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+		s := seq
 		sequencedBatches[i] = SequencedBatch{
 			BatchNumber:           bn,
 			SequencerAddr:         sequencer,
 			TxHash:                txHash,
 			Nonce:                 nonce,
 			Coinbase:              coinbase,
-			PolygonZkEVMBatchData: &seq,
+			PolygonZkEVMBatchData: &s,
 		}
 	}
 
