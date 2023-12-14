@@ -24,18 +24,12 @@ var (
 type BatchStepsExecutorEtrogStateInterface interface {
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
-	//StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*ethTypes.Header, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
-
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
-
-	//ProcessBatch(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
-	//ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
-	//ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
 	GetCurrentL1InfoRoot() common.Hash
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 }
@@ -77,7 +71,7 @@ func (b *BatchStepsExecutorEtrog) FullProcess(ctx context.Context, data *l2_shar
 		return nil, err
 	}
 
-	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, b.getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
 	if err != nil {
 		log.Error("error procesingAndStoringTxs. Error: ", err)
 		return nil, err
@@ -101,7 +95,7 @@ func (b *BatchStepsExecutorEtrog) IncrementalProcess(ctx context.Context, data *
 		return nil, err
 	}
 	data.TrustedBatch.BatchL2Data = newBatchL2Data
-	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
+	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, b.getProcessRequest(data, b.state.GetCurrentL1InfoRoot()), dbTx)
 	if err != nil {
 		log.Error("error procesingAndStoringTxs. Error: ", err)
 		return nil, err
@@ -193,7 +187,7 @@ func (b *BatchStepsExecutorEtrog) processAndStoreTxs(ctx context.Context, truste
 	return processBatchResp, nil
 }
 
-func getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) state.ProcessRequest {
+func (b *BatchStepsExecutorEtrog) getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) state.ProcessRequest {
 	request := state.ProcessRequest{
 		BatchNumber:       uint64(data.TrustedBatch.Number),
 		OldStateRoot:      data.OldStateRoot,
@@ -202,6 +196,7 @@ func getProcessRequest(data *l2_shared.ProcessData, l1InfoRoot common.Hash) stat
 		L1InfoRoot_V2:     l1InfoRoot,
 		TimestampLimit_V2: uint64(data.TrustedBatch.Timestamp),
 		Transactions:      data.TrustedBatch.BatchL2Data,
+		ForkID:            b.state.GetForkIDByBatchNumber(uint64(data.TrustedBatch.Number)),
 	}
 	return request
 }
