@@ -230,6 +230,12 @@ func (r *BatchResources) Sub(other BatchResources) error {
 	return err
 }
 
+// SumUp sum ups the batch resources from other
+func (r *BatchResources) SumUp(other BatchResources) {
+	r.Bytes += other.Bytes
+	r.ZKCounters.SumUp(other.ZKCounters)
+}
+
 // InfoReadWrite has information about modified addresses during the execution
 type InfoReadWrite struct {
 	Address common.Address

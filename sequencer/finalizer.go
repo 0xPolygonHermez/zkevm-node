@@ -1310,7 +1310,7 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
 			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
 			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSteps - remainingResources.ZKCounters.UsedSha256Hashes_V2,
+			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}

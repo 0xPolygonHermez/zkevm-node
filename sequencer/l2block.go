@@ -319,8 +319,9 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		}
 
 		// Add changeL2Block to batch.BatchL2Data
+		blockL2Data := []byte{}
 		changeL2BlockBytes := f.state.BuildChangeL2Block(l2Block.deltaTimestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-		batch.BatchL2Data = append(batch.BatchL2Data, changeL2BlockBytes...)
+		blockL2Data = append(blockL2Data, changeL2BlockBytes...)
 
 		// Add transactions data to batch.BatchL2Data
 		for _, txResponse := range blockResponse.TransactionResponses {
@@ -328,15 +329,19 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 			if err != nil {
 				return err
 			}
-			batch.BatchL2Data = append(batch.BatchL2Data, txData...)
+			blockL2Data = append(blockL2Data, txData...)
 		}
 
+		batch.BatchL2Data = append(batch.BatchL2Data, blockL2Data...)
+		batch.Resources.SumUp(state.BatchResources{ZKCounters: l2Block.batchResponse.UsedZkCounters, Bytes: uint64(len(blockL2Data))})
+
 		receipt := state.ProcessingReceipt{
-			BatchNumber:   f.wipBatch.batchNumber,
-			StateRoot:     l2Block.batchResponse.NewStateRoot,
-			LocalExitRoot: l2Block.batchResponse.NewLocalExitRoot,
-			AccInputHash:  l2Block.batchResponse.NewAccInputHash,
-			BatchL2Data:   batch.BatchL2Data,
+			BatchNumber:    f.wipBatch.batchNumber,
+			StateRoot:      l2Block.batchResponse.NewStateRoot,
+			LocalExitRoot:  l2Block.batchResponse.NewLocalExitRoot,
+			AccInputHash:   l2Block.batchResponse.NewAccInputHash,
+			BatchL2Data:    batch.BatchL2Data,
+			BatchResources: batch.Resources,
 		}
 
 		err = f.state.UpdateWIPBatch(ctx, receipt, dbTx)
@@ -394,6 +399,7 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
 	//TODO: use better f.wipBatch.remainingResources.Sub() instead to subtract directly
+	//TODO: Review with Carlos which zkCounters we need to subtract from the remaining
 	// Subtract the bytes needed to store the changeL2Block of the new L2 block into the WIP batch
 	f.wipBatch.remainingResources.Bytes = f.wipBatch.remainingResources.Bytes - changeL2BlockSize
 	// Subtract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
