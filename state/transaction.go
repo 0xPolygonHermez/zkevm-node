@@ -404,21 +404,12 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 		return nil, ErrStateTreeNil
 	}
 
-	timestamp := l2Block.Time()
-	previousBatch := batch
-	if batch.BatchNumber != 0 {
-		pb, err := s.GetBatchByNumber(ctx, batch.BatchNumber-1, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		previousBatch = *pb
-	}
-
 	latestL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
 	if err != nil {
 		return nil, err
 	}
 
+	timestamp := l2Block.Time()
 	if l2Block.NumberU64() == latestL2BlockNumber {
 		timestamp = uint64(time.Now().Unix())
 	}
@@ -439,8 +430,8 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 	processBatchRequestV1 := &executor.ProcessBatchRequest{
 		From:             senderAddress.String(),
 		OldBatchNum:      batch.BatchNumber,
-		OldStateRoot:     previousBatch.StateRoot.Bytes(),
-		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
+		OldStateRoot:     l2Block.Root().Bytes(),
+		OldAccInputHash:  batch.AccInputHash.Bytes(),
 		ForkId:           forkID,
 		Coinbase:         batch.Coinbase.String(),
 		BatchL2Data:      batchL2Data,
@@ -541,26 +532,14 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, ErrStateTreeNil
 	}
 
-	previousL2Block := l2Block
-	if l2Block.NumberU64() > 0 {
-		pb, err := s.GetL2BlockByNumber(ctx, l2Block.NumberU64()-1, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		previousL2Block = *pb
-	}
-
 	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
 	if err != nil {
 		return nil, err
 	}
 	nonce := loadedNonce.Uint64()
 
-	l2BlockTime := l2Block.Time()
-	previousL2BlockTime := previousL2Block.Time()
-	deltaTimestamp := uint32(l2BlockTime - previousL2BlockTime)
-	l1InfoTreeIndex := uint32(0)
-	transactions := s.BuildChangeL2Block(deltaTimestamp, l1InfoTreeIndex)
+	deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
+	transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
@@ -743,34 +722,33 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 
 	ctx := context.Background()
 
-	lastBatches, l2BlockStateRoot, err := s.GetLastNBatchesByL2BlockNumber(ctx, l2BlockNumber, 2, dbTx) // nolint:gomnd
+	var l2Block *L2Block
+	var err error
+	if l2BlockNumber == nil {
+		l2Block, err = s.GetLastL2Block(ctx, dbTx)
+	} else {
+		l2Block, err = s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
+	}
 	if err != nil {
 		return 0, nil, err
 	}
 
-	stateRoot := l2BlockStateRoot
-	if l2BlockNumber != nil {
-		l2Block, err := s.GetL2BlockByNumber(ctx, *l2BlockNumber, dbTx)
-		if err != nil {
-			return 0, nil, err
-		}
-		stateRoot = l2Block.Root()
+	batch, err := s.GetBatchByL2BlockNumber(ctx, l2Block.NumberU64(), dbTx)
+	if err != nil {
+		return 0, nil, err
 	}
 
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, stateRoot.Bytes())
+	forkID := s.GetForkIDByBatchNumber(batch.BatchNumber)
+	latestL2BlockNumber, err := s.GetLastL2BlockNumber(ctx, dbTx)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
 	if err != nil {
 		return 0, nil, err
 	}
 	nonce := loadedNonce.Uint64()
-
-	// Get latest batch from the database to get globalExitRoot and Timestamp
-	lastBatch := lastBatches[0]
-
-	// Get batch before latest to get state root and local exit root
-	previousBatch := lastBatches[0]
-	if len(lastBatches) > 1 {
-		previousBatch = lastBatches[1]
-	}
 
 	highEnd := s.cfg.MaxCumulativeGasUsed
 
@@ -778,7 +756,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	// of the account afford
 	isGasPriceSet := transaction.GasPrice().BitLen() != 0
 	if isGasPriceSet {
-		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, stateRoot.Bytes())
+		senderBalance, err := s.tree.GetBalance(ctx, senderAddress, l2Block.Root().Bytes())
 		if errors.Is(err, ErrNotFound) {
 			senderBalance = big.NewInt(0)
 		} else if err != nil {
@@ -821,7 +799,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	if lowEnd == ethTransferGas && transaction.To() != nil {
 		receiver := *transaction.To()
 		// check if the receiver address is not a smart contract
-		code, err := s.tree.GetCode(ctx, receiver, stateRoot.Bytes())
+		code, err := s.tree.GetCode(ctx, receiver, l2Block.Root().Bytes())
 		if err != nil {
 			log.Warnf("error while getting code for address %v: %v", receiver.String(), err)
 		} else if len(code) == 0 {
@@ -834,110 +812,21 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	// testTransaction runs the transaction with the specified gas value.
 	// it returns a status indicating if the transaction has failed, if it
 	// was reverted and the accompanying error
-	testTransaction := func(gas uint64, nonce uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
-		tx := types.NewTx(&types.LegacyTx{
-			Nonce:    nonce,
-			To:       transaction.To(),
-			Value:    transaction.Value(),
-			Gas:      gas,
-			GasPrice: transaction.GasPrice(),
-			Data:     transaction.Data(),
-		})
-
-		forkID := s.GetForkIDByBatchNumber(lastBatch.BatchNumber)
-
-		batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, nil, forkID)
-		if err != nil {
-			log.Errorf("error encoding unsigned transaction ", err)
-			return false, false, gasUsed, nil, err
-		}
-
-		if forkID < FORKID_ETROG {
-			log.Errorf("only supported forkID >= ETROG")
-			return false, false, gasUsed, nil, fmt.Errorf("only supported forkID >= ETROG")
-		}
-		currentL1InfoRoot := s.GetCurrentL1InfoRoot()
-
-		// Create a batch to be sent to the executor
-		processBatchRequest := &executor.ProcessBatchRequestV2{
-			OldBatchNum:            lastBatch.BatchNumber,
-			OldStateRoot:           lastBatch.StateRoot.Bytes(),
-			OldAccInputHash:        previousBatch.AccInputHash.Bytes(),
-			Coinbase:               lastBatch.Coinbase.String(),
-			ForkId:                 forkID,
-			L1InfoRoot:             currentL1InfoRoot.Bytes(),
-			TimestampLimit:         uint64(time.Now().Unix()),
-			BatchL2Data:            batchL2Data,
-			ChainId:                s.cfg.ChainID,
-			UpdateMerkleTree:       cFalse,
-			ContextId:              uuid.NewString(),
-			SkipFirstChangeL2Block: cTrue,
-			SkipWriteBlockInfoRoot: cTrue,
-		}
-		//TODO: Add logs
-		/*
-			log.Debugf("EstimateGas[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
-			// log.Debugf("EstimateGas[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
-			log.Debugf("EstimateGas[processBatchRequest.From]: %v", processBatchRequest.From)
-			log.Debugf("EstimateGas[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-			log.Debugf("EstimateGas[processBatchRequest.globalExitRoot]: %v", hex.EncodeToHex(processBatchRequest.GlobalExitRoot))
-			log.Debugf("EstimateGas[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-			log.Debugf("EstimateGas[processBatchRequest.EthTimestamp]: %v", processBatchRequest.EthTimestamp)
-			log.Debugf("EstimateGas[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
-			log.Debugf("EstimateGas[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-			log.Debugf("EstimateGas[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
-			log.Debugf("EstimateGas[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
-			log.Debugf("EstimateGas[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
-			log.Debugf("EstimateGas[processBatchRequest.L1InfoRoot_V2]: %v", processBatchRequest.L1InfoRoot_V2)
-			log.Debugf("EstimateGas[processBatchRequest.TimestampLimit_V2]: %v", processBatchRequest.TimestampLimit_V2)
-		*/
-		txExecutionOnExecutorTime := time.Now()
-		processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
-		log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
-		if err != nil {
-			log.Errorf("error estimating gas: %v", err)
-			return false, false, gasUsed, nil, err
-		}
-		if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
-			err = executor.ExecutorErr(processBatchResponse.Error)
-			//TODO: Add eventLog
-			//s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
-			return false, false, gasUsed, nil, err
-		}
-		gasUsed = processBatchResponse.BlockResponses[0].GasUsed
-
-		txResponse := processBatchResponse.BlockResponses[0].Responses[0]
-		// Check if an out of gas error happened during EVM execution
-		if txResponse.Error != executor.RomError_ROM_ERROR_NO_ERROR {
-			err := executor.RomErr(txResponse.Error)
-
-			if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
-				// Specifying the transaction failed, but not providing an error
-				// is an indication that a valid error occurred due to low gas,
-				// which will increase the lower bound for the search
-				return true, false, gasUsed, nil, nil
-			}
-
-			if isEVMRevertError(err) {
-				// The EVM reverted during execution, attempt to extract the
-				// error message and return it
-				returnValue := txResponse.ReturnValue
-				return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
-			}
-
-			return true, false, gasUsed, nil, err
-		}
-
-		return false, false, gasUsed, nil, nil
-	}
-
 	txExecutions := []time.Duration{}
 	var totalExecutionTime time.Duration
 
 	// Check if the highEnd is a good value to make the transaction pass, if it fails we
 	// can return immediately.
 	log.Debugf("Estimate gas. Trying to execute TX with %v gas", highEnd)
-	failed, reverted, gasUsed, returnValue, err := testTransaction(highEnd, nonce, false)
+	var failed, reverted bool
+	var gasUsed uint64
+	var returnValue []byte
+	if forkID < FORKID_ETROG {
+		failed, reverted, gasUsed, returnValue, err = s.internalTestGasEstimationTransactionV1(ctx, batch, l2Block, latestL2BlockNumber, transaction, forkID, senderAddress, highEnd, nonce, false)
+	} else {
+		failed, reverted, gasUsed, returnValue, err = s.internalTestGasEstimationTransactionV2(ctx, batch, l2Block, latestL2BlockNumber, transaction, forkID, senderAddress, highEnd, nonce, false)
+	}
+
 	if failed {
 		if reverted {
 			return 0, returnValue, err
@@ -967,14 +856,18 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		}
 
 		log.Debugf("Estimate gas. Trying to execute TX with %v gas", mid)
-		failed, reverted, _, _, testErr := testTransaction(mid, nonce, true)
+		if forkID < FORKID_ETROG {
+			failed, reverted, _, _, err = s.internalTestGasEstimationTransactionV1(ctx, batch, l2Block, latestL2BlockNumber, transaction, forkID, senderAddress, mid, nonce, true)
+		} else {
+			failed, reverted, _, _, err = s.internalTestGasEstimationTransactionV2(ctx, batch, l2Block, latestL2BlockNumber, transaction, forkID, senderAddress, mid, nonce, true)
+		}
 		executionTime := time.Since(txExecutionStart)
 		totalExecutionTime += executionTime
 		txExecutions = append(txExecutions, executionTime)
-		if testErr != nil && !reverted {
+		if err != nil && !reverted {
 			// Reverts are ignored in the binary search, but are checked later on
 			// during the execution for the optimal gas limit found
-			return 0, nil, testErr
+			return 0, nil, err
 		}
 
 		if failed {
@@ -993,6 +886,202 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 		log.Debug("Estimate gas. Tx not executed")
 	}
 	return highEnd, nil, nil
+}
+
+// internalTestGasEstimationTransactionV1 is used by the EstimateGas to test the tx execution
+// during the binary search process to define the gas estimation of a given tx for l2 blocks
+// before ETROG
+func (s *State) internalTestGasEstimationTransactionV1(ctx context.Context, batch *Batch, l2Block *L2Block, latestL2BlockNumber uint64,
+	transaction *types.Transaction, forkID uint64, senderAddress common.Address,
+	gas uint64, nonce uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
+	timestamp := l2Block.Time()
+	if l2Block.NumberU64() == latestL2BlockNumber {
+		timestamp = uint64(time.Now().Unix())
+	}
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		To:       transaction.To(),
+		Value:    transaction.Value(),
+		Gas:      gas,
+		GasPrice: transaction.GasPrice(),
+		Data:     transaction.Data(),
+	})
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		return false, false, gasUsed, nil, err
+	}
+
+	// Create a batch to be sent to the executor
+	processBatchRequestV1 := &executor.ProcessBatchRequest{
+		From:             senderAddress.String(),
+		OldBatchNum:      batch.BatchNumber,
+		OldStateRoot:     l2Block.Root().Bytes(),
+		OldAccInputHash:  batch.AccInputHash.Bytes(),
+		ForkId:           forkID,
+		Coinbase:         batch.Coinbase.String(),
+		BatchL2Data:      batchL2Data,
+		ChainId:          s.cfg.ChainID,
+		UpdateMerkleTree: cFalse,
+		ContextId:        uuid.NewString(),
+
+		// v1 fields
+		GlobalExitRoot: batch.GlobalExitRoot.Bytes(),
+		EthTimestamp:   timestamp,
+	}
+
+	log.Debugf("EstimateGas[processBatchRequestV1.From]: %v", processBatchRequestV1.From)
+	log.Debugf("EstimateGas[processBatchRequestV1.From]: %v", processBatchRequestV1.From)
+	log.Debugf("EstimateGas[processBatchRequestV1.OldBatchNum]: %v", processBatchRequestV1.OldBatchNum)
+	log.Debugf("EstimateGas[processBatchRequestV1.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequestV1.OldStateRoot))
+	log.Debugf("EstimateGas[processBatchRequestV1.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequestV1.OldAccInputHash))
+	log.Debugf("EstimateGas[processBatchRequestV1.ForkId]: %v", processBatchRequestV1.ForkId)
+	log.Debugf("EstimateGas[processBatchRequestV1.Coinbase]: %v", processBatchRequestV1.Coinbase)
+	log.Debugf("EstimateGas[processBatchRequestV1.ChainId]: %v", processBatchRequestV1.ChainId)
+	log.Debugf("EstimateGas[processBatchRequestV1.UpdateMerkleTree]: %v", processBatchRequestV1.UpdateMerkleTree)
+	log.Debugf("EstimateGas[processBatchRequestV1.ContextId]: %v", processBatchRequestV1.ContextId)
+	log.Debugf("EstimateGas[processBatchRequestV1.GlobalExitRoot]: %v", hex.EncodeToHex(processBatchRequestV1.GlobalExitRoot))
+	log.Debugf("EstimateGas[processBatchRequestV1.EthTimestamp]: %v", processBatchRequestV1.EthTimestamp)
+
+	txExecutionOnExecutorTime := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequestV1)
+	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
+	if err != nil {
+		log.Errorf("error estimating gas: %v", err)
+		return false, false, gasUsed, nil, err
+	}
+	if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequestV1)
+		return false, false, gasUsed, nil, err
+	}
+	gasUsed = processBatchResponse.Responses[0].GasUsed
+
+	txResponse := processBatchResponse.Responses[0]
+	// Check if an out of gas error happened during EVM execution
+	if txResponse.Error != executor.RomError_ROM_ERROR_NO_ERROR {
+		err := executor.RomErr(txResponse.Error)
+
+		if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
+			// Specifying the transaction failed, but not providing an error
+			// is an indication that a valid error occurred due to low gas,
+			// which will increase the lower bound for the search
+			return true, false, gasUsed, nil, nil
+		}
+
+		if isEVMRevertError(err) {
+			// The EVM reverted during execution, attempt to extract the
+			// error message and return it
+			returnValue := txResponse.ReturnValue
+			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+		}
+
+		return true, false, gasUsed, nil, err
+	}
+
+	return false, false, gasUsed, nil, nil
+}
+
+// internalTestGasEstimationTransactionV2 is used by the EstimateGas to test the tx execution
+// during the binary search process to define the gas estimation of a given tx for l2 blocks
+// after ETROG
+func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batch *Batch, l2Block *L2Block, latestL2BlockNumber uint64,
+	transaction *types.Transaction, forkID uint64, senderAddress common.Address,
+	gas uint64, nonce uint64, shouldOmitErr bool) (failed, reverted bool, gasUsed uint64, returnValue []byte, err error) {
+	deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
+	transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
+
+	tx := types.NewTx(&types.LegacyTx{
+		Nonce:    nonce,
+		To:       transaction.To(),
+		Value:    transaction.Value(),
+		Gas:      gas,
+		GasPrice: transaction.GasPrice(),
+		Data:     transaction.Data(),
+	})
+
+	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
+	if err != nil {
+		log.Errorf("error encoding unsigned transaction ", err)
+		return false, false, gasUsed, nil, err
+	}
+
+	transactions = append(transactions, batchL2Data...)
+
+	// Create a batch to be sent to the executor
+	processBatchRequestV2 := &executor.ProcessBatchRequestV2{
+		From:             senderAddress.String(),
+		OldBatchNum:      batch.BatchNumber,
+		OldStateRoot:     l2Block.Root().Bytes(),
+		OldAccInputHash:  batch.AccInputHash.Bytes(),
+		Coinbase:         batch.Coinbase.String(),
+		ForkId:           forkID,
+		BatchL2Data:      transactions,
+		ChainId:          s.cfg.ChainID,
+		UpdateMerkleTree: cFalse,
+		ContextId:        uuid.NewString(),
+
+		// v2 fields
+		L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
+		TimestampLimit:         uint64(time.Now().Unix()),
+		SkipFirstChangeL2Block: cTrue,
+		SkipWriteBlockInfoRoot: cTrue,
+	}
+
+	log.Debugf("EstimateGas[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
+	log.Debugf("EstimateGas[processBatchRequestV2.OldBatchNum]: %v", processBatchRequestV2.OldBatchNum)
+	log.Debugf("EstimateGas[processBatchRequestV2.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequestV2.OldStateRoot))
+	log.Debugf("EstimateGas[processBatchRequestV2.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequestV2.OldAccInputHash))
+	log.Debugf("EstimateGas[processBatchRequestV2.Coinbase]: %v", processBatchRequestV2.Coinbase)
+	log.Debugf("EstimateGas[processBatchRequestV2.ForkId]: %v", processBatchRequestV2.ForkId)
+	log.Debugf("EstimateGas[processBatchRequestV2.ChainId]: %v", processBatchRequestV2.ChainId)
+	log.Debugf("EstimateGas[processBatchRequestV2.UpdateMerkleTree]: %v", processBatchRequestV2.UpdateMerkleTree)
+	log.Debugf("EstimateGas[processBatchRequestV2.ContextId]: %v", processBatchRequestV2.ContextId)
+
+	log.Debugf("EstimateGas[processBatchRequestV2.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequestV2.L1InfoRoot))
+	log.Debugf("EstimateGas[processBatchRequestV2.TimestampLimit]: %v", processBatchRequestV2.TimestampLimit)
+	log.Debugf("EstimateGas[processBatchRequestV2.SkipFirstChangeL2Block]: %v", processBatchRequestV2.SkipFirstChangeL2Block)
+	log.Debugf("EstimateGas[processBatchRequestV2.SkipWriteBlockInfoRoot]: %v", processBatchRequestV2.SkipWriteBlockInfoRoot)
+
+	txExecutionOnExecutorTime := time.Now()
+	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
+	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
+	if err != nil {
+		log.Errorf("error estimating gas: %v", err)
+		return false, false, gasUsed, nil, err
+	}
+	if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponse.Error)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponse.Error, processBatchRequestV2)
+		return false, false, gasUsed, nil, err
+	}
+	gasUsed = processBatchResponse.BlockResponses[0].GasUsed
+
+	txResponse := processBatchResponse.BlockResponses[0].Responses[0]
+	// Check if an out of gas error happened during EVM execution
+	if txResponse.Error != executor.RomError_ROM_ERROR_NO_ERROR {
+		err := executor.RomErr(txResponse.Error)
+
+		if (isGasEVMError(err) || isGasApplyError(err)) && shouldOmitErr {
+			// Specifying the transaction failed, but not providing an error
+			// is an indication that a valid error occurred due to low gas,
+			// which will increase the lower bound for the search
+			return true, false, gasUsed, nil, nil
+		}
+
+		if isEVMRevertError(err) {
+			// The EVM reverted during execution, attempt to extract the
+			// error message and return it
+			returnValue := txResponse.ReturnValue
+			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+		}
+
+		return true, false, gasUsed, nil, err
+	}
+
+	return false, false, gasUsed, nil, nil
 }
 
 // Checks if executor level valid gas errors occurred
