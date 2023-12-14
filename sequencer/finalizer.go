@@ -221,7 +221,6 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 
 func (f *finalizer) checkL1InfoRootUpdate(ctx context.Context) {
 	var (
-		lastL1InfoRootIndex   uint32
 		firstL1InfoRootUpdate = true
 		firstSleepSkipped     = false
 	)
@@ -249,7 +248,7 @@ func (f *finalizer) checkL1InfoRootUpdate(ctx context.Context) {
 			continue
 		}
 
-		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > lastL1InfoRootIndex {
+		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {
 			firstL1InfoRootUpdate = false
 
 			log.Debugf("received new L1InfoRoot. L1InfoTreeIndex: %d", l1InfoRoot.L1InfoTreeIndex)
