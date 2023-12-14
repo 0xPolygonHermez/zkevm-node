@@ -3,16 +3,20 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/jackc/pgx/v4"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -37,12 +41,12 @@ type egpConfig struct {
 	netProfitFactor     float64 // L2 network profit factor
 	l1GasPriceFactor    float64 // L1 gas price factor
 	l2GasPriceSugFactor float64 // L2 gas price suggester factor
-	breakEvenFactor     float64 // break even gas price factor
 	finalDeviationPct   uint64  // max final deviation percentage
 	minGasPriceAllowed  uint64  // min gas price allowed
 }
 
 type egpLogRecord struct {
+	l2BlockNum        uint64
 	encoded           string
 	missingLogInfo    bool   // Flag if egp_log field is empty
 	LogError          string `json:"Error"`
@@ -138,7 +142,6 @@ func defaultConfig() (*egpConfig, error) {
 		netProfitFactor:     1,          // nolint:gomnd
 		l1GasPriceFactor:    0.25,       // nolint:gomnd
 		l2GasPriceSugFactor: 0.5,        // nolint:gomnd
-		breakEvenFactor:     1.1,        // nolint:gomnd
 		finalDeviationPct:   10,         // nolint:gomnd
 		minGasPriceAllowed:  1000000000, // nolint:gomnd
 	}
@@ -270,6 +273,7 @@ func runStats(ctx *cli.Context) error {
 
 		// Transaction info
 		egpData := egpLogRecord{
+			l2BlockNum:     l2Block,
 			encoded:        encoded,
 			missingLogInfo: egpLog == "",
 		}
@@ -298,7 +302,7 @@ func runStats(ctx *cli.Context) error {
 	logf("Finished txs #%d (L2 block %d).", i, l2Block)
 
 	// Print stats results
-	logf("\nEGP STATS:")
+	logf("\nEGP REAL STATS:")
 	printStats(&stats)
 
 	// Print simulation stats results
@@ -312,7 +316,7 @@ func runStats(ctx *cli.Context) error {
 
 // countStats calculates and counts statistics for an EGP record
 func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats) {
-	printEgpLogRecord(egp, false)
+	printEgpLogRecord(egp, true)
 
 	// Total transactions
 	stats.totalTx++
@@ -392,6 +396,7 @@ func logf(format string, args ...any) {
 
 // printEgpLogRecord prints values of egpLogRecord struct
 func printEgpLogRecord(record *egpLogRecord, showTxInfo bool) {
+	fmt.Printf("L2BlockNum: [%d]\n", record.l2BlockNum)
 	fmt.Printf("  Error: [%s]\n", record.LogError)
 	fmt.Printf("  Enabled: [%t]\n", record.LogEnabled)
 	fmt.Printf("  L1GasPrice: [%d]\n", record.LogL1GasPrice)
@@ -411,6 +416,7 @@ func printEgpLogRecord(record *egpLogRecord, showTxInfo bool) {
 	if showTxInfo {
 		fmt.Printf("  encoded: [%s]\n", record.encoded)
 	}
+	fmt.Println()
 }
 
 // printStats prints EGP statistics
@@ -449,12 +455,21 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 	egp.LogGasPrice = egp.LogL2GasPrice
 
 	// Compute EGP
+	var err error
 	egp.LogReprocess = false
-	egp.LogValueFirst = uint64(calcEffectiveGasPrice(egp.LogGasUsedFirst, egp, cfg))
+	egp.LogValueFirst, err = calcEffectiveGasPrice(egp.LogGasUsedFirst, egp, cfg)
+	if err != nil {
+		logf("Simulation error in L2 block [%d], EGP failed, error: %v", egp.l2BlockNum, err)
+		os.Exit(1)
+	}
 
 	if egp.LogValueFirst < egp.LogGasPrice {
 		// Recompute NEGP
-		egp.LogValueSecond = uint64(calcEffectiveGasPrice(egp.LogGasUsedSecond, egp, cfg))
+		egp.LogValueSecond, err = calcEffectiveGasPrice(egp.LogGasUsedSecond, egp, cfg)
+		if err != nil {
+			logf("Simulation error in L2 block [%d], NEGP failed, error: %v", egp.l2BlockNum, err)
+			os.Exit(2)
+		}
 
 		// Gas price deviation
 		egp.LogFinalDeviation = uint64(math.Abs(float64(egp.LogValueSecond - egp.LogValueFirst)))
@@ -485,17 +500,30 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 }
 
 // calcEffectiveGasPrice calculates the effective gas price
-func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) float64 {
+func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) (uint64, error) {
 	// Calculate break even gas price
 	var breakEvenGasPrice float64
 	if gasUsed == 0 {
 		breakEvenGasPrice = float64(tx.LogGasPrice)
 	} else {
 		// String 0x format to raw bytes
-		rawBytes, err := hex.DecodeString(tx.encoded[2:])
+		encodedBytes, err := hex.DecodeString(tx.encoded[2:])
 		if err != nil {
 			logf("Error converting encoded string to slice bytes: %v", err)
 		}
+		logf("len Encoded: %d", len(encodedBytes))
+
+		// Decode tx
+		rawBytes, err := decodeTx(tx)
+		if err != nil {
+			return 0, err
+		}
+		logf("len DECODED: %d", len(rawBytes))
+		decodedBytes := hex.EncodeToString(rawBytes)
+		if err != nil {
+			logf("error: %v", err)
+		}
+		logf("DECODED:[%s]", decodedBytes)
 
 		// Zero and non zero bytes
 		txZeroBytes := uint64(bytes.Count(rawBytes, []byte{0}))
@@ -508,8 +536,6 @@ func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) flo
 		}
 		totalTxPrice := float64(gasUsed)*l2MinGasPrice + float64(((fixedBytesTx+txNonZeroBytes)*cfg.byteGasCost+txZeroBytes*cfg.zeroGasCost)*tx.LogL1GasPrice)
 		breakEvenGasPrice = totalTxPrice / float64(gasUsed) * cfg.netProfitFactor
-
-		logf(">> gasUsed=%d | zBytes=%d | nzBytes: %d | l2min: %f | txPrice: %f", gasUsed, txZeroBytes, txNonZeroBytes, l2MinGasPrice, totalTxPrice)
 	}
 
 	// Calculate effective gas price
@@ -521,6 +547,66 @@ func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) flo
 	}
 	effectiveGasPrice := breakEvenGasPrice * ratioPriority
 
-	logf(">> breakEven: %f | prio: %f | EGP: %f", breakEvenGasPrice, ratioPriority, effectiveGasPrice)
-	return effectiveGasPrice
+	return uint64(effectiveGasPrice), nil
+}
+
+// decodeTx decodes the encoded tx
+func decodeTx(record *egpLogRecord) ([]byte, error) {
+	tx, err := state.DecodeTx(record.encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	binaryTx, err := prepareRPLTxData(*tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return binaryTx, nil
+}
+
+func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
+	const ether155V = 27
+
+	v, r, s := tx.RawSignatureValues()
+	sign := 1 - (v.Uint64() & 1)
+
+	nonce, gasPrice, gas, to, value, data, chainID := tx.Nonce(), tx.GasPrice(), tx.Gas(), tx.To(), tx.Value(), tx.Data(), tx.ChainId()
+
+	rlpFieldsToEncode := []interface{}{
+		nonce,
+		gasPrice,
+		gas,
+		to,
+		value,
+		data,
+	}
+
+	if !IsPreEIP155Tx(tx) {
+		rlpFieldsToEncode = append(rlpFieldsToEncode, chainID)
+		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+		rlpFieldsToEncode = append(rlpFieldsToEncode, uint(0))
+	}
+
+	txCodedRlp, err := rlp.EncodeToBytes(rlpFieldsToEncode)
+	if err != nil {
+		return nil, err
+	}
+
+	newV := new(big.Int).Add(big.NewInt(ether155V), big.NewInt(int64(sign)))
+	newRPadded := fmt.Sprintf("%064s", r.Text(hex.Base))
+	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
+	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
+	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded)
+	if err != nil {
+		return nil, err
+	}
+	return txData, nil
+}
+
+// IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
+// V field is either 27 or 28
+func IsPreEIP155Tx(tx types.Transaction) bool {
+	v, _, _ := tx.RawSignatureValues()
+	return tx.ChainId().Uint64() == 0 && (v.Uint64() == 27 || v.Uint64() == 28)
 }
