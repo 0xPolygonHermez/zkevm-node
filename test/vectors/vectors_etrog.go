@@ -23,6 +23,7 @@ type StateTransitionTestCaseEtrog struct {
 	BatchL2Data          string               `json:"batchL2Data"`
 	BatchHashData        string               `json:"batchHashData"`
 	ForkID               uint64               `json:"forkID"`
+	SequencerAddress     string               `json:"sequencerAddress"`
 }
 
 // LeafEtrog represents the state of a leaf in the merkle tree
@@ -50,6 +51,7 @@ type GenesisEntityEtrog struct {
 
 // TxEtrog represents a transactions that will be applied during the test
 type TxEtrog struct {
+	Type              uint       `json:"type"`
 	ID                uint       `json:"id"`
 	From              string     `json:"from"`
 	To                string     `json:"to"`
@@ -63,6 +65,7 @@ type TxEtrog struct {
 	Overwrite         Overwrite  `json:"overwrite"`
 	EncodeInvalidData bool       `json:"encodeInvalidData"`
 	Reason            string     `json:"reason"`
+	IndexL1InfoTree   uint32     `json:"indexL1InfoTree"`
 }
 
 func GenerateGenesisActionsEtrog(genesis []GenesisEntityEtrog) []*state.GenesisAction {
