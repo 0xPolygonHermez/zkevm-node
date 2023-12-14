@@ -85,10 +85,7 @@ func TestStateTransition(t *testing.T) {
 			ForkID:            testCase.ForkID,
 		}
 
-		// fmt.Printf("processRequest: %+v\n", processRequest)
 		processResponse, _ := testState.ProcessBatchV2(ctx, processRequest, false)
-		// fmt.Printf("processResponse: %+v\n", processResponse)
-
 		require.Nil(t, processResponse.ExecutorError)
 		require.Equal(t, testCase.ExpectedNewStateRoot, processResponse.NewStateRoot.String())
 	}
