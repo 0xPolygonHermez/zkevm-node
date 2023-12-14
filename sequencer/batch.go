@@ -139,7 +139,8 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 
 	//TODO: We execute the batch to get the used counter. To avoid this We can update the counters in the state.batch table for the wip batch
 	if wipStateBatchCountOfTxs > 0 {
-		batchResponse, err := f.state.ExecuteBatchV2(ctx, *wipStateBatch, false, dbTx)
+		//TODO: Change wipStateBatch.GlobalExitRoot for L1InfoRoot and wipStateBatch.Timestamp for the TimeLimit
+		batchResponse, err := f.state.ExecuteBatchV2(ctx, *wipStateBatch, wipStateBatch.GlobalExitRoot, wipStateBatch.Timestamp, false, dbTx)
 		if err != nil {
 			return nil, err
 		}

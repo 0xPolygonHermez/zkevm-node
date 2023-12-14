@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -732,6 +733,11 @@ func TestGetBatchByNumber(t *testing.T) {
 					Return(batch, nil).
 					Once()
 
+				m.State.
+					On("GetBatchTimestamp", mock.Anything, mock.Anything, (*uint64)(nil), m.DbTx).
+					Return(&batch.Timestamp, nil).
+					Once()
+
 				virtualBatch := &state.VirtualBatch{
 					TxHash: common.HexToHash("0x10"),
 				}
@@ -849,6 +855,11 @@ func TestGetBatchByNumber(t *testing.T) {
 				m.State.
 					On("GetBatchByNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
 					Return(batch, nil).
+					Once()
+
+				m.State.
+					On("GetBatchTimestamp", mock.Anything, mock.Anything, (*uint64)(nil), m.DbTx).
+					Return(&batch.Timestamp, nil).
 					Once()
 
 				virtualBatch := &state.VirtualBatch{
@@ -999,6 +1010,11 @@ func TestGetBatchByNumber(t *testing.T) {
 				m.State.
 					On("GetBatchByNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(batch, nil).
+					Once()
+
+				m.State.
+					On("GetBatchTimestamp", mock.Anything, mock.Anything, (*uint64)(nil), m.DbTx).
+					Return(&batch.Timestamp, nil).
 					Once()
 
 				virtualBatch := &state.VirtualBatch{

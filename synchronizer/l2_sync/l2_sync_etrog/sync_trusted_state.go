@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -55,14 +56,13 @@ type BatchStepsExecutorEtrog struct {
 // NewSyncTrustedStateEtrogExecutor creates a new prcessor for sync with L2 batches
 func NewSyncTrustedStateEtrogExecutor(zkEVMClient l2_shared.ZkEVMClientInterface,
 	state l2_shared.StateInterface, stateBatchExecutor BatchStepsExecutorEtrogStateInterface,
-	sync l2_shared.SyncInterface) *l2_shared.SyncTrustedStateTemplate {
+	sync l2_shared.SyncInterface, timeProvider syncCommon.TimeProvider) *l2_shared.SyncTrustedStateTemplate {
 	executorSteps := &BatchStepsExecutorEtrog{
 		state: stateBatchExecutor,
-		sync:  sync}
-	//executor := &l2_shared.SyncTrustedStateBatchExecutorTemplate{
-	//	Steps: executorSteps,
-	//}
-	executor := l2_shared.NewSyncTrustedStateBatchExecutorTemplate(executorSteps, true)
+		sync:  sync,
+	}
+
+	executor := l2_shared.NewSyncTrustedStateBatchExecutorTemplate(executorSteps, true, timeProvider)
 	a := l2_shared.NewSyncTrustedStateTemplate(executor, zkEVMClient, state, sync)
 	return a
 }
