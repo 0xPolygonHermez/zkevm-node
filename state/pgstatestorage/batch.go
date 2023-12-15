@@ -276,7 +276,7 @@ func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint
 // GetBatchByTxHash returns the batch including the given tx
 func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*state.Batch, error) {
 	const getBatchByTxHashSQL = `
-		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, b.batch_resources
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, b.batch_resources, b.wip
 		  FROM state.transaction t, state.batch b, state.l2block l 
 		  WHERE t.hash = $1 AND l.block_num = t.l2_block_num AND b.batch_num = l.batch_num`
 
@@ -295,7 +295,7 @@ func (p *PostgresStorage) GetBatchByTxHash(ctx context.Context, transactionHash 
 // GetBatchByL2BlockNumber returns the batch related to the l2 block accordingly to the provided l2 block number.
 func (p *PostgresStorage) GetBatchByL2BlockNumber(ctx context.Context, l2BlockNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const getBatchByL2BlockNumberSQL = `
-		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.forced_batch_num, bt.batch_resources
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.forced_batch_num, bt.batch_resources, bt.wip
 		  FROM state.batch bt
 		 INNER JOIN state.l2block bl
 		    ON bt.batch_num = bl.batch_num
@@ -327,7 +327,8 @@ func (p *PostgresStorage) GetVirtualBatchByNumber(ctx context.Context, batchNumb
 			coinbase,
 			raw_txs_data,
 			forced_batch_num,
-			batch_resources
+			batch_resources, 
+			wip
 		FROM
 			state.batch
 		WHERE
@@ -645,7 +646,7 @@ func (p *PostgresStorage) CloseWIPBatchInStorage(ctx context.Context, receipt st
 // GetWIPBatchInStorage returns the wip batch in the state
 func (p *PostgresStorage) GetWIPBatchInStorage(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const getWIPBatchByNumberSQL = `
-		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources, wip
 		  FROM state.batch 
 		 WHERE batch_num = $1 AND wip = TRUE`
 
@@ -759,7 +760,8 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.coinbase,
 			b.raw_txs_data,
 			b.forced_batch_num,
-			b.batch_resources
+			b.batch_resources, 
+			b.wip
 		FROM
 			state.batch b,
 			state.virtual_batch v
@@ -822,7 +824,7 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 // GetLastClosedBatch returns the latest closed batch
 func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error) {
 	const getLastClosedBatchSQL = `
-		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.batch_resources
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.batch_resources, bt.wip
 			FROM state.batch bt
 			WHERE wip = FALSE
 			ORDER BY bt.batch_num DESC
