@@ -449,16 +449,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}()
 
 	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:       f.wipBatch.batchNumber,
-		OldStateRoot:      f.wipBatch.imStateRoot,
-		OldAccInputHash:   f.wipBatch.imAccInputHash,
-		Coinbase:          f.wipBatch.coinbase,
-		L1InfoRoot_V2:     mockL1InfoRoot,
-		TimestampLimit_V2: uint64(f.wipL2Block.timestamp.Unix()),
-		Caller:            stateMetrics.SequencerCallerLabel,
-		ForkID:            f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
+		BatchNumber:             f.wipBatch.batchNumber,
+		OldStateRoot:            f.wipBatch.imStateRoot,
+		OldAccInputHash:         f.wipBatch.imAccInputHash,
+		Coinbase:                f.wipBatch.coinbase,
+		L1InfoTree:              f.wipL2Block.l1InfoTreeExitRoot,
+		TimestampLimit_V2:       uint64(f.wipL2Block.timestamp.Unix()),
+		Caller:                  stateMetrics.SequencerCallerLabel,
+		ForkID:                  f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
+		SkipVerifyL1InfoRoot_V2: true,
 	}
-
+	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
 	if f.wipBatch.isEmpty() {
 		executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 		executorBatchRequest.SkipFirstChangeL2Block_V2 = false
@@ -544,7 +545,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
 	}
 
-	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoRoot_V2.String())
+	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoTree.L1InfoTreeRoot.String())
 	processBatchResponse, err := f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
@@ -1004,9 +1005,10 @@ func (f *finalizer) processForcedBatch2(ctx context.Context, forcedBatchNumber u
 func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInState uint64, stateRoot common.Hash, forcedBatch state.ForcedBatch) (uint64, common.Hash) {
 	//TODO: review this request for forced txs
 	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:               lastBatchNumberInState + 1,
-		OldStateRoot:              stateRoot,
-		L1InfoRoot_V2:             forcedBatch.GlobalExitRoot,
+		BatchNumber:  lastBatchNumberInState + 1,
+		OldStateRoot: stateRoot,
+		// TODO FIX L1infoRoot
+		// L1InfoRoot_V2:             forcedBatch.GlobalExitRoot,
 		Transactions:              forcedBatch.RawTxsData,
 		Coinbase:                  f.sequencerAddress,
 		TimestampLimit_V2:         uint64(forcedBatch.ForcedAt.Unix()), //TODO: review this is the TimeStampLimit we need to use
@@ -1110,15 +1112,17 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 
 	// TODO: review this request for reprocess full batch
 	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:       batch.BatchNumber,
-		L1InfoRoot_V2:     mockL1InfoRoot,
-		OldStateRoot:      initialStateRoot,
-		OldAccInputHash:   initialAccInputHash,
-		Transactions:      batch.BatchL2Data,
-		Coinbase:          batch.Coinbase,
-		TimestampLimit_V2: uint64(time.Now().Unix()),
-		Caller:            caller,
+		BatchNumber:             batch.BatchNumber,
+		L1InfoTree:              f.wipL2Block.l1InfoTreeExitRoot,
+		OldStateRoot:            initialStateRoot,
+		OldAccInputHash:         initialAccInputHash,
+		Transactions:            batch.BatchL2Data,
+		Coinbase:                batch.Coinbase,
+		TimestampLimit_V2:       uint64(time.Now().Unix()),
+		Caller:                  caller,
+		SkipVerifyL1InfoRoot_V2: true,
 	}
+	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
 
 	var result *state.ProcessBatchResponse
 
