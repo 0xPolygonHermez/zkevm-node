@@ -26,7 +26,7 @@ var (
 	testState *state.State
 	// Tests in this file should be independent of the forkID
 	// so we force an invalid forkID
-	forkID   = uint64(state.FORKID_DRAGONFRUIT)
+	forkID   = uint64(0)
 	stateCfg = state.Config{
 		MaxCumulativeGasUsed: 800000,
 		ChainID:              1000,
