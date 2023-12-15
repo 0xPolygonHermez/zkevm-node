@@ -208,7 +208,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.Pro
 		OldStateRoot:            data.OldStateRoot,
 		OldAccInputHash:         data.OldAccInputHash,
 		Coinbase:                common.HexToAddress(data.TrustedBatch.Coinbase.String()),
-		L1InfoTree:              l1InfoTree,
+		L1InfoTree_V2:           l1InfoTree,
 		TimestampLimit_V2:       uint64(data.TrustedBatch.Timestamp),
 		Transactions:            data.TrustedBatch.BatchL2Data,
 		ForkID:                  b.state.GetForkIDByBatchNumber(uint64(data.TrustedBatch.Number)),

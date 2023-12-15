@@ -453,13 +453,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		OldStateRoot:            f.wipBatch.imStateRoot,
 		OldAccInputHash:         f.wipBatch.imAccInputHash,
 		Coinbase:                f.wipBatch.coinbase,
-		L1InfoTree:              f.wipL2Block.l1InfoTreeExitRoot,
+		L1InfoTree_V2:           f.wipL2Block.l1InfoTreeExitRoot,
 		TimestampLimit_V2:       uint64(f.wipL2Block.timestamp.Unix()),
 		Caller:                  stateMetrics.SequencerCallerLabel,
 		ForkID:                  f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
 	}
-	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
+	executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot = mockL1InfoRoot
 	if f.wipBatch.isEmpty() {
 		executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 		executorBatchRequest.SkipFirstChangeL2Block_V2 = false
@@ -545,7 +545,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
 	}
 
-	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoTree.L1InfoTreeRoot.String())
+	log.Infof("processing tx: %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRoot: %s", hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot.String())
 	processBatchResponse, err := f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
 		log.Errorf("failed to process transaction: %s", err)
@@ -1113,7 +1113,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	// TODO: review this request for reprocess full batch
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
-		L1InfoTree:              f.wipL2Block.l1InfoTreeExitRoot,
+		L1InfoTree_V2:           f.wipL2Block.l1InfoTreeExitRoot,
 		OldStateRoot:            initialStateRoot,
 		OldAccInputHash:         initialAccInputHash,
 		Transactions:            batch.BatchL2Data,
@@ -1122,7 +1122,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		Caller:                  caller,
 		SkipVerifyL1InfoRoot_V2: true,
 	}
-	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
+	executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot = mockL1InfoRoot
 
 	var result *state.ProcessBatchResponse
 

@@ -1,4 +1,4 @@
-package state_test
+package dragonfruit_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	test "github.com/0xPolygonHermez/zkevm-node/state/test/forkid_common"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/tools/genesis/genesisparser"
 	"github.com/ethereum/go-ethereum/common"
@@ -85,7 +86,7 @@ func TestGenesisVectors(t *testing.T) {
 
 func genesisCase(t *testing.T, tv genesisTestVectorReader) {
 	// Init database instance
-	err := dbutils.InitOrResetState(stateDBCfg)
+	err := dbutils.InitOrResetState(test.StateDBCfg)
 	require.NoError(t, err)
 	actions := genesisparser.GenesisTest2Actions(tv.GenesisAccountTest())
 	genesis := state.Genesis{
