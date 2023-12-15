@@ -179,7 +179,6 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 
 			err := f.storeL2Block(ctx, l2Block)
 			if err != nil {
-				//TODO: this doesn't halt the finalizer, review howto do it
 				f.halt(ctx, fmt.Errorf("error storing L2 block %d. Error: %s", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
 			}
 
@@ -221,14 +220,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 
 	// Add transactions data to batchL2Data
 	for _, tx := range l2Block.transactions {
-		ep, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(tx.GasPrice, tx.EffectiveGasPrice) //TODO: store effectivePercentage in TxTracker
-		if err != nil {
-			log.Errorf("[processL2Block] error calculating effective gas price percentage for tx %s. Error: %s", tx.HashStr, err)
-			return nil, err
-		}
-
-		//TODO: Create function to add epHex to batchL2Data as it's used in several places
-		epHex, err := hex.DecodeHex(fmt.Sprintf("%x", ep))
+		epHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
 		if err != nil {
 			log.Errorf("[processL2Block] error decoding hex value for effective gas price percentage for tx %s. Error: %s", tx.HashStr, err)
 			return nil, err
@@ -275,8 +267,6 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		processL2BLockError()
 		return nil, ErrProcessBatchOOC
 	}
-
-	//TODO: check that result.BlockResponse is not empty
 
 	return result, nil
 }
@@ -398,16 +388,10 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
-	//TODO: use better f.wipBatch.remainingResources.Sub() instead to subtract directly
-	//TODO: Review with Carlos which zkCounters we need to subtract from the remaining
-	// Subtract the bytes needed to store the changeL2Block of the new L2 block into the WIP batch
-	f.wipBatch.remainingResources.Bytes = f.wipBatch.remainingResources.Bytes - changeL2BlockSize
-	// Subtract poseidon and arithmetic counters need to calculate the InfoRoot when the L2 block is closed
-	f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes = f.wipBatch.remainingResources.ZKCounters.UsedPoseidonHashes - 256 // nolint:gomnd //TODO: config param
-	f.wipBatch.remainingResources.ZKCounters.UsedArithmetics = f.wipBatch.remainingResources.ZKCounters.UsedArithmetics - 1         // nolint:gomnd //TODO: config param
-	// After do the subtracts we need to check if we have not reached the size limit for the batch
-	if f.isBatchResourcesExhausted() {
-		// If we have reached the limit then close the wip batch and create a new one
+	err := f.wipBatch.remainingResources.Sub(l2BlockUsedResources)
+
+	// we finalize the wip batch if we got an error when subtracting the l2BlockUsedResources or we have exhausted some resources of the batch
+	if err != nil || f.isBatchResourcesExhausted() {
 		f.finalizeBatch(ctx)
 	}
 

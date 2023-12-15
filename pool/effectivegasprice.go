@@ -77,7 +77,7 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 	}
 
 	txZeroBytes := uint64(bytes.Count(rawTx, []byte{0}))
-	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes + state.EfficiencyPercentageByteLength
+	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes
 
 	// Calculate BreakEvenGasPrice
 	totalTxPrice := (txGasUsed * l2MinGasPrice) +

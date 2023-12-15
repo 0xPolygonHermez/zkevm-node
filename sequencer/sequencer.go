@@ -132,9 +132,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	closingSignalsManager := newClosingSignalsManager(ctx, s.stateI, s.closingSignalCh, finalizer.cfg, s.etherman)
 	go closingSignalsManager.Start()
 
-	go s.purgeOldPoolTxs(ctx)                                                //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
-	tickerProcessTxs := time.NewTicker(s.cfg.WaitPeriodPoolIsEmpty.Duration) //TODO: why is this needed?
-	defer tickerProcessTxs.Stop()
+	go s.purgeOldPoolTxs(ctx) //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
 
 	// Expire too old txs in the worker
 	go func() {
