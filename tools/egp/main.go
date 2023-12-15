@@ -453,19 +453,21 @@ func printStats(stats *egpStats) {
 		fmt.Printf("        Used User Gas....: [%d] (%.2f%%)\n", stats.totalUsedUser, float64(stats.totalUsedUser)/float64(statsCount)*100)
 		fmt.Printf("        Used Weird Gas...: [%d] (%.2f%%)\n", stats.totalUsedWeird, float64(stats.totalUsedWeird)/float64(statsCount)*100)
 		if stats.countGasFinal > 0 {
-			fmt.Printf("    Gas average..........: [%d] (%d M)\n", stats.sumGasFinal/stats.countGasFinal, uint64(float64(stats.sumGasFinal/stats.countGasFinal)/1000000))
+			fmt.Printf("    Gas average..........: [%d] (%d MWei) (%.9f ETH)\n", stats.sumGasFinal/stats.countGasFinal,
+				uint64(float64(stats.sumGasFinal/stats.countGasFinal)/1000000), float64(stats.sumGasFinal/stats.countGasFinal)/1000000000000000000)
 		}
 		fmt.Printf("    Loss count.......: [%d] (%.2f%%)\n", stats.totalLossCount, float64(stats.totalLossCount)/float64(statsCount)*100)
 		if stats.totalLoss < 10000000 {
-			fmt.Printf("    Loss total.......: [%d] (%d K)\n", stats.totalLoss, stats.totalLoss/1000)
+			fmt.Printf("    Loss total.......: [%d] (%d KWei)\n", stats.totalLoss, stats.totalLoss/1000)
 		} else {
-			fmt.Printf("    Loss total.......: [%d] (%d M)\n", stats.totalLoss, stats.totalLoss/1000000)
+			fmt.Printf("    Loss total.......: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/1000000, float64(stats.totalLoss)/1000000000000000000)
 		}
 		if stats.totalLossCount > 0 {
 			if stats.totalLoss/stats.totalLossCount < 10000000 {
-				fmt.Printf("    Loss average.....: [%d] (%d K)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000)
+				fmt.Printf("    Loss average.....: [%d] (%d KWei)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000)
 			} else {
-				fmt.Printf("    Loss average.....: [%d] (%d M)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000000)
+				fmt.Printf("    Loss average.....: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000000,
+					float64(stats.totalLoss/stats.totalLossCount)/1000000000000000000)
 			}
 		}
 	}
