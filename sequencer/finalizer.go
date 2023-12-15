@@ -1207,7 +1207,7 @@ func (f *finalizer) setNextGERDeadline() {
 func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
 	usedResources := state.BatchResources{
 		ZKCounters: result.UsedZkCounters,
-		Bytes:      uint64(len(tx.RawTx)),
+		Bytes:      tx.BatchResources.Bytes,
 	}
 
 	err := f.wipBatch.remainingResources.Sub(usedResources)
