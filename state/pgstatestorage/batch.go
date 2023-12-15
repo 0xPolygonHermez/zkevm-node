@@ -83,7 +83,7 @@ func (p *PostgresStorage) GetVerifiedBatch(ctx context.Context, batchNumber uint
 
 // GetLastNBatches returns the last numBatches batches.
 func (p *PostgresStorage) GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error) {
-	const getLastNBatchesSQL = "SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources from state.batch ORDER BY batch_num DESC LIMIT $1"
+	const getLastNBatchesSQL = "SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources, wip from state.batch ORDER BY batch_num DESC LIMIT $1"
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getLastNBatchesSQL, numBatches)
@@ -119,6 +119,7 @@ func (p *PostgresStorage) GetLastNBatchesByL2BlockNumber(ctx context.Context, l2
                b.timestamp,
                b.coinbase,
                b.raw_txs_data,
+			   b.wip,
                /* gets the state root of the l2 block with the highest number associated to the batch in the row */
                (SELECT l2b1.header->>'stateRoot'
                   FROM state.l2block l2b1
@@ -255,7 +256,7 @@ func (p *PostgresStorage) SetInitSyncBatch(ctx context.Context, batchNumber uint
 // GetBatchByNumber returns the batch with the given number.
 func (p *PostgresStorage) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const getBatchByNumberSQL = `
-		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources, wip
 		  FROM state.batch 
 		 WHERE batch_num = $1`
 
@@ -389,6 +390,7 @@ func scanBatch(row pgx.Row) (state.Batch, error) {
 		stateStr      *string
 		coinbaseStr   string
 		resourcesData []byte
+		wip           bool
 	)
 	err := row.Scan(
 		&batch.BatchNumber,
@@ -401,6 +403,7 @@ func scanBatch(row pgx.Row) (state.Batch, error) {
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
 		&resourcesData,
+		&wip,
 	)
 	if err != nil {
 		return batch, err
@@ -422,6 +425,7 @@ func scanBatch(row pgx.Row) (state.Batch, error) {
 			return batch, err
 		}
 	}
+	batch.WIP = wip
 
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
 	return batch, nil
@@ -436,6 +440,7 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (state.Batch, *common.Hash, erro
 		stateStr            *string
 		coinbaseStr         string
 		l2BlockStateRootStr *string
+		wip                 bool
 	)
 	if err := row.Scan(
 		&batch.BatchNumber,
@@ -446,6 +451,7 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (state.Batch, *common.Hash, erro
 		&batch.Timestamp,
 		&coinbaseStr,
 		&batch.BatchL2Data,
+		&wip,
 		&l2BlockStateRootStr,
 	); err != nil {
 		return batch, nil, err
@@ -465,7 +471,7 @@ func scanBatchWithL2BlockStateRoot(row pgx.Row) (state.Batch, *common.Hash, erro
 		h := common.HexToHash(*l2BlockStateRootStr)
 		l2BlockStateRoot = &h
 	}
-
+	batch.WIP = wip
 	batch.Coinbase = common.HexToAddress(coinbaseStr)
 	return batch, l2BlockStateRoot, nil
 }

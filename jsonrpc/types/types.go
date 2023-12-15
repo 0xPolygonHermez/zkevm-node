@@ -352,12 +352,14 @@ type Batch struct {
 	Blocks              []BlockOrHash       `json:"blocks"`
 	Transactions        []TransactionOrHash `json:"transactions"`
 	BatchL2Data         ArgBytes            `json:"batchL2Data"`
+	WIP                 bool                `json:"wip"`
 }
 
 // NewBatch creates a Batch instance
 func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
-	closed := batch.StateRoot.String() != state.ZeroHash.String() || batch.BatchNumber == 0
+	//closed := batch.StateRoot.String() != state.ZeroHash.String() || batch.BatchNumber == 0
+	closed := !batch.WIP
 	res := &Batch{
 		Number:          ArgUint64(batch.BatchNumber),
 		GlobalExitRoot:  batch.GlobalExitRoot,
@@ -370,6 +372,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 		LocalExitRoot:   batch.LocalExitRoot,
 		BatchL2Data:     ArgBytes(batchL2Data),
 		Closed:          closed,
+		WIP:             batch.WIP,
 	}
 
 	if batch.ForcedBatchNum != nil {
