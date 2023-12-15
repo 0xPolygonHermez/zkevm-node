@@ -58,6 +58,7 @@ var (
 
 func TestMain(m *testing.M) {
 	testState = test.InitTestState(stateCfg)
+	defer test.CloseTestState()
 	result := m.Run()
 	os.Exit(result)
 }
