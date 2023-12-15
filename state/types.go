@@ -18,7 +18,7 @@ import (
 type ProcessRequest struct {
 	BatchNumber               uint64
 	GlobalExitRoot_V1         common.Hash
-	L1InfoTree                L1InfoTreeExitRootStorageEntry
+	L1InfoTree_V2             L1InfoTreeExitRootStorageEntry
 	OldStateRoot              common.Hash
 	OldAccInputHash           common.Hash
 	Transactions              []byte

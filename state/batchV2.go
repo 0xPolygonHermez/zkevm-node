@@ -68,17 +68,17 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		Coinbase:         request.Coinbase.String(),
 		BatchL2Data:      request.Transactions,
 		OldStateRoot:     request.OldStateRoot.Bytes(),
-		L1InfoRoot:       request.L1InfoTree.L1InfoTreeRoot.Bytes(),
+		L1InfoRoot:       request.L1InfoTree_V2.L1InfoTreeRoot.Bytes(),
 		OldAccInputHash:  request.OldAccInputHash.Bytes(),
 		TimestampLimit:   request.TimestampLimit_V2,
 		UpdateMerkleTree: updateMT,
 		ChainId:          s.cfg.ChainID,
 		ForkId:           request.ForkID,
 		ContextId:        uuid.NewString(),
-		L1InfoTreeData: map[uint32]*executor.L1DataV2{request.L1InfoTree.L1InfoTreeIndex: {
-			GlobalExitRoot: request.L1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-			BlockHashL1:    request.L1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-			MinTimestamp:   uint64(request.L1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+		L1InfoTreeData: map[uint32]*executor.L1DataV2{request.L1InfoTree_V2.L1InfoTreeIndex: {
+			GlobalExitRoot: request.L1InfoTree_V2.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+			BlockHashL1:    request.L1InfoTree_V2.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+			MinTimestamp:   uint64(request.L1InfoTree_V2.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
 		}},
 	}
 
