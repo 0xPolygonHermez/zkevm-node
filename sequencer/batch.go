@@ -491,7 +491,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
 	}
-	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
+	executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot = mockL1InfoRoot
 
 	var result *state.ProcessBatchResponse
 
