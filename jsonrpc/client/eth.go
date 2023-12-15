@@ -10,9 +10,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 )
 
-// BatchNumber returns the latest batch number
-func (c *Client) BatchNumber(ctx context.Context) (uint64, error) {
-	response, err := JSONRPCCall(c.url, "zkevm_batchNumber")
+// BlockNumber returns the latest block number
+func (c *Client) BlockNumber(ctx context.Context) (uint64, error) {
+	response, err := JSONRPCCall(c.url, "eth_blockNumber")
 	if err != nil {
 		return 0, err
 	}
@@ -27,20 +27,21 @@ func (c *Client) BatchNumber(ctx context.Context) (uint64, error) {
 		return 0, err
 	}
 
-	bigBatchNumber := hex.DecodeBig(result)
-	batchNumber := bigBatchNumber.Uint64()
+	bigBlockNumber := hex.DecodeBig(result)
+	blockNumber := bigBlockNumber.Uint64()
 
-	return batchNumber, nil
+	return blockNumber, nil
 }
 
-// BatchByNumber returns a batch from the current canonical chain. If number is nil, the
-// latest known batch is returned.
-func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error) {
-	bn := types.LatestBatchNumber
+// BlockByNumber returns a block from the current canonical chain. If number is nil, the
+// latest known block is returned.
+func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	bn := types.LatestBlockNumber
 	if number != nil {
-		bn = types.BatchNumber(number.Int64())
+		bn = types.BlockNumber(number.Int64())
 	}
-	response, err := JSONRPCCall(c.url, "zkevm_getBatchByNumber", bn.StringOrHex(), true)
+
+	response, err := JSONRPCCall(c.url, "eth_getBlockByNumber", bn.StringOrHex(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +50,7 @@ func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Bat
 		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
 	}
 
-	var result *types.Batch
+	var result *types.Block
 	err = json.Unmarshal(response.Result, &result)
 	if err != nil {
 		return nil, err

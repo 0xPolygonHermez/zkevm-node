@@ -259,6 +259,9 @@ type Block struct {
 	Hash            common.Hash         `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
+	GlobalExitRoot  common.Hash         `json:"globalExitRoot"`
+	LocalExitRoot   common.Hash         `json:"localExitRoot"`
+	BlockInfoRoot   common.Hash         `json:"blockInfoRoot"`
 }
 
 // NewBlock creates a Block instance
@@ -296,6 +299,9 @@ func NewBlock(b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipt
 		Hash:            b.Hash(),
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
+		LocalExitRoot:   h.LocalExitRoot,
+		GlobalExitRoot:  h.GlobalExitRoot,
+		BlockInfoRoot:   h.BlockInfoRoot,
 	}
 
 	receiptsMap := make(map[common.Hash]types.Receipt, len(receipts))
@@ -667,16 +673,4 @@ func NewLog(l types.Log) Log {
 		LogIndex:    ArgUint64(l.Index),
 		Removed:     l.Removed,
 	}
-}
-
-// ToBatchNumArg converts a big.Int into a batch number rpc parameter
-func ToBatchNumArg(number *big.Int) string {
-	if number == nil {
-		return Latest
-	}
-	pending := big.NewInt(-1)
-	if number.Cmp(pending) == 0 {
-		return Pending
-	}
-	return hex.EncodeBig(number)
 }

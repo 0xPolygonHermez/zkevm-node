@@ -233,6 +233,10 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 // n == -1 = earliest
 // n >=  0 = hex(n)
 func (b *BlockNumber) StringOrHex() string {
+	if b == nil {
+		return Latest
+	}
+
 	switch *b {
 	case EarliestBlockNumber:
 		return Earliest
@@ -474,6 +478,34 @@ func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterfac
 			return 0, NewRPCError(InvalidParamsErrorCode, "invalid batch number: %v", bValue)
 		}
 		return uint64(bValue), nil
+	}
+}
+
+// StringOrHex returns the batch number as a string or hex
+// n == -5 = finalized
+// n == -4 = safe
+// n == -3 = pending
+// n == -2 = latest
+// n == -1 = earliest
+// n >=  0 = hex(n)
+func (b *BatchNumber) StringOrHex() string {
+	if b == nil {
+		return Latest
+	}
+
+	switch *b {
+	case EarliestBatchNumber:
+		return Earliest
+	case PendingBatchNumber:
+		return Pending
+	case LatestBatchNumber:
+		return Latest
+	case SafeBatchNumber:
+		return Safe
+	case FinalizedBatchNumber:
+		return Finalized
+	default:
+		return hex.EncodeUint64(uint64(*b))
 	}
 }
 
