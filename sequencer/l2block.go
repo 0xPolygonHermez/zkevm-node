@@ -237,14 +237,16 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		OldStateRoot:              l2Block.initialStateRoot,
 		OldAccInputHash:           l2Block.initialAccInputHash,
 		Coinbase:                  f.wipBatch.coinbase,
-		L1InfoRoot_V2:             mockL1InfoRoot,
+		L1InfoTree:                l2Block.l1InfoTreeExitRoot,
 		TimestampLimit_V2:         uint64(l2Block.timestamp.Unix()),
 		Transactions:              batchL2Data,
 		SkipFirstChangeL2Block_V2: false,
 		SkipWriteBlockInfoRoot_V2: false,
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
+		SkipVerifyL1InfoRoot_V2:   true,
 	}
+	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
 
 	var (
 		err    error

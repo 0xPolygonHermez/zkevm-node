@@ -18,7 +18,7 @@ import (
 type ProcessRequest struct {
 	BatchNumber               uint64
 	GlobalExitRoot_V1         common.Hash
-	L1InfoRoot_V2             common.Hash
+	L1InfoTree                L1InfoTreeExitRootStorageEntry
 	OldStateRoot              common.Hash
 	OldAccInputHash           common.Hash
 	Transactions              []byte
@@ -28,6 +28,7 @@ type ProcessRequest struct {
 	Caller                    metrics.CallerLabel
 	SkipFirstChangeL2Block_V2 bool
 	SkipWriteBlockInfoRoot_V2 bool
+	SkipVerifyL1InfoRoot_V2   bool
 	ForkID                    uint64
 }
 
