@@ -43,8 +43,8 @@ type ProcessData struct {
 	Description string
 }
 
-// SyncTrustedStateBatchExecutorSteps is the interface that known how to process a batch
-type SyncTrustedStateBatchExecutorSteps interface {
+// SyncTrustedBatchExecutor is the interface that known how to process a batch
+type SyncTrustedBatchExecutor interface {
 	// FullProcess process a batch that is not on database, so is the first time we process it
 	FullProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
 	// IncrementalProcess process a batch that we have processed before, and we have the intermediate state root, so is going to be process only new Tx
@@ -55,11 +55,13 @@ type SyncTrustedStateBatchExecutorSteps interface {
 	CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) error
 }
 
-// SyncTrustedStateBatchExecutorTemplate is a template to sync trusted state. It decide the process mode and call the steps
+// ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
 //
-//	the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
-type SyncTrustedStateBatchExecutorTemplate struct {
-	Steps SyncTrustedStateBatchExecutorSteps
+//	  that is the one that execute the sync process
+//
+//		the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
+type ProcessorTrustedBatchSync struct {
+	Steps SyncTrustedBatchExecutor
 	// CheckBatchTimestampGreaterInsteadOfEqual if true, we consider equal two batches if the timestamp of trusted <= timestamp of state
 	// this is because in the permissionless the timestamp of a batch is equal to the timestamp of the l1block where is reported
 	// but trusted doesn't known this block and use now() instead. But for sure now() musbe <= l1block.tstamp
@@ -67,11 +69,11 @@ type SyncTrustedStateBatchExecutorTemplate struct {
 	timeProvider                             syncCommon.TimeProvider
 }
 
-// NewSyncTrustedStateBatchExecutorTemplate creates a new SyncTrustedStateBatchExecutorTemplate
-func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecutorSteps,
+// NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
+func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 	checkBatchTimestampGreaterInsteadOfEqual bool,
-	timeProvider syncCommon.TimeProvider) *SyncTrustedStateBatchExecutorTemplate {
-	return &SyncTrustedStateBatchExecutorTemplate{
+	timeProvider syncCommon.TimeProvider) *ProcessorTrustedBatchSync {
+	return &ProcessorTrustedBatchSync{
 		Steps:                                    steps,
 		CheckBatchTimestampGreaterInsteadOfEqual: checkBatchTimestampGreaterInsteadOfEqual,
 		timeProvider:                             timeProvider,
@@ -79,7 +81,7 @@ func NewSyncTrustedStateBatchExecutorTemplate(steps SyncTrustedStateBatchExecuto
 }
 
 // ProcessTrustedBatch processes a trusted batch
-func (s *SyncTrustedStateBatchExecutorTemplate) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error) {
+func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error) {
 	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
 	stateCurrentBatch := status.LastTrustedBatches[0]
 	statePreviousBatch := status.LastTrustedBatches[1]
@@ -135,7 +137,7 @@ func (s *SyncTrustedStateBatchExecutorTemplate) ProcessTrustedBatch(ctx context.
 	return &status, nil
 }
 
-func (s *SyncTrustedStateBatchExecutorTemplate) getModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch, lastStateRoot *StateRootEntry) (ProcessData, error) {
+func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch, lastStateRoot *StateRootEntry) (ProcessData, error) {
 	// Check parameters
 	if trustedNodeBatch == nil || statePreviousBatch == nil {
 		return ProcessData{}, fmt.Errorf("trustedNodeBatch and statePreviousBatch can't be nil")
