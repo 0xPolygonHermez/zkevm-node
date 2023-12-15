@@ -102,8 +102,11 @@ func TestStateTransition(t *testing.T) {
 		require.Equal(t, common.FromHex(testCase.BatchL2Data), batchData)
 
 		processRequest := state.ProcessRequest{
-			BatchNumber:       uint64(i + 1),
-			L1InfoRoot_V2:     common.HexToHash(testCase.L1InfoRoot),
+			BatchNumber: uint64(i + 1),
+			L1InfoTree_V2: state.L1InfoTreeExitRootStorageEntry{
+				L1InfoTreeRoot:  common.HexToHash(testCase.L1InfoRoot),
+				L1InfoTreeIndex: 0,
+			},
 			OldStateRoot:      stateRoot,
 			OldAccInputHash:   common.HexToHash(testCase.OldAccInputHash),
 			Transactions:      common.FromHex(testCase.BatchL2Data),

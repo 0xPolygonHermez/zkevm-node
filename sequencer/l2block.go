@@ -245,7 +245,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		OldStateRoot:              l2Block.initialStateRoot,
 		OldAccInputHash:           l2Block.initialAccInputHash,
 		Coinbase:                  f.wipBatch.coinbase,
-		L1InfoTree:                l2Block.l1InfoTreeExitRoot,
+		L1InfoTree_V2:             l2Block.l1InfoTreeExitRoot,
 		TimestampLimit_V2:         uint64(l2Block.timestamp.Unix()),
 		Transactions:              batchL2Data,
 		SkipFirstChangeL2Block_V2: false,
@@ -254,7 +254,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		ForkID:                    f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipVerifyL1InfoRoot_V2:   true,
 	}
-	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
+	executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot = mockL1InfoRoot
 
 	var (
 		err    error
