@@ -34,6 +34,8 @@ func (p *PostgresPoolStorage) CheckPolicy(ctx context.Context, policy pool.Polic
 	} else if err != nil {
 		return false, err
 	}
+
+	defer rows.Close()
 	if !rows.Next() { // should always be a row if the policy exists
 		return false, nil
 	}
