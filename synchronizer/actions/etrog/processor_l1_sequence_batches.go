@@ -26,7 +26,7 @@ type stateProcessSequenceBatches interface {
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
-	ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error)
+	ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error)
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
@@ -34,6 +34,7 @@ type stateProcessSequenceBatches interface {
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
 	GetCurrentL1InfoRoot() common.Hash
+	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 }
 
 type ethermanProcessSequenceBatches interface {
@@ -155,15 +156,25 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			log.Debug("Setting forcedBatchNum: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
 		}
-		currentL1InfoRoot := sbatch.L1InfoRoot
+		currentL1InfoTree, err := g.state.GetL1InfoRootLeafByL1InfoRoot(ctx, *sbatch.L1InfoRoot, dbTx)
+		if err != nil {
+			log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
+			rollbackErr := dbTx.Rollback(ctx)
+			if rollbackErr != nil {
+				log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+				return rollbackErr
+			}
+			return err
+		}
 		// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
 		processCtx := state.ProcessingContextV2{
-			BatchNumber:    batch.BatchNumber,
-			Coinbase:       batch.Coinbase,
-			Timestamp:      batch.Timestamp,
-			L1InfoRoot:     currentL1InfoRoot,
-			ForcedBatchNum: batch.ForcedBatchNum,
-			BatchL2Data:    &batch.BatchL2Data,
+			BatchNumber:          batch.BatchNumber,
+			Coinbase:             batch.Coinbase,
+			Timestamp:            batch.Timestamp,
+			L1InfoRoot:           currentL1InfoTree,
+			ForcedBatchNum:       batch.ForcedBatchNum,
+			BatchL2Data:          &batch.BatchL2Data,
+			SkipVerifyL1InfoRoot: 0,
 		}
 
 		var newRoot common.Hash
@@ -202,8 +213,8 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			}
 		} else {
 			// Reprocess batch to compare the stateRoot with tBatch.StateRoot and get accInputHash
-			//TODO: Pass L1InfoRoot from the event of etherman
-			p, err := g.state.ExecuteBatchV2(ctx, batch, *currentL1InfoRoot, now, false, dbTx)
+			var skipVerifyL1InfoRoot uint32 = 0 // false
+			p, err := g.state.ExecuteBatchV2(ctx, batch, currentL1InfoTree, now, false, skipVerifyL1InfoRoot, dbTx)
 			if err != nil {
 				log.Errorf("error executing L1 batch: %+v, error: %v", batch, err)
 				rollbackErr := dbTx.Rollback(ctx)
