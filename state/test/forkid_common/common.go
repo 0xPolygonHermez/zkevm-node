@@ -53,7 +53,7 @@ func InitTestState(stateCfg state.Config) *state.State {
 	}
 	// defer stateDb.Close()
 
-	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "toni-prover")
+	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "zkevm-prover")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
 	// var executorCancel context.CancelFunc
