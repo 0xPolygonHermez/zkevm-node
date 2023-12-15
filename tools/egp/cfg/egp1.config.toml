@@ -5,13 +5,13 @@ ByteGasCost = 16
 ZeroGasCost = 4
 
 # L2 network profit factor
-NetProfitFactor = 1.0
+NetProfitFactor = 1.5
 
 # L1 gas price factor
-L1GasPriceFactor = 0.25
+L1GasPriceFactor = 0.01
 
 # L2 gas price suggester factor
-L2GasPriceSugFactor = 0.5
+L2GasPriceSugFactor = 0.25
 
 # Max final deviation percentage
 FinalDeviationPct = 10
