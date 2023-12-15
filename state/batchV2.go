@@ -17,21 +17,22 @@ import (
 // ProcessingContextV2 is the necessary data that a batch needs to provide to the runtime,
 // without the historical state data (processing receipt from previous batch)
 type ProcessingContextV2 struct {
-	BatchNumber       uint64
-	Coinbase          common.Address
-	Timestamp         time.Time    // Batch timeStamp and also TimestampLimit
-	L1InfoRoot        *common.Hash // If null is used the current L1InfoRoot
-	ForcedBatchNum    *uint64
-	BatchL2Data       *[]byte
-	ForcedBlockHashL1 *common.Hash
+	BatchNumber          uint64
+	Coinbase             common.Address
+	Timestamp            time.Time // Batch timeStamp and also TimestampLimit
+	L1InfoRoot           L1InfoTreeExitRootStorageEntry
+	ForcedBatchNum       *uint64
+	BatchL2Data          *[]byte
+	ForcedBlockHashL1    *common.Hash
+	SkipVerifyL1InfoRoot uint32
 }
 
 // ProcessSequencerBatchV2 is used by the sequencers to process transactions into an open batch for forkID >= ETROG
-func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+func (s *State) ProcessSequencerBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, l1InfoTree L1InfoTreeExitRootStorageEntry, caller metrics.CallerLabel, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	log.Debugf("*******************************************")
 	log.Debugf("ProcessSequencerBatchV2 start")
 
-	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, nil, nil, nil, caller, dbTx)
+	processBatchResponse, err := s.processBatchV2(ctx, batchNumber, batchL2Data, nil, l1InfoTree, cFalse, nil, caller, dbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +98,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 
 // ExecuteBatchV2 is used by the synchronizer to reprocess batches to compare generated state root vs stored one
 // It is also used by the sequencer in order to calculate used zkCounter of a WIPBatch
-func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoRoot common.Hash, timestampLimit time.Time, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -117,21 +118,25 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoRoot comm
 
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequestV2{
-		OldBatchNum:  batch.BatchNumber - 1,
-		Coinbase:     batch.Coinbase.String(),
-		BatchL2Data:  batch.BatchL2Data,
-		OldStateRoot: previousBatch.StateRoot.Bytes(),
-		// TODO: Change this to L1InfoRoot
-		L1InfoRoot:      l1InfoRoot.Bytes(),
+		OldBatchNum:     batch.BatchNumber - 1,
+		Coinbase:        batch.Coinbase.String(),
+		BatchL2Data:     batch.BatchL2Data,
+		OldStateRoot:    previousBatch.StateRoot.Bytes(),
+		L1InfoRoot:      l1InfoTree.L1InfoTreeRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
-		// TODO: Change this to TimestampLimit
-		TimestampLimit: uint64(timestampLimit.Unix()),
+		TimestampLimit:  uint64(timestampLimit.Unix()),
 		// Changed for new sequencer strategy
-		UpdateMerkleTree: updateMT,
-		ChainId:          s.cfg.ChainID,
-		ForkId:           forkId,
-		ContextId:        uuid.NewString(),
+		UpdateMerkleTree:     updateMT,
+		ChainId:              s.cfg.ChainID,
+		ForkId:               forkId,
+		ContextId:            uuid.NewString(),
+		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
 	}
+	processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
+		GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+		BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+		MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+	}}
 
 	// Send Batch to the Executor
 	log.Debugf("ExecuteBatchV2[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -146,6 +151,10 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoRoot comm
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].BlockHashL1]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].BlockHashL1)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].GlobalExitRoot]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].GlobalExitRoot)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].MinTimestamp]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].MinTimestamp)
 
 	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {
@@ -159,7 +168,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoRoot comm
 	return processBatchResponse, err
 }
 
-func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, timestampLimit *time.Time, l1InfoRoot, forcedBlockHashL1 *common.Hash, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2Data []byte, timestampLimit *time.Time, l1InfoTree L1InfoTreeExitRootStorageEntry, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, caller metrics.CallerLabel, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -203,24 +212,31 @@ func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2D
 	}
 	// Create Batch
 	processBatchRequest := &executor.ProcessBatchRequestV2{
-		OldBatchNum:      lastBatch.BatchNumber - 1,
-		Coinbase:         lastBatch.Coinbase.String(),
-		BatchL2Data:      batchL2Data,
-		OldStateRoot:     previousBatch.StateRoot.Bytes(),
-		OldAccInputHash:  previousBatch.AccInputHash.Bytes(),
-		TimestampLimit:   timestampLimitUnix,
-		UpdateMerkleTree: cTrue,
-		ChainId:          s.cfg.ChainID,
-		ForkId:           forkID,
-		ContextId:        uuid.NewString(),
+		OldBatchNum:          lastBatch.BatchNumber - 1,
+		Coinbase:             lastBatch.Coinbase.String(),
+		BatchL2Data:          batchL2Data,
+		OldStateRoot:         previousBatch.StateRoot.Bytes(),
+		OldAccInputHash:      previousBatch.AccInputHash.Bytes(),
+		TimestampLimit:       timestampLimitUnix,
+		UpdateMerkleTree:     cTrue,
+		ChainId:              s.cfg.ChainID,
+		ForkId:               forkID,
+		ContextId:            uuid.NewString(),
+		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
 	}
+
+	processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
+		GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+		BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+		MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+	}}
 	if forcedBlockHashL1 != nil {
 		log.Debug("Setting ForcedBlockhashL1: ", forcedBlockHashL1)
 		processBatchRequest.ForcedBlockhashL1 = forcedBlockHashL1.Bytes()
 	}
 
-	if l1InfoRoot != nil {
-		processBatchRequest.L1InfoRoot = l1InfoRoot.Bytes()
+	if l1InfoTree.L1InfoTreeRoot != (common.Hash{}) {
+		processBatchRequest.L1InfoRoot = l1InfoTree.L1InfoTreeRoot.Bytes()
 	} else {
 		currentl1InfoRoot := s.GetCurrentL1InfoRoot()
 		processBatchRequest.L1InfoRoot = currentl1InfoRoot.Bytes()
@@ -249,6 +265,8 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+		log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
+		log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData: %+v", processBatchRequest.L1InfoTreeData)
 	}
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
@@ -355,7 +373,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 	processed, err := s.processBatchV2(ctx, processingCtx.BatchNumber, *BatchL2Data,
-		&processingCtx.Timestamp, processingCtx.L1InfoRoot, processingCtx.ForcedBlockHashL1, caller, dbTx)
+		&processingCtx.Timestamp, processingCtx.L1InfoRoot, processingCtx.SkipVerifyL1InfoRoot, processingCtx.ForcedBlockHashL1, caller, dbTx)
 	if err != nil {
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err

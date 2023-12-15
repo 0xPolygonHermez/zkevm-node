@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -79,4 +80,19 @@ func (p *PostgresStorage) GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint
 		return 0, state.ErrNotFound
 	}
 	return *l1InfoTreeIndex, nil
+}
+
+func (p *PostgresStorage) GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
+	const getL1InfoRootSQL = `SELECT block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index
+		FROM state.exit_root 
+		WHERE l1_info_tree_index IS NOT NULL AND l1_info_root=$1`
+
+	var entry state.L1InfoTreeExitRootStorageEntry
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getL1InfoRootSQL, l1InfoRoot).Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
+		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
+	if err != nil {
+		return entry, err
+	}
+	return entry, nil
 }
