@@ -480,16 +480,18 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 
 	// TODO: review this request for reprocess full batch
 	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:       batch.BatchNumber,
-		L1InfoRoot_V2:     mockL1InfoRoot,
-		OldStateRoot:      initialStateRoot,
-		OldAccInputHash:   initialAccInputHash,
-		Transactions:      batch.BatchL2Data,
-		Coinbase:          batch.Coinbase,
-		TimestampLimit_V2: uint64(time.Now().Unix()),
-		ForkID:            f.state.GetForkIDByBatchNumber(batch.BatchNumber),
-		Caller:            caller,
+		BatchNumber: batch.BatchNumber,
+		//TODO: L1InfoTree:              f.wipL2Block.l1InfoTreeExitRoot,
+		OldStateRoot:            initialStateRoot,
+		OldAccInputHash:         initialAccInputHash,
+		Transactions:            batch.BatchL2Data,
+		Coinbase:                batch.Coinbase,
+		TimestampLimit_V2:       uint64(time.Now().Unix()),
+		ForkID:                  f.state.GetForkIDByBatchNumber(batch.BatchNumber),
+		SkipVerifyL1InfoRoot_V2: true,
+		Caller:                  caller,
 	}
+	executorBatchRequest.L1InfoTree.L1InfoTreeRoot = mockL1InfoRoot
 
 	var result *state.ProcessBatchResponse
 
