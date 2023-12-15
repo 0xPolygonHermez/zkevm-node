@@ -1,8 +1,8 @@
 /*
-Package actionshared contains shared code for actions.
-Shared objects between implementations.
+object TrustedBatchesRetrieve:
+- It get all pending batches from trusted node to be synchronized
 
-If some action need to change this could stop using the share object
+You must implements BatchProcessor with the code to process the batches
 */
 package l2_shared
 
@@ -20,6 +20,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	firstTrustedBatchNumber = uint64(2)
+)
+
 // ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
 type ZkEVMClientInterface interface {
 	BatchNumber(ctx context.Context) (uint64, error)
@@ -32,10 +36,10 @@ type StateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
 
-// BatchExecutor is a interface with the ProcessTrustedBatch methor
+// BatchProcessor is a interface with the ProcessTrustedBatch methor
 //
 //	this method is responsible to process a trusted batch
-type BatchExecutor interface {
+type BatchProcessor interface {
 	// ProcessTrustedBatch processes a trusted batch
 	ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error)
 }
@@ -63,38 +67,38 @@ type TrustedState struct {
 	LastStateRoot *StateRootEntry
 }
 
-// SyncTrustedStateTemplate is a template to sync trusted state. It implement the travesal of the trusted state
+// TrustedBatchesRetrieve it gets pending batches from Trusted node. It calls for each batch to BatchExecutor
 //
 //	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
-type SyncTrustedStateTemplate struct {
-	steps                          BatchExecutor
-	zkEVMClient                    ZkEVMClientInterface
-	state                          StateInterface
-	sync                           SyncInterface
-	TrustedState                   TrustedState
-	ignoreTrustedBatchBelowOrEqual uint64
+type TrustedBatchesRetrieve struct {
+	batchExecutor          BatchProcessor
+	zkEVMClient            ZkEVMClientInterface
+	state                  StateInterface
+	sync                   SyncInterface
+	TrustedState           TrustedState
+	firstBatchNumberToSync uint64
 }
 
 // NewSyncTrustedStateTemplate creates a new SyncTrustedStateTemplate
-func NewSyncTrustedStateTemplate(steps BatchExecutor, zkEVMClient ZkEVMClientInterface, state StateInterface, sync SyncInterface) *SyncTrustedStateTemplate {
-	return &SyncTrustedStateTemplate{
-		steps:                          steps,
-		zkEVMClient:                    zkEVMClient,
-		state:                          state,
-		sync:                           sync,
-		TrustedState:                   TrustedState{},
-		ignoreTrustedBatchBelowOrEqual: 1,
+func NewSyncTrustedStateTemplate(batchExecutor BatchProcessor, zkEVMClient ZkEVMClientInterface, state StateInterface, sync SyncInterface) *TrustedBatchesRetrieve {
+	return &TrustedBatchesRetrieve{
+		batchExecutor:          batchExecutor,
+		zkEVMClient:            zkEVMClient,
+		state:                  state,
+		sync:                   sync,
+		TrustedState:           TrustedState{},
+		firstBatchNumberToSync: firstTrustedBatchNumber,
 	}
 }
 
 // CleanTrustedState Clean cache of TrustedBatches and StateRoot
-func (s *SyncTrustedStateTemplate) CleanTrustedState() {
+func (s *TrustedBatchesRetrieve) CleanTrustedState() {
 	s.TrustedState.LastTrustedBatches = nil
 	s.TrustedState.LastStateRoot = nil
 }
 
 // SyncTrustedState sync trusted state from latestSyncedBatch to lastTrustedStateBatchNumber
-func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
+func (s *TrustedBatchesRetrieve) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
 	log.Info("syncTrustedState: Getting trusted state info")
 	if latestSyncedBatch == 0 {
 		log.Info("syncTrustedState: latestSyncedBatch is 0, assuming first batch as 1")
@@ -108,22 +112,22 @@ func (s *SyncTrustedStateTemplate) SyncTrustedState(ctx context.Context, latestS
 	}
 	log.Infof("syncTrustedState: latestSyncedBatch:%d syncTrustedState:%d", latestSyncedBatch, lastTrustedStateBatchNumber)
 
-	if isSyncrhonizedTrustedState(lastTrustedStateBatchNumber, latestSyncedBatch, s.ignoreTrustedBatchBelowOrEqual) {
+	if isSyncrhonizedTrustedState(lastTrustedStateBatchNumber, latestSyncedBatch, s.firstBatchNumberToSync) {
 		log.Info("syncTrustedState: Trusted state is synchronized")
 		return nil
 	}
 	return s.syncTrustedBatchesToFrom(ctx, latestSyncedBatch, lastTrustedStateBatchNumber)
 }
 
-func isSyncrhonizedTrustedState(lastTrustedStateBatchNumber uint64, latestSyncedBatch uint64, ignoreTrustedBatchBelowOrEqual uint64) bool {
-	if lastTrustedStateBatchNumber <= ignoreTrustedBatchBelowOrEqual {
+func isSyncrhonizedTrustedState(lastTrustedStateBatchNumber uint64, latestSyncedBatch uint64, firstBatchNumberToSync uint64) bool {
+	if lastTrustedStateBatchNumber < firstBatchNumberToSync {
 		return true
 	}
 	return lastTrustedStateBatchNumber < latestSyncedBatch
 }
 
-func (s *SyncTrustedStateTemplate) syncTrustedBatchesToFrom(ctx context.Context, latestSyncedBatch uint64, lastTrustedStateBatchNumber uint64) error {
-	batchNumberToSync := max(latestSyncedBatch, s.ignoreTrustedBatchBelowOrEqual+1)
+func (s *TrustedBatchesRetrieve) syncTrustedBatchesToFrom(ctx context.Context, latestSyncedBatch uint64, lastTrustedStateBatchNumber uint64) error {
+	batchNumberToSync := max(latestSyncedBatch, s.firstBatchNumberToSync)
 	for batchNumberToSync <= lastTrustedStateBatchNumber {
 		debugPrefix := fmt.Sprintf("syncTrustedState: batch[%d/%d]", batchNumberToSync, lastTrustedStateBatchNumber)
 		start := time.Now()
@@ -150,7 +154,7 @@ func (s *SyncTrustedStateTemplate) syncTrustedBatchesToFrom(ctx context.Context,
 			LastStateRoot:      s.TrustedState.LastStateRoot,
 		}
 		log.Debugf("%s processing trusted batch %d", debugPrefix, batchNumberToSync)
-		newTrustedState, err := s.steps.ProcessTrustedBatch(ctx, batchToSync, previousStatus, dbTx)
+		newTrustedState, err := s.batchExecutor.ProcessTrustedBatch(ctx, batchToSync, previousStatus, dbTx)
 		metrics.ProcessTrustedBatchTime(time.Since(start))
 		if err != nil {
 			log.Errorf("%s error processing trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
@@ -186,7 +190,7 @@ func rollback(ctx context.Context, dbTx pgx.Tx, err error) error {
 	return err
 }
 
-func (s *SyncTrustedStateTemplate) getCurrentBatches(ctx context.Context, batches []*state.Batch, trustedBatch *types.Batch, dbTx pgx.Tx) ([]*state.Batch, error) {
+func (s *TrustedBatchesRetrieve) getCurrentBatches(ctx context.Context, batches []*state.Batch, trustedBatch *types.Batch, dbTx pgx.Tx) ([]*state.Batch, error) {
 	if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number) != batches[0].BatchNumber) {
 		log.Debug("Updating batch[0] value!")
 		batch, err := s.state.GetBatchByNumber(ctx, uint64(trustedBatch.Number), dbTx)

@@ -115,7 +115,7 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
-	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedStateEtrogExecutor(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{})
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{})
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
