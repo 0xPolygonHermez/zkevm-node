@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
+)
+
+var (
+	// ErrExecutingBatchOOC process batch fails because OOC (Out of counters)
+	ErrExecutingBatchOOC = errors.New("Batch execution fails because: out of counters")
 )
 
 // ProcessingContextV2 is the necessary data that a batch needs to provide to the runtime,
@@ -393,8 +399,12 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		log.Errorf("%s error convertToProcessBatchResponseV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
 	}
+	if processedBatch.IsRomOOCError {
+		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
+		return common.Hash{}, noFlushID, noProverID, ErrExecutingBatchOOC
+	}
 
-	if len(processedBatch.BlockResponses) > 0 {
+	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError {
 		for _, blockResponse := range processedBatch.BlockResponses {
 			err = s.StoreL2Block(ctx, processingCtx.BatchNumber, blockResponse, nil, dbTx)
 			if err != nil {
