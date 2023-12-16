@@ -144,6 +144,7 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch timestamp from state by number %v", batchNumber), err, true)
 		}
+
 		if batchTimestamp == nil {
 			batch.Timestamp = time.Time{}
 		} else {
