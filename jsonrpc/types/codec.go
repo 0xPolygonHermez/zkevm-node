@@ -80,6 +80,17 @@ type ErrorObject struct {
 	Data    *ArgBytes `json:"data,omitempty"`
 }
 
+// RPCError returns an instance of RPCError from the
+// data available in the ErrorObject instance
+func (e *ErrorObject) RPCError() RPCError {
+	var data []byte
+	if e.Data != nil {
+		data = *e.Data
+	}
+	rpcError := NewRPCErrorWithData(e.Code, e.Message, data)
+	return *rpcError
+}
+
 // NewResponse returns Success/Error response object
 func NewResponse(req Request, reply []byte, err Error) Response {
 	var result json.RawMessage
@@ -94,7 +105,7 @@ func NewResponse(req Request, reply []byte, err Error) Response {
 			Message: err.Error(),
 		}
 		if err.ErrorData() != nil {
-			errorObj.Data = ArgBytesPtr(*err.ErrorData())
+			errorObj.Data = ArgBytesPtr(err.ErrorData())
 		}
 	}
 

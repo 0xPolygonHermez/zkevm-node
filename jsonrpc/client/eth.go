@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -18,7 +17,7 @@ func (c *Client) BlockNumber(ctx context.Context) (uint64, error) {
 	}
 
 	if response.Error != nil {
-		return 0, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return 0, response.Error.RPCError()
 	}
 
 	var result string
@@ -47,7 +46,7 @@ func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Blo
 	}
 
 	if response.Error != nil {
-		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return nil, response.Error.RPCError()
 	}
 
 	var result *types.Block

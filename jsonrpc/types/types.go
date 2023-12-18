@@ -241,13 +241,13 @@ func (args *TxArgs) ToTransaction(ctx context.Context, st StateInterface, maxCum
 type Block struct {
 	ParentHash      common.Hash         `json:"parentHash"`
 	Sha3Uncles      common.Hash         `json:"sha3Uncles"`
-	Miner           common.Address      `json:"miner"`
+	Miner           *common.Address     `json:"miner"`
 	StateRoot       common.Hash         `json:"stateRoot"`
 	TxRoot          common.Hash         `json:"transactionsRoot"`
 	ReceiptsRoot    common.Hash         `json:"receiptsRoot"`
 	LogsBloom       types.Bloom         `json:"logsBloom"`
 	Difficulty      ArgUint64           `json:"difficulty"`
-	TotalDifficulty ArgUint64           `json:"totalDifficulty"`
+	TotalDifficulty *ArgUint64          `json:"totalDifficulty"`
 	Size            ArgUint64           `json:"size"`
 	Number          ArgUint64           `json:"number"`
 	GasLimit        ArgUint64           `json:"gasLimit"`
@@ -255,8 +255,8 @@ type Block struct {
 	Timestamp       ArgUint64           `json:"timestamp"`
 	ExtraData       ArgBytes            `json:"extraData"`
 	MixHash         common.Hash         `json:"mixHash"`
-	Nonce           ArgBytes            `json:"nonce"`
-	Hash            common.Hash         `json:"hash"`
+	Nonce           *ArgBytes           `json:"nonce"`
+	Hash            *common.Hash        `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
 	GlobalExitRoot  common.Hash         `json:"globalExitRoot"`
@@ -265,29 +265,40 @@ type Block struct {
 }
 
 // NewBlock creates a Block instance
-func NewBlock(b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
+func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
 	h := b.Header()
 
-	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
-	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
+	var miner *common.Address
+	if h.Coinbase.String() != state.ZeroAddress.String() {
+		cb := h.Coinbase
+		miner = &cb
+	}
 
-	var difficulty uint64
-	if h.Difficulty != nil {
-		difficulty = h.Difficulty.Uint64()
-	} else {
-		difficulty = uint64(0)
+	var nonce *ArgBytes
+	if h.Nonce.Uint64() > 0 {
+		nBig := big.NewInt(0).SetUint64(h.Nonce.Uint64())
+		nBytes := common.LeftPadBytes(nBig.Bytes(), 8) //nolint:gomnd
+		n := ArgBytes(nBytes)
+		nonce = &n
+	}
+
+	difficulty := ArgUint64(0)
+	var totalDifficulty *ArgUint64
+	if h.Difficulty != nil && h.Difficulty.Uint64() > 0 {
+		difficulty = ArgUint64(h.Difficulty.Uint64())
+		totalDifficulty = &difficulty
 	}
 
 	res := &Block{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
-		Miner:           h.Coinbase,
+		Miner:           miner,
 		StateRoot:       h.Root,
 		TxRoot:          h.TxHash,
 		ReceiptsRoot:    h.ReceiptHash,
 		LogsBloom:       h.Bloom,
 		Difficulty:      ArgUint64(difficulty),
-		TotalDifficulty: ArgUint64(difficulty),
+		TotalDifficulty: totalDifficulty,
 		Size:            ArgUint64(b.Size()),
 		Number:          ArgUint64(b.Number().Uint64()),
 		GasLimit:        ArgUint64(h.GasLimit),
@@ -296,7 +307,7 @@ func NewBlock(b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipt
 		ExtraData:       ArgBytes(h.Extra),
 		MixHash:         h.MixDigest,
 		Nonce:           nonce,
-		Hash:            b.Hash(),
+		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
 		LocalExitRoot:   h.LocalExitRoot,
@@ -416,7 +427,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(&b, nil, false, false)
+			block, err := NewBlock(state.HashPtr(b.Hash()), &b, nil, false, false)
 			if err != nil {
 				return nil, err
 			}
