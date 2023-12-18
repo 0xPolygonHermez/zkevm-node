@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -25,28 +24,38 @@ import (
 )
 
 const (
-	pendingL2BlocksBufferSize = 100
-	changeL2BlockSize         = 9 //1 byte (tx type = 0B) + 4 bytes for deltaTimestamp + 4 for l1InfoTreeIndex
+	pendingL2BlocksBufferSize = 100 //TODO: review buffer size
+	changeL2BlockSize         = 9   //1 byte (tx type = 0B) + 4 bytes for deltaTimestamp + 4 for l1InfoTreeIndex
 )
 
 var (
 	now            = time.Now
 	mockL1InfoRoot = common.Hash{}
+
+	//TODO: Review with Carlos which zkCounters are used when creating a new l2 block in the wip batch
+	l2BlockUsedResources = statePackage.BatchResources{
+		ZKCounters: statePackage.ZKCounters{
+			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
+			UsedArithmetics:    1,   // nolint:gomnd //TODO: config param
+		},
+		Bytes: changeL2BlockSize,
+	}
 )
 
 // finalizer represents the finalizer component of the sequencer.
 type finalizer struct {
-	cfg                     FinalizerCfg
-	isSynced                func(ctx context.Context) bool
-	sequencerAddress        common.Address
-	worker                  workerInterface
-	pool                    txPool
-	state                   stateInterface
-	etherman                etherman
-	wipBatch                *Batch
-	wipL2Block              *L2Block
-	batchConstraints        statePackage.BatchConstraintsCfg
-	reprocessFullBatchError atomic.Bool
+	cfg              FinalizerCfg
+	isSynced         func(ctx context.Context) bool
+	sequencerAddress common.Address
+	worker           workerInterface
+	pool             txPool
+	state            stateInterface
+	etherman         etherman
+	wipBatch         *Batch
+	wipL2Block       *L2Block
+	batchConstraints statePackage.BatchConstraintsCfg
+	haltFinalizer    atomic.Bool
+	haltError        error
 	// closing signals
 	closingSignalCh ClosingSignalCh
 	// GER
@@ -151,7 +160,7 @@ func newFinalizer(
 		dataToStream: dataToStream,
 	}
 
-	f.reprocessFullBatchError.Store(false)
+	f.haltFinalizer.Store(false)
 
 	return &f
 }
@@ -366,10 +375,12 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			}
 		}
 
-		if !f.cfg.SequentialReprocessFullBatch && f.reprocessFullBatchError.Load() {
-			// There is an error reprocessing previous batch closed (parallel sanity check)
-			// We halt the execution of the Sequencer at this point
-			f.halt(ctx, fmt.Errorf("halting Sequencer because of error reprocessing full batch (sanity check). Check previous errors in logs to know which was the cause"))
+		if f.haltFinalizer.Load() {
+			// There is a fatal error and we need to halt the finalizer and stop processing new txs
+			for {
+				log.Errorf("halting the finalizer, fatal error: %s", f.haltError)
+				time.Sleep(5 * time.Second) //nolint:gomnd
+			}
 		}
 
 		if f.isDeadlineEncountered() {
@@ -400,16 +411,6 @@ func (f *finalizer) sortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatc
 	}
 
 	return fb
-}
-
-// maxTxsPerBatchReached checks if the batch has reached the maximum number of txs per batch
-func (f *finalizer) maxTxsPerBatchReached() bool {
-	if f.wipBatch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
-		log.Infof("closing batch: %d, because it reached the maximum number of txs.", f.wipBatch.batchNumber)
-		f.wipBatch.closingReason = state.BatchFullClosingReason
-		return true
-	}
-	return false
 }
 
 // checkIfProverRestarted checks if the proverID changed
@@ -519,7 +520,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			}
 		}
 
-		effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
+		egpPercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
 		if err != nil {
 			if f.effectiveGasPrice.IsEnabled() {
 				return nil, err
@@ -529,15 +530,18 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			}
 		} else {
 			// Save percentage for later logging
-			tx.EGPLog.Percentage = effectivePercentage
+			tx.EGPLog.Percentage = egpPercentage
 		}
 
 		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
 		if !f.effectiveGasPrice.IsEnabled() {
-			effectivePercentage = state.MaxEffectivePercentage
+			egpPercentage = state.MaxEffectivePercentage
 		}
 
-		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentage))
+		// Assign applied EGP percentage to tx (TxTracker)
+		tx.EGPPercentage = egpPercentage
+
+		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
 		if err != nil {
 			return nil, err
 		}
@@ -1076,105 +1080,6 @@ func (f *finalizer) processForcedBatch(ctx context.Context, lastBatchNumberInSta
 	return lastBatchNumberInState, stateRoot
 }
 
-// reprocessFullBatch reprocesses a batch used as sanity check
-func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, initialAccInputHash common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
-	reprocessError := func(batch *state.Batch) {
-		f.reprocessFullBatchError.Store(true)
-
-		rawL2Blocks, err := state.DecodeBatchV2(batch.BatchL2Data)
-		if err != nil {
-			log.Errorf("[reprocessFullBatch] error decoding BatchL2Data for batch %d. Error: %s", batch.BatchNumber, err)
-			return
-		}
-
-		// Log batch detailed info
-		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot, batch.GlobalExitRoot)
-		for i, rawL2block := range rawL2Blocks.Blocks {
-			for j, rawTx := range rawL2block.Transactions {
-				log.Infof("[reprocessFullBatch] BatchNumber: %d, block position: % d, tx position %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
-			}
-		}
-	}
-
-	log.Debugf("[reprocessFullBatch] reprocessing batch: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batchNum, initialStateRoot, expectedNewStateRoot)
-
-	batch, err := f.state.GetBatchByNumber(ctx, batchNum, nil)
-	if err != nil {
-		log.Errorf("[reprocessFullBatch] failed to get batch %d, err: %s", batchNum, err)
-		f.reprocessFullBatchError.Store(true)
-		return nil, ErrGetBatchByNumber
-	}
-
-	caller := stateMetrics.DiscardCallerLabel
-	if f.cfg.SequentialReprocessFullBatch {
-		caller = stateMetrics.SequencerCallerLabel
-	}
-
-	// TODO: review this request for reprocess full batch
-	executorBatchRequest := state.ProcessRequest{
-		BatchNumber:             batch.BatchNumber,
-		L1InfoTree_V2:           f.wipL2Block.l1InfoTreeExitRoot,
-		OldStateRoot:            initialStateRoot,
-		OldAccInputHash:         initialAccInputHash,
-		Transactions:            batch.BatchL2Data,
-		Coinbase:                batch.Coinbase,
-		TimestampLimit_V2:       uint64(time.Now().Unix()),
-		Caller:                  caller,
-		SkipVerifyL1InfoRoot_V2: true,
-	}
-	executorBatchRequest.L1InfoTree_V2.L1InfoTreeRoot = mockL1InfoRoot
-
-	var result *state.ProcessBatchResponse
-
-	result, err = f.state.ProcessBatchV2(ctx, executorBatchRequest, false)
-	if err != nil {
-		log.Errorf("[reprocessFullBatch] failed to process batch %d. Error: %s", batch.BatchNumber, err)
-		reprocessError(batch)
-		return nil, ErrProcessBatch
-	}
-
-	if result.ExecutorError != nil {
-		log.Errorf("[reprocessFullBatch] executor error when reprocessing batch %d, error: %s", batch.BatchNumber, result.ExecutorError)
-		reprocessError(batch)
-		return nil, ErrExecutorError
-	}
-
-	if result.IsRomOOCError {
-		log.Errorf("[reprocessFullBatch] failed to process batch %d because OutOfCounters", batch.BatchNumber)
-		reprocessError(batch)
-
-		payload, err := json.Marshal(executorBatchRequest)
-		if err != nil {
-			log.Errorf("[reprocessFullBatch] error marshaling payload: %s", err)
-		} else {
-			event := &event.Event{
-				ReceivedAt:  time.Now(),
-				Source:      event.Source_Node,
-				Component:   event.Component_Sequencer,
-				Level:       event.Level_Critical,
-				EventID:     event.EventID_ReprocessFullBatchOOC,
-				Description: string(payload),
-				Json:        executorBatchRequest,
-			}
-			err = f.eventLog.LogEvent(ctx, event)
-			if err != nil {
-				log.Errorf("[reprocessFullBatch] error storing payload: %s", err)
-			}
-		}
-
-		return nil, ErrProcessBatchOOC
-	}
-
-	if result.NewStateRoot != expectedNewStateRoot {
-		log.Errorf("[reprocessFullBatch] new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
-		reprocessError(batch)
-		return nil, ErrStateRootNoMatch
-	}
-
-	log.Infof("[reprocessFullBatch]: reprocess successfully done for batch %d", batch.BatchNumber)
-	return result, nil
-}
-
 // isDeadlineEncountered returns true if any closing signal deadline is encountered
 func (f *finalizer) isDeadlineEncountered() bool {
 	// Forced batch deadline
@@ -1207,80 +1112,11 @@ func (f *finalizer) setNextGERDeadline() {
 	f.nextGERDeadline = now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
 }
 
-// checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
-	usedResources := state.BatchResources{
-		ZKCounters: result.UsedZkCounters,
-		Bytes:      tx.BatchResources.Bytes,
-	}
-
-	err := f.wipBatch.remainingResources.Sub(usedResources)
-	if err != nil {
-		log.Infof("current transaction exceeds the remaining batch resources, updating metadata for tx in worker and continuing")
-		start := time.Now()
-		f.worker.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return err
-	}
-
-	return nil
-}
-
-// isBatchResourcesExhausted checks if one of resources of the wip batch has reached the max value
-func (f *finalizer) isBatchResourcesExhausted() bool {
-	resources := f.wipBatch.remainingResources
-	zkCounters := resources.ZKCounters
-	result := false
-	resourceDesc := ""
-	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
-		resourceDesc = "MaxBatchBytesSize"
-		result = true
-	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
-		resourceDesc = "MaxSteps"
-		result = true
-	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
-		resourceDesc = "MaxPoseidonPaddings"
-		result = true
-	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
-		resourceDesc = "MaxBinaries"
-		result = true
-	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
-		resourceDesc = "MaxKeccakHashes"
-		result = true
-	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
-		resourceDesc = "MaxArithmetics"
-		result = true
-	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
-		resourceDesc = "MaxMemAligns"
-		result = true
-	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
-		resourceDesc = "MaxCumulativeGasUsed"
-		result = true
-	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
-		resourceDesc = "MaxSHA256Hashes"
-		result = true
-	}
-
-	if result {
-		log.Infof("closing batch %d, because it reached %s limit", f.wipBatch.batchNumber, resourceDesc)
-		f.wipBatch.closingReason = state.BatchAlmostFullClosingReason
-	}
-
-	return result
-}
-
-// getConstraintThresholdUint64 returns the threshold for the given input
-func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
-}
-
-// getConstraintThresholdUint32 returns the threshold for the given input
-func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
-}
-
 // halt halts the finalizer
 func (f *finalizer) halt(ctx context.Context, err error) {
+	f.haltError = err
+	f.haltFinalizer.Store(true)
+
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,
@@ -1293,47 +1129,5 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	eventErr := f.eventLog.LogEvent(ctx, event)
 	if eventErr != nil {
 		log.Errorf("error storing finalizer halt event: %v", eventErr)
-	}
-
-	for {
-		log.Errorf("fatal error: %s", err)
-		log.Error("halting the finalizer")
-		time.Sleep(5 * time.Second) //nolint:gomnd
-	}
-}
-
-// getUsedBatchResources returns the max resources that can be used in a batch
-func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
-	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
-			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
-			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
-		},
-		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
-	}
-}
-
-// getMaxRemainingResources returns the max zkcounters that can be used in a batch
-func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
-	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
-		},
-		Bytes: constraints.MaxBatchBytesSize,
 	}
 }
