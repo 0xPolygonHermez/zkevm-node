@@ -21,6 +21,7 @@ type PoolInterface interface {
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
+	CountQueuedTransactions(ctx context.Context) (uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
 

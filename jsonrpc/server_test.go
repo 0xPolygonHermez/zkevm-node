@@ -89,7 +89,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APITxPool]; ok {
 		services = append(services, Service{
 			Name:    APITxPool,
-			Service: &TxPoolEndpoints{},
+			Service: NewTxPoolEndpoints(pool),
 		})
 	}
 
