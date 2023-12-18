@@ -326,7 +326,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 			FromBlock: new(big.Int).SetUint64(i),
 			ToBlock:   new(big.Int).SetUint64(final),
 			Addresses: etherMan.SCAddresses,
-			Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash, updateRollupSignatureHash, createNewRollupSignatureHash}},
+			Topics:    [][]common.Hash{{updateZkEVMVersionSignatureHash, updateRollupSignatureHash, addExistingRollupSignatureHash, createNewRollupSignatureHash}},
 		}
 		l, err := etherMan.EthClient.FilterLogs(ctx, query)
 		if err != nil {
@@ -354,6 +354,9 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 			if err != nil {
 				return []state.ForkIDInterval{}, err
 			}
+			if etherMan.RollupID != updateRollupEvent.RollupID {
+				continue
+			}
 			// Query to get the forkID
 			rollupType, err := etherMan.RollupManager.RollupTypeMap(&bind.CallOpts{Pending: false}, updateRollupEvent.NewRollupTypeID)
 			if err != nil {
@@ -362,11 +365,26 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 			zkevmVersion.ForkID = rollupType.ForkID
 			zkevmVersion.NumBatch = updateRollupEvent.LastVerifiedBatchBeforeUpgrade
 
+		case addExistingRollupSignatureHash:
+			log.Debug("updateRollup Event received")
+			addExistingRollupEvent, err := etherMan.RollupManager.ParseAddExistingRollup(l)
+			if err != nil {
+				return []state.ForkIDInterval{}, err
+			}
+			if etherMan.RollupID != addExistingRollupEvent.RollupID {
+				continue
+			}
+			zkevmVersion.ForkID = addExistingRollupEvent.ForkID
+			zkevmVersion.NumBatch = addExistingRollupEvent.LastVerifiedBatchBeforeUpgrade
+
 		case createNewRollupSignatureHash:
 			log.Debug("createNewRollup Event received")
 			createNewRollupEvent, err := etherMan.RollupManager.ParseCreateNewRollup(l)
 			if err != nil {
 				return []state.ForkIDInterval{}, err
+			}
+			if etherMan.RollupID != createNewRollupEvent.RollupID {
+				continue
 			}
 			// Query to get the forkID
 			rollupType, err := etherMan.RollupManager.RollupTypeMap(&bind.CallOpts{Pending: false}, createNewRollupEvent.RollupTypeID)
@@ -576,8 +594,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 		log.Debug("ObsoleteRollupType event detected. Ignoring...")
 		return nil
 	case addNewRollupTypeSignatureHash:
-		log.Debug("AddNewRollupType event detected. Ignoring...")
-		return nil
+		return etherMan.addExistingRollup(ctx, vLog, blocks, blocksOrder)
 	case setBatchFeeSignatureHash:
 		log.Debug("SetBatchFee event detected. Ignoring...")
 		return nil
@@ -622,6 +639,19 @@ func (etherMan *Client) createNewRollup(ctx context.Context, vLog types.Log, blo
 		return err
 	}
 	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, 0, rollupType.ForkID, "")
+}
+
+func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
+	log.Debug("addExistingRollup event detected")
+	addExistingRollup, err := etherMan.RollupManager.ParseAddExistingRollup(vLog)
+	if err != nil {
+		log.Error("error parsing createNewRollup event. Error: ", err)
+		return err
+	}
+	if etherMan.RollupID != addExistingRollup.RollupID {
+		return nil
+	}
+	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "")
 }
 
 func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order, batchNum, forkID uint64, version string) error {
