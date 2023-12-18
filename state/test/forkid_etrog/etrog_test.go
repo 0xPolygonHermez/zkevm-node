@@ -2,7 +2,6 @@ package etrog_test
 
 import (
 	"context"
-	"log"
 	"math"
 	"math/big"
 	"os"
@@ -51,9 +50,7 @@ func TestStateTransition(t *testing.T) {
 
 	// Get all tests vector in the etrog folder
 	files, err := os.ReadDir(testsFolder)
-	if err != nil {
-		log.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	for _, file := range files {
 		// Load test vectors
