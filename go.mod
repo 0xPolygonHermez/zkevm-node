@@ -8,7 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum/go-ethereum v1.13.2
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.10.1
+	github.com/go-git/go-git/v5 v5.11.0
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/google/uuid v1.5.0
 	github.com/habx/pg-commands v0.6.1
@@ -81,7 +81,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20230207041349-798e818bf904 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
@@ -165,5 +164,4 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.17.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
-	gotest.tools v2.2.0+incompatible
 )
