@@ -2,7 +2,7 @@
 
 ## JSON RPC Service:
 
-This service will sync transactions from L2 to L1, it does not require a Prover to be working, just an RPC and Synchronizer. 
+This service will sync transactions from L2 to L1, it does not require a Prover to be working, just an RPC and Synchronizer.
 
 ### Services needed:
 
@@ -17,7 +17,7 @@ By default the config files found in the repository will spin up the Node in JSO
 
 **This is considered to be the base, all modes require a Synchronizer Node container to be spun up*
 
-This will syncronize with the Trusted Sequencer (run by Polygon).
+This will synchronize with the Trusted Sequencer (run by Polygon).
 
 Use the default [testnet config file](https://github.com/0xPolygonHermez/zkevm-node/blob/develop/config/environments/testnet/node.config.toml), and make sure the following values are set to:
 
@@ -47,7 +47,7 @@ Additionally, the [`production-setup.md`](./production-setup.md) goes through th
 
 - `x1-sync`
 - `x1-prover` (`Merkle Tree`, `Executor`)
-- `zkevm-rpc` 
+- `x1-rpc`
 - Databases
 
 ## If you want to create Proofs:
@@ -56,7 +56,7 @@ This mode is a tad more complicated, as it will require more services and more m
 
 Requirements for the Prover service (sans MT/Executor): 1TB RAM 128 cores
 
-### Services needed: 
+### Services needed:
 
 *Please perform each of these steps (downloading and running) before continuing!*
 
@@ -98,5 +98,5 @@ For *only* Prover Config (`only-prover-config.json`):
 
 - `x1-sync`
 - `x1-prover` (`Prover`, `Merkle Tree`, `Executor`)
-- `x1-aggregator` 
+- `x1-aggregator`
 - Databases

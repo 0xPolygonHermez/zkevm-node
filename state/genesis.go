@@ -177,5 +177,10 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, db
 	l2Block := types.NewBlock(header, []*types.Transaction{}, []*types.Header{}, receipts, &trie.StackTrie{})
 	l2Block.ReceivedAt = block.ReceivedAt
 
-	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, MaxEffectivePercentage, dbTx)
+	storeTxsEGPData := []StoreTxEGPData{}
+	for range l2Block.Transactions() {
+		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: MaxEffectivePercentage})
+	}
+
+	return newRoot, s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
 }

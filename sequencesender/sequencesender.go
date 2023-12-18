@@ -66,8 +66,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
 		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
 			retry = true
-			resultLog := log.WithFields("owner", ethTxManagerOwner, "id", result.ID)
-			resultLog.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
+			mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
+			mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
 		}
 	}, nil)
 
@@ -121,7 +121,6 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	if !s.isValidium() {
 		signaturesAndAddrs = nil
 	}
-
 	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, signaturesAndAddrs)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
@@ -131,9 +130,10 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	firstSequence := sequences[0]
 	lastSequence := sequences[len(sequences)-1]
 	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, nil)
+	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
 	if err != nil {
-		log.Error("error to add sequences tx to eth tx manager: ", err)
+		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
+		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
 		waitTick(ctx, ticker)
 		return
 	}
@@ -150,7 +150,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
 	sequences := []types.Sequence{}
-
+	// var estimatedGas uint64
 	var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
@@ -192,7 +192,6 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		}
 
 		sequences = append(sequences, seq)
-
 		if s.isValidium() {
 			if len(sequences) == int(s.cfg.MaxBatchesForL1) {
 				log.Infof(
@@ -252,6 +251,12 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 
 	log.Info("not enough time has passed since last batch was virtualized, and the sequence could be bigger")
 	return nil, nil
+}
+
+func isDataForEthTxTooBig(err error) bool {
+	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
+		errors.Is(err, ErrOversizedData) ||
+		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 
 // handleEstimateGasSendSequenceErr handles an error on the estimate gas. It will return:
@@ -318,12 +323,6 @@ func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 	sequences = sequences[:len(sequences)-1]
 
 	return sequences, nil
-}
-
-func isDataForEthTxTooBig(err error) bool {
-	return errors.Is(err, ethman.ErrGasRequiredExceedsAllowance) ||
-		errors.Is(err, ErrOversizedData) ||
-		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 
 func (s *SequenceSender) isValidium() bool {

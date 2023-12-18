@@ -12,10 +12,10 @@ type Config struct {
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
-	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions than 128KB are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
+	// // MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
+	// // non-trivial consequences: larger transactions than 128KB are significantly harder and
+	// // more expensive to propagate; larger transactions also take more resources
+	// // to validate whether they fit into the pool or not.
 	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
 
 	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
@@ -24,7 +24,7 @@ type Config struct {
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress common.Address
-	// L2Coinbase defines which addess is going to receive the fees
+	// L2Coinbase defines which address is going to receive the fees
 	L2Coinbase common.Address `mapstructure:"L2Coinbase"`
 	// PrivateKey defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
@@ -34,4 +34,16 @@ type Config struct {
 
 	// UseValidium is a flag to enable/disable the use of validium
 	UseValidium bool `mapstructure:"UseValidium"`
+
+	// GasOffset is the amount of gas to be added to the gas estimation in order
+	// to provide an amount that is higher than the estimated one. This is used
+	// to avoid the TX getting reverted in case something has changed in the network
+	// state after the estimation which can cause the TX to require more gas to be
+	// executed.
+	//
+	// ex:
+	// gas estimation: 1000
+	// gas offset: 100
+	// final gas: 1100
+	GasOffset uint64 `mapstructure:"GasOffset"`
 }

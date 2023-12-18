@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
@@ -20,6 +20,7 @@ import (
 // txPool contains the methods required to interact with the tx pool.
 type txPool interface {
 	DeleteTransactionsByHashes(ctx context.Context, hashes []common.Hash) error
+	DeleteFailedTransactionsOlderThan(ctx context.Context, date time.Time) error
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error)
@@ -28,16 +29,18 @@ type txPool interface {
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
-	GetL1GasPrice() uint64
+	GetL1AndL2GasPrice() (uint64, uint64)
 }
 
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
+	EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error)
 	GetSendSequenceFee(numBatches uint64) (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
+	BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (to *common.Address, data []byte, err error)
 	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 }
 
@@ -62,7 +65,7 @@ type stateInterface interface {
 	GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	GetLastNBatches(ctx context.Context, numBatches uint, dbTx pgx.Tx) ([]*state.Batch, error)
-	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, dbTx pgx.Tx) error
+	StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*types.Header, error)
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error)
 	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
@@ -78,6 +81,10 @@ type stateInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
+	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error)
+	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSBatch, error)
+	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)
+	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*state.DSL2Transaction, error)
 }
 
 type workerInterface interface {
@@ -124,16 +131,9 @@ type dbManagerInterface interface {
 	FlushMerkleTree(ctx context.Context) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
-	GetL1GasPrice() uint64
+	GetL1AndL2GasPrice() (uint64, uint64)
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx transactionToStore) error
 	GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
-}
-
-type ethTxManager interface {
-	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, dbTx pgx.Tx) error
-	Result(ctx context.Context, owner, id string, dbTx pgx.Tx) (ethtxmanager.MonitoredTxResult, error)
-	ResultsByStatus(ctx context.Context, owner string, statuses []ethtxmanager.MonitoredTxStatus, dbTx pgx.Tx) ([]ethtxmanager.MonitoredTxResult, error)
-	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx)
 }

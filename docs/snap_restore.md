@@ -5,7 +5,7 @@ This feature is for fast replication of nodes. It creates a backup of database a
 
 ## Snapshot
 
-This feature creates a dump of entire database 
+This feature creates a dump of entire database
 
 ### Usage
 
@@ -21,7 +21,7 @@ OPTIONS:
    --help, -h           show help
 ```
 
-**Make sure that the config file contains the data required to connect to `HashDB` database**, for example: 
+**Make sure that the config file contains the data required to connect to `HashDB` database**, for example:
 ```
 [HashDB]
 User = "prover_user"
@@ -33,11 +33,11 @@ EnableLog = false
 MaxConns = 200
 ```
 
-This generates two files in the current working path: 
+This generates two files in the current working path:
 * For stateDB: <database_name>`_`\<timestamp>`_`\<version>`_`\<gitrev>`.sql.tar.gz`
 * For hashDB: <database_name>`_`\<timestamp>`_`\<version>`_`\<gitrev>`.sql.tar.gz`
 
-#### Example of invocation: 
+#### Example of invocation:
 ```
 # cd /tmp/ && /app/x1-node snap -c /app/config.toml
 (...)
@@ -68,10 +68,10 @@ OPTIONS:
    --help, -h                          show help
 ```
 
-#### Example of invocation: 
+#### Example of invocation:
 ```
 /app/x1-node restore -c /app/config.toml  --is /tmp/state_db_1689925019_v0.2.0-RC9-15-gd39e7f1e_d39e7f1e.sql.tar.gz  --ih /tmp/prover_db_1689925019_v0.2.0-RC9-15-gd39e7f1e_d39e7f1e.sql.tar
-.gz 
+.gz
 ```
 
 # How to test

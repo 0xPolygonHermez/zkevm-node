@@ -65,7 +65,7 @@ func setupDBManager() {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	stateTree = merkletree.NewStateTree(mtDBServiceClient)
-	testState = state.NewState(stateCfg, state.NewPostgresStorage(stateDb), executorClient, stateTree, eventLog)
+	testState = state.NewState(stateCfg, state.NewPostgresStorage(state.Config{}, stateDb), executorClient, stateTree, eventLog)
 
 	// DBManager
 	closingSignalCh := ClosingSignalCh{
@@ -73,7 +73,7 @@ func setupDBManager() {
 		GERCh:         make(chan common.Hash),
 		L2ReorgCh:     make(chan L2ReorgEvent),
 	}
-	batchConstraints := batchConstraints{
+	batchConstraints := state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
 		MaxCumulativeGasUsed: 30000000,

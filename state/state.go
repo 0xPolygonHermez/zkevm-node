@@ -10,10 +10,11 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const newL2BlockEventBufferSize = 500
 
 var (
 	// ZeroHash is the hash 0x0000000000000000000000000000000000000000000000000000000000000000
@@ -30,7 +31,6 @@ type State struct {
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
 
-	lastL2BlockSeen         types.Block
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
@@ -48,7 +48,7 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
-		newL2BlockEvents:        make(chan NewL2BlockEvent),
+		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 	}
 

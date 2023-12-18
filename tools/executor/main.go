@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/google/uuid"
 )
 
 const (
@@ -108,11 +109,11 @@ func runTestCase(ctx context.Context, genesis []genesisItem, tc testCase) error 
 	}
 
 	// Executor connection
-	xecutor, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL, MaxGRPCMessageSize: 100000000}) //nolint:gomnd
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executor.Config{URI: executorURL, MaxGRPCMessageSize: 100000000}) //nolint:gomnd
 	// Execute batches
 	for i := 0; i < len(tc.Requests); i++ {
 		pbr := executor.ProcessBatchRequest(tc.Requests[i]) //nolint
-		res, err := xecutor.ProcessBatch(ctx, &pbr)
+		res, err := executorClient.ProcessBatch(ctx, &pbr)
 		if err != nil {
 			return err
 		}
@@ -232,7 +233,7 @@ type testCase struct {
 type executorRequest executor.ProcessBatchRequest
 
 func (er *executorRequest) UnmarshalJSON(data []byte) error {
-	type jExecutorRequeststruct struct {
+	type jExecutorRequest struct {
 		BatchL2Data     string `json:"batchL2Data"`
 		GlobalExitRoot  string `json:"globalExitRoot"`
 		OldBatchNum     uint64 `json:"oldBatchNum"`
@@ -241,7 +242,7 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 		SequencerAddr   string `json:"sequencerAddr"`
 		Timestamp       uint64 `json:"timestamp"`
 	}
-	jer := jExecutorRequeststruct{}
+	jer := jExecutorRequest{}
 	if err := json.Unmarshal(data, &jer); err != nil {
 		return err
 	}
@@ -270,6 +271,7 @@ func (er *executorRequest) UnmarshalJSON(data []byte) error {
 		OldStateRoot:    oldStateRoot,
 		Coinbase:        jer.SequencerAddr,
 		EthTimestamp:    jer.Timestamp,
+		ContextId:       uuid.NewString(),
 	}
 	*er = executorRequest(req) //nolint
 	return nil

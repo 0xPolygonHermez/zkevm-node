@@ -486,11 +486,11 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 
 		wsConn, _, err := websocket.DefaultDialer.Dial(network.WebSocketURL, nil)
+		require.NoError(t, err)
 		defer func() {
 			err := wsConn.Close()
 			require.NoError(t, err)
 		}()
-		require.NoError(t, err)
 
 		wg := sync.WaitGroup{}
 		wg.Add(msgQty)
@@ -525,6 +525,60 @@ func TestWebSocketsConcurrentWrites(t *testing.T) {
 
 		assert.Equal(t, msgQty, len(receivedMessages))
 	}
+}
+
+func TestWebSocketsReadLimit(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(operations.DefaultL2NetworkWebSocketURL, nil)
+	require.NoError(t, err)
+	defer func() {
+		err := wsConn.Close()
+		require.NoError(t, err)
+	}()
+
+	jReq := make([]byte, 104857601)
+	err = wsConn.WriteMessage(websocket.TextMessage, jReq)
+	require.NoError(t, err)
+
+	_, _, err = wsConn.ReadMessage()
+	require.NotNil(t, err)
+	require.Equal(t, websocket.CloseMessageTooBig, err.(*websocket.CloseError).Code)
+}
+
+func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	ethereumClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
+	require.NoError(t, err)
+
+	sender := common.HexToAddress(operations.DefaultSequencerAddress)
+	receiver := common.HexToAddress(operations.DefaultSequencerAddress)
+
+	balance, err := ethereumClient.BalanceAt(ctx, sender, nil)
+	require.NoError(t, err)
+
+	_, err = ethereumClient.EstimateGas(ctx, ethereum.CallMsg{
+		From:     sender,
+		To:       &receiver,
+		Value:    new(big.Int),
+		Gas:      balance.Uint64(),
+		GasPrice: new(big.Int).SetUint64(0),
+		Data:     make([]byte, 120000), // large data
+	})
+	rpcErr := err.(rpc.Error)
+	assert.Equal(t, -32000, rpcErr.ErrorCode())
+	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

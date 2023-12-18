@@ -5,14 +5,27 @@ Environment = "development" # "production" or "development"
 Level = "debug"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "x1-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[State]
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "x1-state-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
 
 [Pool]
 FreeClaimGasLimit = 1500000
@@ -23,6 +36,17 @@ MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
+AccountQueue = 64
+GlobalQueue = 1024
+	[Pool.EffectiveGasPrice]
+		Enabled = false
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		ZeroByteGasCost = 4
+		NetProfit = 1
+	    BreakEvenFactor = 1.1
+		FinalDeviationPct = 10
+		L2GasPriceSuggesterFactor = 0.5
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"
@@ -55,22 +79,26 @@ EnableL2SuggestedGasPricePolling = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "http://x1-json-rpc:8123" # If it is empty or not specified, then the value is read from the smc.
+L1SynchronizationMode = "sequential" # "sequential" or "parallel"
+	[Synchronizer.L1ParallelSynchronization]
+		MaxClients = 10
+		MaxPendingNoProcessedBlocks = 25
+		RequestLastBlockPeriod = "5s"
+		RequestLastBlockTimeout = "5s"
+		RequestLastBlockMaxRetries = 3
+		StatisticsPeriod = "5m"
+		TimeoutMainLoop = "5m"
+		RollupInfoRetriesSpacing= "5s"
+		FallbackToSequentialModeOnSynchronized = false
+		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
+			AceptableInacctivityTime = "5s"
+			ApplyAfterNumRollupReceived = 10
 
 [Sequencer]
 WaitPeriodPoolIsEmpty = "1s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
-MaxTxsPerBatch = 300
-MaxBatchBytesSize = 120000
-MaxCumulativeGasUsed = 30000000
-MaxKeccakHashes = 2145
-MaxPoseidonHashes = 252357
-MaxPoseidonPaddings = 135191
-MaxMemAligns = 236585
-MaxArithmetics = 236585
-MaxBinaries = 473170
-MaxSteps = 7570538
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
 	[Sequencer.Finalizer]
@@ -88,11 +116,9 @@ MaxTxLifetime = "3h"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
-	[Sequencer.EffectiveGasPrice]
-		MaxBreakEvenGasPriceDeviationPercentage = 10
-		L1GasPriceFactor = 0.25
-		ByteGasCost = 16
-		MarginFactor = 1
+	[Sequencer.StreamServer]
+		Port = 6900
+		Filename = "/datastreamer/datastream.bin"
 		Enabled = false
 
 [SequenceSender]

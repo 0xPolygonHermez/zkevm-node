@@ -98,6 +98,8 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
+		{name: "sc deployment out of gas", createSignedTx: createScDeployOutOfGasSignedTx},
+		// PENDING {name: "sc creation storage out of gas", createSignedTx: createScCreationCodeStorageOutOfGasSignedTx},
 		{name: "sc call reverted", prepare: prepareScCallReverted, createSignedTx: createScCallRevertedSignedTx},
 		{name: "erc20 transfer reverted", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 		{name: "invalid static call less parameters", prepare: prepareCalls, createSignedTx: createInvalidStaticCallLessParametersSignedTx},
@@ -229,7 +231,9 @@ func compareCallFrame(t *testing.T, referenceValueMap, resultMap map[string]inte
 	require.Equal(t, referenceValueMap["value"], resultMap["value"], fmt.Sprintf("invalid `value` for network %s", networkName))
 	require.Equal(t, referenceValueMap["type"], resultMap["type"], fmt.Sprintf("invalid `type` for network %s", networkName))
 	require.Equal(t, referenceValueMap["error"], resultMap["error"], fmt.Sprintf("invalid `error` for network %s", networkName))
-	require.Equal(t, referenceValueMap["revertReason"], resultMap["revertReason"], fmt.Sprintf("invalid `revertReason` for network %s", networkName))
+	if _, found := referenceValueMap["revertReason"]; found {
+		require.Equal(t, referenceValueMap["revertReason"], resultMap["revertReason"], fmt.Sprintf("invalid `revertReason` for network %s", networkName))
+	}
 
 	referenceLogs, found := referenceValueMap["logs"].([]interface{})
 	if found {

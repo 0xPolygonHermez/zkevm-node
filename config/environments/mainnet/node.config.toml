@@ -3,14 +3,27 @@ Environment = "development" # "production" or "development"
 Level = "info"
 Outputs = ["stderr"]
 
-[StateDB]
-User = "state_user"
-Password = "state_password"
-Name = "state_db"
-Host = "x1-state-db"
-Port = "5432"
-EnableLog = false
-MaxConns = 200
+[State]
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "x1-state-db"
+	Port = "5432"
+	EnableLog = false
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
 
 [Pool]
 FreeClaimGasLimit = 1500000
@@ -20,6 +33,8 @@ DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 FreeGasAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+AccountQueue = 64
+GlobalQueue = 1024
 	[Pool.DB]
 	User = "pool_user"
 	Password = "pool_password"

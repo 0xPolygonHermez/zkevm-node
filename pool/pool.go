@@ -18,11 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-const (
-	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
-	BridgeClaimMethodSignature = "0x2cffd02e"
-)
-
 var (
 	// ErrNotFound indicates an object has not been found for the search criteria used
 	ErrNotFound = errors.New("object not found")
@@ -34,9 +29,16 @@ var (
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
-
 	// FreeClaimAddress is the default free gas address
 	FreeClaimAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
+	// ErrEffectiveGasPriceGasPriceTooLow the tx gas price is lower than breakEvenGasPrice and lower than L2GasPrice
+	ErrEffectiveGasPriceGasPriceTooLow = errors.New("effective gas price: gas price too low")
+)
+
+const (
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
 )
 
 // Pool is an implementation of the Pool interface
@@ -46,6 +48,7 @@ type Pool struct {
 	state                   stateInterface
 	chainID                 uint64
 	cfg                     Config
+	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
@@ -54,6 +57,7 @@ type Pool struct {
 	gasPrices               GasPrices
 	gasPricesMux            *sync.RWMutex
 	l2BridgeAddr            common.Address
+	effectiveGasPrice       *EffectiveGasPrice
 }
 
 type preExecutionResponse struct {
@@ -72,32 +76,26 @@ type GasPrices struct {
 }
 
 // NewPool creates and initializes an instance of Pool
-func NewPool(cfg Config, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
+func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storage, st stateInterface, l2BridgeAddr common.Address, chainID uint64, eventLog *event.EventLog) *Pool {
 	startTimestamp := time.Now()
 	p := &Pool{
 		cfg:                     cfg,
+		batchConstraintsCfg:     batchConstraintsCfg,
 		startTimestamp:          startTimestamp,
 		storage:                 s,
 		state:                   st,
 		chainID:                 chainID,
 		blockedAddresses:        sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
+		minSuggestedGasPrice:    big.NewInt(int64(cfg.DefaultMinGasPriceAllowed)),
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
 		l2BridgeAddr:            l2BridgeAddr,
+		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
-
 	FreeClaimAddress = cfg.FreeGasAddress
-
-	p.refreshBlockedAddresses()
-	go func(cfg *Config, p *Pool) {
-		for {
-			time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
-			p.refreshBlockedAddresses()
-		}
-	}(&cfg, p)
-
+	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
 			p.refreshGasPrices()
@@ -119,6 +117,19 @@ func (p *Pool) refreshGasPrices() {
 	p.gasPricesMux.Lock()
 	p.gasPrices = gasPrices
 	p.gasPricesMux.Unlock()
+}
+
+// StartRefreshingBlockedAddressesPeriodically will make this instance of the pool
+// to check periodically(accordingly to the configuration) for updates regarding
+// the blocked address and update the in memory blocked addresses
+func (p *Pool) StartRefreshingBlockedAddressesPeriodically() {
+	p.refreshBlockedAddresses()
+	go func(p *Pool) {
+		for {
+			time.Sleep(p.cfg.IntervalToRefreshBlockedAddresses.Duration)
+			p.refreshBlockedAddresses()
+		}
+	}(p)
 }
 
 // refreshBlockedAddresses refreshes the list of blocked addresses for the provided instance of pool
@@ -207,7 +218,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return fmt.Errorf("out of counters")
+		return ErrOutOfCounters
 	} else if preExecutionResponse.isOOG {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
@@ -225,10 +236,67 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		}
 	}
 
+	gasPrices, err := p.GetGasPrices(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = p.ValidateBreakEvenGasPrice(ctx, tx, preExecutionResponse.txResponse.GasUsed, gasPrices)
+	if err != nil {
+		return err
+	}
+
 	poolTx := NewTransaction(tx, ip, isWIP, p)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
+}
+
+// ValidateBreakEvenGasPrice validates the effective gas price
+func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transaction, preExecutionGasUsed uint64, gasPrices GasPrices) error {
+	// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+	txGasPrice, _ := p.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice(), gasPrices.L1GasPrice, gasPrices.L2GasPrice)
+
+	breakEvenGasPrice, err := p.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.Data(), txGasPrice, preExecutionGasUsed, gasPrices.L1GasPrice)
+	if err != nil {
+		if p.cfg.EffectiveGasPrice.Enabled {
+			log.Errorf("error calculating BreakEvenGasPrice: %v", err)
+			return err
+		} else {
+			log.Warnf("EffectiveGasPrice is disabled, but failed to calculate BreakEvenGasPrice: %s", err)
+			return nil
+		}
+	}
+
+	reject := false
+	loss := new(big.Int).SetUint64(0)
+
+	tmpFactor := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), new(big.Float).SetFloat64(p.cfg.EffectiveGasPrice.BreakEvenFactor))
+	breakEvenGasPriceWithFactor := new(big.Int)
+	tmpFactor.Int(breakEvenGasPriceWithFactor)
+
+	if breakEvenGasPriceWithFactor.Cmp(txGasPrice) == 1 { // breakEvenGasPriceWithMargin > txGasPrice
+		// check against L2GasPrice now
+		L2GasPrice := big.NewInt(0).SetUint64(gasPrices.L2GasPrice)
+		if txGasPrice.Cmp(L2GasPrice) == -1 { // txGasPrice < gasPrices.L2GasPrice
+			// reject tx
+			reject = true
+		} else {
+			// accept loss
+			loss = loss.Sub(breakEvenGasPriceWithFactor, txGasPrice)
+		}
+	}
+
+	log.Infof("egp-log: txGasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, Enabled: %t, tx: %s",
+		txGasPrice, breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
+
+	// Reject transaction if EffectiveGasPrice is enabled
+	if p.cfg.EffectiveGasPrice.Enabled && reject {
+		log.Infof("reject tx with gasPrice lower than L2GasPrice, tx: %s", tx.Hash().String())
+		return ErrEffectiveGasPriceGasPriceTooLow
+	}
+
+	return nil
 }
 
 // preExecuteTx executes a transaction to calculate its zkCounters
@@ -238,15 +306,35 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
-		return response, err
+		isOOC := executor.IsROMOutOfCountersError(executor.RomErrorCode(err))
+		isOOG := errors.Is(err, runtime.ErrOutOfGas)
+		if !isOOC && !isOOG {
+			return response, err
+		} else {
+			response.isOOC = isOOC
+			response.isOOG = isOOG
+			if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+				response.usedZkCounters = processBatchResponse.UsedZkCounters
+				response.txResponse = processBatchResponse.Responses[0]
+			}
+			return response, nil
+		}
 	}
 
 	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
 		errorToCheck := processBatchResponse.Responses[0].RomError
-		response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
-		response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-		response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		if errorToCheck != nil {
+			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
+			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
+			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+		} else {
+			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
+				response.isOOC = true
+				log.Errorf("OutOfCounters Error (Node level) for tx: %s", tx.Hash().String())
+			}
+		}
+
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
 		response.txResponse = processBatchResponse.Responses[0]
 	}
@@ -315,6 +403,11 @@ func (p *Pool) IsTxPending(ctx context.Context, hash common.Hash) (bool, error) 
 }
 
 func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
+	// Make sure the IP is valid.
+	if poolTx.IP != "" && !IsValidIP(poolTx.IP) {
+		return ErrInvalidIP
+	}
+
 	// Make sure the transaction is signed properly.
 	if err := state.CheckSignature(poolTx.Transaction); err != nil {
 		return ErrInvalidSender
@@ -329,6 +422,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// Accept only legacy transactions until EIP-2718/2930 activates.
 	if poolTx.Type() != types.LegacyTxType {
 		return ErrTxTypeNotSupported
+	}
+
+	// check Pre EIP155 txs signature
+	if txChainID == 0 && !state.IsPreEIP155Tx(poolTx.Transaction) {
+		return ErrInvalidSender
 	}
 
 	// gets tx sender for validations
@@ -358,11 +456,13 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)
 	if err != nil {
+		log.Errorf("failed to load last l2 block while adding tx to the pool", err)
 		return err
 	}
 
 	currentNonce, err := p.state.GetNonce(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get nonce while adding tx to the pool", err)
 		return err
 	}
 	// Ensure the transaction adheres to nonce ordering
@@ -391,6 +491,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if p.cfg.GlobalQueue > 0 {
 		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 		if err != nil {
+			log.Errorf("failed to count pool txs by status pending while adding tx to the pool", err)
 			return err
 		}
 		if txCount >= p.cfg.GlobalQueue {
@@ -404,6 +505,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
 		p.minSuggestedGasPriceMux.RUnlock()
 		if gasPriceCmp == -1 {
+			log.Debugf("low gas price: minSuggestedGasPrice %v got %v", p.minSuggestedGasPrice, poolTx.GasPrice())
 			return ErrGasPrice
 		}
 	}
@@ -412,6 +514,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// cost == V + GP * GL
 	balance, err := p.state.GetBalance(ctx, from, lastL2Block.Root())
 	if err != nil {
+		log.Errorf("failed to get balance for account %v while adding tx to the pool", from.String(), err)
 		return err
 	}
 
@@ -432,6 +535,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	// if the new one has a price bump
 	oldTxs, err := p.storage.GetTxsByFromAndNonce(ctx, from, poolTx.Nonce())
 	if err != nil {
+		log.Errorf("failed to txs for the same account and nonce while adding tx to the pool", err)
 		return err
 	}
 
@@ -546,13 +650,13 @@ func (p *Pool) GetDefaultMinGasPriceAllowed() uint64 {
 	return p.cfg.DefaultMinGasPriceAllowed
 }
 
-// GetL1GasPrice returns the L1 gas price
-func (p *Pool) GetL1GasPrice() uint64 {
+// GetL1AndL2GasPrice returns the L1 and L2 gas price from memory struct
+func (p *Pool) GetL1AndL2GasPrice() (uint64, uint64) {
 	p.gasPricesMux.RLock()
 	gasPrices := p.gasPrices
 	p.gasPricesMux.RUnlock()
 
-	return gasPrices.L1GasPrice
+	return gasPrices.L1GasPrice, gasPrices.L2GasPrice
 }
 
 const (

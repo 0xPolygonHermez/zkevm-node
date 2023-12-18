@@ -2,7 +2,7 @@ version: "3.5"
 networks:
   default:
     name: x1
-    
+
 services:
   grafana:
     container_name: grafana
@@ -52,12 +52,16 @@ services:
     ports:
       - 9092:9091 # needed if metrics enabled
       - 6060:6060
+      - 6900:6900 # Data stream server
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_POOL_DB_HOST=x1-pool-db
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+      - ./:/datastreamer
     command:
       - "/bin/sh"
       - "-c"
@@ -67,9 +71,11 @@ services:
     container_name: x1-sequence-sender
     image: x1-node
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_POOL_DB_HOST=x1-pool-db
       - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -87,8 +93,10 @@ services:
       - 8133:8133 # needed if WebSockets enabled
       - 9091:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_POOL_DB_HOST=x1-pool-db
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
@@ -104,7 +112,7 @@ services:
       - 50081:50081
       - 9093:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
@@ -120,7 +128,9 @@ services:
     ports:
       - 9095:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
@@ -135,7 +145,7 @@ services:
     ports:
       - 9094:9091 # needed if metrics enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
     volumes:
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./aggregator.keystore:/pk/aggregator.keystore
@@ -285,7 +295,7 @@ services:
       - 8124:8124
       - 8134:8134 # needed if WebSockets enabled
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_POOL_DB_HOST=x1-pool-db
       - ZKEVM_NODE_RPC_PORT=8124
       - ZKEVM_NODE_RPC_WEBSOCKETS_PORT=8134
@@ -310,7 +320,7 @@ services:
 
   x1-mock-l1-network:
     container_name: x1-mock-l1-network
-    image: okexchain/x1-geth:e2e_v0.1.0_20231113
+    image: okexchain/x1-geth:e2e_v0.1.1_20231214
     ports:
       - 8545:8545
       - 8546:8546
@@ -340,7 +350,7 @@ services:
 
   x1-prover:
     container_name: x1-prover
-    image: hermeznetwork/zkevm-prover:v2.2.0
+    image: hermeznetwork/zkevm-prover:v3.0.2
     ports:
       # - 50051:50051 # Prover
       - 50052:50052 # Mock prover
@@ -366,7 +376,7 @@ services:
     container_name: x1-approve
     image: x1-node
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
     volumes:
       - ./sequencer.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
@@ -398,6 +408,35 @@ services:
       - "-N"
       - "500"
 
+  x1-permissionless-node:
+    container_name: x1-permissionless-node
+    image: x1-node
+    ports:
+      - 8125:8125
+    environment:
+      - ZKEVM_NODE_ISTRUSTEDSEQUENCER=false
+      - ZKEVM_NODE_STATE_DB_USER=test_user
+      - ZKEVM_NODE_STATE_DB_PASSWORD=test_password
+      - ZKEVM_NODE_STATE_DB_NAME=state_db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-permissionless-db
+      - ZKEVM_NODE_POOL_DB_USER=test_user
+      - ZKEVM_NODE_POOL_DB_PASSWORD=test_password
+      - ZKEVM_NODE_POOL_DB_NAME=pool_db
+      - ZKEVM_NODE_POOL_DB_HOST=x1-permissionless-db
+      - ZKEVM_NODE_RPC_PORT=8125
+      - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://x1-json-rpc:8123
+      - ZKEVM_NODE_SYNCHRONIZER_TRUSTEDSEQUENCERURL=http://x1-json-rpc:8123
+      - ZKEVM_NODE_MTCLIENT_URI=x1-permissionless-prover:50061
+      - ZKEVM_NODE_EXECUTOR_URI=x1-permissionless-prover:50071
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/x1-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
+
+
   x1-permissionless-node-forced-DAC:
     container_name: x1-permissionless-node-forced-DAC
     image: x1-node
@@ -405,10 +444,10 @@ services:
       - 8125:8125
     environment:
       - ZKEVM_NODE_ISTRUSTEDSEQUENCER=false
-      - ZKEVM_NODE_STATEDB_USER=test_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=test_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
-      - ZKEVM_NODE_STATEDB_HOST=x1-permissionless-db
+      - ZKEVM_NODE_STATE_DB_USER=test_user
+      - ZKEVM_NODE_STATE_DB_PASSWORD=test_password
+      - ZKEVM_NODE_STATE_DB_NAME=state_db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-permissionless-db
       - ZKEVM_NODE_POOL_DB_USER=test_user
       - ZKEVM_NODE_POOL_DB_PASSWORD=test_password
       - ZKEVM_NODE_POOL_DB_NAME=pool_db
@@ -425,36 +464,11 @@ services:
       - "/bin/sh"
       - "-c"
       - "/app/x1-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
-  x1-permissionless-node:
-    container_name: x1-permissionless-node
-    image: x1-node
-    ports:
-      - 8125:8125
-    environment:
-      - ZKEVM_NODE_ISTRUSTEDSEQUENCER=false
-      - ZKEVM_NODE_STATEDB_USER=test_user
-      - ZKEVM_NODE_STATEDB_PASSWORD=test_password
-      - ZKEVM_NODE_STATEDB_NAME=state_db
-      - ZKEVM_NODE_STATEDB_HOST=x1-permissionless-db
-      - ZKEVM_NODE_POOL_DB_USER=test_user
-      - ZKEVM_NODE_POOL_DB_PASSWORD=test_password
-      - ZKEVM_NODE_POOL_DB_NAME=pool_db
-      - ZKEVM_NODE_POOL_DB_HOST=x1-permissionless-db
-      - ZKEVM_NODE_RPC_PORT=8125
-      - ZKEVM_NODE_RPC_SEQUENCERNODEURI=http://x1-json-rpc:8123
-      - ZKEVM_NODE_MTCLIENT_URI=x1-permissionless-prover:50061
-      - ZKEVM_NODE_EXECUTOR_URI=x1-permissionless-prover:50071
-    volumes:
-      - ./config/test.node.config.toml:/app/config.toml
-      - ./config/test.genesis.config.json:/app/genesis.json
-    command:
-      - "/bin/sh"
-      - "-c"
-      - "/app/x1-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components \"rpc,synchronizer\""
+
 
   x1-permissionless-prover:
     container_name: x1-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v2.2.0
+    image: hermeznetwork/zkevm-prover:v3.0.2
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
@@ -483,7 +497,7 @@ services:
     stdin_open: true 
     tty: true
     environment:
-      - ZKEVM_NODE_STATEDB_HOST=x1-state-db
+      - ZKEVM_NODE_STATE_DB_HOST=x1-state-db
       - ZKEVM_NODE_POOL_DB_HOST=x1-pool-db
     volumes:
       - ./config/test.node.config.toml:/app/config.toml

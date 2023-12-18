@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,7 +24,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/gorilla/websocket"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -567,6 +568,65 @@ func TestChainID(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, s.ChainID(), chainID.Uint64())
+}
+
+func TestCoinbase(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		callSequencer          bool
+		trustedCoinbase        *common.Address
+		permissionlessCoinbase *common.Address
+		error                  error
+		expectedCoinbase       common.Address
+	}{
+		{"Coinbase not configured", true, nil, nil, nil, common.Address{}},
+		{"Get trusted sequencer coinbase directly", true, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Get trusted sequencer coinbase via permissionless", false, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Ignore permissionless config", false, state.AddressPtr(common.HexToAddress("0x2")), state.AddressPtr(common.HexToAddress("0x1")), nil, common.HexToAddress("0x2")},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := getSequencerDefaultConfig()
+			if tc.trustedCoinbase != nil {
+				cfg.L2Coinbase = *tc.trustedCoinbase
+			}
+			sequencerServer, _, _ := newMockedServerWithCustomConfig(t, cfg)
+
+			var nonSequencerServer *mockedServer
+			if !tc.callSequencer {
+				cfg = getNonSequencerDefaultConfig(sequencerServer.ServerURL)
+				if tc.permissionlessCoinbase != nil {
+					cfg.L2Coinbase = *tc.permissionlessCoinbase
+				}
+				nonSequencerServer, _, _ = newMockedServerWithCustomConfig(t, cfg)
+			}
+
+			var res types.Response
+			var err error
+			if tc.callSequencer {
+				res, err = sequencerServer.JSONRPCCall("eth_coinbase")
+			} else {
+				res, err = nonSequencerServer.JSONRPCCall("eth_coinbase")
+			}
+			require.NoError(t, err)
+
+			assert.Nil(t, res.Error)
+			assert.NotNil(t, res.Result)
+
+			var s string
+			err = json.Unmarshal(res.Result, &s)
+			require.NoError(t, err)
+			result := common.HexToAddress(s)
+
+			assert.Equal(t, tc.expectedCoinbase.String(), result.String())
+
+			sequencerServer.Stop()
+			if !tc.callSequencer {
+				nonSequencerServer.Stop()
+			}
+		})
+	}
 }
 
 func TestEstimateGas(t *testing.T) {
@@ -3545,49 +3605,119 @@ func TestNewFilter(t *testing.T) {
 	}
 
 	hash := common.HexToHash("0x42")
-	blockNumber := "8"
+	blockNumber10 := "10"
+	blockNumber10010 := "10010"
+	blockNumber10011 := "10011"
 	testCases := []testCase{
 		{
-			Name: "New filter created successfully",
+			Name: "New filter by block range created successfully",
 			Request: types.LogFilterRequest{
-				ToBlock: &blockNumber,
+				FromBlock: &blockNumber10,
+				ToBlock:   &blockNumber10010,
 			},
 			ExpectedResult: "1",
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
 					Return("1", nil).
 					Once()
 			},
 		},
 		{
-			Name: "failed to create new filter",
+			Name: "New filter by block hash created successfully",
+			Request: types.LogFilterRequest{
+				BlockHash: &hash,
+			},
+			ExpectedResult: "1",
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
+					Return("1", nil).
+					Once()
+			},
+		},
+		{
+			Name: "New filter not created due to from block greater than to block",
+			Request: types.LogFilterRequest{
+				FromBlock: &blockNumber10010,
+				ToBlock:   &blockNumber10,
+			},
+			ExpectedResult: "",
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid block range"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "New filter not created due to block range bigger than allowed",
+			Request: types.LogFilterRequest{
+				FromBlock: &blockNumber10,
+				ToBlock:   &blockNumber10011,
+			},
+			ExpectedResult: "",
+			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "failed to create new filter due to error to store",
 			Request: types.LogFilterRequest{
 				BlockHash: &hash,
 			},
 			ExpectedResult: "",
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new log filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
-				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
-					Return("", errors.New("failed to add new filter")).
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
 					Once()
-			},
-		},
-		{
-			Name: "failed to create new filter because BlockHash and ToBlock are present",
-			Request: types.LogFilterRequest{
-				BlockHash: &hash,
-				ToBlock:   &blockNumber,
-			},
-			ExpectedResult: "",
-			ExpectedError:  types.NewRPCError(types.InvalidParamsErrorCode, "invalid argument 0: cannot specify both BlockHash and FromBlock/ToBlock, choose one or the other"),
-			SetupMocks: func(m *mocksWrapper, tc testCase) {
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
 				m.Storage.
-					On("NewLogFilter", mock.IsType(&websocket.Conn{}), mock.IsType(LogFilter{})).
-					Once().
-					Return("", ErrFilterInvalidPayload).
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
+					Return("", errors.New("failed to add new filter")).
 					Once()
 			},
 		},
@@ -3637,7 +3767,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("1", nil).
 					Once()
 			},
@@ -3648,7 +3778,7 @@ func TestNewBlockFilter(t *testing.T) {
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.Storage.
-					On("NewBlockFilter", mock.IsType(&websocket.Conn{})).
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
 					Return("", errors.New("failed to add new block filter")).
 					Once()
 			},
@@ -3697,9 +3827,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "New pending transaction filter created successfully",
 		// 	ExpectedResult: "1",
 		// 	ExpectedError:  nil,
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("1", nil).
 		// 			Once()
 		// 	},
@@ -3708,9 +3838,9 @@ func TestNewPendingTransactionFilter(t *testing.T) {
 		// 	Name:           "failed to create new pending transaction filter",
 		// 	ExpectedResult: "",
 		// 	ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "failed to create new pending transaction filter"),
-		// 	SetupMocks: func(m *mocks, tc testCase) {
+		// 	SetupMocks: func(m *mocksWrapper, tc testCase) {
 		// 		m.Storage.
-		// 			On("NewPendingTransactionFilter", mock.IsType(&websocket.Conn{})).
+		// 			On("NewPendingTransactionFilter", mock.IsType(&concurrentWsConn{})).
 		// 			Return("", errors.New("failed to add new pending transaction filter")).
 		// 			Once()
 		// 	},
@@ -3949,6 +4079,58 @@ func TestGetLogs(t *testing.T) {
 				m.State.
 					On("GetLastL2BlockNumber", context.Background(), m.DbTx).
 					Return(uint64(0), errors.New("failed to get last block number from state")).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails due to max block range limit exceeded",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range")
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+		{
+			Name: "Get logs fails due to max log count limit exceeded",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(2),
+					Addresses: []common.Address{common.HexToAddress("0x111")},
+					Topics:    [][]common.Hash{{common.HexToHash("0x222")}},
+				}
+				tc.ExpectedResult = nil
+				tc.ExpectedError = types.NewRPCError(types.InvalidParamsErrorCode, "query returned more than 10000 results")
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				var since *time.Time
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLogs", context.Background(), tc.Filter.FromBlock.Uint64(), tc.Filter.ToBlock.Uint64(), tc.Filter.Addresses, tc.Filter.Topics, tc.Filter.BlockHash, since, m.DbTx).
+					Return(nil, state.ErrMaxLogsCountLimitExceeded).
 					Once()
 			},
 		},
@@ -4697,4 +4879,306 @@ func TestGetFilterChanges(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSubscribeNewHeads(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name          string
+		Channel       chan *ethTypes.Header
+		ExpectedError interface{}
+		SetupMocks    func(m *mocksWrapper, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Subscribe to new heads Successfully",
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
+					Return("0x1", nil).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe fails to add filter to storage",
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new block filter"),
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.Storage.
+					On("NewBlockFilter", mock.IsType(&concurrentWsConn{})).
+					Return("", fmt.Errorf("failed to add filter to storage")).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.SetupMocks(m, tc)
+
+			c := s.GetWSClient()
+
+			ctx := context.Background()
+			newHeadsChannel := make(chan *ethTypes.Header, 100)
+			sub, err := c.SubscribeNewHead(ctx, newHeadsChannel)
+
+			if sub != nil {
+				assert.NotNil(t, sub)
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					rpcErr := err.(rpc.Error)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSubscribeNewLogs(t *testing.T) {
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	type testCase struct {
+		Name          string
+		Filter        ethereum.FilterQuery
+		Channel       chan *ethTypes.Log
+		ExpectedError interface{}
+		Prepare       func(t *testing.T, tc *testCase)
+		SetupMocks    func(m *mocksWrapper, tc testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name: "Subscribe to new logs by block hash successfully",
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					BlockHash: &blockHash,
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
+					Return("0x1", nil).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe to new logs fails to add new filter to storage",
+			ExpectedError: types.NewRPCError(types.DefaultErrorCode, "failed to create new log filter"),
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					BlockHash: &blockHash,
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.Storage.
+					On("NewLogFilter", mock.IsType(&concurrentWsConn{}), mock.IsType(LogFilter{})).
+					Return("", fmt.Errorf("failed to add filter to storage")).
+					Once()
+			},
+		},
+		{
+			Name:          "Subscribe to new logs fails due to max block range limit exceeded",
+			ExpectedError: types.NewRPCError(types.InvalidParamsErrorCode, "logs are limited to a 10000 block range"),
+			Prepare: func(t *testing.T, tc *testCase) {
+				tc.Filter = ethereum.FilterQuery{
+					FromBlock: big.NewInt(1), ToBlock: big.NewInt(10002),
+				}
+			},
+			SetupMocks: func(m *mocksWrapper, tc testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			tc.Prepare(t, &tc)
+			tc.SetupMocks(m, tc)
+
+			c := s.GetWSClient()
+
+			ctx := context.Background()
+			newLogs := make(chan ethTypes.Log, 100)
+			sub, err := c.SubscribeFilterLogs(ctx, tc.Filter, newLogs)
+
+			if sub != nil {
+				assert.NotNil(t, sub)
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					rpcErr := err.(rpc.Error)
+					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
+					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestFilterLogs(t *testing.T) {
+	logs := []*ethTypes.Log{{
+		Address: common.HexToAddress("0x1"),
+		Topics: []common.Hash{
+			common.HexToHash("0xA"),
+			common.HexToHash("0xB"),
+		},
+	}}
+
+	// empty filter
+	filteredLogs := filterLogs(logs, &Filter{Parameters: LogFilter{}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by the log address and another random address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x1"),
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by unknown address
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Addresses: []common.Address{
+		common.HexToAddress("0x2"),
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by topic0
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by topic0 but allows any topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by any topic0 but forces topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA")},
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to be any of the values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+		{common.HexToHash("0xA"), common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 1, len(filteredLogs))
+
+	// filtered by forcing topic0 and topic1 to wrong values
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by forcing topic0 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{common.HexToHash("0xB")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 by forcing topic1 to wrong value
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+
+	// filtered by accepting any topic0 and topic1 but forcing topic2 that doesn't exist
+	filteredLogs = filterLogs(logs, &Filter{Parameters: LogFilter{Topics: [][]common.Hash{
+		{},
+		{},
+		{common.HexToHash("0xA")},
+	}}})
+	assert.Equal(t, 0, len(filteredLogs))
+}
+
+func TestContains(t *testing.T) {
+	items := []int{1, 2, 3}
+	assert.Equal(t, false, contains(items, 0))
+	assert.Equal(t, true, contains(items, 1))
+	assert.Equal(t, true, contains(items, 2))
+	assert.Equal(t, true, contains(items, 3))
+	assert.Equal(t, false, contains(items, 4))
+}
+
+func TestParalelize(t *testing.T) {
+	items := []int{
+		1, 2, 3, 4, 5, 6, 7, 8, 9,
+		10, 11, 12, 13, 14, 15, 16,
+	}
+
+	results := map[int][]int{}
+	mu := &sync.Mutex{}
+
+	parallelize(7, items, func(worker int, items []int) {
+		mu.Lock()
+		results[worker] = items
+		mu.Unlock()
+	})
+
+	assert.ElementsMatch(t, []int{1, 2, 3}, results[0])
+	assert.ElementsMatch(t, []int{4, 5, 6}, results[1])
+	assert.ElementsMatch(t, []int{7, 8, 9}, results[2])
+	assert.ElementsMatch(t, []int{10, 11, 12}, results[3])
+	assert.ElementsMatch(t, []int{13, 14, 15}, results[4])
+	assert.ElementsMatch(t, []int{16}, results[5])
 }

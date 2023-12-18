@@ -326,6 +326,30 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorSMMainHashKReadOutOfRange
 	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE:
 		return runtime.ErrExecutorSMMainHashPReadOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_INVALID_OLD_STATE_ROOT:
+		return runtime.ErrExecutorErrorInvalidOldStateRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_OLD_ACC_INPUT_HASH:
+		return runtime.ErrExecutorErrorInvalidOldAccInputHash
+	case ExecutorError_EXECUTOR_ERROR_INVALID_CHAIN_ID:
+		return runtime.ErrExecutorErrorInvalidChainId
+	case ExecutorError_EXECUTOR_ERROR_INVALID_BATCH_L2_DATA:
+		return runtime.ErrExecutorErrorInvalidBatchL2Data
+	case ExecutorError_EXECUTOR_ERROR_INVALID_GLOBAL_EXIT_ROOT:
+		return runtime.ErrExecutorErrorInvalidGlobalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_COINBASE:
+		return runtime.ErrExecutorErrorInvalidCoinbase
+	case ExecutorError_EXECUTOR_ERROR_INVALID_FROM:
+		return runtime.ErrExecutorErrorInvalidFrom
+	case ExecutorError_EXECUTOR_ERROR_INVALID_DB_KEY:
+		return runtime.ErrExecutorErrorInvalidDbKey
+	case ExecutorError_EXECUTOR_ERROR_INVALID_DB_VALUE:
+		return runtime.ErrExecutorErrorInvalidDbValue
+	case ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_KEY:
+		return runtime.ErrExecutorErrorInvalidContractsBytecodeKey
+	case ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE:
+		return runtime.ErrExecutorErrorInvalidContractsBytecodeValue
+	case ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY:
+		return runtime.ErrExecutorErrorInvalidGetKey
 	}
 	return ErrExecutorUnknown
 }
@@ -469,6 +493,30 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHK_READ_OUT_OF_RANGE
 	case runtime.ErrExecutorSMMainHashPReadOutOfRange:
 		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE
+	case runtime.ErrExecutorErrorInvalidOldStateRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_OLD_STATE_ROOT
+	case runtime.ErrExecutorErrorInvalidOldAccInputHash:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_OLD_ACC_INPUT_HASH
+	case runtime.ErrExecutorErrorInvalidChainId:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_CHAIN_ID
+	case runtime.ErrExecutorErrorInvalidBatchL2Data:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_BATCH_L2_DATA
+	case runtime.ErrExecutorErrorInvalidGlobalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_GLOBAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorInvalidCoinbase:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_COINBASE
+	case runtime.ErrExecutorErrorInvalidFrom:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_FROM
+	case runtime.ErrExecutorErrorInvalidDbKey:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_DB_KEY
+	case runtime.ErrExecutorErrorInvalidDbValue:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_DB_VALUE
+	case runtime.ErrExecutorErrorInvalidContractsBytecodeKey:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_KEY
+	case runtime.ErrExecutorErrorInvalidContractsBytecodeValue:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE
+	case runtime.ErrExecutorErrorInvalidGetKey:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
 	}
 	return math.MaxInt32
 }

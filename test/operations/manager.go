@@ -142,7 +142,7 @@ func (m *Manager) CheckConsolidatedRoot(expectedRoot string) error {
 }
 
 // SetGenesisAccountsBalance creates the genesis block in the state.
-func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) error {
+func (m *Manager) SetGenesisAccountsBalance(genesisBlockNumber uint64, genesisAccounts map[string]big.Int) error {
 	var genesisActions []*state.GenesisAction
 	for address, balanceValue := range genesisAccounts {
 		action := &state.GenesisAction{
@@ -153,12 +153,12 @@ func (m *Manager) SetGenesisAccountsBalance(genesisAccounts map[string]big.Int) 
 		genesisActions = append(genesisActions, action)
 	}
 
-	return m.SetGenesis(genesisActions)
+	return m.SetGenesis(genesisBlockNumber, genesisActions)
 }
 
-func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
+func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.GenesisAction) error {
 	genesisBlock := state.Block{
-		BlockNumber: 303,
+		BlockNumber: genesisBlockNumber,
 		BlockHash:   state.ZeroHash,
 		ParentHash:  state.ZeroHash,
 		ReceivedAt:  time.Now(),
@@ -183,7 +183,7 @@ func (m *Manager) SetGenesis(genesisActions []*state.GenesisAction) error {
 }
 
 // SetForkID sets the initial forkID in db for testing purposes
-func (m *Manager) SetForkID(forkID uint64) error {
+func (m *Manager) SetForkID(blockNum uint64, forkID uint64) error {
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func (m *Manager) SetForkID(forkID uint64) error {
 		ToBatchNumber:   math.MaxUint64,
 		ForkId:          forkID,
 		Version:         "forkID",
-		BlockNumber:     303,
+		BlockNumber:     blockNum,
 	}
 	err = m.st.AddForkIDInterval(m.ctx, fID, dbTx)
 
@@ -474,15 +474,15 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 		return nil, err
 	}
 
-	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(sqlDB)
-	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
-	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
-	stateTree := merkletree.NewStateTree(stateDBClient)
-
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed: maxCumulativeGasUsed,
 	}
+
+	ctx := context.Background()
+	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
+	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
+	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
+	stateTree := merkletree.NewStateTree(stateDBClient)
 
 	eventStorage, err := nileventstorage.NewNilEventStorage()
 	if err != nil {

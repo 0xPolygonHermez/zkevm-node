@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -29,6 +30,10 @@ func TestStateTransition(t *testing.T) {
 
 	// Load test vectors
 	testCases, err := vectors.LoadStateTransitionTestCases("./../vectors/src/state-transition/no-data/general.json")
+	require.NoError(t, err)
+	genesisFileAsStr, err := config.LoadGenesisFileAsString("../config/test.genesis.config.json")
+	require.NoError(t, err)
+	genesisConfig, err := config.LoadGenesisFromJSONString(genesisFileAsStr)
 	require.NoError(t, err)
 
 	for _, testCase := range testCases {
@@ -55,7 +60,7 @@ func TestStateTransition(t *testing.T) {
 			for _, gacc := range testCase.GenesisAccounts {
 				genesisAccounts[gacc.Address] = gacc.Balance.Int
 			}
-			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisAccounts))
+			require.NoError(t, opsman.SetGenesisAccountsBalance(genesisConfig.Genesis.GenesisBlockNum, genesisAccounts))
 
 			// Check initial root
 			require.NoError(t, opsman.CheckVirtualRoot(testCase.ExpectedOldRoot))

@@ -64,4 +64,16 @@ var (
 
 	// ErrGasPrice is returned if the transaction has specified lower gas price than the minimum allowed.
 	ErrGasPrice = errors.New("gas price too low")
+
+	// ErrReceivedZeroL1GasPrice is returned if the L1 gas price is 0.
+	ErrReceivedZeroL1GasPrice = errors.New("received L1 gas price 0")
+
+	// ErrInvalidIP is returned if the IP address is invalid.
+	ErrInvalidIP = errors.New("invalid IP address")
+
+	// ErrOutOfCounters is returned if the pool is out of counters.
+	ErrOutOfCounters = errors.New("out of counters")
+
+	// ErrZeroL1GasPrice is returned if the L1 gas price is 0.
+	ErrZeroL1GasPrice = errors.New("L1 gas price 0")
 )

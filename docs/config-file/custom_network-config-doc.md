@@ -70,14 +70,11 @@
 
 **Type:** : `object`
 
-| Property                                 | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [.*](#genesis_items_storage_pattern1 ) | Yes     | string | No         | -          | -                 |
+| Property                                           | Pattern | Type   | Deprecated | Definition | Title/Description |
+| -------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
+| - [](#genesis_items_storage_additionalProperties ) | No      | string | No         | -          | -                 |
 
-##### <a name="genesis_items_storage_pattern1"></a>3.1.5.1. Pattern  `genesis.genesis items.storage..*`
-> All properties whose name matches the regular expression
-```.*``` ([Test](https://regex101.com/?regex=.%2A))
-must respect the following conditions
+##### <a name="genesis_items_storage_additionalProperties"></a>3.1.5.1. `genesis.genesis items.storage.additionalProperties`
 
 **Type:** : `string`
 

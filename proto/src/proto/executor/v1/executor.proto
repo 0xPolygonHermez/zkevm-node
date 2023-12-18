@@ -31,6 +31,8 @@ message ProcessBatchRequest {
     map<string, string> db = 13;
     map<string, string> contracts_bytecode = 14; // For debug/testing purpposes only. Don't fill this on production
     TraceConfig trace_config = 15;
+    string context_id = 16;
+    uint32 get_keys = 17; // if 1, the keys used to read or write storage values will be returned
 }
 
 message ProcessBatchResponse {
@@ -52,6 +54,8 @@ message ProcessBatchResponse {
     uint64 flush_id = 16;
     uint64 stored_flush_id = 17;
     string prover_id = 18;
+    repeated bytes nodes_keys = 19;
+    repeated bytes program_keys = 20;
 }
 
 /**
@@ -167,6 +171,8 @@ message Contract {
     string value = 3;
     bytes data = 4;
     uint64 gas = 5;
+    // Define type of internal call: CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL
+    string type = 6;
 }
 
 message ProcessTransactionResponse {
@@ -197,9 +203,13 @@ message ProcessTransactionResponse {
     // Trace
     repeated ExecutionTraceStep execution_trace = 13;
     CallTrace call_trace = 14;
-     // Efective Gas Price
+    // Efective Gas Price
     string effective_gas_price = 15;
     uint32 effective_percentage = 16;
+    // Flag to indicate if opcode 'GASPRICE' has been called
+    uint32 has_gasprice_opcode = 17;
+    // Flag to indicate if opcode 'BALANCE' has been called
+    uint32 has_balance_opcode = 18;
 }
 
 message Log {
@@ -450,4 +460,28 @@ enum ExecutorError {
     EXECUTOR_ERROR_SM_MAIN_HASHK_READ_OUT_OF_RANGE = 67;
     // EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE indicates that the main execution Poseidon check found read out of range
     EXECUTOR_ERROR_SM_MAIN_HASHP_READ_OUT_OF_RANGE = 68;
+    // EXECUTOR_ERROR_INVALID_OLD_STATE_ROOT indicates that the input parameter old_state_root is invalid
+    EXECUTOR_ERROR_INVALID_OLD_STATE_ROOT = 69;
+    // EXECUTOR_ERROR_INVALID_OLD_ACC_INPUT_HASH indicates that the input parameter old_acc_input_hash is invalid
+    EXECUTOR_ERROR_INVALID_OLD_ACC_INPUT_HASH = 70;
+    // EXECUTOR_ERROR_INVALID_CHAIN_ID indicates that the input parameter chain_id is invalid
+    EXECUTOR_ERROR_INVALID_CHAIN_ID = 71;
+    // EXECUTOR_ERROR_INVALID_BATCH_L2_DATA indicates that the input parameter batch_l2_data is invalid
+    EXECUTOR_ERROR_INVALID_BATCH_L2_DATA = 72;
+    // EXECUTOR_ERROR_INVALID_GLOBAL_EXIT_ROOT indicates that the input parameter global_exit_root is invalid
+    EXECUTOR_ERROR_INVALID_GLOBAL_EXIT_ROOT = 73;
+    // EXECUTOR_ERROR_INVALID_COINBASE indicates that the input parameter coinbase (i.e. sequencer address) is invalid
+    EXECUTOR_ERROR_INVALID_COINBASE = 74;
+    // EXECUTOR_ERROR_INVALID_FROM indicates that the input parameter from is invalid
+    EXECUTOR_ERROR_INVALID_FROM = 75;
+    // EXECUTOR_ERROR_INVALID_DB_KEY indicates that the input parameter db key is invalid
+    EXECUTOR_ERROR_INVALID_DB_KEY = 76;
+    // EXECUTOR_ERROR_INVALID_DB_VALUE indicates that the input parameter db value is invalid
+    EXECUTOR_ERROR_INVALID_DB_VALUE = 77;
+    // EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_KEY indicates that the input parameter contracts_bytecode key is invalid
+    EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_KEY = 78;
+    // EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE indicates that the input parameter contracts_bytecode value is invalid
+    EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE = 79;
+    // EXECUTOR_ERROR_INVALID_GET_KEY indicates that the input parameter get key is invalid, e.g. is true but fork_id<5
+    EXECUTOR_ERROR_INVALID_GET_KEY = 80;
 }

@@ -18,7 +18,7 @@ The preferred way to run the X1 Aggregator component is via Docker and Docker Co
 docker pull okx/x1-node
 ```
 
-To orchestrate multiple deployments of the different X1 Node components, a `docker-compose.yaml` file for Docker Compose can be used:
+To orchestrate multiple deployments of the different ZKEVM Node components, a `docker-compose.yaml` file for Docker Compose can be used:
 
 ```yaml
   x1-aggregator:
@@ -38,7 +38,7 @@ The container alone needs some parameters configured, access to certain configur
     - `your genesis.json file`: /app/genesis.json
 
 - environment: Env variables that supersede the config file
-    - `X1_NODE_STATEDB_HOST`: Name of StateDB Database Host
+    - `X1_NODE_STATE_DB_HOST`: Name of StateDB Database Host
 
 ### The Account Keystore file:
 

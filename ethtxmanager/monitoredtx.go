@@ -73,6 +73,9 @@ type monitoredTx struct {
 	// tx gas
 	gas uint64
 
+	// tx gas offset
+	gasOffset uint64
+
 	// tx gas price
 	gasPrice *big.Int
 
@@ -103,7 +106,7 @@ func (mTx monitoredTx) Tx() *types.Transaction {
 		Nonce:    mTx.nonce,
 		Value:    mTx.value,
 		Data:     mTx.data,
-		Gas:      mTx.gas,
+		Gas:      mTx.gas + mTx.gasOffset,
 		GasPrice: mTx.gasPrice,
 	})
 

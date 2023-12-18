@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
@@ -16,37 +17,6 @@ type Config struct {
 	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
 	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
 
-	// MaxTxsPerBatch is the maximum amount of transactions in the batch
-	MaxTxsPerBatch uint64 `mapstructure:"MaxTxsPerBatch"`
-
-	// MaxBatchBytesSize is the maximum batch size in bytes
-	// (subtracted bits of all types.Sequence fields excluding BatchL2Data from MaxTxSizeForL1)
-	MaxBatchBytesSize uint64 `mapstructure:"MaxBatchBytesSize"`
-
-	// MaxCumulativeGasUsed is max gas amount used by batch
-	MaxCumulativeGasUsed uint64 `mapstructure:"MaxCumulativeGasUsed"`
-
-	// MaxKeccakHashes is max keccak hashes used by batch
-	MaxKeccakHashes uint32 `mapstructure:"MaxKeccakHashes"`
-
-	// MaxPoseidonHashes is max poseidon hashes batch can handle
-	MaxPoseidonHashes uint32 `mapstructure:"MaxPoseidonHashes"`
-
-	// MaxPoseidonPaddings is max poseidon paddings batch can handle
-	MaxPoseidonPaddings uint32 `mapstructure:"MaxPoseidonPaddings"`
-
-	// MaxMemAligns is max mem aligns batch can handle
-	MaxMemAligns uint32 `mapstructure:"MaxMemAligns"`
-
-	// MaxArithmetics is max arithmetics batch can handle
-	MaxArithmetics uint32 `mapstructure:"MaxArithmetics"`
-
-	// MaxBinaries is max binaries batch can handle
-	MaxBinaries uint32 `mapstructure:"MaxBinaries"`
-
-	// MaxSteps is max steps batch can handle
-	MaxSteps uint32 `mapstructure:"MaxSteps"`
-
 	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
 	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
 
@@ -59,8 +29,20 @@ type Config struct {
 	// DBManager's specific config properties
 	DBManager DBManagerCfg `mapstructure:"DBManager"`
 
-	// EffectiveGasPrice is the config for the gas price
-	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+	// StreamServerCfg is the config for the stream server
+	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
+}
+
+// StreamServerCfg contains the data streamer's configuration properties
+type StreamServerCfg struct {
+	// Port to listen on
+	Port uint16 `mapstructure:"Port"`
+	// Filename of the binary data file
+	Filename string `mapstructure:"Filename"`
+	// Enabled is a flag to enable/disable the data streamer
+	Enabled bool `mapstructure:"Enabled"`
+	// Log is the log configuration
+	Log log.Config `mapstructure:"Log"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
@@ -107,26 +89,4 @@ type FinalizerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
-}
-
-// EffectiveGasPriceCfg contains the configuration properties for the effective gas price
-type EffectiveGasPriceCfg struct {
-	// MaxBreakEvenGasPriceDeviationPercentage is the max allowed deviation percentage BreakEvenGasPrice on re-calculation
-	MaxBreakEvenGasPriceDeviationPercentage uint64 `mapstructure:"MaxBreakEvenGasPriceDeviationPercentage"`
-
-	// L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price
-	L1GasPriceFactor float64 `mapstructure:"L1GasPriceFactor"`
-
-	// ByteGasCost is the gas cost per byte
-	ByteGasCost uint64 `mapstructure:"ByteGasCost"`
-
-	// MarginFactor is the margin factor percentage to be added to the L2 min gas price
-	MarginFactor float64 `mapstructure:"MarginFactor"`
-
-	// Enabled is a flag to enable/disable the effective gas price
-	Enabled bool `mapstructure:"Enabled"`
-
-	// DefaultMinGasPriceAllowed is the default min gas price to suggest
-	// This value is assigned from [Pool].DefaultMinGasPriceAllowed
-	DefaultMinGasPriceAllowed uint64
 }

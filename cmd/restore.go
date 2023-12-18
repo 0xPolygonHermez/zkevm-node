@@ -50,7 +50,7 @@ func restore(ctx *cli.Context) error {
 		return errors.New("stateDB input file must end in .sql.tar.gz")
 	}
 
-	d, err := db.NewSQLDB(c.StateDB)
+	d, err := db.NewSQLDB(c.State.DB)
 	if err != nil {
 		log.Error("error conecting to stateDB. Error: ", err)
 		return err
@@ -60,17 +60,17 @@ func restore(ctx *cli.Context) error {
 		log.Error("error dropping state schema or migration table. Error: ", err)
 		return err
 	}
-	port, err := strconv.Atoi(c.StateDB.Port)
+	port, err := strconv.Atoi(c.State.DB.Port)
 	if err != nil {
 		log.Error("error converting port to int. Error: ", err)
 		return err
 	}
 	restore, err := pg.NewRestore(&pg.Postgres{
-		Host:     c.StateDB.Host,
+		Host:     c.State.DB.Host,
 		Port:     port,
-		DB:       c.StateDB.Name,
-		Username: c.StateDB.User,
-		Password: c.StateDB.Password,
+		DB:       c.State.DB.Name,
+		Username: c.State.DB.User,
+		Password: c.State.DB.Password,
 	})
 	if err != nil {
 		log.Error("error: ", err)

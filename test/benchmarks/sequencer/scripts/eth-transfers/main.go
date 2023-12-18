@@ -1,34 +1,39 @@
 package main
 
 import (
-	"time"
+	"flag"
+	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/transactions"
-	ethtransfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/eth-transfers"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/environment"
-	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/common/results"
+	ethtransfers "github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/e2e/eth-transfers"
+	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/scripts/environment"
 )
 
 func main() {
 	var (
 		err error
 	)
-	ctx, pl, state, l2Client, auth := environment.Init()
+	numOps := flag.Uint64("num-ops", 200, "The number of operations to run. Default is 200.")
+	flag.Parse()
+	if numOps == nil {
+		panic("numOps is nil")
+	}
+
+	pl, l2Client, auth := environment.Init()
 	initialCount, err := pl.CountTransactionsByStatus(params.Ctx, pool.TxStatusSelected)
 	if err != nil {
 		panic(err)
 	}
 
-	start := time.Now()
-	// Send Txs
-	err = transactions.SendAndWait(
-		ctx,
+	allTxs, err := transactions.SendAndWait(
 		auth,
 		l2Client,
-		pl.CountTransactionsByStatus,
-		params.NumberOfTxs,
+		pl.GetTxsByStatus,
+		*numOps,
+		nil,
 		nil,
 		ethtransfers.TxSender,
 	)
@@ -37,15 +42,11 @@ func main() {
 	}
 
 	// Wait for Txs to be selected
-	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, params.NumberOfTxs)
+	err = transactions.WaitStatusSelected(pl.CountTransactionsByStatus, initialCount, *numOps)
 	if err != nil {
 		panic(err)
 	}
 
-	lastL2BlockTimestamp, err := state.GetLastL2BlockCreatedAt(params.Ctx, nil)
-	if err != nil {
-		panic(err)
-	}
-	elapsed := lastL2BlockTimestamp.Sub(start)
-	results.Print(elapsed)
+	totalGas := metrics.GetTotalGasUsedFromTxs(l2Client, allTxs)
+	fmt.Println("Total Gas: ", totalGas)
 }

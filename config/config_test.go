@@ -41,16 +41,20 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(100),
 		},
 		{
+			path:          "Synchronizer.L1SynchronizationMode",
+			expectedValue: "sequential",
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
+			expectedValue: uint64(10),
+		},
+		{
+			path:          "Synchronizer.L1ParallelSynchronization.MaxPendingNoProcessedBlocks",
+			expectedValue: uint64(25),
+		},
+		{
 			path:          "Sequencer.WaitPeriodPoolIsEmpty",
 			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "Sequencer.MaxTxsPerBatch",
-			expectedValue: uint64(300),
-		},
-		{
-			path:          "Sequencer.MaxBatchBytesSize",
-			expectedValue: uint64(120000),
 		},
 		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
@@ -59,38 +63,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.FrequencyToCheckTxsForDelete",
 			expectedValue: types.NewDuration(12 * time.Hour),
-		},
-		{
-			path:          "Sequencer.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
-		},
-		{
-			path:          "Sequencer.MaxKeccakHashes",
-			expectedValue: uint32(2145),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonHashes",
-			expectedValue: uint32(252357),
-		},
-		{
-			path:          "Sequencer.MaxPoseidonPaddings",
-			expectedValue: uint32(135191),
-		},
-		{
-			path:          "Sequencer.MaxMemAligns",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxArithmetics",
-			expectedValue: uint32(236585),
-		},
-		{
-			path:          "Sequencer.MaxBinaries",
-			expectedValue: uint32(473170),
-		},
-		{
-			path:          "Sequencer.MaxSteps",
-			expectedValue: uint32(7570538),
 		},
 		{
 			path:          "Sequencer.TxLifetimeCheckTimeout",
@@ -145,32 +117,24 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.EffectiveGasPrice.MaxBreakEvenGasPriceDeviationPercentage",
-			expectedValue: uint64(10),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.L1GasPriceFactor",
-			expectedValue: float64(0.25),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.ByteGasCost",
-			expectedValue: uint64(16),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.MarginFactor",
-			expectedValue: float64(1),
-		},
-		{
-			path:          "Sequencer.EffectiveGasPrice.Enabled",
-			expectedValue: false,
-		},
-		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
 			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
 			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Sequencer.StreamServer.Port",
+			expectedValue: uint16(0),
+		},
+		{
+			path:          "Sequencer.StreamServer.Filename",
+			expectedValue: "",
+		},
+		{
+			path:          "Sequencer.StreamServer.Enabled",
+			expectedValue: false,
 		},
 		{
 			path:          "SequenceSender.WaitPeriodSendSequence",
@@ -183,6 +147,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "SequenceSender.MaxBatchesForL1",
 			expectedValue: uint64(10),
+		},
+		{
+			path:          "SequenceSender.GasOffset",
+			expectedValue: uint64(80000),
 		},
 		{
 			path:          "Etherman.URL",
@@ -245,31 +213,31 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "x1-prover:50061",
 		},
 		{
-			path:          "StateDB.User",
+			path:          "State.DB.User",
 			expectedValue: "state_user",
 		},
 		{
-			path:          "StateDB.Password",
+			path:          "State.DB.Password",
 			expectedValue: "state_password",
 		},
 		{
-			path:          "StateDB.Name",
+			path:          "State.DB.Name",
 			expectedValue: "state_db",
 		},
 		{
-			path:          "StateDB.Host",
+			path:          "State.DB.Host",
 			expectedValue: "x1-state-db",
 		},
 		{
-			path:          "StateDB.Port",
+			path:          "State.DB.Port",
 			expectedValue: "5432",
 		},
 		{
-			path:          "StateDB.EnableLog",
+			path:          "State.DB.EnableLog",
 			expectedValue: false,
 		},
 		{
-			path:          "StateDB.MaxConns",
+			path:          "State.DB.MaxConns",
 			expectedValue: 200,
 		},
 		{
@@ -304,6 +272,34 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.GlobalQueue",
 			expectedValue: uint64(1024),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.Enabled",
+			expectedValue: false,
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.L1GasPriceFactor",
+			expectedValue: float64(0.25),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ByteGasCost",
+			expectedValue: uint64(16),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.ZeroByteGasCost",
+			expectedValue: uint64(4),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.NetProfit",
+			expectedValue: float64(1),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.BreakEvenFactor",
+			expectedValue: float64(1.1),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.FinalDeviationPct",
+			expectedValue: uint64(10),
 		},
 		{
 			path:          "Pool.DB.User",
@@ -362,6 +358,30 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "RPC.BatchRequestsEnabled",
+			expectedValue: false,
+		},
+		{
+			path:          "RPC.BatchRequestsLimit",
+			expectedValue: uint(20),
+		},
+		{
+			path:          "RPC.MaxLogsCount",
+			expectedValue: uint64(10000),
+		},
+		{
+			path:          "RPC.MaxLogsBlockRange",
+			expectedValue: uint64(10000),
+		},
+		{
+			path:          "RPC.MaxNativeBlockHashBlockRange",
+			expectedValue: uint64(60000),
+		},
+		{
+			path:          "RPC.EnableHttpLog",
+			expectedValue: true,
+		},
+		{
 			path:          "RPC.WebSockets.Enabled",
 			expectedValue: true,
 		},
@@ -372,6 +392,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "RPC.WebSockets.Port",
 			expectedValue: int(8546),
+		},
+		{
+			path:          "RPC.WebSockets.ReadLimit",
+			expectedValue: int64(104857600),
 		},
 		{
 			path:          "Executor.URI",
@@ -436,6 +460,46 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Aggregator.GeneratingProofCleanupThreshold",
 			expectedValue: "10m",
+		},
+		{
+			path:          "Aggregator.GasOffset",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxTxsPerBatch",
+			expectedValue: uint64(300),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBatchBytesSize",
+			expectedValue: uint64(120000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxCumulativeGasUsed",
+			expectedValue: uint64(30000000),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxKeccakHashes",
+			expectedValue: uint32(2145),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonHashes",
+			expectedValue: uint32(252357),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxPoseidonPaddings",
+			expectedValue: uint32(135191),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxMemAligns",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxArithmetics",
+			expectedValue: uint32(236585),
+		},
+		{
+			path:          "State.Batch.Constraints.MaxBinaries",
+			expectedValue: uint32(473170),
 		},
 	}
 	file, err := os.CreateTemp("", "genesisConfig")

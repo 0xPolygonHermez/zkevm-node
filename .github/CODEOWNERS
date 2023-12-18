@@ -1,12 +1,19 @@
-*.md                    @arnaubennassar
-aggregator/             @Mikelle @KonradIT
-cmd/                    @tclemos
-db/                     @Mikelle @tclemos
-docs/                   @arnaubennassar
-etherman/               @ARR552 @cool-develope
-jsonrpc/                @tclemos @KonradIT
-pool/                   @Mikelle @tclemos @KonradIT
-sequencer/              @Mikelle @ToniRamirezM @KonradIT
+*.md                    @agnusmor
+aggregator/             @agnusmor
+ci/                     @agnusmor @tclemos @ToniRamirezM @ARR552
+cmd/                    @tclemos @ToniRamirezM @ARR552
+config/                 @agnusmor @tclemos @ToniRamirezM @ARR552
+db/                     @tclemos @ToniRamirezM @ARR552
+docs/                   @agnusmor @joanestebanr
+etherman/               @ARR552 @joanestebanr
+ethtxmanager/           @tclemos
+gasprice/               @ARR552
+jsonrpc/                @tclemos
+merkletree/             @ToniRamirezM
+pool/                   @tclemos
+proto/                  @ToniRamirezM
+sequencer/              @ToniRamirezM @dpunish3r @agnusmor
+sequencesender/         @ToniRamirezM @dpunish3r @agnusmor
 state/                  @ToniRamirezM @tclemos
-synchronizer/           @ARR552 @cool-develope
+synchronizer/           @ARR552 @joanestebanr
 test/                   @tclemos

@@ -9,14 +9,14 @@ Note that sequencing and proving functionalities are not covered in this documen
 
 ## Requirements
 
-- A machine to run the X1 node with the following requirements:
+- A machine to run the x1 node with the following requirements:
   - Hardware: 32G RAM, 4 cores, 128G Disk with high IOPS (as the network is super young the current disk requirements are quite low, but they will increase overtime. Also note that this requirement is true if the DBs run on the same machine, but it's recommended to run Postgres on dedicated infra). Currently ARM-based CPUs are not supported
   - Software: Ubuntu 22.04, Docker
-- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for X1 testnet, Ethereum mainnet for X1 mainnet)
+- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for x1 testnet, Ethereum mainnet for x1 mainnet)
 
 ## Setup
 
-This is the most straightforward path to run a X1 node, and it's perfectly fine for most use cases, however if you are interested in providing service to many users it's recommended to do some tweaking over the default configuration. Furthermore, this is quite opinionated, feel free to run this software in a different way, for instance it's not needed to use Docker, you could use the Go and C++ binaries directly.
+This is the most straightforward path to run a x1 node, and it's perfectly fine for most use cases, however if you are interested in providing service to many users it's recommended to do some tweaking over the default configuration. Furthermore, this is quite opinionated, feel free to run this software in a different way, for instance it's not needed to use Docker, you could use the Go and C++ binaries directly.
 
 tl;dr:
 
@@ -25,7 +25,7 @@ tl;dr:
 ZKEVM_NET=mainnet
 ZKEVM_DIR=./path/to/install # CHANGE THIS
 ZKEVM_CONFIG_DIR=./path/to/config  # CHANGE THIS
-curl -L https://github.com/okx/x1-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_DIR.zip -d $ZKEVM_DIR && rm $ZKEVM_DIR.zip
+curl -L https://github.com/okx/x1-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip
 mkdir -p $ZKEVM_CONFIG_DIR && cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env
 
 # EDIT THIS env file:
@@ -41,13 +41,13 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using
-5. Download and extract the artifacts: `curl -L https://github.com/okx/x1-node/releases/latest/download/$X1_NET.zip > $X1_NET.zip && unzip -o $X1_NET.zip -d $X1_DIR && rm $X1_NET.zip`. Note you may need to install `unzip` for this command to work. 
+5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work.
 
-> **NOTE:** Take into account this works for the latest release (mainnet), in case you want to deploy a pre-release (testnet) you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/okx) you can check the node release deployed for each network.
+> **NOTE:** Take into account this works for the latest release (mainnet), in case you want to deploy a pre-release (testnet) you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/0xPolygonHermez) you can check the node release deployed for each network.
 
 6. Copy the file with the env parameters into config directory: `mkdir -p $ZKEVM_CONFIG_DIR && cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:
-   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/testnet/* $ZKEVM_CONFIG_DIR/`
+   1. Copy the config files into the config directory `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/$ZKEVM_NET/* $ZKEVM_CONFIG_DIR/`
    2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` from `$ZKEVM_CONFIG_DIR/.env` with the correct path
    3. Edit the different configuration files in the $ZKEVM_CONFIG_DIR directory and make the necessary changes
 8. Run the node: `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml up -d`. You may need to run this command using `sudo` depending on your Docker setup.
@@ -102,4 +102,4 @@ There can be as many instances of it as needed, but in order to not introduce ot
 
 - Read replicas of the State DB should be used
 - Synchronizer should have an exclusive instance of `x1-prover`
-- JSON RPCs should scale in correlation with instances of `x1-prover`. The most obvious way to do so is by having a dedicated `x1-prover` for each `x1-rpc`. But depending on the payload of your solution it could be worth to have `1 x1-rpc : many x1-prover` or `many x1-rpc : 1 x1-prover`, ... For reference, the `x1-prover` implements the EVM, and therefore will be heavily used when calling endpoints such as `eth_call`. On the other hand, there are other endpoints that relay on the `x1-state-db`
+- JSON RPCs should scale in correlation with instances of `x1-prover`. The most obvious way to do so is by having a dedicated `zkevm-prover` for each `zkevm-rpc`. But depending on the payload of your solution it could be worth to have `1 zkevm-rpc : many zkevm-prover` or `many zkevm-rpc : 1 zkevm-prover`, ... For reference, the `zkevm-prover` implements the EVM, and therefore will be heavily used when calling endpoints such as `eth_call`. On the other hand, there are other endpoints that relay on the `zkevm-state-db`
