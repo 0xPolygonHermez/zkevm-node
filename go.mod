@@ -8,7 +8,7 @@ require (
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum/go-ethereum v1.13.2
 	github.com/go-git/go-billy/v5 v5.5.0
-	github.com/go-git/go-git/v5 v5.10.1
+	github.com/go-git/go-git/v5 v5.11.0
 	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/google/uuid v1.5.0
 	github.com/habx/pg-commands v0.6.1
