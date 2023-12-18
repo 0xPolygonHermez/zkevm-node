@@ -38,6 +38,8 @@ type Batch struct {
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
 	Resources      BatchResources
+	// WIP: if WIP == true is a openBatch
+	WIP bool
 }
 
 // ProcessingContext is the necessary data that a batch needs to provide to the runtime,

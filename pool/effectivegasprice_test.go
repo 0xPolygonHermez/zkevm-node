@@ -136,7 +136,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(553),
+			expectedValue: new(big.Int).SetUint64(33),
 		},
 		{
 			name:          "Test l1GasPrice=0",
@@ -161,7 +161,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(633),
+			expectedValue: new(big.Int).SetUint64(113),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=10",
@@ -169,7 +169,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(573),
+			expectedValue: new(big.Int).SetUint64(53),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5",
@@ -177,7 +177,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(603),
+			expectedValue: new(big.Int).SetUint64(83),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5 minGasPrice",
@@ -185,7 +185,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    10,
-			expectedValue: new(big.Int).SetUint64(67),
+			expectedValue: new(big.Int).SetUint64(15),
 		},
 	}
 
@@ -224,7 +224,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    1000,
-			expectedValue: new(big.Int).SetUint64(633),
+			expectedValue: new(big.Int).SetUint64(113),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=10",
@@ -233,7 +233,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    500,
-			expectedValue: new(big.Int).SetUint64(573 * 2),
+			expectedValue: new(big.Int).SetUint64(53 * 2),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5",
@@ -242,7 +242,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    250,
-			expectedValue: new(big.Int).SetUint64(603 * 4),
+			expectedValue: new(big.Int).SetUint64(83 * 4),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5 minGasPrice",
@@ -251,7 +251,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    10,
 			l2GasPrice:    1100,
-			expectedValue: new(big.Int).SetUint64(67),
+			expectedValue: new(big.Int).SetUint64(15),
 		},
 	}
 
