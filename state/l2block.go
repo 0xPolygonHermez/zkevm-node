@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -24,9 +25,9 @@ type gethBlock struct {
 // L2Header represents a block header in the L2.
 type L2Header struct {
 	*gethHeader
-	LocalExitRoot  *common.Hash `json:"localExitRoot"`
-	GlobalExitRoot *common.Hash `json:"globalExitRoot"`
-	BlockInfoRoot  *common.Hash `json:"blockInfoRoot"`
+	LocalExitRoot  common.Hash `json:"localExitRoot"`
+	GlobalExitRoot common.Hash `json:"globalExitRoot"`
+	BlockInfoRoot  common.Hash `json:"blockInfoRoot"`
 }
 
 // NewL2Header creates an instance of L2Header from a types.Header
@@ -55,17 +56,9 @@ func (h *L2Header) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	if h.LocalExitRoot != nil {
-		m["localExitRoot"] = h.LocalExitRoot.String()
-	}
-
-	if h.GlobalExitRoot != nil {
-		m["globalExitRoot"] = h.GlobalExitRoot.String()
-	}
-
-	if h.GlobalExitRoot != nil {
-		m["blockInfoRoot"] = h.BlockInfoRoot.String()
-	}
+	m["localExitRoot"] = h.LocalExitRoot.String()
+	m["globalExitRoot"] = h.GlobalExitRoot.String()
+	m["blockInfoRoot"] = h.BlockInfoRoot.String()
 
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -96,16 +89,13 @@ func (h *L2Header) UnmarshalJSON(input []byte) error {
 
 	h.gethHeader = &gethHeader{header}
 	if localExitRoot, found := m["localExitRoot"]; found {
-		root := common.HexToHash(localExitRoot.(string))
-		h.LocalExitRoot = &root
+		h.LocalExitRoot = common.HexToHash(localExitRoot.(string))
 	}
 	if globalExitRoot, found := m["globalExitRoot"]; found {
-		root := common.HexToHash(globalExitRoot.(string))
-		h.GlobalExitRoot = &root
+		h.GlobalExitRoot = common.HexToHash(globalExitRoot.(string))
 	}
 	if blockInfoRoot, found := m["blockInfoRoot"]; found {
-		root := common.HexToHash(blockInfoRoot.(string))
-		h.BlockInfoRoot = &root
+		h.BlockInfoRoot = common.HexToHash(blockInfoRoot.(string))
 	}
 
 	return nil
@@ -123,13 +113,18 @@ type L2Block struct {
 	ReceivedFrom interface{}
 }
 
+// LocalExitRoot returns the header LocalExitRoot
+func (b *L2Block) LocalExitRoot() common.Hash {
+	return b.Header().LocalExitRoot
+}
+
 // GlobalExitRoot returns the header GlobalExitRoot
-func (b *L2Block) GlobalExitRoot() *common.Hash {
+func (b *L2Block) GlobalExitRoot() common.Hash {
 	return b.Header().GlobalExitRoot
 }
 
 // BlockInfoRoot returns the header BlockInfoRoot
-func (b *L2Block) BlockInfoRoot() *common.Hash {
+func (b *L2Block) BlockInfoRoot() common.Hash {
 	return b.Header().BlockInfoRoot
 }
 
@@ -147,6 +142,11 @@ func (b *L2Block) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+// Number returns the block header number.
+func (b *L2Block) Number() *big.Int {
+	return b.header.Number
 }
 
 // ForceHash allows the block hash to be overwritten
@@ -212,14 +212,9 @@ func CopyHeader(h *L2Header) *L2Header {
 	}
 	cpy := *h
 	cpy.gethHeader = &gethHeader{types.CopyHeader(h.gethHeader.Header)}
-	if h.GlobalExitRoot != nil {
-		cpy.GlobalExitRoot = new(common.Hash)
-		*cpy.GlobalExitRoot = *h.GlobalExitRoot
-	}
-	if h.LocalExitRoot != nil {
-		cpy.LocalExitRoot = new(common.Hash)
-		*cpy.LocalExitRoot = *h.LocalExitRoot
-	}
+	cpy.LocalExitRoot = h.LocalExitRoot
+	cpy.GlobalExitRoot = h.GlobalExitRoot
+	cpy.BlockInfoRoot = h.BlockInfoRoot
 	return &cpy
 }
 

@@ -28,8 +28,10 @@ service HashDBService {
     rpc GetProgram(GetProgramRequest) returns (GetProgramResponse) {}
     rpc LoadDB(LoadDBRequest) returns (google.protobuf.Empty) {}
     rpc LoadProgramDB(LoadProgramDBRequest) returns (google.protobuf.Empty) {}
+    rpc FinishTx (FinishTxRequest) returns (google.protobuf.Empty) {}
+    rpc StartBlock (StartBlockRequest) returns (google.protobuf.Empty) {}
+    rpc FinishBlock (FinishBlockRequest) returns (google.protobuf.Empty) {}
     rpc Flush (FlushRequest) returns (FlushResponse) {}
-    rpc SemiFlush (SemiFlushRequest) returns (google.protobuf.Empty) {}
     rpc GetFlushStatus (google.protobuf.Empty) returns (GetFlushStatusResponse) {}
     rpc GetFlushData (GetFlushDataRequest) returns (GetFlushDataResponse) {}
     rpc ConsolidateState (ConsolidateStateRequest) returns (ConsolidateStateResponse) {}
@@ -152,12 +154,36 @@ message FlushRequest {
 }
 
 /**
- * @dev SemiFlushRequest
- * @param {batch_uuid} - indicates a unique identifier of the current batch or session which data will be semi-flushed
+ * @dev FinishTxRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which tx will be finished
  * @param {new_state_root} - state root at this point of the execution
  * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
  */
-message SemiFlushRequest {
+message FinishTxRequest {
+    string batch_uuid = 1;
+    string new_state_root = 2;
+    Persistence persistence = 3;
+}
+
+/**
+ * @dev StartBlockRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which block started
+ * @param {new_state_root} - state root at this point of the execution
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message StartBlockRequest {
+    string batch_uuid = 1;
+    string old_state_root = 2;
+    Persistence persistence = 3;
+}
+
+/**
+ * @dev FinishBlockRequest
+ * @param {batch_uuid} - indicates a unique identifier of the current batch or session which block will be finished
+ * @param {new_state_root} - state root at this point of the execution
+ * @param {persistence} - indicates if it should be stored only in CACHE, in the SQL DATABASE, or it is just TEMPORARY and should be deleted at the flush of this batch UUID
+ */
+message FinishBlockRequest {
     string batch_uuid = 1;
     string new_state_root = 2;
     Persistence persistence = 3;
@@ -240,6 +266,8 @@ message GetLatestStateRootResponse {
  * @param {proof_hash_counter}
  * @param {db_read_log} - list of db records read during the execution of the request
  * @param {result} - result code
+ * @param {sibling_left_child} - on delete not found, use children to hash intermediate node (to be sure that it's a intermediate)
+ * @param {sibling_right_child} - on delete not found, use children to hash intermediate node (to be sure that it's a intermediate)
  */
 message SetResponse {
     Fea old_root = 1;
@@ -255,6 +283,8 @@ message SetResponse {
     uint64 proof_hash_counter = 11;
     map<string, FeList> db_read_log = 12;
     ResultCode result = 13;
+    Fea sibling_left_child = 14;
+    Fea sibling_right_child = 15;
 }
 
 /**

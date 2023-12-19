@@ -204,13 +204,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := lastBlock.Header()
-			header.ParentHash = lastBlock.Hash()
-			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
-			header.TxHash = ethTypes.EmptyRootHash
-			header.UncleHash = ethTypes.EmptyUncleHash
-			block := state.NewL2BlockWithHeader(header)
-			rpcBlock, err := types.NewBlock(block, nil, fullTx, true)
+			l2Header := state.NewL2Header(&ethTypes.Header{
+				ParentHash: lastBlock.Hash(),
+				Number:     big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1),
+				TxHash:     ethTypes.EmptyRootHash,
+				UncleHash:  ethTypes.EmptyUncleHash,
+			})
+			l2Block := state.NewL2BlockWithHeader(l2Header)
+			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -223,14 +224,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			return nil, rpcErr
 		}
 
-		block, err := z.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+		l2Block, err := z.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load block from state by number %v", blockNumber), err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -240,7 +241,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.HashPtr(l2Block.Hash()), l2Block, receipts, fullTx, true)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -252,14 +253,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 // GetFullBlockByHash returns information about a block by hash
 func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		block, err := z.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
+		l2Block, err := z.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -269,7 +270,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.HashPtr(l2Block.Hash()), l2Block, receipts, fullTx, true)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
