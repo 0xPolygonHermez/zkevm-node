@@ -18,11 +18,13 @@ import (
 type ProcessRequest struct {
 	BatchNumber               uint64
 	GlobalExitRoot_V1         common.Hash
-	L1InfoTree_V2             L1InfoTreeExitRootStorageEntry
+	L1InfoRoot_V2             common.Hash
+	L1InfoTreeData_V2         map[uint32]L1DataV2
 	OldStateRoot              common.Hash
 	OldAccInputHash           common.Hash
 	Transactions              []byte
 	Coinbase                  common.Address
+	ForcedBlockHashL1         common.Hash
 	Timestamp_V1              time.Time
 	TimestampLimit_V2         uint64
 	Caller                    metrics.CallerLabel
@@ -30,6 +32,13 @@ type ProcessRequest struct {
 	SkipWriteBlockInfoRoot_V2 bool
 	SkipVerifyL1InfoRoot_V2   bool
 	ForkID                    uint64
+}
+
+type L1DataV2 struct {
+	GlobalExitRoot common.Hash
+	BlockHashL1    common.Hash
+	MinTimestamp   uint64
+	SmtProof       [][]byte
 }
 
 // ProcessBatchResponse represents the response of a batch process.

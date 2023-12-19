@@ -114,11 +114,9 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			processRequest := state.ProcessRequest{
-				BatchNumber: uint64(i + 1),
-				L1InfoTree_V2: state.L1InfoTreeExitRootStorageEntry{
-					L1InfoTreeRoot:  common.HexToHash(testCase.L1InfoRoot),
-					L1InfoTreeIndex: 0,
-				},
+				BatchNumber:       uint64(i + 1),
+				L1InfoRoot_V2:     common.HexToHash(testCase.L1InfoRoot),
+				L1InfoTreeData_V2: map[uint32]state.L1DataV2{},
 				OldStateRoot:      stateRoot,
 				OldAccInputHash:   common.HexToHash(testCase.OldAccInputHash),
 				Transactions:      common.FromHex(testCase.BatchL2Data),
