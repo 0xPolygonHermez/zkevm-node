@@ -58,6 +58,8 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		SMTKeys_V2:           convertToKeys(batchResponse.SmtKeys),
 		ProgramKeys_V2:       convertToKeys(batchResponse.ProgramKeys),
 		ForkID:               batchResponse.ForkId,
+		InvalidBatch_V2:      batchResponse.InvalidBatch != 0,
+		RomError_V2:          executor.RomErr(batchResponse.ErrorRom),
 	}, nil
 }
 
@@ -87,6 +89,7 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 		result.BlockHash = common.Hash(response.BlockHash)
 		result.TransactionResponses = transactionResponses
 		result.Logs = convertToLogV2(response.Logs)
+		result.RomError_V2 = executor.RomErr(response.Error)
 
 		results = append(results, result)
 	}
