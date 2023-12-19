@@ -53,6 +53,8 @@ type ProcessBatchResponse struct {
 	SMTKeys_V2           []merkletree.Key
 	ProgramKeys_V2       []merkletree.Key
 	ForkID               uint64
+	InvalidBatch_V2      bool
+	RomError_V2          error
 }
 
 // ProcessBlockResponse represents the response of a block
@@ -69,6 +71,7 @@ type ProcessBlockResponse struct {
 	BlockHash            common.Hash
 	TransactionResponses []*ProcessTransactionResponse
 	Logs                 []*types.Log
+	RomError_V2          error
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

@@ -291,6 +291,7 @@ message ProcessBatchRequestV2 {
     // where each entry specifies some state to be ephemerally overridden
     // prior to executing the call.
     map<string, OverrideAccountV2> state_override = 23;
+    DebugV2 debug = 24;
 }
 
 message L1DataV2 {
@@ -298,6 +299,14 @@ message L1DataV2 {
     bytes block_hash_l1 = 2;
     uint64 min_timestamp = 3;
     repeated bytes smt_proof = 4;
+}
+
+message DebugV2 {
+    uint64 gas_limit = 1;
+    bytes new_state_root = 2; 
+    bytes new_acc_input_hash = 3;
+    bytes new_local_exit_root = 4;
+    uint64 new_batch_num = 5;
 }
 
 message ProcessBatchResponseV2 {
@@ -323,6 +332,8 @@ message ProcessBatchResponseV2 {
     repeated bytes smt_keys = 20;
     repeated bytes program_keys = 21;
     uint64 fork_id = 22;
+    uint32 invalid_batch = 23;
+    RomError error_rom = 24;
 }
 
 // Trace configuration request params
@@ -470,6 +481,8 @@ message ProcessBlockResponseV2 {
     repeated ProcessTransactionResponseV2 responses = 11;
     // All Logs emited by LOG opcode during the block
     repeated LogV2 logs = 12;
+    // Any error encountered during block execution
+    RomError error = 13;
 }
 
 message ProcessTransactionResponseV2 {
@@ -608,8 +621,10 @@ enum RomError {
     ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK = 31;
     // ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK indicates that the first transaction in a batch is not a change l2 block transaction
     ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK = 32;
-    // ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK indicates that the change l2 block transaction has trigger an error during while executing
-    ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK = 33;
+    // ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP indicates that the change l2 block transaction has trigger an error during while executing
+    ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP = 33;
+    // ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP indicates that the change l2 block transaction has trigger an error during while executing
+    ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP = 34;
 }
 
 enum ExecutorError {
@@ -821,4 +836,10 @@ enum ExecutorError {
     EXECUTOR_ERROR_INVALID_BALANCE = 102;
     // EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH indicates that the binary instruction less than four opcode failed
     EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH = 103;
+    // EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT indicates that the input parameter new_state_root is invalid
+    EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT = 104;
+    // EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH indicates that the input parameter new_acc_input_hash is invalid
+    EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH = 105;
+    // EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT indicates that the input parameter new_local_exit_root is invalid
+    EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT = 106;
 }
