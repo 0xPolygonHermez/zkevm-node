@@ -130,7 +130,6 @@ func TestExecutorUnsignedTransactions(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 	_, err = testState.SetGenesis(ctx, state.Block{}, test.Genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
@@ -229,7 +228,6 @@ func TestExecutorEstimateGas(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
 	test.InitOrResetDB(test.StateDBCfg)
 
@@ -549,7 +547,6 @@ func TestExecutorGasEstimationMultisig(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
 	test.InitOrResetDB(test.StateDBCfg)
 
@@ -903,7 +900,6 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 			Value:   "100000000000000000000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 	_, err = testState.SetGenesis(ctx, state.Block{}, test.Genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
@@ -1294,7 +1290,6 @@ func TestExecutorInvalidNonce(t *testing.T) {
 					Value:   strconv.FormatUint(testCase.currentNonce, encoding.Base10),
 				},
 			}
-			test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 			dbTx, err := testState.BeginStateTransaction(ctx)
 			require.NoError(t, err)
 			stateRoot, err := testState.SetGenesis(ctx, block, test.Genesis, metrics.SynchronizerCallerLabel, dbTx)
@@ -1367,7 +1362,6 @@ func TestExecutorRevert(t *testing.T) {
 			Value:   "10000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
 	test.InitOrResetDB(test.StateDBCfg)
 
@@ -1508,7 +1502,6 @@ func TestExecutorTransfer(t *testing.T) {
 			Value:   "10000000",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 	test.InitOrResetDB(test.StateDBCfg)
 
 	dbTx, err := testState.BeginStateTransaction(ctx)

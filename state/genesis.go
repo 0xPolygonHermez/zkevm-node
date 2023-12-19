@@ -25,8 +25,6 @@ type Genesis struct {
 	Root common.Hash
 	// Actions is the data to populate into the state trie
 	Actions []*GenesisAction
-	// Data of the first batch after the genesis(Batch 1)
-	FirstBatchData *BatchData
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -38,15 +36,6 @@ type GenesisAction struct {
 	Key             string `json:"key"`
 	Value           string `json:"value"`
 	Root            string `json:"root"`
-}
-
-// BatchData represents the data of the first batch that contains initial transaction
-type BatchData struct {
-	Transactions      string         `json:"transactions"`
-	GlobalExitRoot    common.Hash    `json:"globalExitRoot"`
-	Timestamp         uint64         `json:"timestamp"`
-	Sequencer         common.Address `json:"sequencer"`
-	ForcedBlockHashL1 common.Hash    `json:"forcedBlockHashL1"`
 }
 
 // SetGenesis populates state with genesis information

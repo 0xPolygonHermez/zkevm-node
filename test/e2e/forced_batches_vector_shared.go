@@ -63,15 +63,10 @@ func LaunchTestForcedBatchesVectorFilesGroup(t *testing.T, vectorFilesDir string
 				log.Info("# Setting Genesis #")
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
-				genesisConfig.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.BlockNumber, genesisActions))
 				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.BlockNumber, forkID6))
 				actualOldStateRoot, err := opsman.State().GetLastStateRoot(ctx, nil)
 				require.NoError(t, err)
-				dbTx, err := opsman.BeginStateTransaction()
-				require.NoError(t, err)
-				require.NoError(t, opsman.SetInitialBatch(genesisConfig.Genesis, dbTx))
-				require.NoError(t, dbTx.Commit(ctx))
 				require.NoError(t, opsman.Setup())
 
 				// Check initial root
