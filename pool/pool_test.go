@@ -1775,7 +1775,7 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		Actions:        genesisActions,
+		Actions: genesisActions,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)

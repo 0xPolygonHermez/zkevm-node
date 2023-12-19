@@ -119,9 +119,9 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 
 	cfg.L1Config = cfgJSON.L1Config
 	cfg.Genesis = state.Genesis{
-		BlockNumber:    cfgJSON.GenesisBlockNum,
-		Root:           common.HexToHash(cfgJSON.Root),
-		Actions:        []*state.GenesisAction{},
+		BlockNumber: cfgJSON.GenesisBlockNum,
+		Root:        common.HexToHash(cfgJSON.Root),
+		Actions:     []*state.GenesisAction{},
 	}
 
 	for _, account := range cfgJSON.Genesis {

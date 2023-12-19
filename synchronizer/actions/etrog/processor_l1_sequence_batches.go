@@ -158,14 +158,15 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 		}
 		// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
 		var (
-			processCtx state.ProcessingContextV2
+			processCtx        state.ProcessingContextV2
 			currentL1InfoTree state.L1InfoTreeExitRootStorageEntry
-			err error
+			err               error
 		)
 		if sbatch.BatchNumber == 1 {
 			log.Debug("Processing initial batch")
 			l1InfoRoot := g.state.GetCurrentL1InfoRoot()
 			var forcedBlockHashL1 common.Hash = sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1
+			txs := sbatch.PolygonRollupBaseEtrogBatchData.Transactions
 			processCtx = state.ProcessingContextV2{
 				BatchNumber: 1,
 				Coinbase:    sbatch.SequencerAddr,
@@ -173,7 +174,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				L1InfoRoot: state.L1InfoTreeExitRootStorageEntry{
 					L1InfoTreeRoot: l1InfoRoot,
 				},
-				BatchL2Data:          &sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				BatchL2Data:          &txs,
 				ForcedBlockHashL1:    &forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
 			}

@@ -591,7 +591,7 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case obsoleteRollupTypeSignatureHash:
 		log.Debug("ObsoleteRollupType event detected. Ignoring...")
 		return nil
-	case addNewRollupTypeSignatureHash:  
+	case addNewRollupTypeSignatureHash:
 		log.Debug("addNewRollupType event detected but not implemented. Ignoring...")
 		return nil
 	case setBatchFeeSignatureHash:
@@ -686,10 +686,10 @@ func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.L
 		TxHash:        vLog.TxHash,
 		Nonce:         msg.Nonce,
 		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
-			Transactions: initialSequenceBatches.Transactions,
+			Transactions:         initialSequenceBatches.Transactions,
 			ForcedGlobalExitRoot: initialSequenceBatches.LastGlobalExitRoot,
-			ForcedTimestamp: fullBlock.Time(),
-			ForcedBlockHashL1: fullBlock.ParentHash(),
+			ForcedTimestamp:      fullBlock.Time(),
+			ForcedBlockHashL1:    fullBlock.ParentHash(),
 		},
 	})
 
