@@ -39,8 +39,6 @@ type GenesisFromJSON struct {
 	Genesis []genesisAccountFromJSON `json:"genesis"`
 	// L1: configuration of the network
 	L1Config etherman.L1Config
-	// Data of the first batch after the genesis(Batch 1)
-	FirstBatchData *state.BatchData `json:"firstBatchData"`
 }
 
 type genesisAccountFromJSON struct {
@@ -124,7 +122,6 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 		BlockNumber:    cfgJSON.GenesisBlockNum,
 		Root:           common.HexToHash(cfgJSON.Root),
 		Actions:        []*state.GenesisAction{},
-		FirstBatchData: cfgJSON.FirstBatchData,
 	}
 
 	for _, account := range cfgJSON.Genesis {

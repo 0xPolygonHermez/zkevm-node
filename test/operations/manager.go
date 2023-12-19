@@ -19,14 +19,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -506,49 +504,6 @@ func initState(cfg state.Config) (*state.State, error) {
 
 func (m *Manager) BeginStateTransaction() (pgx.Tx, error) {
 	return m.st.BeginStateTransaction(m.ctx)
-}
-
-func (m *Manager) SetInitialBatch(genesis state.Genesis, dbTx pgx.Tx) error {
-	log.Debug("Setting initial transaction batch 1")
-	// Process FirstTransaction included in batch 1
-	batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
-	processCtx := state.ProcessingContext{
-		BatchNumber:    1,
-		Coinbase:       genesis.FirstBatchData.Sequencer,
-		Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
-		GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
-		BatchL2Data:    &batchL2Data,
-	}
-	_, _, _, err := m.st.ProcessAndStoreClosedBatch(m.ctx, processCtx, batchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
-	if err != nil {
-		log.Error("error storing batch 1. Error: ", err)
-		return err
-	}
-
-	// Virtualize Batch and add sequence
-	virtualBatch1 := state.VirtualBatch{
-		BatchNumber:   1,
-		TxHash:        state.ZeroHash,
-		Coinbase:      genesis.FirstBatchData.Sequencer,
-		BlockNumber:   genesis.BlockNumber,
-		SequencerAddr: genesis.FirstBatchData.Sequencer,
-	}
-	err = m.st.AddVirtualBatch(m.ctx, &virtualBatch1, dbTx)
-	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.BlockNumber, err)
-		return err
-	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence{
-		FromBatchNumber: 1,
-		ToBatchNumber:   1,
-	}
-	err = m.st.AddSequence(m.ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		return err
-	}
-	return nil
 }
 
 // StartNetwork starts the L1 network container
