@@ -87,6 +87,8 @@ type egpStats struct {
 	countGasFinal    uint64 // Count number of accumulated (to get average)
 	sumGasPreEGP     uint64 // Accumulated sum of gas without EGP
 	countGasPreEGP   uint64 // Count number of accumulated pre EGP (to get average)
+	sumFee           uint64
+	sumFeePreEGP     uint64
 }
 
 func main() {
@@ -396,21 +398,25 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 		} else {
 			stats.totalUsedWeird++
 		}
+
+		// Tx Fee
+		stats.sumFee += egp.LogValueFinal * egp.LogGasUsedSecond
+
 		// Gas total and average
 		stats.countGasFinal++
 		stats.sumGasFinal += egp.LogValueFinal
-		// Gas total and average without EGP
-		if cfg != nil {
-			stats.countGasPreEGP++
-			var gasUsed uint64
-			if !egp.LogReprocess {
-				gasUsed = egp.LogGasUsedFirst
-			} else {
-				gasUsed = egp.LogGasUsedSecond
-			}
 
-			stats.sumGasPreEGP += uint64(float64(egp.LogL1GasPrice) * cfg.L2GasPriceSugFactorPreEGP * float64(gasUsed))
+		// Gas total and average without EGP
+		var l2SugPreEGP float64
+		if cfg != nil {
+			l2SugPreEGP = cfg.L2GasPriceSugFactorPreEGP
+		} else {
+			l2SugPreEGP = 0.1
 		}
+
+		stats.countGasPreEGP++
+		stats.sumGasPreEGP += uint64(float64(egp.LogL1GasPrice) * l2SugPreEGP)
+		stats.sumFeePreEGP += uint64(float64(egp.LogL1GasPrice) * l2SugPreEGP * float64(egp.LogGasUsedSecond))
 
 		// Loss
 		if egp.LogValueFinal == egp.LogGasPrice {
@@ -477,7 +483,7 @@ func printEgpLogRecord(record *egpLogRecord, showTxInfo bool) {
 // printStats prints EGP statistics
 func printStats(stats *egpStats) {
 	const (
-		MWEI_DIV = 1000000
+		GWEI_DIV = 1000000000
 		ETH_DIV  = 1000000000000000000
 	)
 
@@ -505,26 +511,34 @@ func printStats(stats *egpStats) {
 		fmt.Printf("        Used User Gas....: [%d] (%.2f%%)\n", stats.totalUsedUser, float64(stats.totalUsedUser)/float64(statsCount)*100)
 		fmt.Printf("        Used Weird Gas...: [%d] (%.2f%%)\n", stats.totalUsedWeird, float64(stats.totalUsedWeird)/float64(statsCount)*100)
 		if stats.countGasFinal > 0 {
-			fmt.Printf("    Gas average..........: [%d] (%d MWei) (%.9f ETH)\n", stats.sumGasFinal/stats.countGasFinal,
-				uint64(float64(stats.sumGasFinal/stats.countGasFinal)/MWEI_DIV), float64(stats.sumGasFinal/stats.countGasFinal)/ETH_DIV)
+			fmt.Printf("    Gas price avg........: [%d] (%.3f GWei) (%.9f ETH)\n", stats.sumGasFinal/stats.countGasFinal,
+				float64(stats.sumGasFinal/stats.countGasFinal)/GWEI_DIV, float64(stats.sumGasFinal/stats.countGasFinal)/ETH_DIV)
+		}
+		if stats.countGasFinal > 0 {
+			fmt.Printf("    Tx fee avg...........: [%d] (%.3f GWei) (%.9f ETH)\n", stats.sumFee/stats.countGasFinal,
+				float64(stats.sumFee/stats.countGasFinal)/GWEI_DIV, float64(stats.sumFee/stats.countGasFinal)/ETH_DIV)
 		}
 		if stats.countGasPreEGP > 0 {
-			fmt.Printf("    Gas avg pre EGP......: [%d] (%d MWei) (%.9f ETH)\n", stats.sumGasPreEGP/stats.countGasPreEGP,
-				uint64(float64(stats.sumGasPreEGP/stats.countGasPreEGP)/MWEI_DIV), float64(stats.sumGasPreEGP/stats.countGasPreEGP)/ETH_DIV)
-			fmt.Printf("    Diff EGP-preEGP......: [%d] (%d Mwei) (%.9f ETH)\n", int64(stats.sumGasFinal-stats.sumGasPreEGP),
-				int64(float64(int64(stats.sumGasFinal-stats.sumGasPreEGP))/MWEI_DIV), float64(int64(stats.sumGasFinal-stats.sumGasPreEGP))/ETH_DIV)
+			fmt.Printf("    Gas pri.avg preEGP...: [%d] (%.3f GWei) (%.9f ETH)\n", stats.sumGasPreEGP/stats.countGasPreEGP,
+				float64(stats.sumGasPreEGP/stats.countGasPreEGP)/GWEI_DIV, float64(stats.sumGasPreEGP/stats.countGasPreEGP)/ETH_DIV)
 		}
+		if stats.countGasPreEGP > 0 {
+			fmt.Printf("    Tx fee avg preEGP....: [%d] (%.3f GWei) (%.9f ETH)\n", stats.sumFeePreEGP/stats.countGasPreEGP,
+				float64(stats.sumFeePreEGP/stats.countGasPreEGP)/GWEI_DIV, float64(stats.sumFeePreEGP/stats.countGasPreEGP)/ETH_DIV)
+		}
+		fmt.Printf("    Diff fee EGP-preEGP..: [%d] (%.3f Gwei) (%.9f ETH)\n", int64(stats.sumFee-stats.sumFeePreEGP),
+			float64(int64(stats.sumFee-stats.sumFeePreEGP))/GWEI_DIV, float64(int64(stats.sumFee-stats.sumFeePreEGP))/ETH_DIV)
 		fmt.Printf("    Loss count.......: [%d] (%.2f%%)\n", stats.totalLossCount, float64(stats.totalLossCount)/float64(statsCount)*100)
-		if stats.totalLoss < MWEI_DIV*10 {
+		if stats.totalLoss < GWEI_DIV*10 {
 			fmt.Printf("    Loss total.......: [%d] (%d KWei)\n", stats.totalLoss, stats.totalLoss/1000)
 		} else {
-			fmt.Printf("    Loss total.......: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/MWEI_DIV, float64(stats.totalLoss)/ETH_DIV)
+			fmt.Printf("    Loss total.......: [%d] (%d GWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/GWEI_DIV, float64(stats.totalLoss)/ETH_DIV)
 		}
 		if stats.totalLossCount > 0 {
-			if stats.totalLoss/stats.totalLossCount < MWEI_DIV*10 {
+			if stats.totalLoss/stats.totalLossCount < GWEI_DIV*10 {
 				fmt.Printf("    Loss average.....: [%d] (%d KWei)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000)
 			} else {
-				fmt.Printf("    Loss average.....: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/MWEI_DIV,
+				fmt.Printf("    Loss average.....: [%d] (%d GWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/GWEI_DIV,
 					float64(stats.totalLoss/stats.totalLossCount)/ETH_DIV)
 			}
 		}
