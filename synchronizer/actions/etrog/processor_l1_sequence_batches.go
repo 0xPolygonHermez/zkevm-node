@@ -118,7 +118,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			BatchL2Data: sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
 		}
 		// ForcedBatch must be processed
-		if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 { // If this is true means that the batch is forced
+		if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber != 1 { // If this is true means that the batch is forced
 			log.Debug("FORCED BATCH SEQUENCED!")
 			// Read forcedBatches from db
 			forcedBatches, err := g.state.GetNextForcedBatches(ctx, 1, dbTx)
@@ -156,25 +156,47 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			log.Debug("Setting forcedBatchNum: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
 		}
-		currentL1InfoTree, err := g.state.GetL1InfoRootLeafByL1InfoRoot(ctx, *sbatch.L1InfoRoot, dbTx)
-		if err != nil {
-			log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
-			rollbackErr := dbTx.Rollback(ctx)
-			if rollbackErr != nil {
-				log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
-				return rollbackErr
-			}
-			return err
-		}
 		// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
-		processCtx := state.ProcessingContextV2{
-			BatchNumber:          batch.BatchNumber,
-			Coinbase:             batch.Coinbase,
-			Timestamp:            batch.Timestamp,
-			L1InfoRoot:           currentL1InfoTree,
-			ForcedBatchNum:       batch.ForcedBatchNum,
-			BatchL2Data:          &batch.BatchL2Data,
-			SkipVerifyL1InfoRoot: 0,
+		var (
+			processCtx state.ProcessingContextV2
+			currentL1InfoTree state.L1InfoTreeExitRootStorageEntry
+			err error
+		)
+		if sbatch.BatchNumber == 1 {
+			log.Debug("Processing initial batch")
+			l1InfoRoot := g.state.GetCurrentL1InfoRoot()
+			var forcedBlockHashL1 common.Hash = sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1
+			processCtx = state.ProcessingContextV2{
+				BatchNumber: 1,
+				Coinbase:    sbatch.SequencerAddr,
+				Timestamp:   time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
+				L1InfoRoot: state.L1InfoTreeExitRootStorageEntry{
+					L1InfoTreeRoot: l1InfoRoot,
+				},
+				BatchL2Data:          &sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				ForcedBlockHashL1:    &forcedBlockHashL1,
+				SkipVerifyL1InfoRoot: 1,
+			}
+		} else {
+			currentL1InfoTree, err = g.state.GetL1InfoRootLeafByL1InfoRoot(ctx, *sbatch.L1InfoRoot, dbTx)
+			if err != nil {
+				log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
+				rollbackErr := dbTx.Rollback(ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
+				return err
+			}
+			processCtx = state.ProcessingContextV2{
+				BatchNumber:          batch.BatchNumber,
+				Coinbase:             batch.Coinbase,
+				Timestamp:            batch.Timestamp,
+				L1InfoRoot:           currentL1InfoTree,
+				ForcedBatchNum:       batch.ForcedBatchNum,
+				BatchL2Data:          &batch.BatchL2Data,
+				SkipVerifyL1InfoRoot: 0,
+			}
 		}
 
 		var newRoot common.Hash
