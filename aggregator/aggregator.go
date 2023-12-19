@@ -990,7 +990,6 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, err
 	}
 
-	// TODO: Evaluate storing the latest index in the batch table
 	for _, l2blockRaw := range batchRawData.Blocks {
 		_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
 		if !contained {
