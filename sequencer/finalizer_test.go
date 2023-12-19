@@ -2156,23 +2156,6 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	assert.Equal(t, expected, f.nextForcedBatchDeadline)
 }
 
-// TODO: remove this test
-func TestFinalizer_setNextGERDeadline(t *testing.T) {
-	// arrange
-	f = setupFinalizer(false)
-	now = testNow
-	defer func() {
-		now = time.Now
-	}()
-	expected := now().Unix() + int64(f.cfg.GERDeadlineTimeout.Duration.Seconds())
-
-	// act
-	f.setNextGERDeadline()
-
-	// assert
-	assert.Equal(t, expected, f.nextGERDeadline)
-}
-
 func TestFinalizer_getConstraintThresholdUint64(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
@@ -2334,9 +2317,9 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		handlingL2Reorg:            false,
 		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
 		eventLog:                   eventLog,
-		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToProcessWG: new(sync.WaitGroup),
-		pendingL2BlocksToStore:     make(chan *L2Block, pendingL2BlocksBufferSize), //TODO: review buffer size
+		pendingL2BlocksToStore:     make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToStoreWG:   new(sync.WaitGroup),
 		storedFlushID:              0,
 		storedFlushIDCond:          sync.NewCond(new(sync.Mutex)),

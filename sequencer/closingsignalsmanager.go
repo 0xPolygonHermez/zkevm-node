@@ -7,6 +7,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
 
+// TODO: closingSignalsManager now is only used to notifiy new forced batches to process, maybe it's better to remove this struct and add the
+// check for new forced batches as a go func of the finalizer/sequencer
 type closingSignalsManager struct {
 	ctx                    context.Context
 	state                  stateInterface
@@ -22,46 +24,7 @@ func newClosingSignalsManager(ctx context.Context, state stateInterface, closing
 
 func (c *closingSignalsManager) Start() {
 	go c.checkForcedBatches()
-	//go c.checkGERUpdate() //TODO: delete this go func and all GER related data and funcs
 }
-
-/*
-func (c *closingSignalsManager) checkGERUpdate() {
-	lastBatch, err := c.dbManager.GetLastBatch(c.ctx)
-	for err != nil {
-		log.Errorf("error getting last batch: %v", err)
-		time.Sleep(time.Second)
-		lastBatch, err = c.dbManager.GetLastBatch(c.ctx)
-	}
-	lastGERSent := lastBatch.GlobalExitRoot
-	for {
-		time.Sleep(c.cfg.ClosingSignalsManagerWaitForCheckingGER.Duration)
-
-		lastL1BlockNumber, err := c.etherman.GetLatestBlockNumber(c.ctx)
-		if err != nil {
-			log.Errorf("error getting latest L1 block number: %v", err)
-			continue
-		}
-
-		maxBlockNumber := uint64(0)
-		if c.cfg.GERFinalityNumberOfBlocks <= lastL1BlockNumber {
-			maxBlockNumber = lastL1BlockNumber - c.cfg.GERFinalityNumberOfBlocks
-		}
-
-		ger, _, err := c.dbManager.GetLatestGer(c.ctx, maxBlockNumber)
-		if err != nil {
-			log.Errorf("error checking GER update: %v", err)
-			continue
-		}
-
-		if ger.GlobalExitRoot != lastGERSent {
-			log.Debugf("sending GER update signal (GER: %v)", ger.GlobalExitRoot)
-			c.closingSignalCh.GERCh <- ger.GlobalExitRoot
-			lastGERSent = ger.GlobalExitRoot
-		}
-	}
-}
-*/
 
 func (c *closingSignalsManager) checkForcedBatches() {
 	for {
