@@ -9,7 +9,7 @@ Since this is an implementation of a protocol it's fundamental to understand it,
 Glossary:
 
 - L1: Base blockchain where the rollup smart contracts are deployed. It's Ethereum or a testnet of Ethereum, but it could be any EVM compatible blockchain.
-- L2: the rollup network aka the X1 network.
+- L2: the rollup network aka the x1 network.
 - Batch: a group of transactions that are executed/proved, using the [X1 prover]() and sent to / synchronized from L1
 - Sequencer: the actor that is responsible for selecting transactions, putting them in a specific order, and sending them in batches to L1
 - Trusted sequencer: sequencer that has special privileges, there can only be one trusted sequencer. The privileges granted to the trusted sequencer allow it to forecast the batches that will be applied to L1. This way it can commit to a specific sequence before interacting with L1. This is done to achieve fast finality and reduce costs associated with using the network (lower gas fees)
