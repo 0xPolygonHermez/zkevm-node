@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -18,7 +17,7 @@ func (c *Client) BatchNumber(ctx context.Context) (uint64, error) {
 	}
 
 	if response.Error != nil {
-		return 0, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return 0, response.Error.RPCError()
 	}
 
 	var result string
@@ -36,13 +35,17 @@ func (c *Client) BatchNumber(ctx context.Context) (uint64, error) {
 // BatchByNumber returns a batch from the current canonical chain. If number is nil, the
 // latest known batch is returned.
 func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error) {
-	response, err := JSONRPCCall(c.url, "zkevm_getBatchByNumber", types.ToBatchNumArg(number), true)
+	bn := types.LatestBatchNumber
+	if number != nil {
+		bn = types.BatchNumber(number.Int64())
+	}
+	response, err := JSONRPCCall(c.url, "zkevm_getBatchByNumber", bn.StringOrHex(), true)
 	if err != nil {
 		return nil, err
 	}
 
 	if response.Error != nil {
-		return nil, fmt.Errorf("%v %v", response.Error.Code, response.Error.Message)
+		return nil, response.Error.RPCError()
 	}
 
 	var result *types.Batch
