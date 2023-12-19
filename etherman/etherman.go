@@ -366,7 +366,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 			zkevmVersion.NumBatch = updateRollupEvent.LastVerifiedBatchBeforeUpgrade
 
 		case addExistingRollupSignatureHash:
-			log.Debug("updateRollup Event received")
+			log.Debug("addExistingRollup Event received")
 			addExistingRollupEvent, err := etherMan.RollupManager.ParseAddExistingRollup(l)
 			if err != nil {
 				return []state.ForkIDInterval{}, err
@@ -585,15 +585,15 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case updateRollupSignatureHash:
 		return etherMan.updateRollup(ctx, vLog, blocks, blocksOrder)
 	case addExistingRollupSignatureHash:
-		log.Debug("AddExistingRollup event detected but not implemented. Ignoring...")
-		return nil
+		return etherMan.addExistingRollup(ctx, vLog, blocks, blocksOrder)
 	case createNewRollupSignatureHash:
 		return etherMan.createNewRollup(ctx, vLog, blocks, blocksOrder)
 	case obsoleteRollupTypeSignatureHash:
 		log.Debug("ObsoleteRollupType event detected. Ignoring...")
 		return nil
-	case addNewRollupTypeSignatureHash:
-		return etherMan.addExistingRollup(ctx, vLog, blocks, blocksOrder)
+	case addNewRollupTypeSignatureHash:  
+		log.Debug("addNewRollupType event detected but not implemented. Ignoring...")
+		return nil
 	case setBatchFeeSignatureHash:
 		log.Debug("SetBatchFee event detected. Ignoring...")
 		return nil
