@@ -96,3 +96,56 @@ func (p *PostgresStorage) GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1I
 	}
 	return entry, nil
 }
+
+func (p *PostgresStorage) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
+	const getL1InfoRootByIndexSQL = `SELECT block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index
+		FROM state.exit_root 
+		WHERE l1_info_tree_index = $1`
+
+	var entry state.L1InfoTreeExitRootStorageEntry
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, getL1InfoRootByIndexSQL, l1InfoTreeIndex).Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
+		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
+	if err != nil {
+		return entry, err
+	}
+	return entry, nil
+}
+
+func (p *PostgresStorage) GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error) {
+	// TODO: Optimize this query
+	const getLeafsByL1InfoRootSQL = `SELECT block_num, timestamp, mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index
+		FROM state.exit_root 
+		WHERE l1_info_tree_index IS NOT NULL AND l1_info_tree_index <= (SELECT l1_info_tree_index FROM state.exit_root WHERE l1_info_root=$1)
+		ORDER BY l1_info_tree_index ASC`
+
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getLeafsByL1InfoRootSQL, l1InfoRoot)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	entries := make([]state.L1InfoTreeExitRootStorageEntry, 0)
+
+	for rows.Next() {
+		entry, err := scanL1InfoTreeExitRootStorageEntry(rows)
+		if err != nil {
+			return entries, err
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
+}
+
+func scanL1InfoTreeExitRootStorageEntry(row pgx.Row) (state.L1InfoTreeExitRootStorageEntry, error) {
+	entry := state.L1InfoTreeExitRootStorageEntry{}
+
+	if err := row.Scan(
+		&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
+		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex); err != nil {
+		return entry, err
+	}
+	return entry, nil
+}
