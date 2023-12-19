@@ -19,16 +19,26 @@ type ProcessRequest struct {
 	BatchNumber               uint64
 	GlobalExitRoot_V1         common.Hash
 	L1InfoRoot_V2             common.Hash
+	L1InfoTreeData_V2         map[uint32]L1DataV2
 	OldStateRoot              common.Hash
 	OldAccInputHash           common.Hash
 	Transactions              []byte
 	Coinbase                  common.Address
+	ForcedBlockHashL1         common.Hash
 	Timestamp_V1              time.Time
 	TimestampLimit_V2         uint64
 	Caller                    metrics.CallerLabel
 	SkipFirstChangeL2Block_V2 bool
 	SkipWriteBlockInfoRoot_V2 bool
+	SkipVerifyL1InfoRoot_V2   bool
 	ForkID                    uint64
+}
+
+type L1DataV2 struct {
+	GlobalExitRoot common.Hash
+	BlockHashL1    common.Hash
+	MinTimestamp   uint64
+	SmtProof       [][]byte
 }
 
 // ProcessBatchResponse represents the response of a batch process.
@@ -52,6 +62,8 @@ type ProcessBatchResponse struct {
 	SMTKeys_V2           []merkletree.Key
 	ProgramKeys_V2       []merkletree.Key
 	ForkID               uint64
+	InvalidBatch_V2      bool
+	RomError_V2          error
 }
 
 // ProcessBlockResponse represents the response of a block
@@ -68,6 +80,7 @@ type ProcessBlockResponse struct {
 	BlockHash            common.Hash
 	TransactionResponses []*ProcessTransactionResponse
 	Logs                 []*types.Log
+	RomError_V2          error
 }
 
 // ProcessTransactionResponse represents the response of a tx process.

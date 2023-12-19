@@ -25,6 +25,7 @@ type TxTracker struct {
 	IP                string    // IP of the tx sender
 	FailedReason      *string   // FailedReason is the reason why the tx failed, if it failed
 	EffectiveGasPrice *big.Int
+	EGPPercentage     byte
 	IsLastExecution   bool
 	EGPLog            state.EffectiveGasPriceLog
 	L1GasPrice        uint64

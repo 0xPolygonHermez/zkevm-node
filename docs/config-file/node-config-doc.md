@@ -2701,12 +2701,11 @@ chainId=0
 **Type:** : `object`
 **Description:** L1: Genesis of the rollup, first block number and root
 
-| Property                                                   | Pattern | Type             | Deprecated | Definition | Title/Description                                                             |
-| ---------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------- |
-| - [BlockNumber](#NetworkConfig_Genesis_BlockNumber )       | No      | integer          | No         | -          | BlockNumber is the block number where the polygonZKEVM smc was deployed on L1 |
-| - [Root](#NetworkConfig_Genesis_Root )                     | No      | array of integer | No         | -          | Root hash of the genesis block                                                |
-| - [Actions](#NetworkConfig_Genesis_Actions )               | No      | array of object  | No         | -          | Actions is the data to populate into the state trie                           |
-| - [FirstBatchData](#NetworkConfig_Genesis_FirstBatchData ) | No      | object           | No         | -          | Data of the first batch after the genesis(Batch 1)                            |
+| Property                                             | Pattern | Type             | Deprecated | Definition | Title/Description                                                             |
+| ---------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------- |
+| - [BlockNumber](#NetworkConfig_Genesis_BlockNumber ) | No      | integer          | No         | -          | BlockNumber is the block number where the polygonZKEVM smc was deployed on L1 |
+| - [Root](#NetworkConfig_Genesis_Root )               | No      | array of integer | No         | -          | Root hash of the genesis block                                                |
+| - [Actions](#NetworkConfig_Genesis_Actions )         | No      | array of object  | No         | -          | Actions is the data to populate into the state trie                           |
 
 #### <a name="NetworkConfig_Genesis_BlockNumber"></a>13.2.1. `NetworkConfig.Genesis.BlockNumber`
 
@@ -2786,39 +2785,6 @@ BlockNumber=0
 ##### <a name="NetworkConfig_Genesis_Actions_items_root"></a>13.2.3.1.7. `NetworkConfig.Genesis.Actions.Actions items.root`
 
 **Type:** : `string`
-
-#### <a name="NetworkConfig_Genesis_FirstBatchData"></a>13.2.4. `[NetworkConfig.Genesis.FirstBatchData]`
-
-**Type:** : `object`
-**Description:** Data of the first batch after the genesis(Batch 1)
-
-| Property                                                                        | Pattern | Type             | Deprecated | Definition | Title/Description |
-| ------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [transactions](#NetworkConfig_Genesis_FirstBatchData_transactions )           | No      | string           | No         | -          | -                 |
-| - [globalExitRoot](#NetworkConfig_Genesis_FirstBatchData_globalExitRoot )       | No      | array of integer | No         | -          | -                 |
-| - [timestamp](#NetworkConfig_Genesis_FirstBatchData_timestamp )                 | No      | integer          | No         | -          | -                 |
-| - [sequencer](#NetworkConfig_Genesis_FirstBatchData_sequencer )                 | No      | array of integer | No         | -          | -                 |
-| - [forcedBlockHashL1](#NetworkConfig_Genesis_FirstBatchData_forcedBlockHashL1 ) | No      | array of integer | No         | -          | -                 |
-
-##### <a name="NetworkConfig_Genesis_FirstBatchData_transactions"></a>13.2.4.1. `NetworkConfig.Genesis.FirstBatchData.transactions`
-
-**Type:** : `string`
-
-##### <a name="NetworkConfig_Genesis_FirstBatchData_globalExitRoot"></a>13.2.4.2. `NetworkConfig.Genesis.FirstBatchData.globalExitRoot`
-
-**Type:** : `array of integer`
-
-##### <a name="NetworkConfig_Genesis_FirstBatchData_timestamp"></a>13.2.4.3. `NetworkConfig.Genesis.FirstBatchData.timestamp`
-
-**Type:** : `integer`
-
-##### <a name="NetworkConfig_Genesis_FirstBatchData_sequencer"></a>13.2.4.4. `NetworkConfig.Genesis.FirstBatchData.sequencer`
-
-**Type:** : `array of integer`
-
-##### <a name="NetworkConfig_Genesis_FirstBatchData_forcedBlockHashL1"></a>13.2.4.5. `NetworkConfig.Genesis.FirstBatchData.forcedBlockHashL1`
-
-**Type:** : `array of integer`
 
 ## <a name="L2GasPriceSuggester"></a>14. `[L2GasPriceSuggester]`
 

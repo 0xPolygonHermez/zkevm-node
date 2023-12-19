@@ -232,6 +232,12 @@
                 "internalType": "uint8",
                 "name": "rollupCompatibilityID",
                 "type": "uint8"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint64",
+                "name": "lastVerifiedBatchBeforeUpgrade",
+                "type": "uint64"
             }
         ],
         "name": "AddExistingRollup",
@@ -1262,6 +1268,16 @@
                 "internalType": "contract IVerifierRollup",
                 "name": "zkEVMVerifier",
                 "type": "address"
+            },
+            {
+                "internalType": "uint64",
+                "name": "zkEVMForkID",
+                "type": "uint64"
+            },
+            {
+                "internalType": "uint64",
+                "name": "zkEVMChainID",
+                "type": "uint64"
             }
         ],
         "name": "initialize",

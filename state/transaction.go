@@ -279,8 +279,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 	l2Header := NewL2Header(header)
 
-	l2Header.GlobalExitRoot = &l2Block.GlobalExitRoot
-	l2Header.BlockInfoRoot = &l2Block.BlockInfoRoot
+	l2Header.GlobalExitRoot = l2Block.GlobalExitRoot
+	l2Header.BlockInfoRoot = l2Block.BlockInfoRoot
 	//TODO: l2header.LocalExitRoot??
 
 	transactions := []*types.Transaction{}

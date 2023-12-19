@@ -42,7 +42,7 @@ func (f *finalizer) DSSendL2Block(l2Block *L2Block) error {
 			l2Transactions = append(l2Transactions, l2Transaction)
 		}
 
-		f.dataToStream <- state.DSL2FullBlock{ //TODO: review channel manages the slice of txs
+		f.dataToStream <- state.DSL2FullBlock{
 			DSL2Block: l2Block,
 			Txs:       l2Transactions,
 		}
