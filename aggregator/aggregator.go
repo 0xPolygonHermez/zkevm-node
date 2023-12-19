@@ -985,13 +985,23 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			ChainId:         a.cfg.ChainID,
 			ForkId:          a.cfg.ForkId,
 			BatchL2Data:     batchToVerify.BatchL2Data,
-			GlobalExitRoot:  batchToVerify.GlobalExitRoot.Bytes(),
-			EthTimestamp:    uint64(batchToVerify.Timestamp.Unix()),
-			SequencerAddr:   batchToVerify.Coinbase.String(),
-			AggregatorAddr:  a.cfg.SenderAddress,
+			// L1InfoRoot: ,
+			// TimestampLimit: ,
+			SequencerAddr:  batchToVerify.Coinbase.String(),
+			AggregatorAddr: a.cfg.SenderAddress,
+			// L1InfoTreeData: ,
 		},
 		Db:                map[string]string{},
 		ContractsBytecode: map[string]string{},
+	}
+
+	inputProver.PublicInputs.L1InfoTreeData = map[uint32]*prover.L1Data{
+		0: {
+			GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+			BlockhashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+			MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+			SmtProof:       l1InfoTree.L1InfoTreeLeaf.SmtProof,
+		},
 	}
 
 	return inputProver, nil
