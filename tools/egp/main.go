@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -36,17 +37,19 @@ const (
 )
 
 type egpConfig struct {
-	ByteGasCost         uint64  // gas cost of 1 byte
-	ZeroGasCost         uint64  // gas cost of 1 byte zero
-	NetProfitFactor     float64 // L2 network profit factor
-	L1GasPriceFactor    float64 // L1 gas price factor
-	L2GasPriceSugFactor float64 // L2 gas price suggester factor
-	FinalDeviationPct   uint64  // max final deviation percentage
-	MinGasPriceAllowed  uint64  // min gas price allowed
+	ByteGasCost               uint64  // gas cost of 1 byte
+	ZeroGasCost               uint64  // gas cost of 1 byte zero
+	NetProfitFactor           float64 // L2 network profit factor
+	L1GasPriceFactor          float64 // L1 gas price factor
+	L2GasPriceSugFactor       float64 // L2 gas price suggester factor
+	FinalDeviationPct         uint64  // max final deviation percentage
+	MinGasPriceAllowed        uint64  // min gas price allowed
+	L2GasPriceSugFactorPreEGP float64 // L2 gas price suggester factor (pre EGP)
 }
 
 type egpLogRecord struct {
 	l2BlockNum        uint64
+	l2BlockReceived   time.Time
 	encoded           string
 	missingLogInfo    bool   // Flag if egp_log field is empty
 	LogError          string `json:"Error"`
@@ -82,6 +85,8 @@ type egpStats struct {
 	totalLoss        uint64 // Total loss gas amount
 	sumGasFinal      uint64 // Accumulated sum of final gas (to get average)
 	countGasFinal    uint64 // Count number of accumulated (to get average)
+	sumGasPreEGP     uint64 // Accumulated sum of gas without EGP
+	countGasPreEGP   uint64 // Count number of accumulated pre EGP (to get average)
 }
 
 func main() {
@@ -139,13 +144,14 @@ func main() {
 // defaultConfig parses the default configuration values
 func defaultConfig() (*egpConfig, error) {
 	cfg := egpConfig{
-		ByteGasCost:         16,         // nolint:gomnd
-		ZeroGasCost:         4,          // nolint:gomnd
-		NetProfitFactor:     1.0,        // nolint:gomnd
-		L1GasPriceFactor:    0.25,       // nolint:gomnd
-		L2GasPriceSugFactor: 0.5,        // nolint:gomnd
-		FinalDeviationPct:   10,         // nolint:gomnd
-		MinGasPriceAllowed:  1000000000, // nolint:gomnd
+		ByteGasCost:               16,         // nolint:gomnd
+		ZeroGasCost:               4,          // nolint:gomnd
+		NetProfitFactor:           1.0,        // nolint:gomnd
+		L1GasPriceFactor:          0.25,       // nolint:gomnd
+		L2GasPriceSugFactor:       0.5,        // nolint:gomnd
+		FinalDeviationPct:         10,         // nolint:gomnd
+		MinGasPriceAllowed:        1000000000, // nolint:gomnd
+		L2GasPriceSugFactorPreEGP: 0.1,        // nolint:gomnd
 	}
 
 	viper.SetConfigType("toml")
@@ -241,8 +247,9 @@ func runStats(ctx *cli.Context) error {
 
 	// Query data
 	query := fmt.Sprintf(`
-		select t.l2_block_num, coalesce(t.egp_log::varchar,'') as egp_log, t.encoded
+		select lb.received_at, t.l2_block_num, coalesce(t.egp_log::varchar,'') as egp_log, t.encoded
 		from state.transaction t 
+			join state.l2block lb on lb.block_num = t.l2_block_num 
 		where t.l2_block_num >= %d and t.l2_block_num <= %d`, fromBlock, toBlock)
 
 	rows, err := conn.Query(context.Background(), query)
@@ -254,30 +261,45 @@ func runStats(ctx *cli.Context) error {
 
 	// Loop data rows
 	logf("Starting from L2 block %d...", fromBlock)
+	var blockReceived time.Time
 	var l2Block uint64
 	var egpLog, encoded string
 	var stats, simulateStats egpStats
+	var timeFirst, timeLast time.Time
 
 	i := uint64(0)
 	for rows.Next() {
 		// Fetch row
-		err = rows.Scan(&l2Block, &egpLog, &encoded)
+		err = rows.Scan(&blockReceived, &l2Block, &egpLog, &encoded)
 		if err != nil {
 			logf("Error fetching row: %v", err)
 			return err
 		}
 
+		// First and last txs timestamp
+		if i == 0 {
+			timeFirst = blockReceived
+			timeLast = blockReceived
+		}
+		if blockReceived.Before(timeFirst) {
+			timeFirst = blockReceived
+		}
+		if blockReceived.After(timeLast) {
+			timeLast = blockReceived
+		}
+
 		// Work in progress
 		if i%100000 == 0 {
-			logf("Working txs #%d (L2 block %d)...", i, l2Block)
+			logf("Working txs #%d (L2 block [%d] %v)...", i, l2Block, blockReceived)
 		}
 		i++
 
 		// Transaction info
 		egpData := egpLogRecord{
-			l2BlockNum:     l2Block,
-			encoded:        encoded,
-			missingLogInfo: egpLog == "",
+			l2BlockReceived: blockReceived,
+			l2BlockNum:      l2Block,
+			encoded:         encoded,
+			missingLogInfo:  egpLog == "",
 		}
 
 		// Check if EGP info is present
@@ -291,35 +313,47 @@ func runStats(ctx *cli.Context) error {
 		}
 
 		// Calculate stats
-		countStats(i, l2Block, &egpData, &stats)
+		countStats(i, l2Block, &egpData, &stats, nil)
 
 		// Simulate using alternative config
 		if egpCfg != nil {
 			egpSimData := egpData
 			simulateConfig(&egpSimData, egpCfg)
-			countStats(i, l2Block, &egpSimData, &simulateStats)
+			countStats(i, l2Block, &egpSimData, &simulateStats, egpCfg)
 		}
 	}
 
-	logf("Finished txs #%d (L2 block %d).", i, l2Block)
+	logf("Finished txs #%d (L2 block [%d] %v).", i, l2Block, blockReceived)
 
 	// Print stats results
-	logf("\nEGP REAL STATS:")
+	diff := timeLast.Sub(timeFirst).Hours()
+	logf("\nPERIOD [%.2f days]: %v ... %v", diff/24, timeFirst, timeLast)
+	logf("EGP REAL STATS:")
 	printStats(&stats)
 
 	// Print simulation stats results
 	if egpCfg != nil {
 		logf("\nEGP SIMULATION STATS:")
 		printStats(&simulateStats)
-		logf("PARAMS: byte[%d] zero[%d] netFactor[%.2f] L1factor[%.2f] L2sugFactor[%.2f] devPct[%d] minGas[%d]",
-			egpCfg.ByteGasCost, egpCfg.ZeroGasCost, egpCfg.NetProfitFactor, egpCfg.L1GasPriceFactor, egpCfg.L2GasPriceSugFactor, egpCfg.FinalDeviationPct, egpCfg.MinGasPriceAllowed)
+		logf("PARAMS: byte[%d] zero[%d] netFactor[%.2f] L1factor[%.2f] L2sugFactor[%.2f] devPct[%d] minGas[%d] L2sugPreEGP[%.2f]", egpCfg.ByteGasCost,
+			egpCfg.ZeroGasCost, egpCfg.NetProfitFactor, egpCfg.L1GasPriceFactor, egpCfg.L2GasPriceSugFactor, egpCfg.FinalDeviationPct, egpCfg.MinGasPriceAllowed, egpCfg.L2GasPriceSugFactorPreEGP)
 	}
 
 	return nil
 }
 
+// max calculates the maximum between 2 numbers
+// func max(a uint64, b uint64) uint64 {
+// 	if a > b {
+// 		return a
+// 	} else {
+// 		return b
+// 	}
+// }
+
 // countStats calculates and counts statistics for an EGP record
-func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats) {
+func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg *egpConfig) {
+	// printEgpLogRecord(egp, false)
 	// Total transactions
 	stats.totalTx++
 
@@ -362,9 +396,21 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats) {
 		} else {
 			stats.totalUsedWeird++
 		}
-		// Gas average
+		// Gas total and average
 		stats.countGasFinal++
 		stats.sumGasFinal += egp.LogValueFinal
+		// Gas total and average without EGP
+		if cfg != nil {
+			stats.countGasPreEGP++
+			var gasUsed uint64
+			if !egp.LogReprocess {
+				gasUsed = egp.LogGasUsedFirst
+			} else {
+				gasUsed = egp.LogGasUsedSecond
+			}
+
+			stats.sumGasPreEGP += uint64(float64(egp.LogL1GasPrice) * cfg.L2GasPriceSugFactorPreEGP * float64(gasUsed))
+		}
 
 		// Loss
 		if egp.LogValueFinal == egp.LogGasPrice {
@@ -402,6 +448,7 @@ func logf(format string, args ...any) {
 // printEgpLogRecord prints values of egpLogRecord struct
 func printEgpLogRecord(record *egpLogRecord, showTxInfo bool) {
 	fmt.Printf("L2BlockNum: [%d]\n", record.l2BlockNum)
+	fmt.Printf("  timestamp: [%v]\n", record.l2BlockReceived)
 	fmt.Printf("  Error: [%s]\n", record.LogError)
 	fmt.Printf("  Enabled: [%t]\n", record.LogEnabled)
 	fmt.Printf("  L1GasPrice: [%d]\n", record.LogL1GasPrice)
@@ -429,6 +476,11 @@ func printEgpLogRecord(record *egpLogRecord, showTxInfo bool) {
 
 // printStats prints EGP statistics
 func printStats(stats *egpStats) {
+	const (
+		MWEI_DIV = 1000000
+		ETH_DIV  = 1000000000000000000
+	)
+
 	fmt.Printf("Total Tx.........: [%d]\n", stats.totalTx)
 	if stats.totalTx == 0 {
 		return
@@ -454,20 +506,26 @@ func printStats(stats *egpStats) {
 		fmt.Printf("        Used Weird Gas...: [%d] (%.2f%%)\n", stats.totalUsedWeird, float64(stats.totalUsedWeird)/float64(statsCount)*100)
 		if stats.countGasFinal > 0 {
 			fmt.Printf("    Gas average..........: [%d] (%d MWei) (%.9f ETH)\n", stats.sumGasFinal/stats.countGasFinal,
-				uint64(float64(stats.sumGasFinal/stats.countGasFinal)/1000000), float64(stats.sumGasFinal/stats.countGasFinal)/1000000000000000000)
+				uint64(float64(stats.sumGasFinal/stats.countGasFinal)/MWEI_DIV), float64(stats.sumGasFinal/stats.countGasFinal)/ETH_DIV)
+		}
+		if stats.countGasPreEGP > 0 {
+			fmt.Printf("    Gas avg pre EGP......: [%d] (%d MWei) (%.9f ETH)\n", stats.sumGasPreEGP/stats.countGasPreEGP,
+				uint64(float64(stats.sumGasPreEGP/stats.countGasPreEGP)/MWEI_DIV), float64(stats.sumGasPreEGP/stats.countGasPreEGP)/ETH_DIV)
+			fmt.Printf("    Diff EGP-preEGP......: [%d] (%d Mwei) (%.9f ETH)\n", int64(stats.sumGasFinal-stats.sumGasPreEGP),
+				int64(float64(int64(stats.sumGasFinal-stats.sumGasPreEGP))/MWEI_DIV), float64(int64(stats.sumGasFinal-stats.sumGasPreEGP))/ETH_DIV)
 		}
 		fmt.Printf("    Loss count.......: [%d] (%.2f%%)\n", stats.totalLossCount, float64(stats.totalLossCount)/float64(statsCount)*100)
-		if stats.totalLoss < 10000000 {
+		if stats.totalLoss < MWEI_DIV*10 {
 			fmt.Printf("    Loss total.......: [%d] (%d KWei)\n", stats.totalLoss, stats.totalLoss/1000)
 		} else {
-			fmt.Printf("    Loss total.......: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/1000000, float64(stats.totalLoss)/1000000000000000000)
+			fmt.Printf("    Loss total.......: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/MWEI_DIV, float64(stats.totalLoss)/ETH_DIV)
 		}
 		if stats.totalLossCount > 0 {
-			if stats.totalLoss/stats.totalLossCount < 10000000 {
+			if stats.totalLoss/stats.totalLossCount < MWEI_DIV*10 {
 				fmt.Printf("    Loss average.....: [%d] (%d KWei)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000)
 			} else {
-				fmt.Printf("    Loss average.....: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/1000000,
-					float64(stats.totalLoss/stats.totalLossCount)/1000000000000000000)
+				fmt.Printf("    Loss average.....: [%d] (%d MWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/MWEI_DIV,
+					float64(stats.totalLoss/stats.totalLossCount)/ETH_DIV)
 			}
 		}
 	}
@@ -544,6 +602,7 @@ func calcEffectiveGasPrice(gasUsed uint64, tx *egpLogRecord, cfg *egpConfig) (ui
 		// Zero and non zero bytes
 		txZeroBytes := uint64(bytes.Count(rawBytes, []byte{0}))
 		txNonZeroBytes := uint64(len(rawBytes)) - txZeroBytes
+		// logf("size: %d", len(rawBytes))
 
 		// Calculates break even gas price
 		l2MinGasPrice := float64(tx.LogL1GasPrice) * cfg.L1GasPriceFactor
