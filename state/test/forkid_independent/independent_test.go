@@ -572,7 +572,6 @@ func TestGenesisNewLeafType(t *testing.T) {
 			Bytecode: "60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029",
 		},
 	}
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 
 	test.InitOrResetDB(test.StateDBCfg)
 	dbTx, err := testState.BeginStateTransaction(ctx)
@@ -722,7 +721,6 @@ func TestGenesis(t *testing.T) {
 	require.NoError(t, err)
 
 	test.Genesis.Actions = actions
-	test.Genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
 	stateRoot, err := testState.SetGenesis(ctx, block, test.Genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))

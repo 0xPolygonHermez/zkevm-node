@@ -252,9 +252,7 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			//err = s.processForkID(blocks[0].ForkIDs[0], blocks[0].BlockNumber, dbTx)
 			err = s.l1EventProcessors.Process(s.ctx, 1, etherman.Order{Name: etherman.ForkIDsOrder, Pos: 0}, &blocks[0], dbTx)
-
 			if err != nil {
 				log.Error("error storing genesis forkID: ", err)
 				rollbackErr := dbTx.Rollback(s.ctx)
@@ -264,20 +262,15 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			if s.genesis.FirstBatchData != nil {
-				log.Info("Initial transaction found in genesis file. Applying...")
-				err = s.setInitialBatch(blocks[0].BlockNumber, dbTx)
-				if err != nil {
-					log.Error("error setting initial tx Batch. BatchNum: ", blocks[0].SequencedBatches[0][0].BatchNumber)
-					rollbackErr := dbTx.Rollback(s.ctx)
-					if rollbackErr != nil {
-						log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blocks[0].BlockNumber, rollbackErr.Error(), err)
-						return rollbackErr
-					}
-					return err
+			err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(blocks[0].ForkIDs[0].ForkID), etherman.Order{Name: etherman.SequenceBatchesOrder, Pos: 0}, &blocks[0], dbTx)
+			if err != nil {
+				log.Error("error storing initial tx (batch 1): ", err)
+				rollbackErr := dbTx.Rollback(s.ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+					return rollbackErr
 				}
-			} else {
-				log.Info("No initial transaction found in genesis file")
+				return err
 			}
 
 			if genesisRoot != s.genesis.Root {
@@ -855,52 +848,3 @@ const (
 	//L2BlockHeaderForGenesis = "0b73e6af6f00000000"
 	L2BlockHeaderForGenesis = "0b0000000000000000"
 )
-
-func (s *ClientSynchronizer) setInitialBatch(blockNumber uint64, dbTx pgx.Tx) error {
-	log.Debug("Setting initial transaction batch 1")
-	// Process FirstTransaction included in batch 1
-	batchL2Data := common.Hex2Bytes(s.genesis.FirstBatchData.Transactions[2:])
-	l1InfoRoot := s.state.GetCurrentL1InfoRoot()
-	processCtx := state.ProcessingContextV2{
-		BatchNumber: 1,
-		Coinbase:    s.genesis.FirstBatchData.Sequencer,
-		Timestamp:   time.Unix(int64(s.genesis.FirstBatchData.Timestamp), 0),
-		L1InfoRoot: state.L1InfoTreeExitRootStorageEntry{
-			L1InfoTreeRoot: l1InfoRoot,
-		},
-		BatchL2Data:          &batchL2Data,
-		ForcedBlockHashL1:    &s.genesis.FirstBatchData.ForcedBlockHashL1,
-		SkipVerifyL1InfoRoot: 1,
-	}
-	_, flushID, proverID, err := s.state.ProcessAndStoreClosedBatchV2(s.ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
-	if err != nil {
-		log.Error("error storing batch 1. Error: ", err)
-		return err
-	}
-	s.pendingFlushID(flushID, proverID)
-
-	// Virtualize Batch and add sequence
-	virtualBatch1 := state.VirtualBatch{
-		BatchNumber:   1,
-		TxHash:        state.ZeroHash,
-		Coinbase:      s.genesis.FirstBatchData.Sequencer,
-		BlockNumber:   blockNumber,
-		SequencerAddr: s.genesis.FirstBatchData.Sequencer,
-	}
-	err = s.state.AddVirtualBatch(s.ctx, &virtualBatch1, dbTx)
-	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, s.genesis.BlockNumber, err)
-		return err
-	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence{
-		FromBatchNumber: 1,
-		ToBatchNumber:   1,
-	}
-	err = s.state.AddSequence(s.ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		return err
-	}
-	return nil
-}
