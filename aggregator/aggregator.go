@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -977,6 +978,57 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
+	batchRawData, err := state.DecodeBatchV2(batchToVerify.BatchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	l1InfoTreeData := map[uint32]*prover.L1Data{}
+	l1InfoRoot := common.Hash{}
+	tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) // nolint:gomnd
+	if err != nil {
+		return nil, err
+	}
+
+	for _, l2blockRaw := range batchRawData.Blocks {
+		_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+		if !contained {
+			l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			aLeaves := make([][32]byte, len(leaves))
+			for i, leaf := range leaves {
+				aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+			}
+
+			// Calculate smt proof
+			smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+			if err != nil {
+				return nil, err
+			}
+
+			protoProof := make([][]byte, len(smtProof))
+			for i, proof := range smtProof {
+				protoProof[i] = proof[:]
+			}
+
+			l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
+				GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+				BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+				MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+				SmtProof:       protoProof,
+			}
+			l1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
+		}
+	}
+
 	inputProver := &prover.InputProver{
 		PublicInputs: &prover.PublicInputs{
 			OldStateRoot:    previousBatch.StateRoot.Bytes(),
@@ -985,10 +1037,11 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			ChainId:         a.cfg.ChainID,
 			ForkId:          a.cfg.ForkId,
 			BatchL2Data:     batchToVerify.BatchL2Data,
-			GlobalExitRoot:  batchToVerify.GlobalExitRoot.Bytes(),
-			EthTimestamp:    uint64(batchToVerify.Timestamp.Unix()),
+			L1InfoRoot:      l1InfoRoot.Bytes(),
+			TimestampLimit:  uint64(batchToVerify.Timestamp.Unix()),
 			SequencerAddr:   batchToVerify.Coinbase.String(),
 			AggregatorAddr:  a.cfg.SenderAddress,
+			L1InfoTreeData:  l1InfoTreeData,
 		},
 		Db:                map[string]string{},
 		ContractsBytecode: map[string]string{},

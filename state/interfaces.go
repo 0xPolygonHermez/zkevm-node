@@ -142,4 +142,6 @@ type storage interface {
 	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
 	GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error)
 	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
+	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
+	GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntry, error)
 }
