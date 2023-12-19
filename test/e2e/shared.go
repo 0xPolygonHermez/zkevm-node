@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/stretchr/testify/require"
 
@@ -228,8 +228,4 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	}
 
 	return forcedBatch, nil
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

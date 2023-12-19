@@ -427,7 +427,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(state.HashPtr(b.Hash()), &b, nil, false, false)
+			block, err := NewBlock(state.Ptr(b.Hash()), &b, nil, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -532,6 +532,7 @@ type Transaction struct {
 	ChainID     ArgBig          `json:"chainId"`
 	Type        ArgUint64       `json:"type"`
 	Receipt     *Receipt        `json:"receipt,omitempty"`
+	L2Hash      common.Hash     `json:"l2Hash"`
 }
 
 // CoreTx returns a geth core type Transaction
@@ -556,8 +557,8 @@ func NewTransaction(
 	includeReceipt bool,
 ) (*Transaction, error) {
 	v, r, s := tx.RawSignatureValues()
-
 	from, _ := state.GetSender(tx)
+	l2Hash, _ := state.GetL2Hash(tx)
 
 	res := &Transaction{
 		Nonce:    ArgUint64(tx.Nonce()),
@@ -573,6 +574,7 @@ func NewTransaction(
 		From:     from,
 		ChainID:  ArgBig(*tx.ChainId()),
 		Type:     ArgUint64(tx.Type()),
+		L2Hash:   l2Hash,
 	}
 
 	if receipt != nil {
@@ -601,6 +603,7 @@ type Receipt struct {
 	Logs              []*types.Log    `json:"logs"`
 	Status            ArgUint64       `json:"status"`
 	TxHash            common.Hash     `json:"transactionHash"`
+	TxL2Hash          common.Hash     `json:"transactionL2Hash"`
 	TxIndex           ArgUint64       `json:"transactionIndex"`
 	BlockHash         common.Hash     `json:"blockHash"`
 	BlockNumber       ArgUint64       `json:"blockNumber"`
@@ -635,6 +638,10 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
+	l2Hash, err := state.GetL2Hash(tx)
+	if err != nil {
+		return Receipt{}, err
+	}
 	receipt := Receipt{
 		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
@@ -650,6 +657,7 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
+		TxL2Hash:          l2Hash,
 	}
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)

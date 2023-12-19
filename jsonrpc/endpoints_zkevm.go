@@ -2,15 +2,19 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -18,15 +22,17 @@ import (
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
 	cfg      Config
+	pool     types.PoolInterface
 	state    types.StateInterface
 	etherman types.EthermanInterface
 	txMan    DBTxManager
 }
 
 // NewZKEVMEndpoints returns ZKEVMEndpoints
-func NewZKEVMEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *ZKEVMEndpoints {
+func NewZKEVMEndpoints(cfg Config, pool types.PoolInterface, state types.StateInterface, etherman types.EthermanInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
 		cfg:      cfg,
+		pool:     pool,
 		state:    state,
 		etherman: etherman,
 	}
@@ -241,7 +247,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.HashPtr(l2Block.Hash()), l2Block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -270,7 +276,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.HashPtr(l2Block.Hash()), l2Block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -299,4 +305,94 @@ func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlock
 
 		return nativeBlockHashes, nil
 	})
+}
+
+// GetTransactionByL2Hash returns a transaction by his l2 hash
+func (z *ZKEVMEndpoints) GetTransactionByL2Hash(hash types.ArgHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		// try to get tx from state
+		tx, err := z.state.GetTransactionByL2Hash(ctx, hash.Hash(), dbTx)
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by l2 hash from state", err, true)
+		}
+		if tx != nil {
+			receipt, err := z.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return RPCErrorResponse(types.DefaultErrorCode, "transaction receipt not found", err, false)
+			} else if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
+			}
+
+			res, err := types.NewTransaction(*tx, receipt, false)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			}
+
+			return res, nil
+		}
+
+		// if the tx does not exist in the state, look for it in the pool
+		if z.cfg.SequencerNodeURI != "" {
+			return z.getTransactionByL2HashFromSequencerNode(hash.Hash())
+		}
+		poolTx, err := z.pool.GetTxByL2Hash(ctx, hash.Hash())
+		if errors.Is(err, pool.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by l2 hash from pool", err, true)
+		}
+		if poolTx.Status == pool.TxStatusPending {
+			tx = &poolTx.Transaction
+			res, err := types.NewTransaction(*tx, nil, false)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			}
+			return res, nil
+		}
+		return nil, nil
+	})
+}
+
+// GetTransactionReceiptByL2Hash returns a transaction receipt by his hash
+func (z *ZKEVMEndpoints) GetTransactionReceiptByL2Hash(hash types.ArgHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		tx, err := z.state.GetTransactionByL2Hash(ctx, hash.Hash(), dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from state", err, true)
+		}
+
+		r, err := z.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
+		}
+
+		receipt, err := types.NewReceipt(*tx, r)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
+		}
+
+		return receipt, nil
+	})
+}
+
+func (z *ZKEVMEndpoints) getTransactionByL2HashFromSequencerNode(hash common.Hash) (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(z.cfg.SequencerNodeURI, "zkevm_getTransactionByL2Hash", hash.String())
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from sequencer node by l2 hash", err, true)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
+	}
+
+	var tx *types.Transaction
+	err = json.Unmarshal(res.Result, &tx)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read tx loaded by l2 hash from sequencer node", err, true)
+	}
+	return tx, nil
 }

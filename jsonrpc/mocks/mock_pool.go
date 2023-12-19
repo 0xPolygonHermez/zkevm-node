@@ -185,6 +185,32 @@ func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Tr
 	return r0, r1
 }
 
+// GetTxByL2Hash provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	ret := _m.Called(ctx, hash)
+
+	var r0 *pool.Transaction
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*pool.Transaction, error)); ok {
+		return rf(ctx, hash)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *pool.Transaction); ok {
+		r0 = rf(ctx, hash)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pool.Transaction)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, hash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // NewPoolMock creates a new instance of PoolMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewPoolMock(t interface {

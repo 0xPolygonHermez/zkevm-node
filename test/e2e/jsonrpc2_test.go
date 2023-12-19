@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
@@ -622,7 +623,7 @@ func TestEstimateGas(t *testing.T) {
 		require.NoError(t, err)
 		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
 			Nonce:    nonce,
-			To:       ptr(common.HexToAddress("0x1")),
+			To:       state.Ptr(common.HexToAddress("0x1")),
 			Value:    value,
 			Gas:      24000,
 			GasPrice: gasPrice,
@@ -645,19 +646,19 @@ func TestEstimateGas(t *testing.T) {
 		testCases := []testCase{
 			{
 				name:          "with gasPrice set and address with enough balance",
-				address:       ptr(auth.From),
+				address:       state.Ptr(auth.From),
 				setGasPrice:   true,
 				expectedError: nil,
 			},
 			{
 				name:          "with gasPrice set and address without enough balance",
-				address:       ptr(common.HexToAddress("0x1")),
+				address:       state.Ptr(common.HexToAddress("0x1")),
 				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
 			{
 				name:          "with gasPrice set and address with balance zero",
-				address:       ptr(common.HexToAddress("0x2")),
+				address:       state.Ptr(common.HexToAddress("0x2")),
 				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
 			},
@@ -673,47 +674,47 @@ func TestEstimateGas(t *testing.T) {
 			//       it should be returning error code 3 due to execution message
 			// {
 			// 	name:          "with gasPrice and value set and address with enough balance",
-			// 	address:       ptr(auth.From),
-			// 	value:         ptr(int64(1)),
+			// 	address:       state.Ptr(auth.From),
+			// 	value:         state.Ptr(int64(1)),
 			// 	setGasPrice:   true,
 			// 	expectedError: types.NewRPCError(3, "execution reverted"),
 			// },
 			{
 				name:          "with gasPrice and value set and address without enough balance",
-				address:       ptr(common.HexToAddress("0x1")),
-				value:         ptr(int64(-1)),
+				address:       state.Ptr(common.HexToAddress("0x1")),
+				value:         state.Ptr(int64(-1)),
 				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
 			},
 			{
 				name:          "with gasPrice and value set and address with balance zero",
-				address:       ptr(common.HexToAddress("0x2")),
-				value:         ptr(int64(-1)),
+				address:       state.Ptr(common.HexToAddress("0x2")),
+				value:         state.Ptr(int64(-1)),
 				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
 			},
 			{
 				name:          "with gasPrice and value set and without from address",
 				address:       nil,
-				value:         ptr(int64(-1)),
+				value:         state.Ptr(int64(-1)),
 				setGasPrice:   true,
 				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
 			},
 			{
 				name:          "without gasPrice set and address with enough balance",
-				address:       ptr(auth.From),
+				address:       state.Ptr(auth.From),
 				setGasPrice:   false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address without enough balance",
-				address:       ptr(common.HexToAddress("0x1")),
+				address:       state.Ptr(common.HexToAddress("0x1")),
 				setGasPrice:   false,
 				expectedError: nil,
 			},
 			{
 				name:          "without gasPrice set and address with balance zero",
-				address:       ptr(common.HexToAddress("0x2")),
+				address:       state.Ptr(common.HexToAddress("0x2")),
 				setGasPrice:   false,
 				expectedError: nil,
 			},

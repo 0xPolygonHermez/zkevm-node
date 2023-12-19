@@ -22,6 +22,7 @@ type PoolInterface interface {
 	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
+	GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
 
 // StateInterface gathers the methods required to interact with the state.
@@ -48,6 +49,7 @@ type StateInterface interface {
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
 	GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
+	GetTransactionByL2Hash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	GetTransactionByL2BlockHashAndIndex(ctx context.Context, blockHash common.Hash, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
 	GetTransactionByL2BlockNumberAndIndex(ctx context.Context, blockNumber uint64, index uint64, dbTx pgx.Tx) (*types.Transaction, error)
 	GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error)

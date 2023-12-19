@@ -628,6 +628,45 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	return poolTx, nil
 }
 
+// GetTxByL2Hash gets a transaction in the pool by its l2 hash
+func (p *PostgresPoolStorage) GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	var (
+		encoded, status, ip string
+		receivedAt          time.Time
+		isWIP               bool
+	)
+
+	sql := `SELECT encoded, status, received_at, is_wip, ip
+	          FROM pool.transaction
+			 WHERE l2_hash = $1`
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&encoded, &status, &receivedAt, &isWIP, &ip)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, pool.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	b, err := hex.DecodeHex(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(b); err != nil {
+		return nil, err
+	}
+
+	poolTx := &pool.Transaction{
+		ReceivedAt:  receivedAt,
+		Status:      pool.TxStatus(status),
+		Transaction: *tx,
+		IsWIP:       isWIP,
+		IP:          ip,
+	}
+
+	return poolTx, nil
+}
+
 func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	var (
 		encoded, status, ip  string
