@@ -587,7 +587,7 @@ func (p *PostgresStorage) OpenBatchInStorage(ctx context.Context, batchContext s
 
 // OpenWIPBatchInStorage adds a new wip batch into the state storage
 func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, state_root, local_exit_root, acc_input_hash, timestamp, coinbase, forced_batch_num, raw_txs_data, batch_resources, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, state_root, local_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data, batch_resources, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)"
 
 	resourcesData, err := json.Marshal(batch.Resources)
 	if err != nil {
@@ -602,7 +602,6 @@ func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state
 		batch.GlobalExitRoot.String(),
 		batch.StateRoot.String(),
 		batch.LocalExitRoot.String(),
-		batch.AccInputHash.String(),
 		batch.Timestamp.UTC(),
 		batch.Coinbase.String(),
 		batch.ForcedBatchNum,
@@ -873,14 +872,14 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 
 // UpdateWIPBatch updates the data in a batch
 func (p *PostgresStorage) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
-	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, state_root = $3, local_exit_root = $4, acc_input_hash = $5, batch_resources = $6 WHERE batch_num = $1"
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, global_exit_root = $3, state_root = $4, local_exit_root = $5, batch_resources = $6 WHERE batch_num = $1"
 
 	e := p.getExecQuerier(dbTx)
 	batchResourcesJsonBytes, err := json.Marshal(receipt.BatchResources)
 	if err != nil {
 		return err
 	}
-	_, err = e.Exec(ctx, updateL2DataSQL, receipt.BatchNumber, receipt.BatchL2Data, receipt.StateRoot.String(), receipt.LocalExitRoot.String(), receipt.AccInputHash.String(), string(batchResourcesJsonBytes))
+	_, err = e.Exec(ctx, updateL2DataSQL, receipt.BatchNumber, receipt.BatchL2Data, receipt.GlobalExitRoot.String(), receipt.StateRoot.String(), receipt.LocalExitRoot.String(), string(batchResourcesJsonBytes))
 	return err
 }
 

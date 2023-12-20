@@ -884,7 +884,6 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		initialStateRoot:   oldHash,
 		imStateRoot:        oldHash,
 		timestamp:          now(),
-		globalExitRoot:     oldHash,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 	}
 	testCases := []struct {
@@ -943,7 +942,7 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 			}
 
 			// act
-			wipBatch, err := f.openNewWIPBatch(ctx, batchNum, oldHash, oldHash, oldHash, oldHash)
+			wipBatch, err := f.openNewWIPBatch(ctx, batchNum, oldHash, oldHash, oldHash)
 
 			// assert
 			if tc.expectedErr != nil {
@@ -1887,7 +1886,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, f.wipBatch.initialAccInputHash, newHash)
+			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
 
 			// assert
 			if tc.expectedError != nil {
@@ -2280,7 +2279,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			imStateRoot:        newHash,
 			localExitRoot:      newHash,
 			timestamp:          now(),
-			globalExitRoot:     oldHash,
 			remainingResources: getMaxRemainingResources(bc),
 			closingReason:      state.EmptyClosingReason,
 		}

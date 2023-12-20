@@ -15,13 +15,12 @@ import (
 
 // L2Block represents a wip or processed L2 block
 type L2Block struct {
-	timestamp           time.Time
-	deltaTimestamp      uint32
-	initialStateRoot    common.Hash
-	initialAccInputHash common.Hash
-	l1InfoTreeExitRoot  state.L1InfoTreeExitRootStorageEntry
-	transactions        []*TxTracker
-	batchResponse       *state.ProcessBatchResponse
+	timestamp          time.Time
+	deltaTimestamp     uint32
+	initialStateRoot   common.Hash
+	l1InfoTreeExitRoot state.L1InfoTreeExitRootStorageEntry
+	transactions       []*TxTracker
+	batchResponse      *state.ProcessBatchResponse
 }
 
 func (b *L2Block) isEmpty() bool {
@@ -48,7 +47,6 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 	f.lastL1InfoTreeMux.Lock()
 	f.wipL2Block.l1InfoTreeExitRoot = f.lastL1InfoTree
 	f.lastL1InfoTreeMux.Unlock()
-	log.Infof("L1Infotree updated. L1InfoTreeIndex: %d", f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 
 	lastL2Block, err := f.state.GetLastL2Block(ctx, nil)
 	if err != nil {
@@ -102,7 +100,6 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			}
 
 			l2Block.initialStateRoot = f.wipBatch.finalStateRoot
-			l2Block.initialAccInputHash = f.wipBatch.finalAccInputHash
 
 			log.Debugf("processing L2 block. Batch: %d, initialStateRoot: %s txs: %d", f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions))
 			batchResponse, err := f.processL2Block(ctx, l2Block)
@@ -132,11 +129,10 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 
 			// Update finalStateRoot and accInputHash of the batch to the newStateRoot and NewAccInputHash for the L2 block
 			f.wipBatch.finalStateRoot = l2Block.batchResponse.NewStateRoot
-			f.wipBatch.finalAccInputHash = l2Block.batchResponse.NewAccInputHash
 
-			log.Infof("L2 block %d processed. Batch: %d, initialStateRoot: %s, stateRoot: %s, initialAccInputHash: %s, accInputHash: s, txs: %d/%d, blockHash: %s, infoRoot: %s",
-				blockResponse.BlockNumber, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot, l2Block.initialAccInputHash,
-				l2Block.batchResponse.NewAccInputHash, len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
+			log.Infof("L2 block %d processed. Batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s",
+				blockResponse.BlockNumber, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot,
+				len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
 
 			f.addPendingL2BlockToStore(ctx, l2Block)
 
@@ -236,7 +232,6 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              l2Block.initialStateRoot,
-		OldAccInputHash:           l2Block.initialAccInputHash,
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             mockL1InfoRoot,
 		TimestampLimit_V2:         uint64(l2Block.timestamp.Unix()),
@@ -264,7 +259,6 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		return nil, err
 	}
 
-	//TODO: check this error in first place?
 	if result.ExecutorError != nil {
 		processL2BLockError()
 		return nil, ErrExecutorError
@@ -335,7 +329,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
-		StateRoot:      l2Block.batchResponse.NewStateRoot,
+		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
 		LocalExitRoot:  l2Block.batchResponse.NewLocalExitRoot,
 		AccInputHash:   l2Block.batchResponse.NewAccInputHash,
 		BatchL2Data:    batch.BatchL2Data,
