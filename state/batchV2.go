@@ -119,7 +119,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 }
 
 // ExecuteBatchV2 is used by the synchronizer to reprocess batches to compare generated state root vs stored one
-func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -153,11 +153,16 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1In
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
 	}
-	processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
-		GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-		BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-		MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-	}}
+
+	if forcedBlockHashL1 != nil {
+		processBatchRequest.ForcedBlockhashL1 = forcedBlockHashL1.Bytes()
+	} else {
+		processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
+			GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+			BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+			MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+		}}
+	}
 
 	// Send Batch to the Executor
 	log.Debugf("ExecuteBatchV2[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
@@ -244,16 +249,18 @@ func (s *State) processBatchV2(ctx context.Context, batchNumber uint64, batchL2D
 		ForkId:               forkID,
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
+		L1InfoRoot:           l1InfoTree.L1InfoTreeRoot.Bytes(),
 	}
 
-	processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
-		GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-		BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-		MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-	}}
 	if forcedBlockHashL1 != nil {
 		log.Debug("Setting ForcedBlockhashL1: ", forcedBlockHashL1)
 		processBatchRequest.ForcedBlockhashL1 = forcedBlockHashL1.Bytes()
+	} else {
+		processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
+			GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+			BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+			MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+		}}
 	}
 
 	if l1InfoTree.L1InfoTreeRoot != (common.Hash{}) {
