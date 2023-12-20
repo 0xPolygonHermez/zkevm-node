@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
@@ -1386,8 +1388,7 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
-	l2Header.LocalExitRoot = common.HexToHash("0x17")
-	l2Header.BlockInfoRoot = common.HexToHash("0x18")
+	l2Header.BlockInfoRoot = common.HexToHash("0x17")
 	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
 
 	for _, receipt := range receipts {
@@ -1462,7 +1463,6 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		Nonce:           rpcBlockNonce,
 		Hash:            state.HashPtr(l2Block.Hash()),
 		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		LocalExitRoot:   l2Block.LocalExitRoot(),
 		BlockInfoRoot:   l2Block.BlockInfoRoot(),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
@@ -1708,7 +1708,6 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 					assert.Nil(t, result.Hash)
 				}
 				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
-				assert.Equal(t, tc.ExpectedResult.LocalExitRoot, result.LocalExitRoot)
 				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
 
 				assert.Equal(t, len(tc.ExpectedResult.Transactions), len(result.Transactions))
@@ -1871,6 +1870,116 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 				} else {
 					assert.Equal(t, tc.ExpectedError, err)
 				}
+			}
+		})
+	}
+}
+
+func TestGetExitRootsByGER(t *testing.T) {
+	type testCase struct {
+		Name           string
+		GER            common.Hash
+		ExpectedResult *types.ExitRoots
+		ExpectedError  types.Error
+		SetupMocks     func(*mockedServer, *mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "GER not found",
+			GER:            common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), tc.GER, m.DbTx).
+					Return(nil, state.ErrNotFound)
+			},
+		},
+		{
+			Name:           "get exit roots fails to load exit roots from state",
+			GER:            common.HexToHash("0x123"),
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), tc.GER, m.DbTx).
+					Return(nil, fmt.Errorf("failed to load exit roots from state"))
+			},
+		},
+		{
+			Name: "get exit roots successfully",
+			GER:  common.HexToHash("0x345"),
+			ExpectedResult: &types.ExitRoots{
+				MainnetExitRoot: common.HexToHash("0x1"),
+				RollupExitRoot:  common.HexToHash("0x2"),
+			},
+			ExpectedError: nil,
+			SetupMocks: func(s *mockedServer, m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				er := &state.GlobalExitRoot{
+					MainnetExitRoot: tc.ExpectedResult.MainnetExitRoot,
+					RollupExitRoot:  tc.ExpectedResult.RollupExitRoot,
+				}
+
+				m.State.
+					On("GetExitRootByGlobalExitRoot", context.Background(), tc.GER, m.DbTx).
+					Return(er, nil)
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	c := client.NewClient(s.ServerURL)
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(s, m, &tc)
+
+			exitRoots, err := c.ExitRootsByGER(context.Background(), tc.GER)
+			require.NoError(t, err)
+
+			if exitRoots != nil || tc.ExpectedResult != nil {
+				assert.Equal(t, tc.ExpectedResult.MainnetExitRoot.String(), exitRoots.MainnetExitRoot.String())
+				assert.Equal(t, tc.ExpectedResult.RollupExitRoot.String(), exitRoots.RollupExitRoot.String())
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				rpcErr := err.(types.RPCError)
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, tc.ExpectedError.Error(), rpcErr.Error())
 			}
 		})
 	}

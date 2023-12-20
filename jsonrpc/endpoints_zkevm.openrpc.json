@@ -343,6 +343,35 @@
             "$ref": "#/components/schemas/NativeBlockHashes"
           }
       }
+    },
+    {
+      "name": "zkevm_getExitRootsByGER",
+      "summary": "Gets the exit roots accordingly to the provided Global Exit Root",
+      "params": [
+        {
+          "$ref": "#/components/schemas/Keccak"
+        }
+      ],
+      "result": {
+        "$ref": "#/components/schemas/ExitRoots"
+      },
+      "examples": [
+        {
+          "params": [
+            {
+              "name": "global exit root",
+              "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+            }
+          ],
+          "result": {
+            "name": "Exit Roots",
+            "value": {
+              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003"
+            }
+          }
+        }
+      ]
     }
   ],
   "components": {
@@ -1151,6 +1180,19 @@
           },
           "toBlock": {
             "$ref": "#/components/schemas/BlockNumber"
+          }
+        }
+      },
+      "ExitRoots": {
+        "title": "ExitRoots",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "mainnetExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "rollupExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
           }
         }
       }

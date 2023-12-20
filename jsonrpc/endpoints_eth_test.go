@@ -1182,8 +1182,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
-	l2Header.LocalExitRoot = common.HexToHash("0x17")
-	l2Header.BlockInfoRoot = common.HexToHash("0x18")
+	l2Header.BlockInfoRoot = common.HexToHash("0x17")
 	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
 
 	for _, receipt := range receipts {
@@ -1258,7 +1257,6 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		Nonce:           rpcBlockNonce,
 		Hash:            state.HashPtr(l2Block.Hash()),
 		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		LocalExitRoot:   l2Block.LocalExitRoot(),
 		BlockInfoRoot:   l2Block.BlockInfoRoot(),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
@@ -1496,7 +1494,6 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					assert.Nil(t, result.Hash)
 				}
 				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
-				assert.Equal(t, tc.ExpectedResult.LocalExitRoot, result.LocalExitRoot)
 				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
 
 				assert.Equal(t, len(tc.ExpectedResult.Transactions), len(result.Transactions))
