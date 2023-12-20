@@ -221,7 +221,7 @@ func runStats(ctx *cli.Context) error {
 	fromBlock := ctx.Uint64("from")
 	if fromBlock == ^uint64(0) {
 		// Default value if param not present
-		fromBlock = 7920355 // nolint:gomnd
+		fromBlock = 8665396 // nolint:gomnd
 	}
 	toBlock := ctx.Uint64("to")
 	showErrors = ctx.Bool("showerror")
@@ -424,12 +424,12 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 		if egp.LogValueFinal == egp.LogGasPrice {
 			loss := float64(0)
 			if egp.LogReprocess {
-				if (egp.LogValueSecond-egp.LogValueFinal > 0) && (egp.LogValueFinal < egp.LogValueSecond) {
+				if egp.LogValueSecond-egp.LogValueFinal > 0 {
 					loss = egp.LogValueSecond - egp.LogValueFinal
 					stats.totalLossCount++
 				}
 			} else {
-				if egp.LogValueFirst-egp.LogValueFinal > 0 && (egp.LogValueFinal < egp.LogValueFirst) {
+				if egp.LogValueFirst-egp.LogValueFinal > 0 {
 					loss = egp.LogValueFirst - egp.LogValueFinal
 					stats.totalLossCount++
 				}
