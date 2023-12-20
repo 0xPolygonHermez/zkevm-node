@@ -63,8 +63,8 @@ type TrustedBatchesRetrieve struct {
 	firstBatchNumberToSync uint64
 }
 
-// NewSyncTrustedStateTemplate creates a new SyncTrustedStateTemplate
-func NewSyncTrustedStateTemplate(batchExecutor BatchProcessor,
+// NewTrustedBatchesRetrieve creates a new SyncTrustedStateTemplate
+func NewTrustedBatchesRetrieve(batchExecutor BatchProcessor,
 	zkEVMClient ZkEVMClientInterface,
 	state StateInterface,
 	sync SyncInterface,

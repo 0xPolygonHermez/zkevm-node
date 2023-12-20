@@ -23,6 +23,8 @@ var (
 	ErrBatchDataIsNotIncremental = errors.New("the new batch has different data than the one in node")
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
+	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
+	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 )
 
 // StateInterface contains the methods required to interact with the state.
@@ -64,11 +66,11 @@ func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient l2_shared.ZkEVMClientInterf
 	}
 
 	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, true, timeProvider)
-	a := l2_shared.NewSyncTrustedStateTemplate(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
+	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
 	return a
 }
 
-// NothingProcess process a batch that is already on database and update, so is not going to be process again. Maybe need to be close
+// NothingProcess process a batch that is already on database and updated, so it is not going to be processed again. Maybe it needs to be close
 func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
@@ -109,11 +111,25 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		return nil, err
 	}
 
+	err = batchResultSanityCheck(data, processBatchResp, debugStr)
+	if err != nil {
+		// TODO: Remove this fatal
+		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		return nil, err
+	}
+
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
+		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		if err != nil {
+			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
 	}
@@ -166,30 +182,22 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
 		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: ", data.DebugPrefix, err)
+		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
-	receipt := state.ProcessingReceipt{
-		BatchNumber: data.BatchNumber,
-		StateRoot:   processBatchResp.NewStateRoot,
-		//TODO: Check that MainnetExitRoot is LocalExitRoot on RPC
-		LocalExitRoot: data.TrustedBatch.MainnetExitRoot,
-		BatchL2Data:   data.TrustedBatch.BatchL2Data,
-		// TODO: Check what to put here
-		//BatchResources: processBatchResp.UsedZkCounters,
-	}
-
-	err = b.state.UpdateWIPBatch(ctx, receipt, dbTx)
-	if err != nil {
-		log.Errorf("%s error UpdateWIPBatch. Error: ", data.DebugPrefix, err)
-		return nil, err
-	}
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Errorf("%s error closing batch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
+		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		if err != nil {
+			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
 	}
@@ -204,6 +212,24 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		UpdateBatch:                         &updatedBatch,
 	}
 	return &res, nil
+}
+
+func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, processBatchResp *state.ProcessBatchResponse, dbTx pgx.Tx) error {
+	receipt := state.ProcessingReceipt{
+		BatchNumber:   data.BatchNumber,
+		StateRoot:     processBatchResp.NewStateRoot,
+		LocalExitRoot: data.TrustedBatch.RollupExitRoot,
+		BatchL2Data:   data.TrustedBatch.BatchL2Data,
+		// TODO: Check what to put here
+		//BatchResources: processBatchResp.UsedZkCounters,
+	}
+
+	err := b.state.UpdateWIPBatch(ctx, receipt, dbTx)
+	if err != nil {
+		log.Errorf("%s error UpdateWIPBatch. Error: ", data.DebugPrefix, err)
+		return err
+	}
+	return err
 }
 
 // ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
@@ -223,16 +249,19 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return nil
 	}
 	if processBatchResp.NewStateRoot == state.ZeroHash {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash", debugStr)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, ErrNotExpectedBathResult)
 	}
 	if processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot", debugStr)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w",
+			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), debugStr, ErrNotExpectedBathResult)
 	}
 	if processBatchResp.NewLocalExitRoot != data.TrustedBatch.LocalExitRoot {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot != data.StateBatch.StateRoot", debugStr)
+		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
+			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), ErrNotExpectedBathResult)
 	}
 	if processBatchResp.NewAccInputHash != data.TrustedBatch.AccInputHash {
-		return fmt.Errorf("%s processBatchResp.	if processBatchResp.NewAccInputHash != data.TrustedBatch.AccInputHash", debugStr)
+		return fmt.Errorf("%s processBatchResp.	if processBatchResp.NewAccInputHash(%s) != data.TrustedBatch.AccInputHash(%s). Err:%w", debugStr,
+			processBatchResp.NewAccInputHash.String(), data.TrustedBatch.AccInputHash.String(), ErrNotExpectedBathResult)
 	}
 	return nil
 }
@@ -353,20 +382,12 @@ func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
 	}
 
 	if hash(incommingData[:len(previousData)]) != hash(previousData) {
-		findFirstByteDifferent := findFirstByteDifferent(incommingData, previousData)
-		log.Info(syncCommon.LogComparedBytes("trusted L2BatchData", "state   L2BatchData", incommingData, previousData, 10, 10)) //nolint:gomnd
-		return fmt.Errorf("L2Data check: the common part with state dont have same hash (first byte different at: %d) err:%w", findFirstByteDifferent, ErrBatchDataIsNotIncremental)
+		strDiff := syncCommon.LogComparedBytes("trusted L2BatchData", "state   L2BatchData", incommingData, previousData, 10, 10) //nolint:gomnd
+		err := fmt.Errorf("L2Data check: the common part with state dont have same hash (different at: %s) err:%w", strDiff, ErrBatchDataIsNotIncremental)
+		log.Error(err.Error())
+		return err
 	}
 	return nil
-}
-
-func findFirstByteDifferent(data1 []byte, data2 []byte) int {
-	for i := 0; i < len(data1); i++ {
-		if data1[i] != data2[i] {
-			return i
-		}
-	}
-	return -1
 }
 
 func sumAllL2BlockDeltaTimestamp(rawBatch *state.BatchRawV2) uint32 {

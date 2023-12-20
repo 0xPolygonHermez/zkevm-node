@@ -129,7 +129,7 @@ func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, tru
 		log.Debugf("%s is partially synchronized", processMode.DebugPrefix)
 		processBatchResp, err = s.Steps.IncrementalProcess(ctx, &processMode, dbTx)
 	case ReprocessProcessMode:
-		log.Debugf("%s is partially synchronized but we don't have intermediate stateRoot so need to be fully reprocessed", processMode.DebugPrefix)
+		log.Debugf("%s is partially synchronized but we don't have intermediate stateRoot so it needs to be fully reprocessed", processMode.DebugPrefix)
 		processBatchResp, err = s.Steps.ReProcess(ctx, &processMode, dbTx)
 	}
 	if err != nil {
