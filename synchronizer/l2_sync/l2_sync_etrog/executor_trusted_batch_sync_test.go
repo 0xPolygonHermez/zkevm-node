@@ -54,26 +54,16 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	}
 
 	stateMock.EXPECT().UpdateWIPBatch(ctx, mock.Anything, mock.Anything).Return(nil).Once()
-	stateMock.EXPECT().GetCurrentL1InfoRoot().Return(state.ZeroHash).Once()
-	stateMock.EXPECT().GetL1InfoRootLeafByL1InfoRoot(mock.Anything, mock.Anything, mock.Anything).Return(state.L1InfoTreeExitRootStorageEntry{}, nil).Once()
+	stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, expectedStateRoot, nil).Once()
 	stateMock.EXPECT().GetForkIDByBatchNumber(batchNumber).Return(uint64(7)).Once()
 
 	processBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: expectedStateRoot,
 	}
-	stateMock.
-		On("ProcessBatchV2", mock.Anything, mock.Anything, true).
-		Return(processBatchResp, nil).
-		Once()
+	stateMock.EXPECT().ProcessBatchV2(ctx, mock.Anything, true).Return(processBatchResp, nil).Once()
 
-	syncMock.
-		On("PendingFlushID", mock.Anything, mock.Anything).
-		Once()
-
-	syncMock.
-		On("CheckFlushID", mock.Anything).
-		Return(nil).
-		Maybe()
+	syncMock.EXPECT().PendingFlushID(mock.Anything, mock.Anything).Once()
+	syncMock.EXPECT().CheckFlushID(mock.Anything).Return(nil).Maybe()
 	// Act
 	res, err := sut.IncrementalProcess(ctx, &data, nil)
 	// Assert

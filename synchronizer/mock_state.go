@@ -1075,6 +1075,75 @@ func (_c *stateMock_GetL1InfoRootLeafByL1InfoRoot_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
+func (_m *stateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
+	ret := _m.Called(ctx, batchL2Data, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL1InfoTreeDataFromBatchL2Data")
+	}
+
+	var r0 map[uint32]state.L1DataV2
+	var r1 common.Hash
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)); ok {
+		return rf(ctx, batchL2Data, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
+		r0 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uint32]state.L1DataV2)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []byte, pgx.Tx) common.Hash); ok {
+		r1 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r2 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// stateMock_GetL1InfoTreeDataFromBatchL2Data_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoTreeDataFromBatchL2Data'
+type stateMock_GetL1InfoTreeDataFromBatchL2Data_Call struct {
+	*mock.Call
+}
+
+// GetL1InfoTreeDataFromBatchL2Data is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchL2Data []byte
+//   - dbTx pgx.Tx
+func (_e *stateMock_Expecter) GetL1InfoTreeDataFromBatchL2Data(ctx interface{}, batchL2Data interface{}, dbTx interface{}) *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call {
+	return &stateMock_GetL1InfoTreeDataFromBatchL2Data_Call{Call: _e.mock.On("GetL1InfoTreeDataFromBatchL2Data", ctx, batchL2Data, dbTx)}
+}
+
+func (_c *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call) Run(run func(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx)) *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]byte), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call) Return(_a0 map[uint32]state.L1DataV2, _a1 common.Hash, _a2 error) *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)) *stateMock_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *stateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
