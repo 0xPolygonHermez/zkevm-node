@@ -114,15 +114,15 @@ func TestStateTransition(t *testing.T) {
 			}
 
 			processRequest := state.ProcessRequest{
-				BatchNumber:       uint64(i + 1),
-				L1InfoRoot_V2:     common.HexToHash(testCase.L1InfoRoot),
-				L1InfoTreeData_V2: map[uint32]state.L1DataV2{},
-				OldStateRoot:      stateRoot,
-				OldAccInputHash:   common.HexToHash(testCase.OldAccInputHash),
-				Transactions:      common.FromHex(testCase.BatchL2Data),
-				TimestampLimit_V2: timestampLimit.Uint64(),
-				Coinbase:          common.HexToAddress(testCase.SequencerAddress),
-				ForkID:            testCase.ForkID,
+				BatchNumber:             uint64(i + 1),
+				L1InfoRoot_V2:           common.HexToHash(testCase.L1InfoRoot),
+				OldStateRoot:            stateRoot,
+				OldAccInputHash:         common.HexToHash(testCase.OldAccInputHash),
+				Transactions:            common.FromHex(testCase.BatchL2Data),
+				TimestampLimit_V2:       timestampLimit.Uint64(),
+				Coinbase:                common.HexToAddress(testCase.SequencerAddress),
+				ForkID:                  testCase.ForkID,
+				SkipVerifyL1InfoRoot_V2: testCase.L1InfoTree.SkipVerifyL1InfoRoot,
 			}
 
 			processResponse, _ := testState.ProcessBatchV2(ctx, processRequest, false)
