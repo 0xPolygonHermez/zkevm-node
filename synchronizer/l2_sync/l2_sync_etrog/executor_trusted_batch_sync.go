@@ -41,6 +41,7 @@ type StateInterface interface {
 	GetCurrentL1InfoRoot() common.Hash
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
 }
 
 // SyncTrustedBatchExecutorForEtrog is the implementation of the SyncTrustedStateBatchExecutorSteps that
@@ -92,14 +93,13 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	l1InfoRoot := b.state.GetCurrentL1InfoRoot()
-	l1InfoTree, err := b.state.GetL1InfoRootLeafByL1InfoRoot(ctx, l1InfoRoot, dbTx)
+	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
 	if err != nil {
-		log.Errorf("%s error getting L1InfoRootLeafByL1InfoRoot: %v.", data.DebugPrefix, l1InfoRoot)
+		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		return nil, err
 	}
 	debugStr := data.DebugPrefix
-	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, b.getProcessRequest(data, l1InfoTree), dbTx, debugStr)
+	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, b.getProcessRequest(data, leafs, l1InfoRoot), dbTx, debugStr)
 	if err != nil {
 		log.Error("%s error procesingAndStoringTxs. Error: ", debugStr, err)
 		return nil, err
@@ -160,14 +160,14 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		log.Errorf("%s error composePartialBatch batch Error:%w", data.DebugPrefix, err)
 		return nil, err
 	}
-	l1InfoRoot := b.state.GetCurrentL1InfoRoot()
-	l1InfoTree, err := b.state.GetL1InfoRootLeafByL1InfoRoot(ctx, l1InfoRoot, dbTx)
+
+	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, madeUpBatch.BatchL2Data, dbTx)
 	if err != nil {
-		log.Errorf("%s error getting L1InfoRootLeafByL1InfoRoot: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
+		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		return nil, err
 	}
 	debugStr := fmt.Sprintf("%s: Batch %d:", data.Mode, uint64(data.TrustedBatch.Number))
-	processBatchResp, err := b.processAndStoreTxs(ctx, &madeUpBatch, b.getProcessRequest(data, l1InfoTree), dbTx, debugStr)
+	processBatchResp, err := b.processAndStoreTxs(ctx, &madeUpBatch, b.getProcessRequest(data, leafs, l1InfoRoot), dbTx, debugStr)
 	if err != nil {
 		log.Errorf("%s error procesingAndStoringTxs. Error: ", data.DebugPrefix, err)
 		return nil, err
@@ -354,15 +354,15 @@ func getResponseInfo(response *state.ProcessBatchResponse) string {
 	return fmt.Sprintf(" l2block[%v-%v] txs[%v]", minBlock, maxBlock, totalTx)
 }
 
-func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.ProcessData, l1InfoTree state.L1InfoTreeExitRootStorageEntry) state.ProcessRequest {
+func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.ProcessData, l1InfoTreeLeafs map[uint32]state.L1DataV2, l1InfoTreeRoot common.Hash) state.ProcessRequest {
 	request := state.ProcessRequest{
 		BatchNumber:     uint64(data.TrustedBatch.Number),
 		OldStateRoot:    data.OldStateRoot,
 		OldAccInputHash: data.OldAccInputHash,
 		Coinbase:        common.HexToAddress(data.TrustedBatch.Coinbase.String()),
-		L1InfoRoot_V2:   l1InfoTree.L1InfoTreeRoot,
+		L1InfoRoot_V2:   l1InfoTreeRoot,
 		//TODO: Fill L1InfoTreeData
-		L1InfoTreeData_V2:       map[uint32]state.L1DataV2{0: {GlobalExitRoot: l1InfoTree.L1InfoTreeRoot}},
+		L1InfoTreeData_V2:       l1InfoTreeLeafs,
 		TimestampLimit_V2:       uint64(data.TrustedBatch.Timestamp),
 		Transactions:            data.TrustedBatch.BatchL2Data,
 		ForkID:                  b.state.GetForkIDByBatchNumber(uint64(data.TrustedBatch.Number)),
