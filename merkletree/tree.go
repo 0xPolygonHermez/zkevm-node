@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -349,8 +348,6 @@ func (tree *StateTree) FinishBlock(ctx context.Context, newRoot common.Hash, uui
 		NewStateRoot: newRoot.String(),
 		Persistence:  hashdb.Persistence_PERSISTENCE_DATABASE}
 	_, err := tree.grpcClient.FinishBlock(ctx, finishBlockRequest)
-
-	log.Debugf("FinishBlock: %+v", finishBlockRequest)
 
 	return err
 }
