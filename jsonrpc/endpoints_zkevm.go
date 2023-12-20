@@ -396,3 +396,20 @@ func (z *ZKEVMEndpoints) getTransactionByL2HashFromSequencerNode(hash common.Has
 	}
 	return tx, nil
 }
+
+// GetExitRootsByGER returns the exit roots accordingly to the provided Global Exit Root
+func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		exitRoots, err := z.state.GetExitRootByGlobalExitRoot(ctx, globalExitRoot, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get exit roots by global exit root from state", err, true)
+		}
+
+		return types.ExitRoots{
+			MainnetExitRoot: exitRoots.MainnetExitRoot,
+			RollupExitRoot:  exitRoots.RollupExitRoot,
+		}, nil
+	})
+}

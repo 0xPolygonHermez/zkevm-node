@@ -72,3 +72,4 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_virtualBatchNumber`
 - `zkevm_getTransactionByL2Hash`
 - `zkevm_getTransactionReceiptByL2Hash`
+- `zkevm_getExitRootsByGER`

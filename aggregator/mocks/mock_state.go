@@ -5,8 +5,11 @@ package mocks
 import (
 	context "context"
 
-	pgx "github.com/jackc/pgx/v4"
+	common "github.com/ethereum/go-ethereum/common"
+
 	mock "github.com/stretchr/testify/mock"
+
+	pgx "github.com/jackc/pgx/v4"
 
 	state "github.com/0xPolygonHermez/zkevm-node/state"
 )
@@ -172,6 +175,30 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
+// GetL1InfoRootLeafByIndex provides a mock function with given fields: ctx, l1InfoTreeIndex, dbTx
+func (_m *StateMock) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, l1InfoTreeIndex, dbTx)
+
+	var r0 state.L1InfoTreeExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)); ok {
+		return rf(ctx, l1InfoTreeIndex, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint32, pgx.Tx) state.L1InfoTreeExitRootStorageEntry); ok {
+		r0 = rf(ctx, l1InfoTreeIndex, dbTx)
+	} else {
+		r0 = ret.Get(0).(state.L1InfoTreeExitRootStorageEntry)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint32, pgx.Tx) error); ok {
+		r1 = rf(ctx, l1InfoTreeIndex, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastVerifiedBatch provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -191,6 +218,32 @@ func (_m *StateMock) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx) (*st
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
 		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLeafsByL1InfoRoot provides a mock function with given fields: ctx, l1InfoRoot, dbTx
+func (_m *StateMock) GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, l1InfoRoot, dbTx)
+
+	var r0 []state.L1InfoTreeExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error)); ok {
+		return rf(ctx, l1InfoRoot, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) []state.L1InfoTreeExitRootStorageEntry); ok {
+		r0 = rf(ctx, l1InfoRoot, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]state.L1InfoTreeExitRootStorageEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, l1InfoRoot, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

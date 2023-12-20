@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package aggregator.v1;
 
-option go_package = "github.com/0xPolygonHermez/zkevm-node/aggregator/prover";
+option go_package = "github.com/0xPolygonHermez/zkevm-node/proverclient/prover";
 
 message Version {
     string v0_0_1 = 1;
@@ -261,10 +261,20 @@ message PublicInputs {
     uint64 chain_id = 4;
     uint64 fork_id = 5;
     bytes batch_l2_data = 6;
-    bytes global_exit_root = 7;
-    uint64 eth_timestamp = 8;
+    bytes l1_info_root = 7;
+    uint64 timestamp_limit = 8;
     string sequencer_addr = 9;
-    string aggregator_addr = 10;
+    bytes forced_blockhash_l1 = 10;
+    string aggregator_addr = 12;
+    map<uint32, L1Data> l1_info_tree_data = 16;
+}
+
+// l1InfoTree leaf values
+message L1Data {
+    bytes global_exit_root = 1;
+    bytes blockhash_l1 = 2;
+    uint32 min_timestamp = 3;
+    repeated bytes smt_proof = 4;
 }
 
 /**
