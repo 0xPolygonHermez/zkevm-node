@@ -142,11 +142,11 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // FlushMerkleTree persists updates in the Merkle tree
-func (s *State) FlushMerkleTree(ctx context.Context) error {
+func (s *State) FlushMerkleTree(ctx context.Context, newStateRoot common.Hash) error {
 	if s.tree == nil {
 		return ErrStateTreeNil
 	}
-	return s.tree.Flush(ctx, "")
+	return s.tree.Flush(ctx, newStateRoot, "")
 }
 
 // GetStoredFlushID returns the stored flush ID and Prover ID

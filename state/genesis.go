@@ -121,7 +121,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 
 	// flush state db
-	err = s.tree.Flush(ctx, uuid)
+	err = s.tree.Flush(ctx, root, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
 		return common.Hash{}, err

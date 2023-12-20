@@ -212,13 +212,13 @@ func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1In
 	return r0, r1
 }
 
-// FlushMerkleTree provides a mock function with given fields: ctx
-func (_m *StateMock) FlushMerkleTree(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// FlushMerkleTree provides a mock function with given fields: ctx, newStateRoot
+func (_m *StateMock) FlushMerkleTree(ctx context.Context, newStateRoot common.Hash) error {
+	ret := _m.Called(ctx, newStateRoot)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) error); ok {
+		r0 = rf(ctx, newStateRoot)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -325,8 +326,8 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 }
 
 // Flush flushes all changes to the persistent storage.
-func (tree *StateTree) Flush(ctx context.Context, uuid string) error {
-	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid, Persistence: hashdb.Persistence_PERSISTENCE_DATABASE}
+func (tree *StateTree) Flush(ctx context.Context, newStateRoot common.Hash, uuid string) error {
+	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid, NewStateRoot: newStateRoot.String(), Persistence: hashdb.Persistence_PERSISTENCE_DATABASE}
 	_, err := tree.grpcClient.Flush(ctx, flushRequest)
 	return err
 }
@@ -348,5 +349,8 @@ func (tree *StateTree) FinishBlock(ctx context.Context, newRoot common.Hash, uui
 		NewStateRoot: newRoot.String(),
 		Persistence:  hashdb.Persistence_PERSISTENCE_DATABASE}
 	_, err := tree.grpcClient.FinishBlock(ctx, finishBlockRequest)
+
+	log.Debugf("FinishBlock: %+v", finishBlockRequest)
+
 	return err
 }
