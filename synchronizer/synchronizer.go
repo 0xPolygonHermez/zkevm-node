@@ -363,7 +363,23 @@ func (s *ClientSynchronizer) Sync() error {
 				continue
 			}
 			log.Infof("latestSequencedBatchNumber: %d, latestSyncedBatch: %d, lastVerifiedBatchNumber: %d", latestSequencedBatchNumber, latestSyncedBatch, lastVerifiedBatchNumber)
-
+			// Sync trusted state
+			// latestSyncedBatch -> Last batch on DB
+			// latestSequencedBatchNumber -> last batch on SMC
+			if latestSyncedBatch >= latestSequencedBatchNumber {
+				startTrusted := time.Now()
+				if s.syncTrustedStateExecutor != nil && !s.isTrustedSequencer {
+					log.Info("Syncing trusted state (permissionless)")
+					err = s.syncTrustedState(latestSyncedBatch)
+					metrics.FullTrustedSyncTime(time.Since(startTrusted))
+					if err != nil {
+						log.Warn("error syncing trusted state. Error: ", err)
+						s.CleanTrustedState()
+						continue
+					}
+				}
+				waitDuration = s.cfg.SyncInterval.Duration
+			}
 			//Sync L1Blocks
 			startL1 := time.Now()
 			if s.l1SyncOrchestration != nil && (latestSyncedBatch < latestSequencedBatchNumber || !s.cfg.L1ParallelSynchronization.FallbackToSequentialModeOnSynchronized) {
@@ -396,23 +412,6 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			metrics.FullSyncIterationTime(time.Since(start))
 			log.Info("L1 state fully synchronized")
-			// Sync trusted state
-			// latestSyncedBatch -> Last batch on DB
-			// latestSequencedBatchNumber -> last batch on SMC
-			if latestSyncedBatch >= latestSequencedBatchNumber {
-				startTrusted := time.Now()
-				if s.syncTrustedStateExecutor != nil && !s.isTrustedSequencer {
-					log.Info("Syncing trusted state (permissionless)")
-					err = s.syncTrustedState(latestSyncedBatch)
-					metrics.FullTrustedSyncTime(time.Since(startTrusted))
-					if err != nil {
-						log.Warn("error syncing trusted state. Error: ", err)
-						s.CleanTrustedState()
-						continue
-					}
-				}
-				waitDuration = s.cfg.SyncInterval.Duration
-			}
 		}
 	}
 }

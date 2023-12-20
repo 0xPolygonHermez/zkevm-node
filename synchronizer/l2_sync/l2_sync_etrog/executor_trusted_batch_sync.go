@@ -220,6 +220,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, d
 		StateRoot:     processBatchResp.NewStateRoot,
 		LocalExitRoot: data.TrustedBatch.RollupExitRoot,
 		BatchL2Data:   data.TrustedBatch.BatchL2Data,
+		AccInputHash:  data.TrustedBatch.AccInputHash,
 		// TODO: Check what to put here
 		//BatchResources: processBatchResp.UsedZkCounters,
 	}
@@ -259,10 +260,12 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
 			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), ErrNotExpectedBathResult)
 	}
-	if processBatchResp.NewAccInputHash != data.TrustedBatch.AccInputHash {
-		return fmt.Errorf("%s processBatchResp.	if processBatchResp.NewAccInputHash(%s) != data.TrustedBatch.AccInputHash(%s). Err:%w", debugStr,
-			processBatchResp.NewAccInputHash.String(), data.TrustedBatch.AccInputHash.String(), ErrNotExpectedBathResult)
-	}
+	// We can't check AccInputHash because we dont have timeLimit neither L1InfoRoot used to create the batch
+	// is going to be update from L1
+	// if processBatchResp.NewAccInputHash != data.TrustedBatch.AccInputHash {
+	// 	return fmt.Errorf("%s processBatchResp.	if processBatchResp.NewAccInputHash(%s) != data.TrustedBatch.AccInputHash(%s). Err:%w", debugStr,
+	// 		processBatchResp.NewAccInputHash.String(), data.TrustedBatch.AccInputHash.String(), ErrNotExpectedBathResult)
+	// }
 	return nil
 }
 
