@@ -25,7 +25,7 @@ func TestLogComparedBytes2(t *testing.T) {
 	numBytesBefore := 2
 	numBytesAfter := 2
 
-	expected := "file1.txt(58): (3)...0102*0304...(1)\nfile2.txt(8): (3)...0102*0604...(1)"
+	expected := "file1.txt(8): (3)...0102*0304...(1)\nfile2.txt(8): (3)...0102*0604...(1)"
 	result := LogComparedBytes(name1, name2, data1, data2, numBytesBefore, numBytesAfter)
 	if result != expected {
 		t.Errorf("Unexpected result. Expected: %s, Got: %s", expected, result)

@@ -78,7 +78,7 @@ type ClientSynchronizer struct {
 	previousExecutorFlushID  uint64
 	l1SyncOrchestration      *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors        *processor_manager.L1EventProcessors
-	syncTrustedStateExecutor syncTrustedStateExecutor
+	syncTrustedStateExecutor syncinterfaces.SyncTrustedStateExecutor
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
