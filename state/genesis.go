@@ -54,6 +54,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 
 	uuid := uuid.New().String()
 
+	err = s.tree.StartBlock(ctx, root, uuid)
+	if err != nil {
+		log.Errorf("error starting block before genesis: %v", err)
+		return common.Hash{}, err
+	}
+
 	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
 		switch action.Type {
@@ -107,6 +113,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 
 	root.SetBytes(genesisStateRoot)
+
+	err = s.tree.FinishBlock(ctx, root, uuid)
+	if err != nil {
+		log.Errorf("error finishing block after genesis: %v", err)
+		return common.Hash{}, err
+	}
 
 	// flush state db
 	err = s.tree.Flush(ctx, uuid)
