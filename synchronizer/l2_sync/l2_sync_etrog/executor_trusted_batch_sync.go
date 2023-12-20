@@ -10,6 +10,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -33,7 +34,6 @@ type StateInterface interface {
 	CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
-	//UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error
 	UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
@@ -53,13 +53,13 @@ type SynchronizerInterface interface {
 // have the functions to sync a fullBatch, incrementalBatch and reprocessBatch
 type SyncTrustedBatchExecutorForEtrog struct {
 	state StateInterface
-	sync  SynchronizerInterface
+	sync  syncinterfaces.SynchronizerFlushIDManager
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
-func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient l2_shared.ZkEVMClientInterface,
+func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZkEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync l2_shared.SyncInterface, timeProvider syncCommon.TimeProvider) *l2_shared.TrustedBatchesRetrieve {
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state: stateBatchExecutor,
 		sync:  sync,

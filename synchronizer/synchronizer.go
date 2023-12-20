@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
@@ -63,7 +64,7 @@ type ClientSynchronizer struct {
 	pool                     poolInterface
 	ethTxManager             ethTxManager
 	zkEVMClient              zkEVMClientInterface
-	eventLog                 *event.EventLog
+	eventLog                 syncinterfaces.EventLogInterface
 	ctx                      context.Context
 	cancelCtx                context.CancelFunc
 	genesis                  state.Genesis
@@ -89,7 +90,7 @@ func NewSynchronizer(
 	pool poolInterface,
 	ethTxManager ethTxManager,
 	zkEVMClient zkEVMClientInterface,
-	eventLog *event.EventLog,
+	eventLog syncinterfaces.EventLogInterface,
 	genesis state.Genesis,
 	cfg Config,
 	runInDevelopmentMode bool) (Synchronizer, error) {

@@ -16,6 +16,7 @@ import (
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -55,13 +56,13 @@ type ProcessorL1SequenceBatches struct {
 	state    stateProcessSequenceBatches
 	etherMan ethermanProcessSequenceBatches
 	pool     poolProcessSequenceBatchesInterface
-	eventLog *event.EventLog
+	eventLog syncinterfaces.EventLogInterface
 	sync     syncProcessSequenceBatchesInterface
 }
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
-	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
+	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog syncinterfaces.EventLogInterface, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
 	return &ProcessorL1SequenceBatches{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatches]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},

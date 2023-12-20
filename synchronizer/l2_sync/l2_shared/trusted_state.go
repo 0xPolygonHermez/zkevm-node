@@ -7,13 +7,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/jackc/pgx/v4"
 )
-
-// StateGetBatchInterface contains the methods required to interact with the state.
-type StateGetBatchInterface interface {
-	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-}
 
 // TrustedState is the trusted state, basically contains the batch cache for a concrete batch
 type TrustedState struct {
@@ -47,7 +43,7 @@ func (ts *TrustedStateManager) Set(resultBatch *state.Batch) {
 }
 
 // GetStateForWorkingBatch returns the trusted state for the working batch
-func (ts *TrustedStateManager) GetStateForWorkingBatch(ctx context.Context, batchNumber uint64, stateGetBatch StateGetBatchInterface, dbTx pgx.Tx) (*TrustedState, error) {
+func (ts *TrustedStateManager) GetStateForWorkingBatch(ctx context.Context, batchNumber uint64, stateGetBatch syncinterfaces.StateGetBatchByNumberInterface, dbTx pgx.Tx) (*TrustedState, error) {
 	ts.Cache.DeleteOutdated()
 	res := &TrustedState{}
 	var err error

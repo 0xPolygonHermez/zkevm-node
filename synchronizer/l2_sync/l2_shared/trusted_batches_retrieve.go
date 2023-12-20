@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/jackc/pgx/v4"
 )
@@ -22,12 +23,6 @@ import (
 const (
 	firstTrustedBatchNumber = uint64(2)
 )
-
-// ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
-type ZkEVMClientInterface interface {
-	BatchNumber(ctx context.Context) (uint64, error)
-	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
-}
 
 // StateInterface contains the methods required to interact with the state.
 type StateInterface interface {
@@ -43,12 +38,6 @@ type BatchProcessor interface {
 	ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error)
 }
 
-// SyncInterface contains the methods required to interact with the synchronizer main class.
-type SyncInterface interface {
-	PendingFlushID(flushID uint64, proverID string)
-	CheckFlushID(dbTx pgx.Tx) error
-}
-
 // TrustedState is the trusted state, basically contains the batch cache
 
 // TrustedBatchesRetrieve it gets pending batches from Trusted node. It calls for each batch to BatchExecutor
@@ -56,18 +45,18 @@ type SyncInterface interface {
 //	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
 type TrustedBatchesRetrieve struct {
 	batchExecutor          BatchProcessor
-	zkEVMClient            ZkEVMClientInterface
+	zkEVMClient            syncinterfaces.ZkEVMClientTrustedBatchesGetter
 	state                  StateInterface
-	sync                   SyncInterface
+	sync                   syncinterfaces.SynchronizerFlushIDManager
 	TrustedStateMngr       TrustedStateManager
 	firstBatchNumberToSync uint64
 }
 
 // NewTrustedBatchesRetrieve creates a new SyncTrustedStateTemplate
 func NewTrustedBatchesRetrieve(batchExecutor BatchProcessor,
-	zkEVMClient ZkEVMClientInterface,
+	zkEVMClient syncinterfaces.ZkEVMClientTrustedBatchesGetter,
 	state StateInterface,
-	sync SyncInterface,
+	sync syncinterfaces.SynchronizerFlushIDManager,
 	TrustedStateMngr TrustedStateManager,
 ) *TrustedBatchesRetrieve {
 	return &TrustedBatchesRetrieve{

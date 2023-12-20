@@ -21,7 +21,7 @@ const (
 	codedRLP2Txs1 = "ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff"
 )
 
-func TestIncrementalProcess(t *testing.T) {
+func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	// Arrange
 	stateMock := NewStateInterfaceMock(t)
 	syncMock := NewSynchronizerInterfaceMock(t)
@@ -90,4 +90,6 @@ func TestIncrementalProcess(t *testing.T) {
 	log.Info(res)
 	require.NoError(t, err)
 	require.Equal(t, trustedBatchL2Data, res.UpdateBatch.BatchL2Data)
+	require.Equal(t, false, res.ClearCache)
+}
 }

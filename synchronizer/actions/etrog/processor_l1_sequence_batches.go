@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -58,7 +59,7 @@ type ProcessorL1SequenceBatchesEtrog struct {
 	state        stateProcessSequenceBatches
 	etherMan     ethermanProcessSequenceBatches
 	pool         poolProcessSequenceBatchesInterface
-	eventLog     *event.EventLog
+	eventLog     syncinterfaces.EventLogInterface
 	sync         syncProcessSequenceBatchesInterface
 	timeProvider syncCommon.TimeProvider
 }
@@ -67,7 +68,7 @@ type ProcessorL1SequenceBatchesEtrog struct {
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	etherMan ethermanProcessSequenceBatches,
 	pool poolProcessSequenceBatchesInterface,
-	eventLog *event.EventLog,
+	eventLog syncinterfaces.EventLogInterface,
 	sync syncProcessSequenceBatchesInterface,
 	timeProvider syncCommon.TimeProvider) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
