@@ -34,6 +34,7 @@ type ProcessRequest struct {
 	ForkID                    uint64
 }
 
+// L1DataV2 represents the data of a L1 block
 type L1DataV2 struct {
 	GlobalExitRoot common.Hash
 	BlockHashL1    common.Hash
