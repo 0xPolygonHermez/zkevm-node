@@ -20,10 +20,16 @@ type StateTransitionTestCaseEtrog struct {
 	OldAccInputHash      string               `json:"oldAccInputHash"`
 	L1InfoRoot           string               `json:"l1InfoRoot"`
 	TimestampLimit       string               `json:"timestampLimit"`
+	L1InfoTree           L1Infotree           `json:"l1InfoTree"`
 	BatchL2Data          string               `json:"batchL2Data"`
 	BatchHashData        string               `json:"batchHashData"`
 	ForkID               uint64               `json:"forkID"`
 	SequencerAddress     string               `json:"sequencerAddress"`
+}
+
+// L1InfoTree represents the state of the L1InfoTree
+type L1Infotree struct {
+	SkipVerifyL1InfoRoot bool `json:"skipVerifyL1InfoRoot"`
 }
 
 // LeafEtrog represents the state of a leaf in the merkle tree

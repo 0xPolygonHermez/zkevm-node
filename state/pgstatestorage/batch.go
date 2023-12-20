@@ -956,3 +956,30 @@ func (p *PostgresStorage) GetRawBatchTimestamps(ctx context.Context, batchNumber
 	}
 	return batchTimestamp, virtualBatchTimestamp, err
 }
+
+// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data
+func (p *PostgresStorage) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, error) {
+	batchRaw, err := state.DecodeBatchV2(batchL2Data)
+	if err != nil {
+		return nil, err
+	}
+
+	l1InfoTreeData := map[uint32]state.L1DataV2{}
+
+	for _, l2blockRaw := range batchRaw.Blocks {
+		_, found := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+		if !found {
+			l1InfoTreeExitRootStorageEntry, err := p.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
+			if err != nil {
+				return nil, err
+			}
+			l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = state.L1DataV2{
+				GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot,
+				BlockHashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash,
+				MinTimestamp:   uint64(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+			}
+		}
+	}
+
+	return l1InfoTreeData, nil
+}

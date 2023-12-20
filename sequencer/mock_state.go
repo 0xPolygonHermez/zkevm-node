@@ -10,8 +10,6 @@ import (
 
 	executor "github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 
-	metrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-
 	mock "github.com/stretchr/testify/mock"
 
 	pgx "github.com/jackc/pgx/v4"
@@ -214,13 +212,13 @@ func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1In
 	return r0, r1
 }
 
-// FlushMerkleTree provides a mock function with given fields: ctx
-func (_m *StateMock) FlushMerkleTree(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// FlushMerkleTree provides a mock function with given fields: ctx, newStateRoot
+func (_m *StateMock) FlushMerkleTree(ctx context.Context, newStateRoot common.Hash) error {
+	ret := _m.Called(ctx, newStateRoot)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) error); ok {
+		r0 = rf(ctx, newStateRoot)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -273,6 +271,32 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetBlockByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *StateMock) GetBlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.Block, error) {
+	ret := _m.Called(ctx, blockNumber, dbTx)
+
+	var r0 *state.Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Block, error)); ok {
+		return rf(ctx, blockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Block); ok {
+		r0 = rf(ctx, blockNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, blockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -448,6 +472,32 @@ func (_m *StateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	}
 
 	return r0
+}
+
+// GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
+func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, error) {
+	ret := _m.Called(ctx, batchL2Data, dbTx)
+
+	var r0 map[uint32]state.L1DataV2
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, error)); ok {
+		return rf(ctx, batchL2Data, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
+		r0 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uint32]state.L1DataV2)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetLastBatch provides a mock function with given fields: ctx, dbTx
@@ -1105,32 +1155,6 @@ func (_m *StateMock) ProcessBatchV2(ctx context.Context, request state.ProcessRe
 
 	if rf, ok := ret.Get(1).(func(context.Context, state.ProcessRequest, bool) error); ok {
 		r1 = rf(ctx, request, updateMerkleTree)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// ProcessSequencerBatch provides a mock function with given fields: ctx, batchNumber, batchL2Data, caller, dbTx
-func (_m *StateMock) ProcessSequencerBatch(ctx context.Context, batchNumber uint64, batchL2Data []byte, caller metrics.CallerLabel, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, batchNumber, batchL2Data, caller, dbTx)
-
-	var r0 *state.ProcessBatchResponse
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
-		return rf(ctx, batchNumber, batchL2Data, caller, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.ProcessBatchResponse)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, []byte, metrics.CallerLabel, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, batchL2Data, caller, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

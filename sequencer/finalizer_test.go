@@ -1043,11 +1043,6 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			expected:        true,
 		},
 		{
-			name:     "Global Exit Root deadline",
-			nextGER:  now().Add(time.Second).Unix(),
-			expected: true,
-		},
-		{
 			name:             "Delayed batch deadline",
 			nextDelayedBatch: now().Add(time.Second).Unix(),
 			expected:         false,
@@ -1063,7 +1058,6 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
 			f.nextForcedBatchDeadline = tc.nextForcedBatch
-			f.nextGERDeadline = tc.nextGER
 			if tc.expected == true {
 				now = func() time.Time {
 					return testNow().Add(time.Second * 2)
@@ -2297,20 +2291,15 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 	return &finalizer{
-		cfg:              cfg,
-		closingSignalCh:  closingSignalCh,
-		isSynced:         isSynced,
-		sequencerAddress: seqAddr,
-		worker:           workerMock,
-		pool:             poolMock,
-		state:            stateMock,
-		wipBatch:         wipBatch,
-		batchConstraints: bc,
-		currentGERHash:   common.Hash{},
-		// closing signals
-		nextGER:                    common.Hash{},
-		nextGERDeadline:            0,
-		nextGERMux:                 new(sync.Mutex),
+		cfg:                        cfg,
+		closingSignalCh:            closingSignalCh,
+		isSynced:                   isSynced,
+		sequencerAddress:           seqAddr,
+		worker:                     workerMock,
+		pool:                       poolMock,
+		state:                      stateMock,
+		wipBatch:                   wipBatch,
+		batchConstraints:           bc,
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline:    0,
 		nextForcedBatchesMux:       new(sync.Mutex),
