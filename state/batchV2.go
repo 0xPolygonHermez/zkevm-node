@@ -237,6 +237,11 @@ func (s *State) processBatchV2(ctx context.Context, processingCtx *ProcessingCon
 	if processingCtx.ForcedBlockHashL1 != nil {
 		log.Debug("Setting ForcedBlockhashL1: ", processingCtx.ForcedBlockHashL1)
 		processBatchRequest.ForcedBlockhashL1 = processingCtx.ForcedBlockHashL1.Bytes()
+		processBatchRequest.SkipFirstChangeL2Block = cTrue
+		//processBatchRequest.SkipWriteBlockInfoRoot = cTrue
+		processBatchRequest.SkipVerifyL1InfoRoot = cTrue
+		//TODO: Workarround to genesis error, when Executor is fixed delete this lines
+		processBatchRequest.OldStateRoot = common.Hex2Bytes("0xa64456534f3bbe93f991c0139342a0ef52df95c6999eaa5ec8a69741da407f9a")
 	} else {
 		l1InfoTreeData := make(map[uint32]*executor.L1DataV2)
 
@@ -256,6 +261,11 @@ func (s *State) processBatchV2(ctx context.Context, processingCtx *ProcessingCon
 		currentl1InfoRoot := s.GetCurrentL1InfoRoot()
 		processBatchRequest.L1InfoRoot = currentl1InfoRoot.Bytes()
 	}
+
+	// if processingCtx.ForcedStateRoot != nil {
+	// 	log.Debug("Setting ForcedStateRoot: ", processingCtx.ForcedStateRoot)
+	// 	processBatchRequest.OldStateRoot = processingCtx.ForcedStateRoot.Bytes()
+	// }
 
 	return s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, caller)
 }
