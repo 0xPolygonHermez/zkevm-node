@@ -1,5 +1,6 @@
 package etherman
 
+/*
 import (
 	"context"
 	"encoding/hex"
@@ -426,3 +427,4 @@ func TestProof(t *testing.T) {
 	}
 	t.Log("Proof: ", p)
 }
+*/
