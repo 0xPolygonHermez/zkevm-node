@@ -260,7 +260,6 @@ type Block struct {
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
 	GlobalExitRoot  common.Hash         `json:"globalExitRoot"`
-	LocalExitRoot   common.Hash         `json:"localExitRoot"`
 	BlockInfoRoot   common.Hash         `json:"blockInfoRoot"`
 }
 
@@ -310,7 +309,6 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
-		LocalExitRoot:   h.LocalExitRoot,
 		GlobalExitRoot:  h.GlobalExitRoot,
 		BlockInfoRoot:   h.BlockInfoRoot,
 	}
@@ -684,4 +682,10 @@ func NewLog(l types.Log) Log {
 		LogIndex:    ArgUint64(l.Index),
 		Removed:     l.Removed,
 	}
+}
+
+// ExitRoots structure
+type ExitRoots struct {
+	MainnetExitRoot common.Hash `json:"mainnetExitRoot"`
+	RollupExitRoot  common.Hash `json:"rollupExitRoot"`
 }
