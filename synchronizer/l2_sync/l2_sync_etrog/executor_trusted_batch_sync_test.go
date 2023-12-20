@@ -33,6 +33,7 @@ func TestIncrementalProcess(t *testing.T) {
 
 	stateBatchL2Data, _ := hex.DecodeString(codedL2BlockHeader + codedRLP2Txs1)
 	trustedBatchL2Data, _ := hex.DecodeString(codedL2BlockHeader + codedRLP2Txs1 + codedL2BlockHeader + codedRLP2Txs1)
+	expectedStateRoot := common.HexToHash("0x723e5c4c7ee7890e1e66c2e391d553ee792d2204ecb4fe921830f12f8dcd1a92")
 	//deltaBatchL2Data := []byte{4}
 	batchNumber := uint64(123)
 	data := l2_shared.ProcessData{
@@ -41,6 +42,7 @@ func TestIncrementalProcess(t *testing.T) {
 		TrustedBatch: &types.Batch{
 			Number:      123,
 			BatchL2Data: trustedBatchL2Data,
+			StateRoot:   expectedStateRoot,
 		},
 		StateBatch: &state.Batch{
 			BatchNumber: batchNumber,
@@ -48,7 +50,7 @@ func TestIncrementalProcess(t *testing.T) {
 		},
 	}
 	stateMock.
-		On("UpdateBatchL2Data", mock.Anything, batchNumber, trustedBatchL2Data, mock.Anything).
+		On("UpdateWIPBatch", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Once()
 
@@ -66,7 +68,9 @@ func TestIncrementalProcess(t *testing.T) {
 		Return(uint64(7)).
 		Once()
 
-	processBatchResp := &state.ProcessBatchResponse{}
+	processBatchResp := &state.ProcessBatchResponse{
+		NewStateRoot: expectedStateRoot,
+	}
 	stateMock.
 		On("ProcessBatchV2", mock.Anything, mock.Anything, true).
 		Return(processBatchResp, nil).
