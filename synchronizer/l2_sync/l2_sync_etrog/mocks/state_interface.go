@@ -193,53 +193,6 @@ func (_c *StateInterface_GetBatchByNumber_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
-// GetCurrentL1InfoRoot provides a mock function with given fields:
-func (_m *StateInterface) GetCurrentL1InfoRoot() common.Hash {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCurrentL1InfoRoot")
-	}
-
-	var r0 common.Hash
-	if rf, ok := ret.Get(0).(func() common.Hash); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Hash)
-		}
-	}
-
-	return r0
-}
-
-// StateInterface_GetCurrentL1InfoRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCurrentL1InfoRoot'
-type StateInterface_GetCurrentL1InfoRoot_Call struct {
-	*mock.Call
-}
-
-// GetCurrentL1InfoRoot is a helper method to define mock.On call
-func (_e *StateInterface_Expecter) GetCurrentL1InfoRoot() *StateInterface_GetCurrentL1InfoRoot_Call {
-	return &StateInterface_GetCurrentL1InfoRoot_Call{Call: _e.mock.On("GetCurrentL1InfoRoot")}
-}
-
-func (_c *StateInterface_GetCurrentL1InfoRoot_Call) Run(run func()) *StateInterface_GetCurrentL1InfoRoot_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *StateInterface_GetCurrentL1InfoRoot_Call) Return(_a0 common.Hash) *StateInterface_GetCurrentL1InfoRoot_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *StateInterface_GetCurrentL1InfoRoot_Call) RunAndReturn(run func() common.Hash) *StateInterface_GetCurrentL1InfoRoot_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
 func (_m *StateInterface) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	ret := _m.Called(batchNumber)
@@ -282,64 +235,6 @@ func (_c *StateInterface_GetForkIDByBatchNumber_Call) Return(_a0 uint64) *StateI
 }
 
 func (_c *StateInterface_GetForkIDByBatchNumber_Call) RunAndReturn(run func(uint64) uint64) *StateInterface_GetForkIDByBatchNumber_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetL1InfoRootLeafByL1InfoRoot provides a mock function with given fields: ctx, l1InfoRoot, dbTx
-func (_m *StateInterface) GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
-	ret := _m.Called(ctx, l1InfoRoot, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetL1InfoRootLeafByL1InfoRoot")
-	}
-
-	var r0 state.L1InfoTreeExitRootStorageEntry
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)); ok {
-		return rf(ctx, l1InfoRoot, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) state.L1InfoTreeExitRootStorageEntry); ok {
-		r0 = rf(ctx, l1InfoRoot, dbTx)
-	} else {
-		r0 = ret.Get(0).(state.L1InfoTreeExitRootStorageEntry)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
-		r1 = rf(ctx, l1InfoRoot, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoRootLeafByL1InfoRoot'
-type StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call struct {
-	*mock.Call
-}
-
-// GetL1InfoRootLeafByL1InfoRoot is a helper method to define mock.On call
-//   - ctx context.Context
-//   - l1InfoRoot common.Hash
-//   - dbTx pgx.Tx
-func (_e *StateInterface_Expecter) GetL1InfoRootLeafByL1InfoRoot(ctx interface{}, l1InfoRoot interface{}, dbTx interface{}) *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call {
-	return &StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call{Call: _e.mock.On("GetL1InfoRootLeafByL1InfoRoot", ctx, l1InfoRoot, dbTx)}
-}
-
-func (_c *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call) Run(run func(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx)) *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(common.Hash), args[2].(pgx.Tx))
-	})
-	return _c
-}
-
-func (_c *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call) Return(_a0 state.L1InfoTreeExitRootStorageEntry, _a1 error) *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)) *StateInterface_GetL1InfoRootLeafByL1InfoRoot_Call {
 	_c.Call.Return(run)
 	return _c
 }

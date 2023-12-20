@@ -698,9 +698,6 @@ func (_c *stateMock_ExecuteBatch_Call) RunAndReturn(run func(context.Context, st
 // ExecuteBatchV2 provides a mock function with given fields: ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx
 func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	ret := _m.Called(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
-// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, dbTx
-func (_m *stateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
-	ret := _m.Called(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExecuteBatchV2")
@@ -740,14 +737,15 @@ type stateMock_ExecuteBatchV2_Call struct {
 //   - timestampLimit time.Time
 //   - updateMerkleTree bool
 //   - skipVerifyL1InfoRoot uint32
+//   - forcedBlockHashL1 *common.Hash
 //   - dbTx pgx.Tx
-func (_e *stateMock_Expecter) ExecuteBatchV2(ctx interface{}, batch interface{}, l1InfoTree interface{}, timestampLimit interface{}, updateMerkleTree interface{}, skipVerifyL1InfoRoot interface{}, dbTx interface{}) *stateMock_ExecuteBatchV2_Call {
-	return &stateMock_ExecuteBatchV2_Call{Call: _e.mock.On("ExecuteBatchV2", ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, dbTx)}
+func (_e *stateMock_Expecter) ExecuteBatchV2(ctx interface{}, batch interface{}, l1InfoTree interface{}, timestampLimit interface{}, updateMerkleTree interface{}, skipVerifyL1InfoRoot interface{}, forcedBlockHashL1 interface{}, dbTx interface{}) *stateMock_ExecuteBatchV2_Call {
+	return &stateMock_ExecuteBatchV2_Call{Call: _e.mock.On("ExecuteBatchV2", ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)}
 }
 
-func (_c *stateMock_ExecuteBatchV2_Call) Run(run func(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, dbTx pgx.Tx)) *stateMock_ExecuteBatchV2_Call {
+func (_c *stateMock_ExecuteBatchV2_Call) Run(run func(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx)) *stateMock_ExecuteBatchV2_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(state.Batch), args[2].(state.L1InfoTreeExitRootStorageEntry), args[3].(time.Time), args[4].(bool), args[5].(uint32), args[6].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(state.Batch), args[2].(state.L1InfoTreeExitRootStorageEntry), args[3].(time.Time), args[4].(bool), args[5].(uint32), args[6].(*common.Hash), args[7].(pgx.Tx))
 	})
 	return _c
 }
@@ -757,7 +755,7 @@ func (_c *stateMock_ExecuteBatchV2_Call) Return(_a0 *executor.ProcessBatchRespon
 	return _c
 }
 
-func (_c *stateMock_ExecuteBatchV2_Call) RunAndReturn(run func(context.Context, state.Batch, state.L1InfoTreeExitRootStorageEntry, time.Time, bool, uint32, pgx.Tx) (*executor.ProcessBatchResponseV2, error)) *stateMock_ExecuteBatchV2_Call {
+func (_c *stateMock_ExecuteBatchV2_Call) RunAndReturn(run func(context.Context, state.Batch, state.L1InfoTreeExitRootStorageEntry, time.Time, bool, uint32, *common.Hash, pgx.Tx) (*executor.ProcessBatchResponseV2, error)) *stateMock_ExecuteBatchV2_Call {
 	_c.Call.Return(run)
 	return _c
 }
