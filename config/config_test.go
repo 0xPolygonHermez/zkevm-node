@@ -113,7 +113,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoTree",
+			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoRoot",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
