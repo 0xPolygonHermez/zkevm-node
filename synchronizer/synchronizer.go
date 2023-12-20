@@ -263,15 +263,17 @@ func (s *ClientSynchronizer) Sync() error {
 				}
 				return err
 			}
-			err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(blocks[0].ForkIDs[0].ForkID), etherman.Order{Name: etherman.SequenceBatchesOrder, Pos: 0}, &blocks[0], dbTx)
-			if err != nil {
-				log.Error("error storing initial tx (batch 1): ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
+			if len(blocks[0].SequencedBatches) != 0 {
+				err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(blocks[0].ForkIDs[0].ForkID), etherman.Order{Name: etherman.SequenceBatchesOrder, Pos: 0}, &blocks[0], dbTx)
+				if err != nil {
+					log.Error("error storing initial tx (batch 1): ", err)
+					rollbackErr := dbTx.Rollback(s.ctx)
+					if rollbackErr != nil {
+						log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+						return rollbackErr
+					}
+					return err
 				}
-				return err
 			}
 
 			if genesisRoot != s.genesis.Root {
