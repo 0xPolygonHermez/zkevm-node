@@ -8,7 +8,7 @@ import (
 )
 
 // ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
-type ZkEVMClientTrustedBatchesGetter interface {
+type ZKEVMClientTrustedBatchesGetter interface {
 	BatchNumber(ctx context.Context) (uint64, error)
 	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }

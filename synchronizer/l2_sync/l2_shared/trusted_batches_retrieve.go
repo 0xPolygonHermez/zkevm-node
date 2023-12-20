@@ -45,7 +45,7 @@ type BatchProcessor interface {
 //	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
 type TrustedBatchesRetrieve struct {
 	batchExecutor          BatchProcessor
-	zkEVMClient            syncinterfaces.ZkEVMClientTrustedBatchesGetter
+	zkEVMClient            syncinterfaces.ZKEVMClientTrustedBatchesGetter
 	state                  StateInterface
 	sync                   syncinterfaces.SynchronizerFlushIDManager
 	TrustedStateMngr       TrustedStateManager
@@ -54,7 +54,7 @@ type TrustedBatchesRetrieve struct {
 
 // NewTrustedBatchesRetrieve creates a new SyncTrustedStateTemplate
 func NewTrustedBatchesRetrieve(batchExecutor BatchProcessor,
-	zkEVMClient syncinterfaces.ZkEVMClientTrustedBatchesGetter,
+	zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state StateInterface,
 	sync syncinterfaces.SynchronizerFlushIDManager,
 	TrustedStateMngr TrustedStateManager,

@@ -8,7 +8,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
+	mock_l2_sync_etrog "github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	mock "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -23,8 +25,9 @@ const (
 
 func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	// Arrange
-	stateMock := NewStateInterfaceMock(t)
-	syncMock := NewSynchronizerInterfaceMock(t)
+	stateMock := mock_l2_sync_etrog.NewStateInterface(t)
+	syncMock := mock_syncinterfaces.NewSynchronizerFlushIDManager(t)
+
 	sut := SyncTrustedBatchExecutorForEtrog{
 		state: stateMock,
 		sync:  syncMock,
@@ -49,24 +52,11 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 			BatchL2Data: stateBatchL2Data,
 		},
 	}
-	stateMock.
-		On("UpdateWIPBatch", mock.Anything, mock.Anything, mock.Anything).
-		Return(nil).
-		Once()
 
-	stateMock.
-		On("GetCurrentL1InfoRoot").
-		Return(state.ZeroHash).
-		Once()
-	stateMock.
-		On("GetL1InfoRootLeafByL1InfoRoot", mock.Anything, mock.Anything, mock.Anything).
-		Return(state.L1InfoTreeExitRootStorageEntry{}, nil).
-		Once()
-
-	stateMock.
-		On("GetForkIDByBatchNumber", batchNumber).
-		Return(uint64(7)).
-		Once()
+	stateMock.EXPECT().UpdateWIPBatch(ctx, mock.Anything, mock.Anything).Return(nil).Once()
+	stateMock.EXPECT().GetCurrentL1InfoRoot().Return(state.ZeroHash).Once()
+	stateMock.EXPECT().GetL1InfoRootLeafByL1InfoRoot(mock.Anything, mock.Anything, mock.Anything).Return(state.L1InfoTreeExitRootStorageEntry{}, nil).Once()
+	stateMock.EXPECT().GetForkIDByBatchNumber(batchNumber).Return(uint64(7)).Once()
 
 	processBatchResp := &state.ProcessBatchResponse{
 		NewStateRoot: expectedStateRoot,
@@ -91,5 +81,4 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, trustedBatchL2Data, res.UpdateBatch.BatchL2Data)
 	require.Equal(t, false, res.ClearCache)
-}
 }

@@ -43,12 +43,6 @@ type StateInterface interface {
 	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 }
 
-// SynchronizerInterface contains the methods required to interact with the synchronizer main class.
-type SynchronizerInterface interface {
-	PendingFlushID(flushID uint64, proverID string)
-	CheckFlushID(dbTx pgx.Tx) error
-}
-
 // SyncTrustedBatchExecutorForEtrog is the implementation of the SyncTrustedStateBatchExecutorSteps that
 // have the functions to sync a fullBatch, incrementalBatch and reprocessBatch
 type SyncTrustedBatchExecutorForEtrog struct {
@@ -57,7 +51,7 @@ type SyncTrustedBatchExecutorForEtrog struct {
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
-func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZkEVMClientTrustedBatchesGetter,
+func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
 	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
