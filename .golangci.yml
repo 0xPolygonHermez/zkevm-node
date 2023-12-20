@@ -17,6 +17,7 @@ linters:
   - gofmt
   - goimports
   - revive
+  - unconvert
 
 linters-settings:
   revive:
