@@ -417,7 +417,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
-		L1InfoRoot_V2:           mockL1InfoRoot, //TODO: Carlos
+		L1InfoRoot_V2:           mockL1InfoRoot,
 		OldStateRoot:            initialStateRoot,
 		OldAccInputHash:         initialAccInputHash,
 		Transactions:            batch.BatchL2Data,
@@ -427,7 +427,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
 	}
-	executorBatchRequest.L1InfoTreeData_V2, err = f.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
+	executorBatchRequest.L1InfoTreeData_V2, _, err = f.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
 		log.Errorf("[reprocessFullBatch] failed to get L1InfoTreeData for batch %d. Error: %w", batch.BatchNumber, err)
 		reprocessError(nil)

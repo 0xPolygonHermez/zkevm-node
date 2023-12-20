@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -298,5 +299,22 @@ func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlock
 		}
 
 		return nativeBlockHashes, nil
+	})
+}
+
+// GetExitRootsByGER returns the exit roots accordingly to the provided Global Exit Root
+func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		exitRoots, err := z.state.GetExitRootByGlobalExitRoot(ctx, globalExitRoot, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get exit roots by global exit root from state", err, true)
+		}
+
+		return types.ExitRoots{
+			MainnetExitRoot: exitRoots.MainnetExitRoot,
+			RollupExitRoot:  exitRoots.RollupExitRoot,
+		}, nil
 	})
 }

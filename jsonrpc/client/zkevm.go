@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // BatchNumber returns the latest batch number
@@ -49,6 +50,26 @@ func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Bat
 	}
 
 	var result *types.Batch
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// ExitRootsByGER returns the exit roots accordingly to the provided Global Exit Root
+func (c *Client) ExitRootsByGER(ctx context.Context, globalExitRoot common.Hash) (*types.ExitRoots, error) {
+	response, err := JSONRPCCall(c.url, "zkevm_getExitRootsByGER", globalExitRoot.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, response.Error.RPCError()
+	}
+
+	var result *types.ExitRoots
 	err = json.Unmarshal(response.Result, &result)
 	if err != nil {
 		return nil, err
