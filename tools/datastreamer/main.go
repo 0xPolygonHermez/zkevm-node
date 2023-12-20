@@ -855,7 +855,7 @@ func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.G
 	root.SetBytes(newRoot)
 
 	// flush state db
-	err = tree.Flush(ctx, uuid)
+	err = tree.Flush(ctx, root, uuid)
 	if err != nil {
 		fmt.Printf("error flushing state tree after genesis: %v", err)
 		return newRoot, err
