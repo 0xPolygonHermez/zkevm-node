@@ -2167,7 +2167,7 @@ func TestFinalizer_getConstraintThresholdUint32(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
 	input := uint32(100)
-	expect := uint32(input * f.cfg.ResourcePercentageToCloseBatch / 100)
+	expect := input * f.cfg.ResourcePercentageToCloseBatch / 100
 
 	// act
 	result := f.getConstraintThresholdUint32(input)

@@ -84,7 +84,7 @@ func processWorkerAddTxTestCases(ctx context.Context, t *testing.T, worker *Work
 				t.Fatalf("Error txSortedList.len(%d) != expectedTxSortedList.len(%d)", el.len(), len(testCase.expectedTxSortedList))
 			}
 			for i := 0; i < el.len(); i++ {
-				if el.getByIndex(i).HashStr != string(testCase.expectedTxSortedList[i].String()) {
+				if el.getByIndex(i).HashStr != testCase.expectedTxSortedList[i].String() {
 					t.Fatalf("Error txSortedList(%d). Expected=%s, Actual=%s", i, testCase.expectedTxSortedList[i].String(), el.getByIndex(i).HashStr)
 				}
 			}
@@ -268,7 +268,7 @@ func TestWorkerGetBestTx(t *testing.T) {
 			if ct >= len(expectedGetBestTx) {
 				t.Fatalf("Error getting more best tx than expected. Expected=%d, Actual=%d", len(expectedGetBestTx), ct+1)
 			}
-			if tx.HashStr != string(expectedGetBestTx[ct].String()) {
+			if tx.HashStr != expectedGetBestTx[ct].String() {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)
 			}
 			err := rc.Sub(tx.BatchResources)

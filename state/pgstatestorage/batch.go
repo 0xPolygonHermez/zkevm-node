@@ -933,7 +933,7 @@ func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIn
 	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
 	// changeL2Block l1InfoTreeIndexBytes
 	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, uint32(l1InfoTreeIndex))
+	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, l1InfoTreeIndex)
 	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
 
 	return changeL2Block

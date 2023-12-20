@@ -286,7 +286,7 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 		log.Debugf("error num < c0 : %d, %d", num, c0)
 		return 0, fmt.Errorf("first byte of tx (%x) is < 0xc0: %w", num, ErrInvalidRLP)
 	}
-	length := uint64(num - c0)
+	length := num - c0
 	if length > shortRlp { // If rlp is bigger than length 55
 		// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 		pos64 := uint64(offset)

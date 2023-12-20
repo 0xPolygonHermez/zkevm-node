@@ -166,7 +166,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	})
 
 	receipt := &types.Receipt{
-		Type:              uint8(tx.Type()),
+		Type:              tx.Type(),
 		PostState:         state.ZeroHash.Bytes(),
 		CumulativeGasUsed: 0,
 		EffectiveGasPrice: big.NewInt(0),
@@ -716,7 +716,7 @@ func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			batchNumber, err := testState.GetLastVerifiedL2BlockNumberUntilL1Block(ctx, uint64(tc.l1BlockNumber), dbTx)
+			batchNumber, err := testState.GetLastVerifiedL2BlockNumberUntilL1Block(ctx, tc.l1BlockNumber, dbTx)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expectedBatchNumber, batchNumber)
@@ -770,7 +770,7 @@ func TestGetLastVerifiedBatchNumberUntilL1Block(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			batchNumber, err := testState.GetLastVerifiedBatchNumberUntilL1Block(ctx, uint64(tc.l1BlockNumber), dbTx)
+			batchNumber, err := testState.GetLastVerifiedBatchNumberUntilL1Block(ctx, tc.l1BlockNumber, dbTx)
 			require.NoError(t, err)
 
 			assert.Equal(t, tc.expectedBatchNumber, batchNumber)
@@ -875,7 +875,7 @@ func TestGetLogs(t *testing.T) {
 		}
 
 		receipt := &types.Receipt{
-			Type:              uint8(tx.Type()),
+			Type:              tx.Type(),
 			PostState:         state.ZeroHash.Bytes(),
 			CumulativeGasUsed: 0,
 			EffectiveGasPrice: big.NewInt(0),
@@ -1003,7 +1003,7 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 		})
 
 		receipt := &types.Receipt{
-			Type:              uint8(tx.Type()),
+			Type:              tx.Type(),
 			PostState:         state.ZeroHash.Bytes(),
 			CumulativeGasUsed: 0,
 			EffectiveGasPrice: big.NewInt(0),
