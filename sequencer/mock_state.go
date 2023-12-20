@@ -475,12 +475,13 @@ func (_m *StateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 }
 
 // GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
-func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, error) {
+func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
 	ret := _m.Called(ctx, batchL2Data, dbTx)
 
 	var r0 map[uint32]state.L1DataV2
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, error)); ok {
+	var r1 common.Hash
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)); ok {
 		return rf(ctx, batchL2Data, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
@@ -491,13 +492,21 @@ func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batch
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []byte, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, []byte, pgx.Tx) common.Hash); ok {
 		r1 = rf(ctx, batchL2Data, dbTx)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(common.Hash)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r2 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetLastBatch provides a mock function with given fields: ctx, dbTx
