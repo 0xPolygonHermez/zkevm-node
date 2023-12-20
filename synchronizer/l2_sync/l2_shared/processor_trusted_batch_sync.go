@@ -41,18 +41,34 @@ type ProcessData struct {
 	StateBatch  *state.Batch
 	Now         time.Time
 	Description string
+	// DebugPrefix is used to log, must prefix all logs entries
+	DebugPrefix string
+}
+
+// ProcessResponse contains the response of the process of a batch
+type ProcessResponse struct {
+	// ProcessBatchResponse have the NewStateRoot
+	ProcessBatchResponse *state.ProcessBatchResponse
+	// ClearCache force to clear cache for next execution
+	ClearCache bool
+	// UpdateBatch  update the batch for next execution
+	UpdateBatch *state.Batch
+	// UpdateBatchWithProcessBatchResponse update the batch (if not nil) with the data in ProcessBatchResponse
+	UpdateBatchWithProcessBatchResponse bool
 }
 
 // SyncTrustedBatchExecutor is the interface that known how to process a batch
 type SyncTrustedBatchExecutor interface {
 	// FullProcess process a batch that is not on database, so is the first time we process it
-	FullProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	FullProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 	// IncrementalProcess process a batch that we have processed before, and we have the intermediate state root, so is going to be process only new Tx
-	IncrementalProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	IncrementalProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 	// ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
-	ReProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)
+	ReProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
+	// NothingProcess process a batch that is already synchronized, so we don't need to process it
+	NothingProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 	// CloseBatch close a batch
-	CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) error
+	//CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) error
 }
 
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
@@ -80,64 +96,92 @@ func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 	}
 }
 
-// ProcessTrustedBatch processes a trusted batch
-func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error) {
-	log.Debugf("Processing trusted batch: %v", trustedBatch.Number)
-	stateCurrentBatch := status.LastTrustedBatches[0]
-	statePreviousBatch := status.LastTrustedBatches[1]
-	processMode, err := s.getModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch, status.LastStateRoot)
+// ProcessTrustedBatch processes a trusted batch and return the new state
+func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error) {
+	log.Debugf("%s Processing trusted batch: %v", debugPrefix, trustedBatch.Number)
+	// Duplicate batches to avoid interferences with cache
+	var stateCurrentBatch *state.Batch = nil
+	var statePreviousBatch *state.Batch = nil
+	if status.LastTrustedBatches[0] != nil {
+		tmpBatch := *status.LastTrustedBatches[0]
+		stateCurrentBatch = &tmpBatch
+	}
+	if status.LastTrustedBatches[1] != nil {
+		tmpBatch := *status.LastTrustedBatches[1]
+		statePreviousBatch = &tmpBatch
+	}
+	processMode, err := s.getModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch)
+	processMode.DebugPrefix = fmt.Sprintf("%s mode %s:", debugPrefix, processMode.Mode)
 	if err != nil {
-		log.Error("error getting processMode. Error: ", trustedBatch.Number, err)
+		log.Error("%s error getting processMode. Error: ", debugPrefix, trustedBatch.Number, err)
 		return nil, err
 	}
-	log.Infof("Batch %v: Processing trusted batch: mode=%s", trustedBatch.Number, processMode.Mode)
-	var processBatchResp *state.ProcessBatchResponse = nil
+	log.Infof("%s  Processing trusted batch: mode=%s desc=%s", processMode.DebugPrefix, processMode.Mode, processMode.Description)
+	var processBatchResp *ProcessResponse = nil
 	switch processMode.Mode {
 	case NothingProcessMode:
-		log.Infof("Batch %v: is already synchronized", trustedBatch.Number)
+		log.Debugf("%s  is already synchronized", processMode.DebugPrefix, trustedBatch.Number)
 		err = nil
 	case FullProcessMode:
-		log.Infof("Batch %v: is not on database, so is the first time we process it", trustedBatch.Number)
+		log.Debugf("%s is not on database, so is the first time we process it", debugPrefix)
 		processBatchResp, err = s.Steps.FullProcess(ctx, &processMode, dbTx)
 	case IncrementalProcessMode:
-		log.Infof("Batch %v: is partially synchronized", trustedBatch.Number)
+		log.Debugf("%s is partially synchronized", processMode.DebugPrefix)
 		processBatchResp, err = s.Steps.IncrementalProcess(ctx, &processMode, dbTx)
 	case ReprocessProcessMode:
-		log.Infof("Batch %v: is partially synchronized but we don't have intermediate stateRoot so need to be fully reprocessed", trustedBatch.Number)
+		log.Debugf("%s is partially synchronized but we don't have intermediate stateRoot so need to be fully reprocessed", processMode.DebugPrefix)
 		processBatchResp, err = s.Steps.ReProcess(ctx, &processMode, dbTx)
 	}
 	if err != nil {
-		log.Errorf("Batch %v: error processing trusted batch. Error: %s", trustedBatch.Number, err)
+		log.Errorf("%s error processing trusted batch. Error: %s", processMode.DebugPrefix, err)
 		return nil, err
 	}
 
 	if processMode.BatchMustBeClosed {
-		log.Infof("Batch %v: Closing batch", trustedBatch.Number)
-		err = checkProcessBatchResultMatchExpected(&processMode, processBatchResp)
+		err = checkProcessBatchResultMatchExpected(&processMode, processBatchResp.ProcessBatchResponse)
 		if err != nil {
-			log.Error("error closing batch. Error: ", err)
+			log.Error("%s error verifying batch result!  Error: ", debugPrefix, err)
 			return nil, err
-		}
-		err = s.Steps.CloseBatch(ctx, trustedBatch, dbTx)
-		if err != nil {
-			log.Error("error closing batch. Error: ", err)
-			return nil, err
-		}
-		status.LastStateRoot = nil
-	} else {
-		if processBatchResp != nil {
-			status.LastStateRoot = &StateRootEntry{
-				batchNumber: uint64(trustedBatch.Number),
-				StateRoot:   processBatchResp.NewStateRoot,
-			}
 		}
 	}
 
-	log.Infof("Batch %v synchronized", trustedBatch.Number)
-	return &status, nil
+	if processBatchResp != nil && !processBatchResp.ClearCache {
+		newStatus := updateCache(status, processBatchResp, processMode.BatchMustBeClosed)
+		log.Debugf("%s Batch %v synchronized, updated cache for next run", debugPrefix, trustedBatch.Number)
+		return &newStatus, nil
+	} else {
+		log.Debugf("%s Batch %v synchronized -> clear cache", debugPrefix, trustedBatch.Number)
+		return nil, nil
+	}
 }
 
-func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch, lastStateRoot *StateRootEntry) (ProcessData, error) {
+func updateCache(status TrustedState, response *ProcessResponse, closedBatch bool) TrustedState {
+	res := TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, nil},
+	}
+	if response == nil || response.ClearCache {
+		return res
+	}
+	if response.UpdateBatch != nil {
+		res.LastTrustedBatches[0] = response.UpdateBatch
+	}
+	if response.ProcessBatchResponse != nil && response.UpdateBatchWithProcessBatchResponse && res.LastTrustedBatches[0] != nil {
+		//if res.LastTrustedBatches[0].BatchNumber != uint64(response.ProcessBatchResponse.NewBatchNumber) {
+		//	panic(fmt.Sprintf("BatchNumber mismatch. Expected %v, got %v", res.LastTrustedBatches[0].BatchNumber, response.ProcessBatchResponse.NewBatchNumber))
+		//}
+		res.LastTrustedBatches[0].StateRoot = response.ProcessBatchResponse.NewStateRoot
+		res.LastTrustedBatches[0].LocalExitRoot = response.ProcessBatchResponse.NewLocalExitRoot
+		res.LastTrustedBatches[0].AccInputHash = response.ProcessBatchResponse.NewAccInputHash
+		res.LastTrustedBatches[0].WIP = !closedBatch
+	}
+	if closedBatch {
+		res.LastTrustedBatches[1] = res.LastTrustedBatches[0]
+		res.LastTrustedBatches[0] = nil
+	}
+	return res
+}
+
+func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch) (ProcessData, error) {
 	// Check parameters
 	if trustedNodeBatch == nil || statePreviousBatch == nil {
 		return ProcessData{}, fmt.Errorf("trustedNodeBatch and statePreviousBatch can't be nil")
@@ -151,25 +195,29 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 			Description:  "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		if checkIfSynced(stateBatch, trustedNodeBatch, s.CheckBatchTimestampGreaterInsteadOfEqual) {
+		batchSynced, strSync := checkIfSynced(stateBatch, trustedNodeBatch, s.CheckBatchTimestampGreaterInsteadOfEqual)
+		if batchSynced {
+			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
 				Mode:         NothingProcessMode,
 				OldStateRoot: common.Hash{},
-				Description:  "The batch from Node, and the one in database are the same, already synchronized",
+				Description:  "no new data on batch",
 			}
 		} else {
 			// We have a previous batch, but in node something change
-			if lastStateRoot != nil && lastStateRoot.batchNumber == stateBatch.BatchNumber {
+			// We have processed this batch before, and we have the intermediate state root, so is going to be process only new Tx.
+			if stateBatch.StateRoot != state.ZeroHash {
 				result = ProcessData{
 					Mode:         IncrementalProcessMode,
-					OldStateRoot: lastStateRoot.StateRoot,
-					Description:  "We have processed this batch before, and we have the intermediate state root, so is going to be process only new Tx",
+					OldStateRoot: stateBatch.StateRoot,
+					Description:  "batch exists + intermediateStateRoot " + strSync,
 				}
 			} else {
+				// We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess all txs.
 				result = ProcessData{
 					Mode:         ReprocessProcessMode,
 					OldStateRoot: statePreviousBatch.StateRoot,
-					Description:  "We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess all txs",
+					Description:  "batch exists + StateRoot==Zero" + strSync,
 				}
 			}
 		}
@@ -187,16 +235,22 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 }
 
 func isTrustedBatchClosed(batch *types.Batch) bool {
-	if batch == nil {
-		return true
+	return batch.Closed
+}
+func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) (bool, string) {
+	ok, str := checkIfSyncedWhitoutWIP(stateBatch, trustedBatch, checkTimestampGreater)
+	if stateBatch.WIP != !trustedBatch.Closed {
+		str += "matchWIP: false, "
+		ok = false
 	}
-	return batch.StateRoot.String() != state.ZeroHash.String()
+	return ok, str
 }
 
-func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) bool {
+// Retruns true|false and a debug string
+func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) (bool, string) {
 	if stateBatch == nil || trustedBatch == nil {
 		log.Infof("checkIfSynced stateBatch or trustedBatch is nil, so is not synced")
-		return false
+		return false, "nil pointers"
 	}
 	matchNumber := stateBatch.BatchNumber == uint64(trustedBatch.Number)
 	matchGER := stateBatch.GlobalExitRoot.String() == trustedBatch.GlobalExitRoot.String()
@@ -205,24 +259,40 @@ func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTime
 	matchCoinbase := stateBatch.Coinbase.String() == trustedBatch.Coinbase.String()
 	matchTimestamp := false
 	if checkTimestampGreater {
-		matchTimestamp = uint64(stateBatch.Timestamp.Unix()) >= uint64(trustedBatch.Timestamp)
+		// TODO: change RPC to send the creation_tstamp, to check that
+		// currently we are receiving a time.Time{} because the batch time is defined by the L1 block
+		matchTimestamp = true
+		//stateBatchTimestamp := uint64(stateBatch.Timestamp.Unix())
+		//trustedBatchTimestamp := uint64(trustedBatch.Timestamp)
+		// The date of trusted must be before the one in the permissionless
+		//matchTimestamp = trustedBatchTimestamp <= stateBatchTimestamp
 	} else {
 		matchTimestamp = uint64(stateBatch.Timestamp.Unix()) == uint64(trustedBatch.Timestamp)
 	}
+	// TODO: Check what is the expected value of trustedBatch.Timestamp
+	//matchTimestamp = true
 	matchL2Data := hex.EncodeToString(stateBatch.BatchL2Data) == hex.EncodeToString(trustedBatch.BatchL2Data)
 
 	if matchNumber && matchGER && matchLER && matchSR &&
 		matchCoinbase && matchTimestamp && matchL2Data {
-		return true
+		return true, fmt.Sprintf("Equal batch: %v", stateBatch.BatchNumber)
 	}
-	log.Info("matchNumber", matchNumber)
-	log.Info("matchGER", matchGER)
-	log.Info("matchLER", matchLER)
-	log.Info("matchSR", matchSR)
-	log.Info("matchCoinbase", matchCoinbase)
-	log.Info("matchTimestamp", matchTimestamp)
-	log.Info("matchL2Data", matchL2Data)
-	return false
+	log.Debug("matchNumber: ", matchNumber)
+	log.Debug("matchGER: ", matchGER)
+	log.Debug("matchLER: ", matchLER)
+	log.Debug("matchSR: ", matchSR)
+	log.Debug("matchCoinbase: ", matchCoinbase)
+	log.Debug("matchTimestamp: ", matchTimestamp)
+	log.Debug("matchL2Data: ", matchL2Data)
+	debugStrResult := ""
+	values := []bool{matchNumber, matchGER, matchLER, matchSR, matchCoinbase, matchTimestamp, matchL2Data}
+	names := []string{"matchNumber", "matchGER", "matchLER", "matchSR", "matchCoinbase", "matchTimestamp", "matchL2Data"}
+	for i, v := range values {
+		if !v {
+			debugStrResult += fmt.Sprintf("%s: %v, ", names[i], v)
+		}
+	}
+	return false, debugStrResult
 }
 
 func checkStateRootAndLER(batchNumber uint64, expectedStateRoot common.Hash, expectedLER common.Hash, calculatedStateRoot common.Hash, calculatedLER common.Hash) error {

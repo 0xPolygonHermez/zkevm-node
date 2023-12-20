@@ -922,6 +922,20 @@ func (_m *stateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, 
 	return r0
 }
 
+// UpdateWIPBatch provides a mock function with given fields: ctx, receipt, dbTx
+func (_m *stateMock) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, receipt, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingReceipt, pgx.Tx) error); ok {
+		r0 = rf(ctx, receipt, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // newStateMock creates a new instance of stateMock. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func newStateMock(t interface {

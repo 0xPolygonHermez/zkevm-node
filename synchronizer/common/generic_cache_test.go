@@ -29,6 +29,28 @@ func TestCacheGet(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestCacheGetOrDefault(t *testing.T) {
+	noExistsString := "no_exists"
+	timerProvider := &MockTimerProvider{}
+	cache := NewCache[string, string](timerProvider, time.Hour)
+
+	// Add an item to the cache
+	cache.Set("key1", "value1")
+
+	// Test that the item can be retrieved from the cache
+	value := cache.GetOrDefault("key1", noExistsString)
+	assert.Equal(t, "value1", value)
+
+	// Test that an item that doesn't exist in the cache returns false
+	value = cache.GetOrDefault("key2", noExistsString)
+	assert.Equal(t, noExistsString, value)
+
+	// Test that an item that has expired is removed from the cache
+	timerProvider.now = time.Now().Add(2 * time.Hour)
+	value = cache.GetOrDefault("key1", noExistsString)
+	assert.Equal(t, noExistsString, value)
+}
+
 func TestCacheSet(t *testing.T) {
 	timerProvider := &MockTimerProvider{}
 	cache := NewCache[string, string](timerProvider, time.Hour)

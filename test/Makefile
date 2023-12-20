@@ -566,6 +566,12 @@ generate-mocks-synchronizer: ## Generates mocks for synchronizer , using mockery
 		echo $$camelcase ; \
 		export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=$$i --dir=../synchronizer/l1_parallel_sync --output=../synchronizer/l1_parallel_sync/mocks --outpkg=l1_parallel_sync --structname=$$i"Mock" --filename=mock_$$camelcase.go  --inpackage ; \
 	done
+
+	for i in StateInterface SynchronizerInterface; do \
+		camelcase=$$(echo $$i | sed 's/\([a-z0-9]\)\([A-Z]\)/\1_\2/g' | tr '[:upper:]' '[:lower:]') ; \
+		echo $$camelcase ; \
+		export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=$$i --dir=../synchronizer/l2_sync/l2_sync_etrog --output=../synchronizer/l2_sync/l2_sync_etrog/mocks --outpkg=l2_sync_etrog --structname=$$i"Mock" --filename=mock_$$camelcase.go  --inpackage ; \
+	done
 	
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 								--output=../synchronizer/mocks  				--structname=DbTxMock 							--filename=mock_dbtx.go
 	
