@@ -129,10 +129,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.L2BlockTime",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
 			path:          "Sequencer.DBManager.PoolRetrievalInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
