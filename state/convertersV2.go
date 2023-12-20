@@ -348,12 +348,16 @@ func convertToKeys(keys [][]byte) []merkletree.Key {
 }
 
 func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error) {
+	tstamp := time.Time{}
+	if p.Timestamp != nil {
+		tstamp = *p.Timestamp
+	}
 	result := ProcessingContext{
 		BatchNumber:    p.BatchNumber,
 		Coinbase:       p.Coinbase,
 		ForcedBatchNum: p.ForcedBatchNum,
 		BatchL2Data:    p.BatchL2Data,
-		Timestamp:      p.Timestamp,
+		Timestamp:      tstamp,
 	}
 	return &result, nil
 }

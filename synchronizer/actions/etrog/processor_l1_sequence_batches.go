@@ -34,8 +34,7 @@ type stateProcessSequenceBatches interface {
 	AddVirtualBatch(ctx context.Context, virtualBatch *state.VirtualBatch, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
-	GetCurrentL1InfoRoot() common.Hash
-	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
 }
 
 type ethermanProcessSequenceBatches interface {
@@ -187,17 +186,18 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				},
 				L1InfoTreeRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 			}
+			tstampLimit := time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
 			processCtx = state.ProcessingContextV2{
 				BatchNumber:          1,
 				Coinbase:             sbatch.SequencerAddr,
-				Timestamp:            time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0),
-				L1InfoRoot:           currentL1InfoTree,
+				Timestamp:            &tstampLimit,
+				L1InfoRoot:           sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				BatchL2Data:          &txs,
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
 			}
 		} else {
-			currentL1InfoTree, err = g.state.GetL1InfoRootLeafByL1InfoRoot(ctx, *sbatch.L1InfoRoot, dbTx)
+			leafs, l1InfoRoot, err := g.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, dbTx)
 			if err != nil {
 				log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
 				rollbackErr := dbTx.Rollback(ctx)
@@ -210,8 +210,9 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			processCtx = state.ProcessingContextV2{
 				BatchNumber:          batch.BatchNumber,
 				Coinbase:             batch.Coinbase,
-				Timestamp:            batch.Timestamp,
-				L1InfoRoot:           currentL1InfoTree,
+				Timestamp:            &batch.Timestamp,
+				L1InfoRoot:           l1InfoRoot,
+				L1InfoTreeData:       leafs,
 				ForcedBatchNum:       batch.ForcedBatchNum,
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 0,
@@ -255,7 +256,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 		} else {
 			// Reprocess batch to compare the stateRoot with tBatch.StateRoot and get accInputHash
 			var skipVerifyL1InfoRoot uint32 = 0 // false
-			p, err := g.state.ExecuteBatchV2(ctx, batch, currentL1InfoTree, processCtx.Timestamp, false, skipVerifyL1InfoRoot, processCtx.ForcedBlockHashL1, dbTx)
+			p, err := g.state.ExecuteBatchV2(ctx, batch, currentL1InfoTree, *processCtx.Timestamp, false, skipVerifyL1InfoRoot, processCtx.ForcedBlockHashL1, dbTx)
 			if err != nil {
 				log.Errorf("error executing L1 batch: %+v, error: %v", batch, err)
 				rollbackErr := dbTx.Rollback(ctx)
