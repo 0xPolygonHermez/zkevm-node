@@ -84,6 +84,8 @@ TrustedSequencerURL = "" # If it is empty or not specified, then the value is re
 [Sequencer]
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
+PoolRetrievalInterval = "500ms"
+L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeout = "5s"
 		ForcedBatchDeadlineTimeout = "60s"
@@ -99,9 +101,6 @@ MaxTxLifetime = "3h"
 		TimestampResolution = "10s"
 		L2BlockTime = "3s"
 		StopSequencerOnBatchNum = 0
-	[Sequencer.DBManager]
-		PoolRetrievalInterval = "500ms"
-		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

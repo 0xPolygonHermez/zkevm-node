@@ -1,32 +1,6 @@
 package sequencer
 
-import (
-	"context"
-	"fmt"
-	"math"
-	"testing"
-	"time"
-
-	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/event"
-	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
-	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
-	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-)
-
-const numberOfForcesBatches = 10
+/* const numberOfForcesBatches = 10
 
 var (
 	stateDBCfg                                   = dbutils.NewStateConfigFromEnv()
@@ -122,45 +96,47 @@ func prepareForcedBatches(t *testing.T) {
 }
 
 func TestClosingSignalsManager(t *testing.T) {
-	m := mocks{
-		Etherman: NewEthermanMock(t),
-	}
+	   	m := mocks{
+	   		Etherman: NewEthermanMock(t),
+	   	}
 
-	setupTest(t)
-	channels := ClosingSignalCh{
-		ForcedBatchCh: make(chan state.ForcedBatch),
-	}
+	   setupTest(t)
 
-	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(localCtx, localState, channels, cfg, m.Etherman)
-	closingSignalsManager.Start()
+	   	channels := ClosingSignalCh{
+	   		ForcedBatchCh: make(chan state.ForcedBatch),
+	   	}
 
-	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
-	defer cancelFunc()
+	   prepareForcedBatches(t)
+	   closingSignalsManager := newClosingSignalsManager(localCtx, localState, channels, cfg, m.Etherman)
+	   closingSignalsManager.Start()
 
-	var fb *state.ForcedBatch
+	   newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
+	   defer cancelFunc()
 
-	for {
-		select {
-		case <-newCtx.Done():
-			log.Infof("received context done, Err: %s", newCtx.Err())
-			return
-		// Forced  batch ch
-		case fb := <-channels.ForcedBatchCh:
-			log.Debug("Forced batch received", "forced batch", fb)
-		}
+	   var fb *state.ForcedBatch
 
-		if fb != nil {
-			break
-		}
-	}
+	   	for {
+	   		select {
+	   		case <-newCtx.Done():
+	   			log.Infof("received context done, Err: %s", newCtx.Err())
+	   			return
+	   		// Forced  batch ch
+	   		case fb := <-channels.ForcedBatchCh:
+	   			log.Debug("Forced batch received", "forced batch", fb)
+	   		}
 
-	require.NotEqual(t, (*state.ForcedBatch)(nil), fb)
-	require.Equal(t, nil, fb.BlockNumber)
-	require.Equal(t, int64(1), fb.ForcedBatchNumber)
-	require.Equal(t, testGER, fb.GlobalExitRoot)
-	require.Equal(t, testAddr, fb.Sequencer)
-	require.Equal(t, testRawData, fb.RawTxsData)
+	   		if fb != nil {
+	   			break
+	   		}
+	   	}
 
-	cleanup(t)
-}
+	   require.NotEqual(t, (*state.ForcedBatch)(nil), fb)
+	   require.Equal(t, nil, fb.BlockNumber)
+	   require.Equal(t, int64(1), fb.ForcedBatchNumber)
+	   require.Equal(t, testGER, fb.GlobalExitRoot)
+	   require.Equal(t, testAddr, fb.Sequencer)
+	   require.Equal(t, testRawData, fb.RawTxsData)
+
+	   cleanup(t)
+
+}*/

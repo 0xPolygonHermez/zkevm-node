@@ -45,7 +45,9 @@ func TestFirstLeafOfL1InfoTreeIsIndex0(t *testing.T) {
 	}
 	testState := state.NewState(stateCfg, storage, nil, nil, nil, mt)
 	dbTx, err := testState.BeginStateTransaction(ctx)
-	defer dbTx.Rollback(ctx)
+	defer func() {
+		_ = dbTx.Rollback(ctx)
+	}()
 	require.NoError(t, err)
 	block := state.Block{BlockNumber: 123}
 	err = testState.AddBlock(ctx, &block, dbTx)

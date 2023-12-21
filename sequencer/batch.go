@@ -148,7 +148,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	var err error
 	f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
 	if err != nil {
-		f.halt(ctx, fmt.Errorf("failed to create new WIP batch. Error: %s", err))
+		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch. Error: %s", err))
 	}
 
 	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
@@ -364,8 +364,6 @@ func (f *finalizer) maxTxsPerBatchReached() bool {
 // reprocessFullBatch reprocesses a batch used as sanity check
 func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, initialStateRoot common.Hash, expectedNewStateRoot common.Hash) (*state.ProcessBatchResponse, error) {
 	reprocessError := func(batch *state.Batch) {
-		f.halt(ctx, fmt.Errorf("error reprocessing full batch (sanity check). Check previous errors in logs to know which was the cause"))
-
 		if batch == nil {
 			return
 		}
@@ -377,15 +375,17 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 		}
 
 		// Log batch detailed info
-		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot, batch.GlobalExitRoot)
+		log.Infof("[reprocessFullBatch] BatchNumber: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			for j, rawTx := range rawL2block.Transactions {
 				log.Infof("[reprocessFullBatch] BatchNumber: %d, block position: % d, tx position %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
 			}
 		}
+
+		f.Halt(ctx, fmt.Errorf("error reprocessing full batch (sanity check). Check previous errors in logs to know which was the cause"))
 	}
 
-	log.Debugf("[reprocessFullBatch] reprocessing batch: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s, GER: %s", batchNum, initialStateRoot, expectedNewStateRoot)
+	log.Debugf("[reprocessFullBatch] reprocessing batch: %d, InitialStateRoot: %s, ExpectedNewStateRoot: %s", batchNum, initialStateRoot, expectedNewStateRoot)
 
 	batch, err := f.state.GetBatchByNumber(ctx, batchNum, nil)
 	if err != nil {
