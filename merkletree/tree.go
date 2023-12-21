@@ -32,7 +32,7 @@ func (tree *StateTree) GetBalance(ctx context.Context, address common.Address, r
 		return nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (tree *StateTree) GetNonce(ctx context.Context, address common.Address, roo
 		return nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func (tree *StateTree) GetCodeHash(ctx context.Context, address common.Address, 
 		return nil, err
 	}
 	// this code gets only the hash of the smart contract code from the merkle tree
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (tree *StateTree) GetCode(ctx context.Context, address common.Address, root
 		return nil, err
 	}
 
-	k := new(big.Int).SetBytes(scCodeHash[:])
+	k := new(big.Int).SetBytes(scCodeHash)
 
 	// this code gets actual smart contract code from sc code storage
 	scCode, err := tree.getProgram(ctx, scalarToh4(k))
@@ -112,7 +112,7 @@ func (tree *StateTree) GetStorageAt(ctx context.Context, address common.Address,
 		return nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	proof, err := tree.get(ctx, scalarToh4(r), scalarToh4(k))
 	if err != nil {
 		return nil, err
@@ -158,7 +158,7 @@ func (tree *StateTree) SetNonce(ctx context.Context, address common.Address, non
 		return nil, nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 
 	nonceH8 := scalar2fea(nonce)
 
@@ -190,14 +190,14 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	if err != nil {
 		return nil, nil, err
 	}
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 
 	scCodeHash, err := hex.DecodeHex(H4ToString(scCodeHash4))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	scCodeHashBI := new(big.Int).SetBytes(scCodeHash[:])
+	scCodeHashBI := new(big.Int).SetBytes(scCodeHash)
 	scCodeHashH8 := scalar2fea(scCodeHashBI)
 
 	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), scCodeHashH8, uuid)
@@ -210,7 +210,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	if err != nil {
 		return nil, nil, err
 	}
-	k = new(big.Int).SetBytes(key[:])
+	k = new(big.Int).SetBytes(key)
 	scCodeLengthBI := new(big.Int).SetInt64(int64(len(code)))
 	scCodeLengthH8 := scalar2fea(scCodeLengthBI)
 
@@ -230,7 +230,7 @@ func (tree *StateTree) SetStorageAt(ctx context.Context, address common.Address,
 		return nil, nil, err
 	}
 
-	k := new(big.Int).SetBytes(key[:])
+	k := new(big.Int).SetBytes(key)
 	valueH8 := scalar2fea(value)
 	updateProof, err := tree.set(ctx, scalarToh4(r), scalarToh4(k), valueH8, uuid)
 	if err != nil {
