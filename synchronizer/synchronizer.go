@@ -24,6 +24,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions/processor_manager"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
@@ -63,7 +64,7 @@ type ClientSynchronizer struct {
 	pool                     poolInterface
 	ethTxManager             ethTxManager
 	zkEVMClient              zkEVMClientInterface
-	eventLog                 *event.EventLog
+	eventLog                 syncinterfaces.EventLogInterface
 	ctx                      context.Context
 	cancelCtx                context.CancelFunc
 	genesis                  state.Genesis
@@ -77,7 +78,7 @@ type ClientSynchronizer struct {
 	previousExecutorFlushID  uint64
 	l1SyncOrchestration      *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors        *processor_manager.L1EventProcessors
-	syncTrustedStateExecutor syncTrustedStateExecutor
+	syncTrustedStateExecutor syncinterfaces.SyncTrustedStateExecutor
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -89,7 +90,7 @@ func NewSynchronizer(
 	pool poolInterface,
 	ethTxManager ethTxManager,
 	zkEVMClient zkEVMClientInterface,
-	eventLog *event.EventLog,
+	eventLog syncinterfaces.EventLogInterface,
 	genesis state.Genesis,
 	cfg Config,
 	runInDevelopmentMode bool) (Synchronizer, error) {
@@ -366,6 +367,8 @@ func (s *ClientSynchronizer) Sync() error {
 			}
 			log.Infof("latestSequencedBatchNumber: %d, latestSyncedBatch: %d, lastVerifiedBatchNumber: %d", latestSequencedBatchNumber, latestSyncedBatch, lastVerifiedBatchNumber)
 			// Sync trusted state
+			// latestSyncedBatch -> Last batch on DB
+			// latestSequencedBatchNumber -> last batch on SMC
 			if latestSyncedBatch >= latestSequencedBatchNumber {
 				startTrusted := time.Now()
 				if s.syncTrustedStateExecutor != nil && !s.isTrustedSequencer {

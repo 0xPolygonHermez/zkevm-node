@@ -15,20 +15,14 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
 
 const (
 	firstTrustedBatchNumber = uint64(2)
 )
-
-// ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
-type ZkEVMClientInterface interface {
-	BatchNumber(ctx context.Context) (uint64, error)
-	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
-}
 
 // StateInterface contains the methods required to interact with the state.
 type StateInterface interface {
@@ -41,60 +35,43 @@ type StateInterface interface {
 //	this method is responsible to process a trusted batch
 type BatchProcessor interface {
 	// ProcessTrustedBatch processes a trusted batch
-	ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx) (*TrustedState, error)
+	ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error)
 }
 
-// SyncInterface contains the methods required to interact with the synchronizer main class.
-type SyncInterface interface {
-	PendingFlushID(flushID uint64, proverID string)
-	CheckFlushID(dbTx pgx.Tx) error
-}
-
-// StateRootEntry is the state root entry, basically contains the batch number and the state root. The stateRoot could be a intermediate state root
-type StateRootEntry struct {
-	// Last batch processed
-	batchNumber uint64
-	// State root for lastBatchNumber.
-	// - If not closed is the intermediate state root
-	StateRoot common.Hash
-}
-
-// TrustedState is the trusted state, basically contains the batch cache and the last state root (could be a intermediate state root)
-type TrustedState struct {
-	// LastTrustedBatches [0] -> Current  batch, [1] -> previous batch
-	LastTrustedBatches []*state.Batch
-	// LastStateRoot is the last state root, it have the batchNumber to be sure that is the expected one
-	LastStateRoot *StateRootEntry
-}
+// TrustedState is the trusted state, basically contains the batch cache
 
 // TrustedBatchesRetrieve it gets pending batches from Trusted node. It calls for each batch to BatchExecutor
 //
 //	and for each new batch calls the ProcessTrustedBatch method of the BatchExecutor interface
 type TrustedBatchesRetrieve struct {
 	batchExecutor          BatchProcessor
-	zkEVMClient            ZkEVMClientInterface
+	zkEVMClient            syncinterfaces.ZKEVMClientTrustedBatchesGetter
 	state                  StateInterface
-	sync                   SyncInterface
-	TrustedState           TrustedState
+	sync                   syncinterfaces.SynchronizerFlushIDManager
+	TrustedStateMngr       TrustedStateManager
 	firstBatchNumberToSync uint64
 }
 
-// NewSyncTrustedStateTemplate creates a new SyncTrustedStateTemplate
-func NewSyncTrustedStateTemplate(batchExecutor BatchProcessor, zkEVMClient ZkEVMClientInterface, state StateInterface, sync SyncInterface) *TrustedBatchesRetrieve {
+// NewTrustedBatchesRetrieve creates a new SyncTrustedStateTemplate
+func NewTrustedBatchesRetrieve(batchExecutor BatchProcessor,
+	zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
+	state StateInterface,
+	sync syncinterfaces.SynchronizerFlushIDManager,
+	TrustedStateMngr TrustedStateManager,
+) *TrustedBatchesRetrieve {
 	return &TrustedBatchesRetrieve{
 		batchExecutor:          batchExecutor,
 		zkEVMClient:            zkEVMClient,
 		state:                  state,
 		sync:                   sync,
-		TrustedState:           TrustedState{},
+		TrustedStateMngr:       TrustedStateMngr,
 		firstBatchNumberToSync: firstTrustedBatchNumber,
 	}
 }
 
 // CleanTrustedState Clean cache of TrustedBatches and StateRoot
 func (s *TrustedBatchesRetrieve) CleanTrustedState() {
-	s.TrustedState.LastTrustedBatches = nil
-	s.TrustedState.LastStateRoot = nil
+	s.TrustedStateMngr.Clear()
 }
 
 // SyncTrustedState sync trusted state from latestSyncedBatch to lastTrustedStateBatchNumber
@@ -144,36 +121,39 @@ func (s *TrustedBatchesRetrieve) syncTrustedBatchesToFrom(ctx context.Context, l
 			return err
 		}
 		start = time.Now()
-		cbatches, err := s.getCurrentBatches(ctx, s.TrustedState.LastTrustedBatches, batchToSync, dbTx)
+		previousStatus, err := s.TrustedStateMngr.GetStateForWorkingBatch(ctx, batchNumberToSync, s.state, dbTx)
 		if err != nil {
 			log.Errorf("%s error getting current batches to sync trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
 			return rollback(ctx, dbTx, err)
 		}
-		previousStatus := TrustedState{
-			LastTrustedBatches: cbatches,
-			LastStateRoot:      s.TrustedState.LastStateRoot,
-		}
 		log.Debugf("%s processing trusted batch %d", debugPrefix, batchNumberToSync)
-		newTrustedState, err := s.batchExecutor.ProcessTrustedBatch(ctx, batchToSync, previousStatus, dbTx)
+		newTrustedState, err := s.batchExecutor.ProcessTrustedBatch(ctx, batchToSync, *previousStatus, dbTx, debugPrefix)
 		metrics.ProcessTrustedBatchTime(time.Since(start))
 		if err != nil {
 			log.Errorf("%s error processing trusted batch %d: %v", debugPrefix, batchNumberToSync, err)
+			s.TrustedStateMngr.Clear()
 			return rollback(ctx, dbTx, err)
 		}
 		log.Debug("%s Checking FlushID to commit trustedState data to db", debugPrefix)
 		err = s.sync.CheckFlushID(dbTx)
 		if err != nil {
 			log.Errorf("%s error checking flushID. Error: %v", debugPrefix, err)
+			s.TrustedStateMngr.Clear()
 			return rollback(ctx, dbTx, err)
 		}
 
 		if err := dbTx.Commit(ctx); err != nil {
 			log.Errorf("%s error committing db transaction to sync trusted batch %v: %v", debugPrefix, batchNumberToSync, err)
+			s.TrustedStateMngr.Clear()
 			return err
 		}
-		//s.TrustedState.LastTrustedBatches = cbatches
-		//s.TrustedState.LastStateRoot = lastStateRoot
-		s.TrustedState = *newTrustedState
+		// Update cache with result
+		if newTrustedState != nil {
+			s.TrustedStateMngr.Set(newTrustedState.LastTrustedBatches[0])
+			s.TrustedStateMngr.Set(newTrustedState.LastTrustedBatches[1])
+		} else {
+			s.TrustedStateMngr.Clear()
+		}
 		batchNumberToSync++
 	}
 
@@ -188,30 +168,4 @@ func rollback(ctx context.Context, dbTx pgx.Tx, err error) error {
 		return rollbackErr
 	}
 	return err
-}
-
-func (s *TrustedBatchesRetrieve) getCurrentBatches(ctx context.Context, batches []*state.Batch, trustedBatch *types.Batch, dbTx pgx.Tx) ([]*state.Batch, error) {
-	if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number) != batches[0].BatchNumber) {
-		log.Debug("Updating batch[0] value!")
-		batch, err := s.state.GetBatchByNumber(ctx, uint64(trustedBatch.Number), dbTx)
-		if err != nil && err != state.ErrNotFound {
-			log.Warnf("failed to get batch %v from local trusted state. Error: %v", trustedBatch.Number, err)
-			return nil, err
-		}
-		var prevBatch *state.Batch
-		if len(batches) == 0 || batches[0] == nil || (batches[0] != nil && uint64(trustedBatch.Number-1) != batches[0].BatchNumber) {
-			log.Debug("Updating batch[1] value!")
-			prevBatch, err = s.state.GetBatchByNumber(ctx, uint64(trustedBatch.Number-1), dbTx)
-			if err != nil && err != state.ErrNotFound {
-				log.Warnf("failed to get prevBatch %v from local trusted state. Error: %v", trustedBatch.Number-1, err)
-				return nil, err
-			}
-		} else {
-			prevBatch = batches[0]
-		}
-		log.Debug("batch: ", batch)
-		log.Debug("prevBatch: ", prevBatch)
-		batches = []*state.Batch{batch, prevBatch}
-	}
-	return batches, nil
 }
