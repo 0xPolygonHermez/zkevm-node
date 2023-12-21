@@ -1500,19 +1500,6 @@
     {
         "inputs": [
             {
-                "internalType": "bytes32[]",
-                "name": "localExitRoots",
-                "type": "bytes32[]"
-            }
-        ],
-        "name": "prepareMockCalculateRoot",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
                 "internalType": "uint32",
                 "name": "rollupID",
                 "type": "uint32"
