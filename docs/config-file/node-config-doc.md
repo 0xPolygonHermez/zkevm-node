@@ -1908,7 +1908,7 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 
 **Type:** : `string`
 
-**Default:** `"0s"`
+**Default:** `"10s"`
 
 **Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
 
@@ -1922,10 +1922,10 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 "300ms"
 ```
 
-**Example setting the default value** ("0s"):
+**Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-WaitForCheckingL1InfoRoot="0s"
+WaitForCheckingL1InfoRoot="10s"
 ```
 
 #### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.12. `Sequencer.Finalizer.TimestampResolution`
