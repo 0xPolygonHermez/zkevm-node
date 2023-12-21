@@ -567,22 +567,26 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 	lastL1InfoRoot := ZeroHash
 
 	for _, l2blockRaw := range batchRaw.Blocks {
-		_, found := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
-		if !found {
-			l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
-			if err != nil {
-				return nil, ZeroHash, err
+		// Index 0 is a special case, it means that the block is not changing GlobalExitRoot.
+		// it must not be included in l1InfoTreeData. If all index are 0 L1InfoRoot == ZeroHash
+		if l2blockRaw.IndexL1InfoTree > 0 {
+			_, found := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+			if !found {
+				l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
+				if err != nil {
+					return nil, ZeroHash, err
+				}
+
+				l1Data := L1DataV2{
+					GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot,
+					BlockHashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash,
+					MinTimestamp:   uint64(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+				}
+
+				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
+
+				lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 			}
-
-			l1Data := L1DataV2{
-				GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot,
-				BlockHashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash,
-				MinTimestamp:   uint64(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-			}
-
-			l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
-
-			lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 		}
 	}
 
