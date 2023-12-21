@@ -562,7 +562,20 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 	if err != nil {
 		return nil, ZeroHash, err
 	}
-
+	gerIndex, err := s.GetLatestIndex(ctx, dbTx)
+	if err != nil {
+		return nil, ZeroHash, err
+	}
+	if gerIndex == 0 {
+		// Special case. There is no L1InfoTree in table exit_root and all the l2block inside batch are pointing to leaf 0
+		for _, l2blockRaw := range batchRaw.Blocks {
+			if l2blockRaw.IndexL1InfoTree != 0 {
+				return nil, ZeroHash, fmt.Errorf("there are no data on db.exit_root and need leaf>0 that doesnt exist. Err:%w", ErrNotFound)
+			}
+		}
+		// TODO: check if the L1InfoRoot must be ZeroHash or the hash of the tree with all leaves to 0
+		return map[uint32]L1DataV2{}, s.GetCurrentL1InfoRoot(), nil
+	}
 	l1InfoTreeData := map[uint32]L1DataV2{}
 	lastL1InfoRoot := ZeroHash
 
