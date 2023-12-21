@@ -686,6 +686,8 @@ func NewLog(l types.Log) Log {
 
 // ExitRoots structure
 type ExitRoots struct {
+	BlockNumber     ArgUint64   `json:"blockNumber"`
+	Timestamp       ArgUint64   `json:"timestamp"`
 	MainnetExitRoot common.Hash `json:"mainnetExitRoot"`
 	RollupExitRoot  common.Hash `json:"rollupExitRoot"`
 }

@@ -1931,6 +1931,8 @@ func TestGetExitRootsByGER(t *testing.T) {
 			Name: "get exit roots successfully",
 			GER:  common.HexToHash("0x345"),
 			ExpectedResult: &types.ExitRoots{
+				BlockNumber:     100,
+				Timestamp:       types.ArgUint64(time.Now().Unix()),
 				MainnetExitRoot: common.HexToHash("0x1"),
 				RollupExitRoot:  common.HexToHash("0x2"),
 			},
@@ -1947,6 +1949,8 @@ func TestGetExitRootsByGER(t *testing.T) {
 					Once()
 
 				er := &state.GlobalExitRoot{
+					BlockNumber:     uint64(tc.ExpectedResult.BlockNumber),
+					Timestamp:       time.Unix(int64(tc.ExpectedResult.Timestamp), 0),
 					MainnetExitRoot: tc.ExpectedResult.MainnetExitRoot,
 					RollupExitRoot:  tc.ExpectedResult.RollupExitRoot,
 				}
@@ -1972,6 +1976,8 @@ func TestGetExitRootsByGER(t *testing.T) {
 			require.NoError(t, err)
 
 			if exitRoots != nil || tc.ExpectedResult != nil {
+				assert.Equal(t, tc.ExpectedResult.BlockNumber.Hex(), exitRoots.BlockNumber.Hex())
+				assert.Equal(t, tc.ExpectedResult.Timestamp.Hex(), exitRoots.Timestamp.Hex())
 				assert.Equal(t, tc.ExpectedResult.MainnetExitRoot.String(), exitRoots.MainnetExitRoot.String())
 				assert.Equal(t, tc.ExpectedResult.RollupExitRoot.String(), exitRoots.RollupExitRoot.String())
 			}
