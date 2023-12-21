@@ -978,70 +978,98 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
-	batchRawData, err := state.DecodeBatchV2(batchToVerify.BatchL2Data)
-	if err != nil {
-		return nil, err
+	isForcedBatch := false
+	batchRawData := &state.BatchRawV2{}
+
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil {
+		isForcedBatch = true
+	} else {
+		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
+		if err != nil {
+			log.Errorf("Failed to decode batch data, err: %v", err)
+			return nil, err
+		}
 	}
 
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
 	l1InfoRoot := common.Hash{}
-	tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) // nolint:gomnd
-	if err != nil {
-		return nil, err
-	}
+	forcedBlockhashL1 := common.Hash{}
 
-	for _, l2blockRaw := range batchRawData.Blocks {
-		_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
-		if !contained {
-			l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+	if !isForcedBatch {
+		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) // nolint:gomnd
+		if err != nil {
+			return nil, err
+		}
+
+		for _, l2blockRaw := range batchRawData.Blocks {
+			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+			if !contained && l2blockRaw.IndexL1InfoTree != 0 {
+				if l2blockRaw.IndexL1InfoTree != 0 {
+					l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+					if err != nil {
+						return nil, err
+					}
+
+					leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
+					if err != nil {
+						return nil, err
+					}
+
+					aLeaves := make([][32]byte, len(leaves))
+					for i, leaf := range leaves {
+						aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+					}
+
+					// Calculate smt proof
+					smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+					if err != nil {
+						return nil, err
+					}
+
+					protoProof := make([][]byte, len(smtProof))
+					for i, proof := range smtProof {
+						protoProof[i] = proof[:]
+					}
+
+					l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
+						GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+						BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+						MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+						SmtProof:       protoProof,
+					}
+				}
+			}
+		}
+	} else {
+		// Initial batch must be handled differently
+		if batchToVerify.BatchNumber == 1 {
+			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err
 			}
-
-			leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
+		} else {
+			l1InfoRoot = batchToVerify.GlobalExitRoot
+			forcedBlockhashL1, err = a.State.GetForcedBatchParentHash(ctx, *batchToVerify.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
 			}
-
-			aLeaves := make([][32]byte, len(leaves))
-			for i, leaf := range leaves {
-				aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
-			}
-
-			// Calculate smt proof
-			smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
-			if err != nil {
-				return nil, err
-			}
-
-			protoProof := make([][]byte, len(smtProof))
-			for i, proof := range smtProof {
-				protoProof[i] = proof[:]
-			}
-
-			l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
-				GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-				BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-				MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-				SmtProof:       protoProof,
-			}
-			l1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 		}
 	}
 
 	inputProver := &prover.InputProver{
 		PublicInputs: &prover.PublicInputs{
-			OldStateRoot:    previousBatch.StateRoot.Bytes(),
-			OldAccInputHash: previousBatch.AccInputHash.Bytes(),
-			OldBatchNum:     previousBatch.BatchNumber,
-			ChainId:         a.cfg.ChainID,
-			ForkId:          a.cfg.ForkId,
-			BatchL2Data:     batchToVerify.BatchL2Data,
-			L1InfoRoot:      l1InfoRoot.Bytes(),
-			TimestampLimit:  uint64(batchToVerify.Timestamp.Unix()),
-			SequencerAddr:   batchToVerify.Coinbase.String(),
-			AggregatorAddr:  a.cfg.SenderAddress,
-			L1InfoTreeData:  l1InfoTreeData,
+			OldStateRoot:      previousBatch.StateRoot.Bytes(),
+			OldAccInputHash:   previousBatch.AccInputHash.Bytes(),
+			OldBatchNum:       previousBatch.BatchNumber,
+			ChainId:           a.cfg.ChainID,
+			ForkId:            a.cfg.ForkId,
+			BatchL2Data:       batchToVerify.BatchL2Data,
+			L1InfoRoot:        l1InfoRoot.Bytes(),
+			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()),
+			SequencerAddr:     batchToVerify.Coinbase.String(),
+			AggregatorAddr:    a.cfg.SenderAddress,
+			L1InfoTreeData:    l1InfoTreeData,
+			ForcedBlockhashL1: forcedBlockhashL1.Bytes(),
 		},
 		Db:                map[string]string{},
 		ContractsBytecode: map[string]string{},

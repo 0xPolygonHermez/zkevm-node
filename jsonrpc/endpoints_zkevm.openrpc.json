@@ -393,6 +393,7 @@
       },
       "examples": [
         {
+          "name": "exit roots",
           "params": [
             {
               "name": "global exit root",
@@ -402,6 +403,8 @@
           "result": {
             "name": "Exit Roots",
             "value": {
+              "blockNumber": "0x1",
+              "timestamp": "0x642af31f",
               "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
               "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003"
             }
@@ -1252,6 +1255,14 @@
         "type": "object",
         "readOnly": true,
         "properties": {
+          "blockNumber": {
+            "$ref": "#/components/schemas/BlockNumber"
+          },
+          "timestamp": {
+            "title": "timestamp",
+            "type": "string",
+            "description": "The unix timestamp of the block mentioned in the blockNumber field"
+          },
           "mainnetExitRoot": {
             "$ref": "#/components/schemas/Keccak"
           },

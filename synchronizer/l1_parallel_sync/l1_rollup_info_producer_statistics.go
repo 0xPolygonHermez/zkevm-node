@@ -48,7 +48,7 @@ func (l *l1RollupInfoProducerStatistics) onResponseRollupInfo(result responseRol
 	isOk := (result.generic.err == nil)
 	if isOk {
 		l.numRollupInfoOk++
-		l.numRetrievedBlocks += uint64(result.result.blockRange.len())
+		l.numRetrievedBlocks += result.result.blockRange.len()
 		l.accumulatedTimeProcessingRollup += result.generic.duration
 	} else {
 		l.numRollupInfoErrors++
@@ -86,6 +86,6 @@ func (l *l1RollupInfoProducerStatistics) getPercent() float64 {
 }
 
 func (l *l1RollupInfoProducerStatistics) getBlocksPerSecond(elapsedTime time.Duration) float64 {
-	blocksPerSeconds := float64(l.numRetrievedBlocks) / float64(elapsedTime.Seconds())
+	blocksPerSeconds := float64(l.numRetrievedBlocks) / elapsedTime.Seconds()
 	return blocksPerSeconds
 }

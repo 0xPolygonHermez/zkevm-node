@@ -621,7 +621,7 @@ func TestAddGetL2Block(t *testing.T) {
 	})
 
 	receipt := &types.Receipt{
-		Type:              uint8(tx.Type()),
+		Type:              tx.Type(),
 		PostState:         state.ZeroHash.Bytes(),
 		CumulativeGasUsed: 0,
 		BlockNumber:       blockNumber,

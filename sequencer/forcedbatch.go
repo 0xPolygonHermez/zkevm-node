@@ -13,7 +13,7 @@ import (
 )
 
 // processForcedBatches processes all the forced batches that are pending to be processed
-func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumber uint64, stateRoot, accInputHash common.Hash) (newLastBatchNumber uint64, newStateRoot, newAccInputHash common.Hash) {
+func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumber uint64, stateRoot common.Hash) (newLastBatchNumber uint64, newStateRoot common.Hash) {
 	f.nextForcedBatchesMux.Lock()
 	defer f.nextForcedBatchesMux.Unlock()
 	f.nextForcedBatchDeadline = 0
@@ -21,7 +21,7 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumber ui
 	lastForcedBatchNumber, err := f.state.GetLastTrustedForcedBatchNumber(ctx, nil)
 	if err != nil {
 		log.Errorf("[processForcedBatches] failed to get last trusted forced batch number. Error: %w", err)
-		return lastBatchNumber, stateRoot, accInputHash
+		return lastBatchNumber, stateRoot
 	}
 	nextForcedBatchNumber := lastForcedBatchNumber + 1
 
@@ -35,48 +35,48 @@ func (f *finalizer) processForcedBatches(ctx context.Context, lastBatchNumber ui
 			missingForcedBatch, err := f.state.GetForcedBatch(ctx, nextForcedBatchNumber, nil)
 			if err != nil {
 				log.Errorf("[processForcedBatches] failed to get missing forced batch %d. Error: %w", nextForcedBatchNumber, err)
-				return lastBatchNumber, stateRoot, accInputHash
+				return lastBatchNumber, stateRoot
 			}
 			forcedBatchToProcess = *missingForcedBatch
 		}
 
-		log.Infof("processing forced batch %d, LastBatchNumber: %d, StateRoot: %s, AccInputHash: %s", forcedBatchToProcess.ForcedBatchNumber, lastBatchNumber, stateRoot.String(), accInputHash.String())
-		lastBatchNumber, stateRoot, accInputHash, err = f.processForcedBatch(ctx, forcedBatchToProcess, lastBatchNumber, stateRoot, accInputHash)
+		log.Infof("processing forced batch %d, LastBatchNumber: %d, StateRoot: %s", forcedBatchToProcess.ForcedBatchNumber, lastBatchNumber, stateRoot.String())
+		lastBatchNumber, stateRoot, err = f.processForcedBatch(ctx, forcedBatchToProcess, lastBatchNumber, stateRoot)
 
 		if err != nil {
 			log.Errorf("[processForcedBatches] error when processing forced batch %d. Error: %w", forcedBatchToProcess.ForcedBatchNumber, err)
-			return lastBatchNumber, stateRoot, accInputHash
+			return lastBatchNumber, stateRoot
 		}
 
-		log.Infof("processed forced batch %d, BatchNumber: %d, NewStateRoot: %s, NewAccInputHash: %s", forcedBatchToProcess.ForcedBatchNumber, lastBatchNumber, stateRoot.String(), accInputHash.String())
+		log.Infof("processed forced batch %d, BatchNumber: %d, NewStateRoot: %s", forcedBatchToProcess.ForcedBatchNumber, lastBatchNumber, stateRoot.String())
 
 		nextForcedBatchNumber += 1
 	}
 	f.nextForcedBatches = make([]state.ForcedBatch, 0)
 
-	return lastBatchNumber, stateRoot, accInputHash
+	return lastBatchNumber, stateRoot
 }
 
-func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.ForcedBatch, lastBatchNumber uint64, stateRoot, accInputHash common.Hash) (newLastBatchNumber uint64, newStateRoot, newAccInputHash common.Hash, retErr error) {
+func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.ForcedBatch, lastBatchNumber uint64, stateRoot common.Hash) (newLastBatchNumber uint64, newStateRoot common.Hash, retErr error) {
 	dbTx, err := f.state.BeginStateTransaction(ctx)
 	if err != nil {
 		log.Errorf("failed to begin state transaction for process forced batch %d. Error: %w", forcedBatch.ForcedBatchNumber, err)
-		return lastBatchNumber, stateRoot, accInputHash, err
+		return lastBatchNumber, stateRoot, err
 	}
 
 	// Helper function in case we get an error when processing the forced batch
-	rollbackOnError := func(retError error) (newLastBatchNumber uint64, newStateRoot, newAccInputHash common.Hash, retErr error) {
+	rollbackOnError := func(retError error) (newLastBatchNumber uint64, newStateRoot common.Hash, retErr error) {
 		err := dbTx.Rollback(ctx)
 		if err != nil {
-			return lastBatchNumber, stateRoot, accInputHash, fmt.Errorf("[processForcedBatch] rollback error due to error %w. Error: %w", retError, err)
+			return lastBatchNumber, stateRoot, fmt.Errorf("[processForcedBatch] rollback error due to error %w. Error: %w", retError, err)
 		}
-		return lastBatchNumber, stateRoot, accInputHash, retError
+		return lastBatchNumber, stateRoot, retError
 	}
 
 	// Get L1 block for the forced batch
 	fbL1Block, err := f.state.GetBlockByNumber(ctx, forcedBatch.ForcedBatchNumber, dbTx)
 	if err != nil {
-		return lastBatchNumber, stateRoot, accInputHash, fmt.Errorf("[processForcedBatch] error getting L1 block number %d for forced batch %d. Error: %w", forcedBatch.ForcedBatchNumber, forcedBatch.ForcedBatchNumber, err)
+		return lastBatchNumber, stateRoot, fmt.Errorf("[processForcedBatch] error getting L1 block number %d for forced batch %d. Error: %w", forcedBatch.ForcedBatchNumber, forcedBatch.ForcedBatchNumber, err)
 	}
 
 	newBatchNumber := lastBatchNumber + 1
@@ -99,7 +99,6 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		L1InfoRoot_V2:           forcedBatch.GlobalExitRoot,
 		ForcedBlockHashL1:       fbL1Block.ParentHash,
 		OldStateRoot:            stateRoot,
-		OldAccInputHash:         accInputHash,
 		Transactions:            forcedBatch.RawTxsData,
 		Coinbase:                f.sequencerAddress,
 		TimestampLimit_V2:       uint64(forcedBatch.ForcedAt.Unix()),
@@ -108,10 +107,6 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		Caller:                  stateMetrics.SequencerCallerLabel,
 	}
 
-	// falta pasar timestamp_limit = fb.ForcedAt
-	// L1InfoRoot = fb.GER
-	// forced_blockhash_l1 = table.forced_batch.block_num.parent_hash
-	// l1_info_tree_data  vacio
 	batchResponse, err := f.state.ProcessBatchV2(ctx, executorBatchRequest, true)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("[processForcedBatch] failed to process/execute forced batch %d. Error: %w", forcedBatch.ForcedBatchNumber, err))
@@ -151,7 +146,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 	}*/
 	//}
 
-	return newBatchNumber, batchResponse.NewStateRoot, batchResponse.NewAccInputHash, nil
+	return newBatchNumber, batchResponse.NewStateRoot, nil
 }
 
 // addForcedTxToWorker adds the txs of the forced batch to the worker
@@ -172,7 +167,7 @@ func (f *finalizer) addForcedTxToWorker(forcedBatchResponse *state.ProcessBatchR
 func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchResponse *state.ProcessBatchResponse, dbTx pgx.Tx) error {
 	f.addForcedTxToWorker(batchResponse)
 
-	f.updateLastPendingFlushID(batchResponse.FlushID)
+	f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
 
 	// Wait until forced batch has been flushed/stored by the executor
 	f.storedFlushIDCond.L.Lock()
@@ -215,4 +210,77 @@ func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchR
 	}
 
 	return nil
+}
+
+// sortForcedBatches sorts the forced batches by ForcedBatchNumber
+func (f *finalizer) sortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatch {
+	if len(fb) == 0 {
+		return fb
+	}
+	// Sort by ForcedBatchNumber
+	for i := 0; i < len(fb)-1; i++ {
+		for j := i + 1; j < len(fb); j++ {
+			if fb[i].ForcedBatchNumber > fb[j].ForcedBatchNumber {
+				fb[i], fb[j] = fb[j], fb[i]
+			}
+		}
+	}
+
+	return fb
+}
+
+// setNextForcedBatchDeadline sets the next forced batch deadline
+func (f *finalizer) setNextForcedBatchDeadline() {
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+}
+
+func (f *finalizer) checkForcedBatches(ctx context.Context) {
+	for {
+		time.Sleep(f.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
+
+		if f.lastForcedBatchNum == 0 {
+			lastTrustedForcedBatchNum, err := f.state.GetLastTrustedForcedBatchNumber(ctx, nil)
+			if err != nil {
+				log.Errorf("error getting last trusted forced batch number. Error: %w", err)
+				continue
+			}
+			if lastTrustedForcedBatchNum > 0 {
+				f.lastForcedBatchNum = lastTrustedForcedBatchNum
+			}
+		}
+		// Take into account L1 finality
+		lastBlock, err := f.state.GetLastBlock(ctx, nil)
+		if err != nil {
+			log.Errorf("failed to get latest L1 block number. Error: %w", err)
+			continue
+		}
+
+		blockNumber := lastBlock.BlockNumber
+
+		maxBlockNumber := uint64(0)
+		finalityNumberOfBlocks := f.cfg.ForcedBatchesFinalityNumberOfBlocks
+
+		if finalityNumberOfBlocks <= blockNumber {
+			maxBlockNumber = blockNumber - finalityNumberOfBlocks
+		}
+
+		forcedBatches, err := f.state.GetForcedBatchesSince(ctx, f.lastForcedBatchNum, maxBlockNumber, nil)
+		if err != nil {
+			log.Errorf("error checking forced batches. Error: %w", err)
+			continue
+		}
+
+		for _, forcedBatch := range forcedBatches {
+			log.Debugf("finalizer received forced batch at block number: %d", forcedBatch.BlockNumber)
+
+			f.nextForcedBatchesMux.Lock()
+			f.nextForcedBatches = f.sortForcedBatches(append(f.nextForcedBatches, *forcedBatch))
+			if f.nextForcedBatchDeadline == 0 {
+				f.setNextForcedBatchDeadline()
+			}
+			f.nextForcedBatchesMux.Unlock()
+
+			f.lastForcedBatchNum = forcedBatch.ForcedBatchNumber
+		}
+	}
 }

@@ -43,6 +43,15 @@ func (c *Cache[K, T]) Get(key K) (T, bool) {
 	return item.value, true
 }
 
+// GetOrDefault returns the value of the key and defaultValue if the key does not exist or is outdated
+func (c *Cache[K, T]) GetOrDefault(key K, defaultValue T) T {
+	item, ok := c.Get(key)
+	if !ok {
+		return defaultValue
+	}
+	return item
+}
+
 // Set sets the value of the key
 func (c *Cache[K, T]) Set(key K, value T) {
 	c.data[key] = cacheItem[T]{value: value, validTime: c.timerProvider.Now().Add(c.timeOfLiveItems)}

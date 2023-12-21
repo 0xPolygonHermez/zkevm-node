@@ -45,5 +45,5 @@ func Register() {
 // and for the given label.
 func ExecutorProcessingTime(caller string, lastExecutionTime time.Duration) {
 	execTimeInSeconds := float64(lastExecutionTime) / float64(time.Second)
-	metrics.HistogramVecObserve(ExecutorProcessingTimeName, string(caller), execTimeInSeconds)
+	metrics.HistogramVecObserve(ExecutorProcessingTimeName, caller, execTimeInSeconds)
 }

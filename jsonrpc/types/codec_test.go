@@ -350,7 +350,7 @@ func TestResponseMarshal(t *testing.T) {
 			res := NewResponse(req, result, testCase.Error)
 			bytes, err := json.Marshal(res)
 			require.NoError(t, err)
-			assert.Equal(t, string(testCase.ExpectedJSON), string(bytes))
+			assert.Equal(t, testCase.ExpectedJSON, string(bytes))
 		})
 	}
 }
@@ -376,7 +376,7 @@ func TestIndexUnmarshalJSON(t *testing.T) {
 	for _, testCase := range testCases {
 		var i Index
 		err := json.Unmarshal(testCase.input, &i)
-		assert.Equal(t, int64(testCase.expectedIndex), int64(i))
+		assert.Equal(t, testCase.expectedIndex, int64(i))
 		assert.IsType(t, testCase.expectedError, err)
 	}
 }

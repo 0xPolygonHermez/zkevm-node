@@ -408,6 +408,8 @@ func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interfac
 		}
 
 		return types.ExitRoots{
+			BlockNumber:     types.ArgUint64(exitRoots.BlockNumber),
+			Timestamp:       types.ArgUint64(exitRoots.Timestamp.Unix()),
 			MainnetExitRoot: exitRoots.MainnetExitRoot,
 			RollupExitRoot:  exitRoots.RollupExitRoot,
 		}, nil

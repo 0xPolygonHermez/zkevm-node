@@ -1544,8 +1544,9 @@ FallbackToSequentialModeOnSynchronized=false
 | - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
 | - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
 | - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
+| - [PoolRetrievalInterval](#Sequencer_PoolRetrievalInterval )                 | No      | string  | No         | -          | Duration                                                                                     |
+| - [L2ReorgRetrievalInterval](#Sequencer_L2ReorgRetrievalInterval )           | No      | string  | No         | -          | Duration                                                                                     |
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
 | - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
@@ -1667,7 +1668,59 @@ TxLifetimeCheckTimeout="10m0s"
 MaxTxLifetime="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>10.6. `[Sequencer.Finalizer]`
+### <a name="Sequencer_PoolRetrievalInterval"></a>10.6. `Sequencer.PoolRetrievalInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"500ms"`
+
+**Description:** PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("500ms"):
+```
+[Sequencer]
+PoolRetrievalInterval="500ms"
+```
+
+### <a name="Sequencer_L2ReorgRetrievalInterval"></a>10.7. `Sequencer.L2ReorgRetrievalInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Sequencer]
+L2ReorgRetrievalInterval="5s"
+```
+
+### <a name="Sequencer_Finalizer"></a>10.8. `[Sequencer.Finalizer]`
 
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
@@ -1690,7 +1743,7 @@ MaxTxLifetime="3h0m0s"
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.8.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1716,7 +1769,7 @@ MaxTxLifetime="3h0m0s"
 GERDeadlineTimeout="5s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.6.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.8.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
 
 **Title:** Duration
 
@@ -1742,7 +1795,7 @@ GERDeadlineTimeout="5s"
 ForcedBatchDeadlineTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.6.3. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.8.3. `Sequencer.Finalizer.SleepDuration`
 
 **Title:** Duration
 
@@ -1768,7 +1821,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 SleepDuration="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.6.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.8.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
 
 **Type:** : `integer`
 
@@ -1782,7 +1835,7 @@ SleepDuration="100ms"
 ResourcePercentageToCloseBatch=10
 ```
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.6.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.8.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1796,7 +1849,7 @@ ResourcePercentageToCloseBatch=10
 GERFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.6. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.8.6. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1810,7 +1863,7 @@ GERFinalityNumberOfBlocks=64
 ForcedBatchesFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.6.7. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.8.7. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
 
 **Type:** : `integer`
 
@@ -1824,7 +1877,7 @@ ForcedBatchesFinalityNumberOfBlocks=64
 L1InfoRootFinalityNumberOfBlocks=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.8.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
 
 **Title:** Duration
 
@@ -1850,7 +1903,7 @@ L1InfoRootFinalityNumberOfBlocks=64
 ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.9. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.8.9. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
 
 **Title:** Duration
 
@@ -1876,7 +1929,7 @@ ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
 ClosingSignalsManagerWaitForCheckingGER="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.10. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.8.10. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
 
 **Title:** Duration
 
@@ -1902,13 +1955,13 @@ ClosingSignalsManagerWaitForCheckingGER="10s"
 ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.6.11. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
+#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.8.11. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
 
 **Title:** Duration
 
 **Type:** : `string`
 
-**Default:** `"0s"`
+**Default:** `"10s"`
 
 **Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
 
@@ -1922,13 +1975,13 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 "300ms"
 ```
 
-**Example setting the default value** ("0s"):
+**Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-WaitForCheckingL1InfoRoot="0s"
+WaitForCheckingL1InfoRoot="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.12. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.8.12. `Sequencer.Finalizer.TimestampResolution`
 
 **Title:** Duration
 
@@ -1954,7 +2007,7 @@ WaitForCheckingL1InfoRoot="0s"
 TimestampResolution="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.6.13. `Sequencer.Finalizer.L2BlockTime`
+#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.8.13. `Sequencer.Finalizer.L2BlockTime`
 
 **Title:** Duration
 
@@ -1980,7 +2033,7 @@ TimestampResolution="10s"
 L2BlockTime="3s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.14. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.8.14. `Sequencer.Finalizer.StopSequencerOnBatchNum`
 
 **Type:** : `integer`
 
@@ -1994,7 +2047,7 @@ L2BlockTime="3s"
 StopSequencerOnBatchNum=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.15. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.8.15. `Sequencer.Finalizer.SequentialReprocessFullBatch`
 
 **Type:** : `boolean`
 
@@ -2009,65 +2062,7 @@ sequential way (instead than in parallel)
 SequentialReprocessFullBatch=false
 ```
 
-### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`
-
-**Type:** : `object`
-**Description:** DBManager's specific config properties
-
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
-
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"500ms"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("500ms"):
-```
-[Sequencer.DBManager]
-PoolRetrievalInterval="500ms"
-```
-
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.7.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"5s"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("5s"):
-```
-[Sequencer.DBManager]
-L2ReorgRetrievalInterval="5s"
-```
-
-### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
+### <a name="Sequencer_StreamServer"></a>10.9. `[Sequencer.StreamServer]`
 
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
@@ -2079,7 +2074,7 @@ L2ReorgRetrievalInterval="5s"
 | - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
 | - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
 
-#### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
+#### <a name="Sequencer_StreamServer_Port"></a>10.9.1. `Sequencer.StreamServer.Port`
 
 **Type:** : `integer`
 
@@ -2093,7 +2088,7 @@ L2ReorgRetrievalInterval="5s"
 Port=0
 ```
 
-#### <a name="Sequencer_StreamServer_Filename"></a>10.8.2. `Sequencer.StreamServer.Filename`
+#### <a name="Sequencer_StreamServer_Filename"></a>10.9.2. `Sequencer.StreamServer.Filename`
 
 **Type:** : `string`
 
@@ -2107,7 +2102,7 @@ Port=0
 Filename=""
 ```
 
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.3. `Sequencer.StreamServer.Enabled`
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.9.3. `Sequencer.StreamServer.Enabled`
 
 **Type:** : `boolean`
 
@@ -2121,7 +2116,7 @@ Filename=""
 Enabled=false
 ```
 
-#### <a name="Sequencer_StreamServer_Log"></a>10.8.4. `[Sequencer.StreamServer.Log]`
+#### <a name="Sequencer_StreamServer_Log"></a>10.9.4. `[Sequencer.StreamServer.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2132,7 +2127,7 @@ Enabled=false
 | - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
 | - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
 
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.4.1. `Sequencer.StreamServer.Log.Environment`
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.9.4.1. `Sequencer.StreamServer.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2148,7 +2143,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.4.2. `Sequencer.StreamServer.Log.Level`
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.9.4.2. `Sequencer.StreamServer.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2169,7 +2164,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.4.3. `Sequencer.StreamServer.Log.Outputs`
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.9.4.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
 
