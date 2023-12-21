@@ -562,40 +562,31 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 	if err != nil {
 		return nil, ZeroHash, err
 	}
-	gerIndex, err := s.GetLatestIndex(ctx, dbTx)
-	if err != nil {
-		return nil, ZeroHash, err
-	}
-	if gerIndex == 0 {
-		// Special case. There is no L1InfoTree in table exit_root and all the l2block inside batch are pointing to leaf 0
-		for _, l2blockRaw := range batchRaw.Blocks {
-			if l2blockRaw.IndexL1InfoTree != 0 {
-				return nil, ZeroHash, fmt.Errorf("there are no data on db.exit_root and need leaf>0 that doesnt exist. Err:%w", ErrNotFound)
-			}
-		}
-		// TODO: check if the L1InfoRoot must be ZeroHash or the hash of the tree with all leaves to 0
-		return map[uint32]L1DataV2{}, s.GetCurrentL1InfoRoot(), nil
-	}
+
 	l1InfoTreeData := map[uint32]L1DataV2{}
 	lastL1InfoRoot := ZeroHash
 
 	for _, l2blockRaw := range batchRaw.Blocks {
-		_, found := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
-		if !found {
-			l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
-			if err != nil {
-				return nil, ZeroHash, err
+		// Index 0 is a special case, it means that the block is not changing GlobalExitRoot.
+		// it must not be included in l1InfoTreeData. If all index are 0 L1InfoRoot == ZeroHash
+		if l2blockRaw.IndexL1InfoTree > 0 {
+			_, found := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+			if !found {
+				l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
+				if err != nil {
+					return nil, ZeroHash, err
+				}
+
+				l1Data := L1DataV2{
+					GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot,
+					BlockHashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash,
+					MinTimestamp:   uint64(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+				}
+
+				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
+
+				lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 			}
-
-			l1Data := L1DataV2{
-				GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot,
-				BlockHashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash,
-				MinTimestamp:   uint64(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-			}
-
-			l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
-
-			lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 		}
 	}
 
