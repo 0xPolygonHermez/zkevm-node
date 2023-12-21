@@ -345,6 +345,42 @@
       }
     },
     {
+      "name": "zkevm_getTransactionByL2Hash",
+      "summary": "Returns the information about a transaction requested by transaction l2 hash.",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/TransactionHash"
+        }
+      ],
+      "result": {
+        "$ref": "#/components/contentDescriptors/TransactionResult"
+      }
+    },
+    {
+      "name": "zkevm_getTransactionReceiptByL2Hash",
+      "summary": "Returns the receipt information of a transaction by its l2 hash.",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/TransactionHash"
+        }
+      ],
+      "result": {
+        "name": "transactionReceiptResult",
+        "description": "returns either a receipt or null",
+        "schema": {
+          "title": "transactionReceiptOrNull",
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Receipt"
+            },
+            {
+              "$ref": "#/components/schemas/Null"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "zkevm_getExitRootsByGER",
       "summary": "Gets the exit roots accordingly to the provided Global Exit Root",
       "params": [
@@ -422,6 +458,28 @@
         "description": "A block object",
         "schema": {
           "$ref": "#/components/schemas/Block"
+        }
+      },
+      "TransactionHash": {
+        "name": "transactionHash",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/TransactionHash"
+        }
+      },
+      "TransactionResult": {
+        "name": "transactionResult",
+        "description": "Returns a transaction or null",
+        "schema": {
+          "title": "TransactionOrNull",
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            {
+              "$ref": "#/components/schemas/Null"
+            }
+          ]
         }
       }
     },
@@ -902,6 +960,9 @@
           "hash": {
             "$ref": "#/components/schemas/TransactionHash"
           },
+          "l2Hash": {
+            "$ref": "#/components/schemas/TransactionHash"
+          },
           "input": {
             "title": "transactionInput",
             "type": "string",
@@ -1077,6 +1138,9 @@
             "$ref": "#/components/schemas/To"
           },
           "transactionHash": {
+            "$ref": "#/components/schemas/TransactionHash"
+          },
+          "transactionL2Hash": {
             "$ref": "#/components/schemas/TransactionHash"
           },
           "transactionIndex": {

@@ -314,13 +314,3 @@ func HexToHashPtr(hex string) *common.Hash {
 	h := common.HexToHash(hex)
 	return &h
 }
-
-// AddressPtr returns a pointer to the provided address
-func AddressPtr(i common.Address) *common.Address {
-	return &i
-}
-
-// HashPtr returns a pointer to the provided hash
-func HashPtr(h common.Hash) *common.Hash {
-	return &h
-}

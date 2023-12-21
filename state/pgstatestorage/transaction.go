@@ -159,6 +159,28 @@ func (p *PostgresStorage) GetTransactionByHash(ctx context.Context, transactionH
 	return tx, nil
 }
 
+// GetTransactionByL2Hash gets a transaction accordingly to the provided transaction l2 hash
+func (p *PostgresStorage) GetTransactionByL2Hash(ctx context.Context, l2TxHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error) {
+	var encoded string
+	const getTransactionByHashSQL = "SELECT transaction.encoded FROM state.transaction WHERE l2_hash = $1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, l2TxHash.String()).Scan(&encoded)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	tx, err := state.DecodeTx(encoded)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
 // GetTransactionReceipt gets a transaction receipt accordingly to the provided transaction hash
 func (p *PostgresStorage) GetTransactionReceipt(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Receipt, error) {
 	var txHash, encodedTx, contractAddress, l2BlockHash string

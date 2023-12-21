@@ -341,3 +341,8 @@ func CheckLogOrder(logs []*types.Log) bool {
 	}
 	return true
 }
+
+// Ptr returns a pointer for any instance
+func Ptr[T any](v T) *T {
+	return &v
+}
