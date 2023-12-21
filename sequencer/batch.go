@@ -537,7 +537,7 @@ func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
 
 // getConstraintThresholdUint32 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return uint32(input*f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
+	return input * f.cfg.ResourcePercentageToCloseBatch / 100 //nolint:gomnd
 }
 
 // getUsedBatchResources returns the max resources that can be used in a batch

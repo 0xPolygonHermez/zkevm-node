@@ -109,8 +109,8 @@ type DSL2Transaction struct {
 // Encode returns the encoded DSL2Transaction as a byte slice
 func (l DSL2Transaction) Encode() []byte {
 	bytes := make([]byte, 0)
-	bytes = append(bytes, byte(l.EffectiveGasPricePercentage))
-	bytes = append(bytes, byte(l.IsValid))
+	bytes = append(bytes, l.EffectiveGasPricePercentage)
+	bytes = append(bytes, l.IsValid)
 	bytes = append(bytes, l.StateRoot[:]...)
 	bytes = binary.LittleEndian.AppendUint32(bytes, l.EncodedLength)
 	bytes = append(bytes, l.Encoded...)
@@ -119,8 +119,8 @@ func (l DSL2Transaction) Encode() []byte {
 
 // Decode decodes the DSL2Transaction from a byte slice
 func (l DSL2Transaction) Decode(data []byte) DSL2Transaction {
-	l.EffectiveGasPricePercentage = uint8(data[0])
-	l.IsValid = uint8(data[1])
+	l.EffectiveGasPricePercentage = data[0]
+	l.IsValid = data[1]
 	l.StateRoot = common.BytesToHash(data[2:34])
 	l.EncodedLength = binary.LittleEndian.Uint32(data[34:38])
 	l.Encoded = data[38:]
@@ -167,7 +167,7 @@ func (b DSBookMark) Encode() []byte {
 
 // Decode decodes the DSBookMark from a byte slice
 func (b DSBookMark) Decode(data []byte) DSBookMark {
-	b.Type = byte(data[0])
+	b.Type = data[0]
 	b.L2BlockNumber = binary.LittleEndian.Uint64(data[1:9])
 	return b
 }

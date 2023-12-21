@@ -296,7 +296,7 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		TxRoot:          h.TxHash,
 		ReceiptsRoot:    h.ReceiptHash,
 		LogsBloom:       h.Bloom,
-		Difficulty:      ArgUint64(difficulty),
+		Difficulty:      difficulty,
 		TotalDifficulty: totalDifficulty,
 		Size:            ArgUint64(b.Size()),
 		Number:          ArgUint64(b.Number().Uint64()),
