@@ -431,7 +431,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	executorBatchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
-		OldAccInputHash:           f.wipBatch.imAccInputHash,
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             mockL1InfoRoot,
 		TimestampLimit_V2:         uint64(f.wipL2Block.timestamp.Unix()),
@@ -571,7 +570,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	// Update wip batch
 	f.wipBatch.imStateRoot = processBatchResponse.NewStateRoot
 	f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
-	f.wipBatch.imAccInputHash = processBatchResponse.NewAccInputHash
 
 	log.Infof("processed tx: %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
 		hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
