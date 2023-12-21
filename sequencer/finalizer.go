@@ -272,7 +272,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		start := now()
 		if f.wipBatch.batchNumber == f.cfg.StopSequencerOnBatchNum {
 			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
-			return
 		}
 
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
@@ -471,7 +470,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
 		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
 		f.Halt(ctx, err)
-		return nil, err
 	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
 		log.Errorf("error received from executor. Error: %v", err)
 		// Delete tx from the worker

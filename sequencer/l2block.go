@@ -106,12 +106,10 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			batchResponse, err := f.processL2Block(ctx, l2Block)
 			if err != nil {
 				f.Halt(ctx, fmt.Errorf("error processing L2 block. Error: %s", err))
-				return
 			}
 
 			if len(batchResponse.BlockResponses) == 0 {
 				f.Halt(ctx, fmt.Errorf("error processing L2 block. Error: BlockResponses returned by the executor is empty"))
-				return
 			}
 
 			blockResponse := batchResponse.BlockResponses[0]
@@ -120,13 +118,11 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			if len(blockResponse.TransactionResponses) != len(l2Block.transactions) {
 				f.Halt(ctx, fmt.Errorf("error processing L2 block. Error: length of TransactionsResponses %d don't match length of l2Block.transactions %d",
 					len(blockResponse.TransactionResponses), len(l2Block.transactions)))
-				return
 			}
 			for i, txResponse := range blockResponse.TransactionResponses {
 				if txResponse.TxHash != l2Block.transactions[i].Hash {
 					f.Halt(ctx, fmt.Errorf("error processing L2 block. Error: TransactionsResponses hash %s in position %d don't match l2Block.transactions[%d] hash %s",
 						txResponse.TxHash.String(), i, i, l2Block.transactions[i].Hash))
-					return
 				}
 			}
 
@@ -185,7 +181,6 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 			err := f.storeL2Block(ctx, l2Block)
 			if err != nil {
 				f.Halt(ctx, fmt.Errorf("error storing L2 block %d. Error: %s", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
-				return
 			}
 
 			log.Infof("L2 block %d stored. Batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s",
@@ -389,7 +384,6 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		log.Debug("processing L2 block because it is empty")
 		if _, err := f.processTransaction(ctx, nil, true); err != nil {
 			f.Halt(ctx, fmt.Errorf("failed to process empty L2 block. Error: %s ", err))
-			return
 		}
 	}
 

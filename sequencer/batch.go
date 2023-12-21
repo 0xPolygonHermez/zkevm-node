@@ -149,7 +149,6 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 	f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
 	if err != nil {
 		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch. Error: %s", err))
-		return
 	}
 
 	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
