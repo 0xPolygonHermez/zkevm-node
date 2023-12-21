@@ -207,6 +207,36 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
+// GetForcedBatchParentHash provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
+func (_m *StateMock) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForcedBatchParentHash")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, forcedBatchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, forcedBatchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, forcedBatchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetL1InfoRootLeafByIndex provides a mock function with given fields: ctx, l1InfoTreeIndex, dbTx
 func (_m *StateMock) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
 	ret := _m.Called(ctx, l1InfoTreeIndex, dbTx)
@@ -362,6 +392,36 @@ func (_m *StateMock) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*st
 	}
 
 	return r0, r1, r2
+}
+
+// GetVirtualBatchParentHash provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVirtualBatchParentHash")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
