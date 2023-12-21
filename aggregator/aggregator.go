@@ -1003,40 +1003,41 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 		for _, l2blockRaw := range batchRawData.Blocks {
 			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
-			if !contained {
-				l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
-				if err != nil {
-					return nil, err
-				}
+			if !contained && l2blockRaw.IndexL1InfoTree != 0 {
+				if l2blockRaw.IndexL1InfoTree != 0 {
+					l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+					if err != nil {
+						return nil, err
+					}
 
-				leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
-				if err != nil {
-					return nil, err
-				}
+					leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
+					if err != nil {
+						return nil, err
+					}
 
-				aLeaves := make([][32]byte, len(leaves))
-				for i, leaf := range leaves {
-					aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
-				}
+					aLeaves := make([][32]byte, len(leaves))
+					for i, leaf := range leaves {
+						aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+					}
 
-				// Calculate smt proof
-				smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
-				if err != nil {
-					return nil, err
-				}
+					// Calculate smt proof
+					smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+					if err != nil {
+						return nil, err
+					}
 
-				protoProof := make([][]byte, len(smtProof))
-				for i, proof := range smtProof {
-					protoProof[i] = proof[:]
-				}
+					protoProof := make([][]byte, len(smtProof))
+					for i, proof := range smtProof {
+						protoProof[i] = proof[:]
+					}
 
-				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
-					GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-					BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-					MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-					SmtProof:       protoProof,
+					l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
+						GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+						BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+						MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+						SmtProof:       protoProof,
+					}
 				}
-				l1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 			}
 		}
 	} else {
