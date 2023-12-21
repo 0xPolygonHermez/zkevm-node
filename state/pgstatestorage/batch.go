@@ -955,3 +955,37 @@ func (p *PostgresStorage) GetRawBatchTimestamps(ctx context.Context, batchNumber
 	}
 	return batchTimestamp, virtualBatchTimestamp, err
 }
+
+// GetVirtualBatchParentHash returns the parent hash of the virtual batch with the given number.
+func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	var parentHash string
+
+	const sql = `SELECT b.parent_hash FROM state.virtual_batch v, state.block b
+     WHERE v.batch_num = $1 and b.block_num = v.block_num`
+
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, sql, batchNumber).Scan(&parentHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, state.ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+	return common.HexToHash(parentHash), nil
+}
+
+// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number.
+func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	var parentHash string
+
+	const sql = `SELECT b.parent_hash FROM state.forced_batch f, state.block b
+     WHERE f.forced_batch_num = $1 and b.block_num = f.block_num`
+
+	e := p.getExecQuerier(dbTx)
+	err := e.QueryRow(ctx, sql, forcedBatchNumber).Scan(&parentHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, state.ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+	return common.HexToHash(parentHash), nil
+}
