@@ -1544,10 +1544,10 @@ FallbackToSequentialModeOnSynchronized=false
 | - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
 | - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
 | - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
 | - [PoolRetrievalInterval](#Sequencer_PoolRetrievalInterval )                 | No      | string  | No         | -          | Duration                                                                                     |
 | - [L2ReorgRetrievalInterval](#Sequencer_L2ReorgRetrievalInterval )           | No      | string  | No         | -          | Duration                                                                                     |
+| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
+| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -1668,455 +1668,7 @@ TxLifetimeCheckTimeout="10m0s"
 MaxTxLifetime="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>10.6. `[Sequencer.Finalizer]`
-
-**Type:** : `object`
-**Description:** Finalizer's specific config properties
-
-| Property                                                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [GERDeadlineTimeout](#Sequencer_Finalizer_GERDeadlineTimeout )                                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ForcedBatchDeadlineTimeout](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                                                                                                    |
-| - [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                            |
-| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
-| - [L1InfoRootFinalityNumberOfBlocks](#Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks )                                   | No      | integer | No         | -          | L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final                                                                                                                              |
-| - [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [WaitForCheckingL1InfoRoot](#Sequencer_Finalizer_WaitForCheckingL1InfoRoot )                                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [L2BlockTime](#Sequencer_Finalizer_L2BlockTime )                                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
-| - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
-
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"5s"`
-
-**Description:** GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("5s"):
-```
-[Sequencer.Finalizer]
-GERDeadlineTimeout="5s"
-```
-
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.6.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"1m0s"`
-
-**Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("1m0s"):
-```
-[Sequencer.Finalizer]
-ForcedBatchDeadlineTimeout="1m0s"
-```
-
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.6.3. `Sequencer.Finalizer.SleepDuration`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"100ms"`
-
-**Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("100ms"):
-```
-[Sequencer.Finalizer]
-SleepDuration="100ms"
-```
-
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.6.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
-
-**Type:** : `integer`
-
-**Default:** `10`
-
-**Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
-
-**Example setting the default value** (10):
-```
-[Sequencer.Finalizer]
-ResourcePercentageToCloseBatch=10
-```
-
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.6.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
-
-**Type:** : `integer`
-
-**Default:** `64`
-
-**Description:** GERFinalityNumberOfBlocks is number of blocks to consider GER final
-
-**Example setting the default value** (64):
-```
-[Sequencer.Finalizer]
-GERFinalityNumberOfBlocks=64
-```
-
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.6. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
-
-**Type:** : `integer`
-
-**Default:** `64`
-
-**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
-
-**Example setting the default value** (64):
-```
-[Sequencer.Finalizer]
-ForcedBatchesFinalityNumberOfBlocks=64
-```
-
-#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.6.7. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
-
-**Type:** : `integer`
-
-**Default:** `64`
-
-**Description:** L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
-
-**Example setting the default value** (64):
-```
-[Sequencer.Finalizer]
-L1InfoRootFinalityNumberOfBlocks=64
-```
-
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
-```
-
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.9. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingGER="10s"
-```
-
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.10. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
-```
-
-#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.6.11. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-WaitForCheckingL1InfoRoot="10s"
-```
-
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.12. `Sequencer.Finalizer.TimestampResolution`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** TimestampResolution is the resolution of the timestamp used to close a batch
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-TimestampResolution="10s"
-```
-
-#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.6.13. `Sequencer.Finalizer.L2BlockTime`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"3s"`
-
-**Description:** L2BlockTime is the resolution of the timestamp used to close a L2 block
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("3s"):
-```
-[Sequencer.Finalizer]
-L2BlockTime="3s"
-```
-
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.14. `Sequencer.Finalizer.StopSequencerOnBatchNum`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Description:** StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
-
-**Example setting the default value** (0):
-```
-[Sequencer.Finalizer]
-StopSequencerOnBatchNum=0
-```
-
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.15. `Sequencer.Finalizer.SequentialReprocessFullBatch`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
-sequential way (instead than in parallel)
-
-**Example setting the default value** (false):
-```
-[Sequencer.Finalizer]
-SequentialReprocessFullBatch=false
-```
-
-### <a name="Sequencer_StreamServer"></a>10.7. `[Sequencer.StreamServer]`
-
-**Type:** : `object`
-**Description:** StreamServerCfg is the config for the stream server
-
-| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
-| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
-| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
-| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
-| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
-| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
-
-#### <a name="Sequencer_StreamServer_Port"></a>10.7.1. `Sequencer.StreamServer.Port`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Description:** Port to listen on
-
-**Example setting the default value** (0):
-```
-[Sequencer.StreamServer]
-Port=0
-```
-
-#### <a name="Sequencer_StreamServer_Filename"></a>10.7.2. `Sequencer.StreamServer.Filename`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** Filename of the binary data file
-
-**Example setting the default value** (""):
-```
-[Sequencer.StreamServer]
-Filename=""
-```
-
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.7.3. `Sequencer.StreamServer.Enabled`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** Enabled is a flag to enable/disable the data streamer
-
-**Example setting the default value** (false):
-```
-[Sequencer.StreamServer]
-Enabled=false
-```
-
-#### <a name="Sequencer_StreamServer_Log"></a>10.7.4. `[Sequencer.StreamServer.Log]`
-
-**Type:** : `object`
-**Description:** Log is the log configuration
-
-| Property                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
-| --------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [Environment](#Sequencer_StreamServer_Log_Environment ) | No      | enum (of string) | No         | -          | -                 |
-| - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
-| - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
-
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.7.4.1. `Sequencer.StreamServer.Log.Environment`
-
-**Type:** : `enum (of string)`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Sequencer.StreamServer.Log]
-Environment=""
-```
-
-Must be one of:
-* "production"
-* "development"
-
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.7.4.2. `Sequencer.StreamServer.Log.Level`
-
-**Type:** : `enum (of string)`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Sequencer.StreamServer.Log]
-Level=""
-```
-
-Must be one of:
-* "debug"
-* "info"
-* "warn"
-* "error"
-* "dpanic"
-* "panic"
-* "fatal"
-
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.7.4.3. `Sequencer.StreamServer.Log.Outputs`
-
-**Type:** : `array of string`
-
-### <a name="Sequencer_PoolRetrievalInterval"></a>10.8. `Sequencer.PoolRetrievalInterval`
+### <a name="Sequencer_PoolRetrievalInterval"></a>10.6. `Sequencer.PoolRetrievalInterval`
 
 **Title:** Duration
 
@@ -2142,7 +1694,7 @@ Must be one of:
 PoolRetrievalInterval="500ms"
 ```
 
-### <a name="Sequencer_L2ReorgRetrievalInterval"></a>10.9. `Sequencer.L2ReorgRetrievalInterval`
+### <a name="Sequencer_L2ReorgRetrievalInterval"></a>10.7. `Sequencer.L2ReorgRetrievalInterval`
 
 **Title:** Duration
 
@@ -2167,6 +1719,454 @@ PoolRetrievalInterval="500ms"
 [Sequencer]
 L2ReorgRetrievalInterval="5s"
 ```
+
+### <a name="Sequencer_Finalizer"></a>10.8. `[Sequencer.Finalizer]`
+
+**Type:** : `object`
+**Description:** Finalizer's specific config properties
+
+| Property                                                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [GERDeadlineTimeout](#Sequencer_Finalizer_GERDeadlineTimeout )                                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [ForcedBatchDeadlineTimeout](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                                                                                                    |
+| - [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                            |
+| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
+| - [L1InfoRootFinalityNumberOfBlocks](#Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks )                                   | No      | integer | No         | -          | L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final                                                                                                                              |
+| - [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [WaitForCheckingL1InfoRoot](#Sequencer_Finalizer_WaitForCheckingL1InfoRoot )                                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [L2BlockTime](#Sequencer_Finalizer_L2BlockTime )                                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+| - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
+| - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
+
+#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.8.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Sequencer.Finalizer]
+GERDeadlineTimeout="5s"
+```
+
+#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.8.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"1m0s"`
+
+**Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("1m0s"):
+```
+[Sequencer.Finalizer]
+ForcedBatchDeadlineTimeout="1m0s"
+```
+
+#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.8.3. `Sequencer.Finalizer.SleepDuration`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"100ms"`
+
+**Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("100ms"):
+```
+[Sequencer.Finalizer]
+SleepDuration="100ms"
+```
+
+#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.8.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+
+**Type:** : `integer`
+
+**Default:** `10`
+
+**Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+
+**Example setting the default value** (10):
+```
+[Sequencer.Finalizer]
+ResourcePercentageToCloseBatch=10
+```
+
+#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.8.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+
+**Type:** : `integer`
+
+**Default:** `64`
+
+**Description:** GERFinalityNumberOfBlocks is number of blocks to consider GER final
+
+**Example setting the default value** (64):
+```
+[Sequencer.Finalizer]
+GERFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.8.6. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+
+**Type:** : `integer`
+
+**Default:** `64`
+
+**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+
+**Example setting the default value** (64):
+```
+[Sequencer.Finalizer]
+ForcedBatchesFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.8.7. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
+
+**Type:** : `integer`
+
+**Default:** `64`
+
+**Description:** L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
+
+**Example setting the default value** (64):
+```
+[Sequencer.Finalizer]
+L1InfoRootFinalityNumberOfBlocks=64
+```
+
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.8.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
+```
+
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.8.9. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+ClosingSignalsManagerWaitForCheckingGER="10s"
+```
+
+#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.8.10. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
+```
+
+#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.8.11. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+WaitForCheckingL1InfoRoot="10s"
+```
+
+#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.8.12. `Sequencer.Finalizer.TimestampResolution`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** TimestampResolution is the resolution of the timestamp used to close a batch
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+TimestampResolution="10s"
+```
+
+#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.8.13. `Sequencer.Finalizer.L2BlockTime`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"3s"`
+
+**Description:** L2BlockTime is the resolution of the timestamp used to close a L2 block
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("3s"):
+```
+[Sequencer.Finalizer]
+L2BlockTime="3s"
+```
+
+#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.8.14. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+
+**Example setting the default value** (0):
+```
+[Sequencer.Finalizer]
+StopSequencerOnBatchNum=0
+```
+
+#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.8.15. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+sequential way (instead than in parallel)
+
+**Example setting the default value** (false):
+```
+[Sequencer.Finalizer]
+SequentialReprocessFullBatch=false
+```
+
+### <a name="Sequencer_StreamServer"></a>10.9. `[Sequencer.StreamServer]`
+
+**Type:** : `object`
+**Description:** StreamServerCfg is the config for the stream server
+
+| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
+| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
+| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
+| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
+| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
+
+#### <a name="Sequencer_StreamServer_Port"></a>10.9.1. `Sequencer.StreamServer.Port`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Port to listen on
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+Port=0
+```
+
+#### <a name="Sequencer_StreamServer_Filename"></a>10.9.2. `Sequencer.StreamServer.Filename`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Description:** Filename of the binary data file
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer]
+Filename=""
+```
+
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.9.3. `Sequencer.StreamServer.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled is a flag to enable/disable the data streamer
+
+**Example setting the default value** (false):
+```
+[Sequencer.StreamServer]
+Enabled=false
+```
+
+#### <a name="Sequencer_StreamServer_Log"></a>10.9.4. `[Sequencer.StreamServer.Log]`
+
+**Type:** : `object`
+**Description:** Log is the log configuration
+
+| Property                                                  | Pattern | Type             | Deprecated | Definition | Title/Description |
+| --------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [Environment](#Sequencer_StreamServer_Log_Environment ) | No      | enum (of string) | No         | -          | -                 |
+| - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
+| - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
+
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.9.4.1. `Sequencer.StreamServer.Log.Environment`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer.Log]
+Environment=""
+```
+
+Must be one of:
+* "production"
+* "development"
+
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.9.4.2. `Sequencer.StreamServer.Log.Level`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer.Log]
+Level=""
+```
+
+Must be one of:
+* "debug"
+* "info"
+* "warn"
+* "error"
+* "dpanic"
+* "panic"
+* "fatal"
+
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.9.4.3. `Sequencer.StreamServer.Log.Outputs`
+
+**Type:** : `array of string`
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
