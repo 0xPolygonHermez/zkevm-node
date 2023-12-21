@@ -6,8 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-//TODO: create interface to access datastreamer functions
-
 func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.ProcessBlockResponse) error {
 	forkID := f.state.GetForkIDByBatchNumber(batchNumber)
 

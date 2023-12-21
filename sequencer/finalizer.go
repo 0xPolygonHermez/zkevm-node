@@ -270,10 +270,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	showNotFoundTxLog := true // used to log debug only the first message when there is no txs to process
 	for {
 		start := now()
-		if f.wipBatch.batchNumber == f.cfg.StopSequencerOnBatchNum {
-			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
-		}
-
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
 		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockTime.Duration).After(time.Now()) {
 			f.finalizeL2Block(ctx)
@@ -730,7 +726,7 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	//TODO: rename f.cfg.TimestampResolution to BatchTime or BatchMaxTime
 	// Timestamp resolution deadline
 	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
-		log.Infof("closing batch %d, because of timestamp resolution.", f.wipBatch.batchNumber)
+		log.Infof("closing batch %d, because of max batch time reached.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true
 	}

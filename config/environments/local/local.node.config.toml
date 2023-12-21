@@ -87,15 +87,11 @@ MaxTxLifetime = "3h"
 PoolRetrievalInterval = "500ms"
 L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeout = "5s"
 		ForcedBatchDeadlineTimeout = "60s"
 		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 0
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		L1InfoRootFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		WaitForCheckingL1InfoTree = "10s"
 		TimestampResolution = "10s"

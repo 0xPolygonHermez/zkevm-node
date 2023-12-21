@@ -131,7 +131,7 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			// Update finalStateRoot and accInputHash of the batch to the newStateRoot and NewAccInputHash for the L2 block
 			f.wipBatch.finalStateRoot = l2Block.batchResponse.NewStateRoot
 
-			log.Infof("L2 block %d processed. Batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s",
+			log.Infof("processed L2 block %d. Batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s",
 				blockResponse.BlockNumber, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot,
 				len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
 
@@ -183,7 +183,7 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 				f.Halt(ctx, fmt.Errorf("error storing L2 block %d. Error: %s", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
 			}
 
-			log.Infof("L2 block %d stored. Batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s",
+			log.Infof("stored L2 block %d. Batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s",
 				blockResponse.BlockNumber, f.wipBatch.batchNumber, len(l2Block.transactions), len(blockResponse.TransactionResponses),
 				blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
 
@@ -373,21 +373,9 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 func (f *finalizer) finalizeL2Block(ctx context.Context) {
 	log.Debugf("finalizing L2 block")
 
-	f.closeWIPL2Block(ctx)
+	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 
 	f.openNewWIPL2Block(ctx, nil)
-}
-
-func (f *finalizer) closeWIPL2Block(ctx context.Context) {
-	// If the L2 block is empty (no txs) We need to process it to update the state root before closing it
-	if f.wipL2Block.isEmpty() {
-		log.Debug("processing L2 block because it is empty")
-		if _, err := f.processTransaction(ctx, nil, true); err != nil {
-			f.Halt(ctx, fmt.Errorf("failed to process empty L2 block. Error: %s ", err))
-		}
-	}
-
-	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {

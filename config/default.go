@@ -116,7 +116,6 @@ L1SynchronizationMode = "parallel"
 			ApplyAfterNumRollupReceived = 10
 
 [Sequencer]
-WaitPeriodPoolIsEmpty = "1s"
 BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 TxLifetimeCheckTimeout = "10m"
@@ -124,15 +123,11 @@ MaxTxLifetime = "3h"
 PoolRetrievalInterval = "500ms"
 L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeout = "5s"
 		ForcedBatchDeadlineTimeout = "60s"
 		SleepDuration = "100ms"
 		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 64
 		ForcedBatchesFinalityNumberOfBlocks = 64
 		L1InfoRootFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
 		WaitForCheckingL1InfoRoot = "10s"
 		TimestampResolution = "10s"
