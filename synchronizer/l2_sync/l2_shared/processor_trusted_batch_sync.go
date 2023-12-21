@@ -77,22 +77,16 @@ type SyncTrustedBatchExecutor interface {
 //
 //		the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
 type ProcessorTrustedBatchSync struct {
-	Steps SyncTrustedBatchExecutor
-	// CheckBatchTimestampGreaterInsteadOfEqual if true, we consider equal two batches if the timestamp of trusted <= timestamp of state
-	// this is because in the permissionless the timestamp of a batch is equal to the timestamp of the l1block where is reported
-	// but trusted doesn't known this block and use now() instead. But for sure now() musbe <= l1block.tstamp
-	CheckBatchTimestampGreaterInsteadOfEqual bool
-	timeProvider                             syncCommon.TimeProvider
+	Steps        SyncTrustedBatchExecutor
+	timeProvider syncCommon.TimeProvider
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
 func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
-	checkBatchTimestampGreaterInsteadOfEqual bool,
 	timeProvider syncCommon.TimeProvider) *ProcessorTrustedBatchSync {
 	return &ProcessorTrustedBatchSync{
-		Steps:                                    steps,
-		CheckBatchTimestampGreaterInsteadOfEqual: checkBatchTimestampGreaterInsteadOfEqual,
-		timeProvider:                             timeProvider,
+		Steps:        steps,
+		timeProvider: timeProvider,
 	}
 }
 
@@ -195,7 +189,7 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 			Description:  "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		batchSynced, strSync := checkIfSynced(stateBatch, trustedNodeBatch, s.CheckBatchTimestampGreaterInsteadOfEqual)
+		batchSynced, strSync := checkIfSynced(stateBatch, trustedNodeBatch)
 		if batchSynced {
 			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
@@ -237,8 +231,8 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 func isTrustedBatchClosed(batch *types.Batch) bool {
 	return batch.Closed
 }
-func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) (bool, string) {
-	ok, str := checkIfSyncedWhitoutWIP(stateBatch, trustedBatch, checkTimestampGreater)
+func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch) (bool, string) {
+	ok, str := checkIfSyncedWhitoutWIP(stateBatch, trustedBatch)
 	if stateBatch.WIP != !trustedBatch.Closed {
 		str += "matchWIP: false, "
 		ok = false
@@ -247,7 +241,7 @@ func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch, checkTime
 }
 
 // Retruns true|false and a debug string
-func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch, checkTimestampGreater bool) (bool, string) {
+func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch) (bool, string) {
 	if stateBatch == nil || trustedBatch == nil {
 		log.Infof("checkIfSynced stateBatch or trustedBatch is nil, so is not synced")
 		return false, "nil pointers"
@@ -257,20 +251,8 @@ func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch,
 	matchLER := stateBatch.LocalExitRoot.String() == trustedBatch.LocalExitRoot.String()
 	matchSR := stateBatch.StateRoot.String() == trustedBatch.StateRoot.String()
 	matchCoinbase := stateBatch.Coinbase.String() == trustedBatch.Coinbase.String()
-	matchTimestamp := false
-	if checkTimestampGreater {
-		// TODO: change RPC to send the creation_tstamp, to check that
-		// currently we are receiving a time.Time{} because the batch time is defined by the L1 block
-		matchTimestamp = true
-		//stateBatchTimestamp := uint64(stateBatch.Timestamp.Unix())
-		//trustedBatchTimestamp := uint64(trustedBatch.Timestamp)
-		// The date of trusted must be before the one in the permissionless
-		//matchTimestamp = trustedBatchTimestamp <= stateBatchTimestamp
-	} else {
-		matchTimestamp = uint64(stateBatch.Timestamp.Unix()) == uint64(trustedBatch.Timestamp)
-	}
-	// TODO: Check what is the expected value of trustedBatch.Timestamp
-	//matchTimestamp = true
+	// TODO: Check uint64(trustedBatch.Timestamp) <= uint64(stateBatch.Timestamp.Unix()) but pending issue #2953
+	matchTimestamp := true
 	matchL2Data := hex.EncodeToString(stateBatch.BatchL2Data) == hex.EncodeToString(trustedBatch.BatchL2Data)
 
 	if matchNumber && matchGER && matchLER && matchSR &&
@@ -297,10 +279,10 @@ func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch,
 
 func checkStateRootAndLER(batchNumber uint64, expectedStateRoot common.Hash, expectedLER common.Hash, calculatedStateRoot common.Hash, calculatedLER common.Hash) error {
 	if calculatedStateRoot != expectedStateRoot {
-		return fmt.Errorf("Batch %v: stareRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedStateRoot, expectedStateRoot)
+		return fmt.Errorf("batch %v: stareRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedStateRoot, expectedStateRoot)
 	}
 	if calculatedLER != expectedLER {
-		return fmt.Errorf("Batch %v: LocalExitRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedLER, expectedLER)
+		return fmt.Errorf("batch %v: LocalExitRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedLER, expectedLER)
 	}
 	return nil
 }

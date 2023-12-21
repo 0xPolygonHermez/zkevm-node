@@ -58,7 +58,7 @@ func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientT
 		sync:  sync,
 	}
 
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, true, timeProvider)
+	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider)
 	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
 	return a
 }
