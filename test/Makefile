@@ -609,16 +609,16 @@ generate-mocks-synchronizer: ## Generates mocks for synchronizer , using mockery
 	done
 
 	rm -Rf ../synchronizer/l2_sync/l2_sync_etrog/mocks
-	mockery --all --case snake --dir ../synchronizer/l2_sync/l2_sync_etrog --output ../synchronizer/l2_sync/l2_sync_etrog/mocks --outpkg mock_l2_sync_etrog ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../synchronizer/l2_sync/l2_sync_etrog --output ../synchronizer/l2_sync/l2_sync_etrog/mocks --outpkg mock_l2_sync_etrog ${COMMON_MOCKERY_PARAMS}
 	
 	rm -Rf ../synchronizer/l2_sync/l2_shared/mocks
-	mockery --all --case snake --dir ../synchronizer/l2_sync/l2_shared --output ../synchronizer/l2_sync/l2_shared/mocks --outpkg mock_l2_shared ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../synchronizer/l2_sync/l2_shared --output ../synchronizer/l2_sync/l2_shared/mocks --outpkg mock_l2_shared ${COMMON_MOCKERY_PARAMS}
 	
 
 	rm -Rf ../synchronizer/common/syncinterfaces/mocks
-	mockery --all --case snake --dir ../synchronizer/common/syncinterfaces --output ../synchronizer/common/syncinterfaces/mocks --outpkg mock_syncinterfaces ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --all --case snake --dir ../synchronizer/common/syncinterfaces --output ../synchronizer/common/syncinterfaces/mocks --outpkg mock_syncinterfaces ${COMMON_MOCKERY_PARAMS}
 	
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 								--output=../synchronizer/mocks  				--structname=DbTxMock 							--filename=mock_dbtx.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../synchronizer/mocks --structname=DbTxMock 							--filename=mock_dbtx.go
 	
 .PHONY: generate-mocks-etherman	
 generate-mocks-etherman: ## Generates mocks for etherman , using mockery tool
