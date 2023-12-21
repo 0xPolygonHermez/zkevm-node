@@ -335,7 +335,7 @@ func (z *ZKEVMEndpoints) GetTransactionByL2Hash(hash types.ArgHash) (interface{}
 		if z.cfg.SequencerNodeURI != "" {
 			return z.getTransactionByL2HashFromSequencerNode(hash.Hash())
 		}
-		poolTx, err := z.pool.GetTxByL2Hash(ctx, hash.Hash())
+		poolTx, err := z.pool.GetTransactionByL2Hash(ctx, hash.Hash())
 		if errors.Is(err, pool.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {

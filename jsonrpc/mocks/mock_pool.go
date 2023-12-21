@@ -183,12 +183,12 @@ func (_m *PoolMock) GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Tra
 	return r0, r1
 }
 
-// GetTxByHash provides a mock function with given fields: ctx, hash
-func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+// GetTransactionByHash provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) GetTransactionByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetTxByHash")
+		panic("no return value specified for GetTransactionByHash")
 	}
 
 	var r0 *pool.Transaction
@@ -213,8 +213,8 @@ func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Tr
 	return r0, r1
 }
 
-// GetTxByL2Hash provides a mock function with given fields: ctx, hash
-func (_m *PoolMock) GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+// GetTransactionByL2Hash provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	ret := _m.Called(ctx, hash)
 
 	var r0 *pool.Transaction

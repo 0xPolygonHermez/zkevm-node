@@ -31,8 +31,8 @@ type storage interface {
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetTxs(ctx context.Context, filterStatus TxStatus, minGasPrice, limit uint64) ([]*Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
-	GetTxByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
-	GetTxByL2Hash(ctx context.Context, hash common.Hash) (*Transaction, error)
+	GetTransactionByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
+	GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*Transaction, error)
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error

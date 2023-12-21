@@ -624,7 +624,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		if e.cfg.SequencerNodeURI != "" {
 			return e.getTransactionByHashFromSequencerNode(hash.Hash())
 		}
-		poolTx, err := e.pool.GetTxByHash(ctx, hash.Hash())
+		poolTx, err := e.pool.GetTransactionByHash(ctx, hash.Hash())
 		if errors.Is(err, pool.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {

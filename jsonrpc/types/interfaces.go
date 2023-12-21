@@ -21,8 +21,8 @@ type PoolInterface interface {
 	GetPendingTxHashesSince(ctx context.Context, since time.Time) ([]common.Hash, error)
 	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
-	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
-	GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
+	GetTransactionByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
+	GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
 }
 
 // StateInterface gathers the methods required to interact with the state.

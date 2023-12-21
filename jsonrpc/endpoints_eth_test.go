@@ -2641,7 +2641,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(&pool.Transaction{Transaction: *tc.ExpectedResult, Status: pool.TxStatusPending}, nil).
 					Once()
 			},
@@ -2669,7 +2669,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(nil, pool.ErrNotFound).
 					Once()
 			},
@@ -2720,7 +2720,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(nil, errors.New("failed to load transaction by hash from pool")).
 					Once()
 			},

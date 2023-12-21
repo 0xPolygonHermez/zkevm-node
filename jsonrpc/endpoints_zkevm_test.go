@@ -1992,7 +1992,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByL2Hash", context.Background(), tc.Hash).
+					On("GetTransactionByL2Hash", context.Background(), tc.Hash).
 					Return(&pool.Transaction{Transaction: *signedTx, Status: pool.TxStatusPending}, nil).
 					Once()
 			},
@@ -2020,7 +2020,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByL2Hash", context.Background(), tc.Hash).
+					On("GetTransactionByL2Hash", context.Background(), tc.Hash).
 					Return(nil, pool.ErrNotFound).
 					Once()
 			},
@@ -2071,7 +2071,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByL2Hash", context.Background(), tc.Hash).
+					On("GetTransactionByL2Hash", context.Background(), tc.Hash).
 					Return(nil, errors.New("failed to load transaction by l2 hash from pool")).
 					Once()
 			},
@@ -2211,7 +2211,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 	stateRoot := common.HexToHash("0x112233")
 
 	receipt := &ethTypes.Receipt{
-		Type:              uint8(signedTx.Type()),
+		Type:              signedTx.Type(),
 		PostState:         stateRoot.Bytes(),
 		CumulativeGasUsed: 1,
 		BlockNumber:       big.NewInt(2),

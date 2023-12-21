@@ -589,8 +589,8 @@ func (p *PostgresPoolStorage) GetNonce(ctx context.Context, address common.Addre
 	return *nonce, nil
 }
 
-// GetTxByHash gets a transaction in the pool by its hash
-func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+// GetTransactionByHash gets a transaction in the pool by its hash
+func (p *PostgresPoolStorage) GetTransactionByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	var (
 		encoded, status, ip string
 		receivedAt          time.Time
@@ -628,8 +628,8 @@ func (p *PostgresPoolStorage) GetTxByHash(ctx context.Context, hash common.Hash)
 	return poolTx, nil
 }
 
-// GetTxByL2Hash gets a transaction in the pool by its l2 hash
-func (p *PostgresPoolStorage) GetTxByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+// GetTransactionByL2Hash gets a transaction in the pool by its l2 hash
+func (p *PostgresPoolStorage) GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	var (
 		encoded, status, ip string
 		receivedAt          time.Time
