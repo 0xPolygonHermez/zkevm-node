@@ -179,7 +179,7 @@ func (tree *StateTree) SetCode(ctx context.Context, address common.Address, code
 	}
 
 	// store smart contract code by its hash
-	err = tree.setProgram(ctx, scCodeHash4, code, true)
+	err = tree.setProgram(ctx, scCodeHash4, code, true, uuid)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -308,11 +308,17 @@ func (tree *StateTree) set(ctx context.Context, oldRoot, key, value []uint64, uu
 	}, nil
 }
 
-func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool) error {
+func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte, persistent bool, uuid string) error {
+	persistence := hashdb.Persistence_PERSISTENCE_TEMPORARY
+	if persistent {
+		persistence = hashdb.Persistence_PERSISTENCE_DATABASE
+	}
+
 	_, err := tree.grpcClient.SetProgram(ctx, &hashdb.SetProgramRequest{
 		Key:         &hashdb.Fea{Fe0: key[0], Fe1: key[1], Fe2: key[2], Fe3: key[3]},
 		Data:        data,
-		Persistence: hashdb.Persistence_PERSISTENCE_DATABASE,
+		Persistence: persistence,
+		BatchUuid:   uuid,
 		TxIndex:     0,
 		BlockIndex:  0,
 	})
@@ -320,8 +326,29 @@ func (tree *StateTree) setProgram(ctx context.Context, key []uint64, data []byte
 }
 
 // Flush flushes all changes to the persistent storage.
-func (tree *StateTree) Flush(ctx context.Context, uuid string) error {
-	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid, Persistence: hashdb.Persistence_PERSISTENCE_DATABASE}
+func (tree *StateTree) Flush(ctx context.Context, newStateRoot common.Hash, uuid string) error {
+	flushRequest := &hashdb.FlushRequest{BatchUuid: uuid, NewStateRoot: newStateRoot.String(), Persistence: hashdb.Persistence_PERSISTENCE_DATABASE}
 	_, err := tree.grpcClient.Flush(ctx, flushRequest)
+	return err
+}
+
+// StartBlock starts a new block.
+func (tree *StateTree) StartBlock(ctx context.Context, oldRoot common.Hash, uuid string) error {
+	startBlockRequest := &hashdb.StartBlockRequest{
+		BatchUuid:    uuid,
+		OldStateRoot: oldRoot.String(),
+		Persistence:  hashdb.Persistence_PERSISTENCE_DATABASE}
+	_, err := tree.grpcClient.StartBlock(ctx, startBlockRequest)
+	return err
+}
+
+// FinishBlock finishes a block.
+func (tree *StateTree) FinishBlock(ctx context.Context, newRoot common.Hash, uuid string) error {
+	finishBlockRequest := &hashdb.FinishBlockRequest{
+		BatchUuid:    uuid,
+		NewStateRoot: newRoot.String(),
+		Persistence:  hashdb.Persistence_PERSISTENCE_DATABASE}
+	_, err := tree.grpcClient.FinishBlock(ctx, finishBlockRequest)
+
 	return err
 }

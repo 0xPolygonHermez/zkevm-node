@@ -26,7 +26,7 @@ func (e *estimatedTimeOfArrival) step(itemsProcessedInthisStep int) (time.Durati
 	elapsedTime := curentTime.Sub(e.startTime)
 	eta := time.Duration(float64(elapsedTime) / float64(e.processedItems) * float64(e.totalItems-e.processedItems))
 	percent := float64(e.processedItems) / float64(e.totalItems) * conversionFactorPercentage
-	itemsPerSecond := float64(e.processedItems) / float64(elapsedTime.Seconds())
+	itemsPerSecond := float64(e.processedItems) / elapsedTime.Seconds()
 	e.previousStepTime = curentTime
 	return eta, percent, itemsPerSecond
 }

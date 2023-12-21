@@ -260,7 +260,6 @@ type Block struct {
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
 	GlobalExitRoot  common.Hash         `json:"globalExitRoot"`
-	LocalExitRoot   common.Hash         `json:"localExitRoot"`
 	BlockInfoRoot   common.Hash         `json:"blockInfoRoot"`
 }
 
@@ -297,7 +296,7 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		TxRoot:          h.TxHash,
 		ReceiptsRoot:    h.ReceiptHash,
 		LogsBloom:       h.Bloom,
-		Difficulty:      ArgUint64(difficulty),
+		Difficulty:      difficulty,
 		TotalDifficulty: totalDifficulty,
 		Size:            ArgUint64(b.Size()),
 		Number:          ArgUint64(b.Number().Uint64()),
@@ -310,7 +309,6 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
-		LocalExitRoot:   h.LocalExitRoot,
 		GlobalExitRoot:  h.GlobalExitRoot,
 		BlockInfoRoot:   h.BlockInfoRoot,
 	}
@@ -427,7 +425,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(state.HashPtr(b.Hash()), &b, nil, false, false)
+			block, err := NewBlock(state.Ptr(b.Hash()), &b, nil, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -532,6 +530,7 @@ type Transaction struct {
 	ChainID     ArgBig          `json:"chainId"`
 	Type        ArgUint64       `json:"type"`
 	Receipt     *Receipt        `json:"receipt,omitempty"`
+	L2Hash      common.Hash     `json:"l2Hash"`
 }
 
 // CoreTx returns a geth core type Transaction
@@ -556,8 +555,8 @@ func NewTransaction(
 	includeReceipt bool,
 ) (*Transaction, error) {
 	v, r, s := tx.RawSignatureValues()
-
 	from, _ := state.GetSender(tx)
+	l2Hash, _ := state.GetL2Hash(tx)
 
 	res := &Transaction{
 		Nonce:    ArgUint64(tx.Nonce()),
@@ -573,6 +572,7 @@ func NewTransaction(
 		From:     from,
 		ChainID:  ArgBig(*tx.ChainId()),
 		Type:     ArgUint64(tx.Type()),
+		L2Hash:   l2Hash,
 	}
 
 	if receipt != nil {
@@ -601,6 +601,7 @@ type Receipt struct {
 	Logs              []*types.Log    `json:"logs"`
 	Status            ArgUint64       `json:"status"`
 	TxHash            common.Hash     `json:"transactionHash"`
+	TxL2Hash          common.Hash     `json:"transactionL2Hash"`
 	TxIndex           ArgUint64       `json:"transactionIndex"`
 	BlockHash         common.Hash     `json:"blockHash"`
 	BlockNumber       ArgUint64       `json:"blockNumber"`
@@ -635,6 +636,10 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
+	l2Hash, err := state.GetL2Hash(tx)
+	if err != nil {
+		return Receipt{}, err
+	}
 	receipt := Receipt{
 		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
@@ -650,6 +655,7 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
+		TxL2Hash:          l2Hash,
 	}
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)
@@ -684,18 +690,6 @@ func NewLog(l types.Log) Log {
 		LogIndex:    ArgUint64(l.Index),
 		Removed:     l.Removed,
 	}
-}
-
-// ToBatchNumArg converts a big.Int into a batch number rpc parameter
-func ToBatchNumArg(number *big.Int) string {
-	if number == nil {
-		return Latest
-	}
-	pending := big.NewInt(-1)
-	if number.Cmp(pending) == 0 {
-		return Pending
-	}
-	return hex.EncodeBig(number)
 }
 
 // OverrideAccount indicates the overriding fields of account during the execution
@@ -768,4 +762,12 @@ func (so *StateOverride) ToStateOverride() state.StateOverride {
 		}
 	}
 	return overrides
+}
+
+// ExitRoots structure
+type ExitRoots struct {
+	BlockNumber     ArgUint64   `json:"blockNumber"`
+	Timestamp       ArgUint64   `json:"timestamp"`
+	MainnetExitRoot common.Hash `json:"mainnetExitRoot"`
+	RollupExitRoot  common.Hash `json:"rollupExitRoot"`
 }

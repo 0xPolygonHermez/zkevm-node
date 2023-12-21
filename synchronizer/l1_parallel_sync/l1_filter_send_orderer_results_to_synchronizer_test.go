@@ -305,7 +305,7 @@ func newDataPackageWithData(fromBlock, toBlock uint64, blockWithData uint64) *L1
 				fromBlock: fromBlock,
 				toBlock:   toBlock,
 			},
-			blocks: []etherman.Block{{BlockNumber: uint64(blockWithData)}},
+			blocks: []etherman.Block{{BlockNumber: blockWithData}},
 		},
 		dataIsValid: true,
 		ctrlIsValid: false,

@@ -1417,7 +1417,7 @@ func TestExecutorRevert(t *testing.T) {
 
 	// Unsigned
 	receipt := &types.Receipt{
-		Type:              uint8(signedTx0.Type()),
+		Type:              signedTx0.Type(),
 		PostState:         processBatchResponse.Responses[0].StateRoot,
 		CumulativeGasUsed: processBatchResponse.Responses[0].GasUsed,
 		BlockNumber:       big.NewInt(0),
@@ -1428,7 +1428,7 @@ func TestExecutorRevert(t *testing.T) {
 	}
 
 	receipt1 := &types.Receipt{
-		Type:              uint8(signedTx1.Type()),
+		Type:              signedTx1.Type(),
 		PostState:         processBatchResponse.Responses[1].StateRoot,
 		CumulativeGasUsed: processBatchResponse.Responses[0].GasUsed + processBatchResponse.Responses[1].GasUsed,
 		BlockNumber:       big.NewInt(0),

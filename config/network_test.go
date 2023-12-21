@@ -66,7 +66,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 							"0x0000000000000000000000000000000000000000000000000000000000000000": "0x01"
 						}
 					}
-				],
+				]
 			}`,
 			expectedConfig: NetworkConfig{
 				L1Config: etherman.L1Config{

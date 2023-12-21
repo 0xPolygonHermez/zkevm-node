@@ -121,6 +121,8 @@ BlocksAmountForTxsToBeDeleted = 100
 FrequencyToCheckTxsForDelete = "12h"
 TxLifetimeCheckTimeout = "10m"
 MaxTxLifetime = "3h"
+PoolRetrievalInterval = "500ms"
+L2ReorgRetrievalInterval = "5s"
 	[Sequencer.Finalizer]
 		GERDeadlineTimeout = "5s"
 		ForcedBatchDeadlineTimeout = "60s"
@@ -132,14 +134,11 @@ MaxTxLifetime = "3h"
 		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
 		ClosingSignalsManagerWaitForCheckingGER = "10s"
 		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		WaitForCheckingL1InfoTree = "10s"
+		WaitForCheckingL1InfoRoot = "10s"
 		TimestampResolution = "10s"
 		L2BlockTime = "3s"
 		StopSequencerOnBatchNum = 0
 		SequentialReprocessFullBatch = false
-	[Sequencer.DBManager]
-		PoolRetrievalInterval = "500ms"
-		L2ReorgRetrievalInterval = "5s"
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

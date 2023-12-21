@@ -1,23 +1,24 @@
 package sequencer
 
 import (
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 //TODO: create interface to access datastreamer functions
 
-func (f *finalizer) DSSendL2Block(l2Block *L2Block) error {
-	blockResponse := l2Block.batchResponse.BlockResponses[0]
-	forkID := f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber)
+func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.ProcessBlockResponse) error {
+	forkID := f.state.GetForkIDByBatchNumber(batchNumber)
 
 	// Send data to streamer
 	if f.streamServer != nil {
 		l2Block := state.DSL2Block{
-			BatchNumber:    f.wipBatch.batchNumber,
+			BatchNumber:    batchNumber,
 			L2BlockNumber:  blockResponse.BlockNumber,
 			Timestamp:      int64(blockResponse.Timestamp),
 			GlobalExitRoot: blockResponse.BlockInfoRoot, //TODO: is it ok?
-			Coinbase:       f.wipBatch.coinbase,
+			Coinbase:       f.sequencerAddress,
 			ForkID:         uint16(forkID),
 			BlockHash:      blockResponse.BlockHash,
 			StateRoot:      blockResponse.BlockHash, //TODO: in etrog the blockhash is the block root
@@ -49,4 +50,34 @@ func (f *finalizer) DSSendL2Block(l2Block *L2Block) error {
 	}
 
 	return nil
+}
+
+func (f *finalizer) DSSendUpdateGER(batchNumber uint64, timestamp int64, GER common.Hash, stateRoot common.Hash) {
+	//TODO: review this datastream event
+	updateGer := state.DSUpdateGER{
+		BatchNumber:    batchNumber,
+		Timestamp:      timestamp,
+		GlobalExitRoot: GER,
+		Coinbase:       f.sequencerAddress,
+		ForkID:         uint16(f.state.GetForkIDByBatchNumber(batchNumber)),
+		StateRoot:      stateRoot,
+	}
+
+	err := f.streamServer.StartAtomicOp()
+	if err != nil {
+		log.Errorf("failed to start atomic op for batch %v: %v", batchNumber, err)
+		return
+	}
+
+	_, err = f.streamServer.AddStreamEntry(state.EntryTypeUpdateGER, updateGer.Encode())
+	if err != nil {
+		log.Errorf("failed to add stream entry for batch %v: %v", batchNumber, err)
+		return
+	}
+
+	err = f.streamServer.CommitAtomicOp()
+	if err != nil {
+		log.Errorf("failed to commit atomic op for batch %v: %v", batchNumber, err)
+		return
+	}
 }

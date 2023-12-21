@@ -73,6 +73,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
+			path:          "Sequencer.PoolRetrievalInterval",
+			expectedValue: types.NewDuration(500 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.L2ReorgRetrievalInterval",
+			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
 			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
@@ -113,7 +121,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoTree",
+			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoRoot",
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
@@ -127,18 +135,6 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Finalizer.TimestampResolution",
 			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.L2BlockTime",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.DBManager.PoolRetrievalInterval",
-			expectedValue: types.NewDuration(500 * time.Millisecond),
-		},
-		{
-			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
-			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",

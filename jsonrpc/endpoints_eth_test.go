@@ -584,9 +584,9 @@ func TestCoinbase(t *testing.T) {
 		expectedCoinbase       common.Address
 	}{
 		{"Coinbase not configured", true, nil, nil, nil, common.Address{}},
-		{"Get trusted sequencer coinbase directly", true, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
-		{"Get trusted sequencer coinbase via permissionless", false, state.AddressPtr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
-		{"Ignore permissionless config", false, state.AddressPtr(common.HexToAddress("0x2")), state.AddressPtr(common.HexToAddress("0x1")), nil, common.HexToAddress("0x2")},
+		{"Get trusted sequencer coinbase directly", true, state.Ptr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Get trusted sequencer coinbase via permissionless", false, state.Ptr(common.HexToAddress("0x1")), nil, nil, common.HexToAddress("0x1")},
+		{"Ignore permissionless config", false, state.Ptr(common.HexToAddress("0x2")), state.Ptr(common.HexToAddress("0x1")), nil, common.HexToAddress("0x2")},
 	}
 
 	for _, tc := range testCases {
@@ -658,7 +658,7 @@ func TestEstimateGas(t *testing.T) {
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
 			},
-			expectedResult: ptrUint64(100),
+			expectedResult: state.Ptr(uint64(100)),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				nonce := uint64(7)
 				txArgs := testCase.params[0].(types.TxArgs)
@@ -704,7 +704,7 @@ func TestEstimateGas(t *testing.T) {
 					Data:     types.ArgBytesPtr([]byte("data")),
 				},
 			},
-			expectedResult: ptrUint64(100),
+			expectedResult: state.Ptr(uint64(100)),
 			setupMocks: func(c Config, m *mocksWrapper, testCase *testCase) {
 				nonce := uint64(0)
 				txArgs := testCase.params[0].(types.TxArgs)
@@ -1128,7 +1128,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Nonce:    1,
 			GasPrice: big.NewInt(2),
 			Gas:      3,
-			To:       ptr(common.HexToAddress("0x4")),
+			To:       state.Ptr(common.HexToAddress("0x4")),
 			Value:    big.NewInt(5),
 			Data:     types.ArgBytes{6},
 		}),
@@ -1136,7 +1136,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			Nonce:    2,
 			GasPrice: big.NewInt(3),
 			Gas:      4,
-			To:       ptr(common.HexToAddress("0x5")),
+			To:       state.Ptr(common.HexToAddress("0x5")),
 			Value:    big.NewInt(6),
 			Data:     types.ArgBytes{7},
 		}),
@@ -1182,8 +1182,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
-	l2Header.LocalExitRoot = common.HexToHash("0x17")
-	l2Header.BlockInfoRoot = common.HexToHash("0x18")
+	l2Header.BlockInfoRoot = common.HexToHash("0x17")
 	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
 
 	for _, receipt := range receipts {
@@ -1206,8 +1205,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 
 					Hash:        tx.Hash(),
 					From:        sender,
-					BlockHash:   ptr(l2Block.Hash()),
-					BlockNumber: ptr(types.ArgUint64(l2Block.Number().Uint64())),
+					BlockHash:   state.Ptr(l2Block.Hash()),
+					BlockNumber: state.Ptr(types.ArgUint64(l2Block.Number().Uint64())),
 				},
 			})
 	}
@@ -1256,9 +1255,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		ExtraData:       l2Block.Extra(),
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
-		Hash:            state.HashPtr(l2Block.Hash()),
+		Hash:            state.Ptr(l2Block.Hash()),
 		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		LocalExitRoot:   l2Block.LocalExitRoot(),
 		BlockInfoRoot:   l2Block.BlockInfoRoot(),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
@@ -1496,7 +1494,6 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					assert.Nil(t, result.Hash)
 				}
 				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
-				assert.Equal(t, tc.ExpectedResult.LocalExitRoot, result.LocalExitRoot)
 				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
 
 				assert.Equal(t, len(tc.ExpectedResult.Transactions), len(result.Transactions))
@@ -2644,7 +2641,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(&pool.Transaction{Transaction: *tc.ExpectedResult, Status: pool.TxStatusPending}, nil).
 					Once()
 			},
@@ -2672,7 +2669,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(nil, pool.ErrNotFound).
 					Once()
 			},
@@ -2723,7 +2720,7 @@ func TestGetTransactionByHash(t *testing.T) {
 					Once()
 
 				m.Pool.
-					On("GetTxByHash", context.Background(), tc.Hash).
+					On("GetTransactionByHash", context.Background(), tc.Hash).
 					Return(nil, errors.New("failed to load transaction by hash from pool")).
 					Once()
 			},
@@ -3556,7 +3553,7 @@ func TestSendRawTransactionJSONRPCCall(t *testing.T) {
 				require.NoError(t, err)
 
 				tc.Input = rawTx
-				tc.ExpectedResult = state.HashPtr(tx.Hash())
+				tc.ExpectedResult = state.Ptr(tx.Hash())
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {

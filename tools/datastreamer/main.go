@@ -709,7 +709,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgGreen, "L2 Block Number.: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.L2BlockNumber))
 		printColored(color.FgGreen, "Timestamp.......: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(int64(blockStart.Timestamp), 0), blockStart.Timestamp))
+		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(blockStart.Timestamp, 0), blockStart.Timestamp))
 		printColored(color.FgGreen, "Global Exit Root: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.GlobalExitRoot))
 		printColored(color.FgGreen, "Coinbase........: ")
@@ -771,7 +771,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgGreen, "Batch Number....: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", updateGer.BatchNumber))
 		printColored(color.FgGreen, "Timestamp.......: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(int64(updateGer.Timestamp), 0), updateGer.Timestamp))
+		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(updateGer.Timestamp, 0), updateGer.Timestamp))
 		printColored(color.FgGreen, "Global Exit Root: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", updateGer.GlobalExitRoot))
 		printColored(color.FgGreen, "Coinbase........: ")
@@ -855,7 +855,7 @@ func setGenesis(ctx context.Context, tree *merkletree.StateTree, genesis state.G
 	root.SetBytes(newRoot)
 
 	// flush state db
-	err = tree.Flush(ctx, uuid)
+	err = tree.Flush(ctx, root, uuid)
 	if err != nil {
 		fmt.Printf("error flushing state tree after genesis: %v", err)
 		return newRoot, err

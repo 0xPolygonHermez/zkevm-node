@@ -34,6 +34,7 @@ type ProcessRequest struct {
 	ForkID                    uint64
 }
 
+// L1DataV2 represents the L1InfoTree data used in ProcessRequest.L1InfoTreeData_V2 parameter
 type L1DataV2 struct {
 	GlobalExitRoot common.Hash
 	BlockHashL1    common.Hash
@@ -311,15 +312,5 @@ func HexToAddressPtr(hex string) *common.Address {
 // HexToHashPtr create a hash from a hex and returns its pointer
 func HexToHashPtr(hex string) *common.Hash {
 	h := common.HexToHash(hex)
-	return &h
-}
-
-// AddressPtr returns a pointer to the provided address
-func AddressPtr(i common.Address) *common.Address {
-	return &i
-}
-
-// HashPtr returns a pointer to the provided hash
-func HashPtr(h common.Hash) *common.Hash {
 	return &h
 }
