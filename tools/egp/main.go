@@ -25,10 +25,12 @@ import (
 )
 
 var (
-	showErrors bool
-	showLosses bool
-	showDetail bool
-	showAlways bool
+	showErrors    bool
+	showLosses    bool
+	showReprocess bool
+	showDetail    bool
+	showAlways    bool
+	showOnlyCfg   bool
 )
 
 const (
@@ -118,20 +120,30 @@ func main() {
 			Value: false,
 		},
 		&cli.BoolFlag{
+			Name:  "showreprocess",
+			Usage: "show transactions reprocessed",
+			Value: false,
+		},
+		&cli.BoolFlag{
 			Name:  "showdetail",
-			Usage: "show full detail record when show loss/error",
+			Usage: "show full detail record when showing error/loss/reprocess",
 			Value: false,
 		},
 		&cli.BoolFlag{
 			Name:  "showalways",
-			Usage: "show full detail record always",
+			Usage: "show always full detailed record",
 			Value: false,
 		},
 		&cli.StringFlag{
 			Name:     "cfg",
 			Aliases:  []string{"c"},
-			Usage:    "configuration file",
+			Usage:    "simulation configuration file",
 			Required: false,
+		},
+		&cli.BoolFlag{
+			Name:  "onlycfg",
+			Usage: "show only simulation results",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name:  "db",
@@ -226,8 +238,10 @@ func runStats(ctx *cli.Context) error {
 	toBlock := ctx.Uint64("to")
 	showErrors = ctx.Bool("showerror")
 	showLosses = ctx.Bool("showloss")
+	showReprocess = ctx.Bool("showreprocess")
 	showDetail = ctx.Bool("showdetail")
 	showAlways = ctx.Bool("showalways")
+	showOnlyCfg = ctx.Bool("onlycfg")
 
 	// Load simulation config file
 	var err error
@@ -337,8 +351,10 @@ func runStats(ctx *cli.Context) error {
 	// Print stats results
 	diff := timeLast.Sub(timeFirst).Hours()
 	logf("\nPERIOD [%.2f days]: %v ... %v", diff/24, timeFirst, timeLast)
-	logf("EGP REAL STATS:")
-	printStats(&stats)
+	if !showOnlyCfg {
+		logf("\nEGP REAL STATS:")
+		printStats(&stats)
+	}
 
 	// Print simulation stats results
 	if egpCfg != nil {
@@ -365,8 +381,8 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 	if egp.LogError != "" {
 		stats.totalError++
 		if showErrors {
-			fmt.Printf("egp-error:#%d:(L2 block %d):%s\n", i, block, egp.LogError)
-			if showDetail {
+			fmt.Printf("egp-error:#%d:(L2 block [%d] %v):%s\n", i, block, egp.l2BlockReceived, egp.LogError)
+			if showDetail && !showAlways {
 				printEgpLogRecord(egp, false)
 			}
 		}
@@ -383,6 +399,13 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 			// Suspicious
 			if (egp.LogValueSecond < egp.LogGasPrice) && (egp.LogBalanceOC || egp.LogGasPriceOC) {
 				stats.totalShady++
+			}
+
+			if showReprocess {
+				fmt.Printf("egp-reprocess:#%d:(L2 block [%d] %v)\n", i, block, egp.l2BlockReceived)
+				if showDetail && !showAlways {
+					printEgpLogRecord(egp, false)
+				}
 			}
 		}
 
@@ -438,8 +461,8 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 
 			if showLosses {
 				info := fmt.Sprintf("reprocess=%t, final=%.0f, egp1=%.0f, egp2=%.0f, user=%.0f", egp.LogReprocess, egp.LogValueFinal, egp.LogGasUsedFirst, egp.LogGasUsedSecond, egp.LogGasPrice)
-				fmt.Printf("egp-loss:#%d:(L2 block %d):loss=%.0f:info:%s\n", i, block, loss, info)
-				if showDetail {
+				fmt.Printf("egp-loss:#%d:(L2 block [%d] %v):loss=%.0f:info:%s\n", i, block, egp.l2BlockReceived, loss, info)
+				if showDetail && !showAlways {
 					printEgpLogRecord(egp, false)
 				}
 			}

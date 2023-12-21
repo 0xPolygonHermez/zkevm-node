@@ -27,8 +27,11 @@ GLOBAL OPTIONS:
    --to value             stats until L2 block (optional) (default: 18446744073709551615)
    --showerror            show transactions with EGP errors (default: false)
    --showloss             show transactions with losses (default: false)
-   --showdetail           show full detail record when show loss/error (default: false)
-   --cfg value, -c value  configuration file
+   --showreprocess        show transactions reprocessed (default: false)
+   --showdetail           show full detail record when showing error/loss/reprocess (default: false)
+   --showalways           show always full detailed record (default: false)
+   --cfg value, -c value  simulation configuration file
+   --onlycfg              show only simulation results (default: false)
    --db value             DB connection string: "host=xxx port=xxx user=xxx dbname=xxx password=xxx"
    --help, -h             show help
 ```
@@ -43,22 +46,26 @@ go run main.go --db "host=X port=X user=X dbname=X password=X"
 ```
 ```
 EGP REAL STATS:
-Total Tx.........: [100000]
+Total Tx.........: [10000]
 Error Tx.........: [0] (0.00%)
 Total No EGP info: [0] (0.00%)
-Total Tx EGP info: [100000] (100.00%)
+Total Tx EGP info: [10000] (100.00%)
     EGP enable.......: [0] (0.00%)
-    Reprocessed Tx...: [82] (0.08%)
-        Suspicious Tx....: [2] (2.44%)
+    Reprocessed Tx...: [7] (0.07%)
+        Suspicious Tx....: [0] (0.00%)
     Final gas:
-        Used EGP1........: [99890] (99.89%)
-        Used EGP2........: [50] (0.05%)
-        Used User Gas....: [60] (0.06%)
+        Used EGP1........: [9989] (99.89%)
+        Used EGP2........: [3] (0.03%)
+        Used User Gas....: [8] (0.08%)
         Used Weird Gas...: [0] (0.00%)
-    Gas average..........: [11413043906] (11413 MWei) (0.000000011 ETH)
-    Loss count.......: [58] (0.06%)
-    Loss total.......: [194697356796] (194697 MWei) (0.000000195 ETH)
-    Loss average.....: [3356850979] (3356 MWei) (0.000000003 ETH)
+    Gas price avg........: [18941296931] (18.941 GWei) (0.000000019 ETH)
+    Tx fee avg...........: [1319258335287442] (1319258.335 GWei) (0.001319258 ETH)
+    Gas pri.avg preEGP...: [5413503250] (5.414 GWei) (0.000000005 ETH)
+    Tx fee avg preEGP....: [421947362151699] (421947.362 GWei) (0.000421947 ETH)
+    Diff fee EGP-preEGP..: [8973109731357435904] (8973109731.357 Gwei) (8.973109731 ETH)
+    Loss count.......: [8] (0.08%)
+    Loss total.......: [43211133382] (43.211 GWei) (0.000000043 ETH)
+    Loss average.....: [5401391673] (5 GWei) (0.000000005 ETH)
 ```
 
 ### Simulation
@@ -74,13 +81,13 @@ ByteGasCost = 16
 ZeroGasCost = 4
 
 # L2 network profit factor
-NetProfitFactor = 1.0
+NetProfitFactor = 1.2
 
 # L1 gas price factor
-L1GasPriceFactor = 0.25
+L1GasPriceFactor = 0.04
 
 # L2 gas price suggester factor
-L2GasPriceSugFactor = 0.5
+L2GasPriceSugFactor = 0.30
 
 # Max final deviation percentage
 FinalDeviationPct = 10
@@ -88,46 +95,57 @@ FinalDeviationPct = 10
 # Min gas price allowed
 MinGasPriceAllowed = 1000000000
 
+# L2 gas price suggester factor pre EGP
+L2GasPriceSugFactorPreEGP = 0.1
 ```
 
 ```sh
-go run main.go --cfg cfg/egp1.config.toml --db "host=X port=X user=X dbname=X password=X"
+go run main.go --cfg cfg/config.toml --db "host=X port=X user=X dbname=X password=X"
 ```
 ```
 EGP REAL STATS:
-Total Tx.........: [100000]
+Total Tx.........: [10000]
 Error Tx.........: [0] (0.00%)
 Total No EGP info: [0] (0.00%)
-Total Tx EGP info: [100000] (100.00%)
+Total Tx EGP info: [10000] (100.00%)
     EGP enable.......: [0] (0.00%)
-    Reprocessed Tx...: [82] (0.08%)
-        Suspicious Tx....: [2] (2.44%)
+    Reprocessed Tx...: [7] (0.07%)
+        Suspicious Tx....: [0] (0.00%)
     Final gas:
-        Used EGP1........: [99890] (99.89%)
-        Used EGP2........: [50] (0.05%)
-        Used User Gas....: [60] (0.06%)
+        Used EGP1........: [9989] (99.89%)
+        Used EGP2........: [3] (0.03%)
+        Used User Gas....: [8] (0.08%)
         Used Weird Gas...: [0] (0.00%)
-    Gas average..........: [11413043906] (11413 MWei) (0.000000011 ETH)
-    Loss count.......: [58] (0.06%)
-    Loss total.......: [194697356796] (194697 MWei) (0.000000195 ETH)
-    Loss average.....: [3356850979] (3356 MWei) (0.000000003 ETH)
+    Gas price avg........: [18941296931] (18.941 GWei) (0.000000019 ETH)
+    Tx fee avg...........: [1319258335287442] (1319258.335 GWei) (0.001319258 ETH)
+    Gas pri.avg preEGP...: [5413503250] (5.414 GWei) (0.000000005 ETH)
+    Tx fee avg preEGP....: [421947362151699] (421947.362 GWei) (0.000421947 ETH)
+    Diff fee EGP-preEGP..: [8973109731357425664] (8973109731.357 Gwei) (8.973109731 ETH)
+    Loss count.......: [8] (0.08%)
+    Loss total.......: [43211133382] (43.211 GWei) (0.000000043 ETH)
+    Loss average.....: [5401391673] (5 GWei) (0.000000005 ETH)
 
 EGP SIMULATION STATS:
-Total Tx.........: [100000]
+Total Tx.........: [10000]
 Error Tx.........: [0] (0.00%)
 Total No EGP info: [0] (0.00%)
-Total Tx EGP info: [100000] (100.00%)
+Total Tx EGP info: [10000] (100.00%)
     EGP enable.......: [0] (0.00%)
-    Reprocessed Tx...: [110] (0.11%)
-        Suspicious Tx....: [2] (1.82%)
+    Reprocessed Tx...: [16] (0.16%)
+        Suspicious Tx....: [0] (0.00%)
     Final gas:
-        Used EGP1........: [99867] (99.87%)
-        Used EGP2........: [78] (0.08%)
-        Used User Gas....: [55] (0.06%)
+        Used EGP1........: [9867] (98.67%)
+        Used EGP2........: [12] (0.12%)
+        Used User Gas....: [121] (1.21%)
         Used Weird Gas...: [0] (0.00%)
-    Gas average..........: [9594986075] (9594 MWei) (0.000000010 ETH)
-    Loss count.......: [53] (0.05%)
-    Loss total.......: [90503106670] (90503 MWei) (0.000000091 ETH)
-    Loss average.....: [1707605786] (1707 MWei) (0.000000002 ETH)
-PARAMS: byte[16] zero[4] netFactor[1.00] L1factor[0.20] L2sugFactor[0.50] devPct[10] minGas[1000000000]
+    Gas price avg........: [9073552262] (9.074 GWei) (0.000000009 ETH)
+    Tx fee avg...........: [519499850778700] (519499.851 GWei) (0.000519500 ETH)
+    Gas pri.avg preEGP...: [5413503250] (5.414 GWei) (0.000000005 ETH)
+    Tx fee avg preEGP....: [421947362151699] (421947.362 GWei) (0.000421947 ETH)
+    Diff fee EGP-preEGP..: [975524886270010368] (975524886.270 Gwei) (0.975524886 ETH)
+    Loss count.......: [121] (1.21%)
+    Loss total.......: [194278383566] (194.278 GWei) (0.000000194 ETH)
+    Loss average.....: [1605606476] (2 GWei) (0.000000002 ETH)
+PARAMS: byte[16] zero[4] netFactor[1.20] L1factor[0.04] L2sugFactor[0.30] devPct[10] minGas[1000000000] L2sugPreEGP[0.10]
 ```
+> To show only the result of the simulation, use the flag `--onlycfg`
