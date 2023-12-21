@@ -842,4 +842,12 @@ enum ExecutorError {
     EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH = 105;
     // EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT indicates that the input parameter new_local_exit_root is invalid
     EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT = 106;
+    // EXECUTOR_ERROR_DB_KEY_NOT_FOUND indicates that the requested key was not found in the database
+    EXECUTOR_ERROR_DB_KEY_NOT_FOUND = 107;
+    // EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE indicates that the SMT data returned from the database does not have a valid size
+    EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE = 108;
+    // EXECUTOR_ERROR_HASHDB_GRPC_ERROR indicates that the executor failed calling the HashDB service via GRPC, when configured
+    EXECUTOR_ERROR_HASHDB_GRPC_ERROR = 109;
+    // EXECUTOR_ERROR_STATE_MANAGER indicates an error in the State Manager
+    EXECUTOR_ERROR_STATE_MANAGER = 110;
 }
