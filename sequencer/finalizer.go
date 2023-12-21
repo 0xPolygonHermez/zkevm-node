@@ -438,6 +438,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		ForkID:                    f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipWriteBlockInfoRoot_V2: true,
 		SkipVerifyL1InfoRoot_V2:   true,
+		L1InfoTreeData_V2:         map[uint32]statePackage.L1DataV2{},
 	}
 
 	executorBatchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = statePackage.L1DataV2{

@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	statePackage "github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -241,6 +242,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.state.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipVerifyL1InfoRoot_V2:   true,
+		L1InfoTreeData_V2:         map[uint32]statePackage.L1DataV2{},
 	}
 	executorBatchRequest.L1InfoTreeData_V2[l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
 		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
