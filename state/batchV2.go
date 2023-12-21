@@ -257,11 +257,6 @@ func (s *State) processBatchV2(ctx context.Context, processingCtx *ProcessingCon
 		processBatchRequest.L1InfoRoot = currentl1InfoRoot.Bytes()
 	}
 
-	// if processingCtx.ForcedStateRoot != nil {
-	// 	log.Debug("Setting ForcedStateRoot: ", processingCtx.ForcedStateRoot)
-	// 	processBatchRequest.OldStateRoot = processingCtx.ForcedStateRoot.Bytes()
-	// }
-
 	return s.sendBatchRequestToExecutorV2(ctx, processBatchRequest, caller)
 }
 
