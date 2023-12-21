@@ -981,7 +981,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	isForcedBatch := false
 
 	batchRawData, err := state.DecodeBatchV2(batchToVerify.BatchL2Data)
-	if err != nil || batchToVerify.BatchNumber == 1 {
+	if err != nil {
 		_, _, _, err = state.DecodeTxs(batchToVerify.BatchL2Data, a.cfg.ChainID)
 		if err != nil {
 			log.Errorf("Failed to decode batch data, err: %v", err)
