@@ -440,11 +440,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		SkipVerifyL1InfoRoot_V2:   true,
 	}
 
-	executorBatchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = statePackage.L1DataV2{
+	l1InfoTreeData := map[uint32]statePackage.L1DataV2{}
+
+	l1InfoTreeData[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = statePackage.L1DataV2{
 		GlobalExitRoot: f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
 		BlockHashL1:    f.wipL2Block.l1InfoTreeExitRoot.PreviousBlockHash,
 		MinTimestamp:   uint64(f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
 	}
+
+	executorBatchRequest.L1InfoTreeData_V2 = l1InfoTreeData
 
 	if f.wipL2Block.isEmpty() {
 		executorBatchRequest.Transactions = f.state.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
