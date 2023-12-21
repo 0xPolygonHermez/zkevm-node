@@ -755,31 +755,6 @@
 					"type": "object",
 					"description": "Finalizer's specific config properties"
 				},
-				"DBManager": {
-					"properties": {
-						"PoolRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "500ms",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"L2ReorgRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "DBManager's specific config properties"
-				},
 				"StreamServer": {
 					"properties": {
 						"Port": {
@@ -835,6 +810,26 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "StreamServerCfg is the config for the stream server"
+				},
+				"PoolRetrievalInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool",
+					"default": "500ms",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"L2ReorgRetrievalInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened",
+					"default": "5s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
 				}
 			},
 			"additionalProperties": false,

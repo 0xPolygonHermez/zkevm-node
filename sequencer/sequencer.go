@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -24,32 +25,19 @@ type Sequencer struct {
 	batchCfg state.BatchConfig
 	poolCfg  pool.Config
 
-	pool     txPool
-	stateI   stateInterface
-	eventLog *event.EventLog
-	etherman etherman
-	worker   *Worker
+	pool      txPool
+	stateI    stateInterface
+	eventLog  *event.EventLog
+	etherman  etherman
+	worker    *Worker
+	finalizer *finalizer
 
 	streamServer *datastreamer.StreamServer
 	dataToStream chan state.DSL2FullBlock
 
-	closingSignalCh ClosingSignalCh
+	address common.Address
 
 	numberOfStateInconsistencies uint64
-	address                      common.Address
-}
-
-// L2ReorgEvent is the event that is triggered when a reorg happens in the L2
-type L2ReorgEvent struct {
-	TxHashes []common.Hash
-}
-
-// ClosingSignalCh is a struct that contains all the channels that are used to receive batch closing signals
-type ClosingSignalCh struct {
-	ForcedBatchCh        chan state.ForcedBatch
-	GERCh                chan common.Hash
-	L1InfoTreeExitRootCh chan state.L1InfoTreeExitRootStorageEntry
-	L2ReorgCh            chan L2ReorgEvent
 }
 
 // New init sequencer
@@ -83,20 +71,10 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 	metrics.Register()
 
-	s.closingSignalCh = ClosingSignalCh{
-		ForcedBatchCh:        make(chan state.ForcedBatch),
-		GERCh:                make(chan common.Hash),
-		L1InfoTreeExitRootCh: make(chan state.L1InfoTreeExitRootStorageEntry),
-		L2ReorgCh:            make(chan L2ReorgEvent),
-	}
-
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
 		log.Fatalf("failed to mark WIP txs as pending, err: %v", err)
 	}
-
-	s.worker = NewWorker(s.stateI, s.batchCfg.Constraints)
-	//dbManager := newDBManager(ctx, s.cfg.DBManager, s.pool, s.state, worker, closingSignalCh, s.batchCfg.Constraints)
 
 	// Start stream server if enabled
 	if s.cfg.StreamServer.Enabled {
@@ -115,43 +93,38 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	go s.loadFromPool(ctx)
 
-	go func() {
-		for {
-			time.Sleep(s.cfg.DBManager.L2ReorgRetrievalInterval.Duration)
-			s.checkStateInconsistency(ctx)
-		}
-	}()
-
 	if s.streamServer != nil {
 		go s.sendDataToStreamer()
 	}
 
-	finalizer := newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateI, s.etherman, s.address, s.isSynced, s.closingSignalCh, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
-	go finalizer.Start(ctx)
-
-	closingSignalsManager := newClosingSignalsManager(ctx, s.stateI, s.closingSignalCh, finalizer.cfg, s.etherman)
-	go closingSignalsManager.Start()
+	s.worker = NewWorker(s.stateI, s.batchCfg.Constraints)
+	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateI, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
+	go s.finalizer.Start(ctx)
 
 	go s.purgeOldPoolTxs(ctx) //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
 
-	// Expire too old txs in the worker
-	go func() {
-		for {
-			time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
-			txTrackers := s.worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
-			failedReason := ErrExpiredTransaction.Error()
-			for _, txTracker := range txTrackers {
-				err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
-				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
-				if err != nil {
-					log.Errorf("failed to update tx status, err: %v", err)
-				}
-			}
-		}
-	}()
+	go s.expireOldWorkerTxs(ctx)
+
+	go s.checkStateInconsistency(ctx)
 
 	// Wait until context is done
 	<-ctx.Done()
+}
+
+// checkStateInconsistency checks if state inconsistency happened
+func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
+	for {
+		time.Sleep(s.cfg.L2ReorgRetrievalInterval.Duration)
+		stateInconsistenciesDetected, err := s.stateI.CountReorgs(ctx, nil)
+		if err != nil {
+			log.Error("failed to get number of reorgs: %v", err)
+			return
+		}
+
+		if stateInconsistenciesDetected != s.numberOfStateInconsistencies {
+			s.finalizer.Halt(ctx, fmt.Errorf("State inconsistency detected. Halting finalizer"))
+		}
+	}
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
@@ -163,9 +136,8 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
 }
 
 func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
-	ticker := time.NewTicker(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 	for {
-		waitTick(ctx, ticker)
+		time.Sleep(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
 		txHashes, err := s.stateI.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
 		if err != nil {
@@ -191,24 +163,25 @@ func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 	}
 }
 
-// checkStateInconsistency checks if state inconsistency happened
-func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
-	stateInconsistenciesDetected, err := s.stateI.CountReorgs(ctx, nil)
-	if err != nil {
-		log.Error("failed to get number of reorgs: %v", err)
-		return
-	}
-
-	if stateInconsistenciesDetected != s.numberOfStateInconsistencies {
-		log.Warnf("New State Inconsistency detected")
-		s.closingSignalCh.L2ReorgCh <- L2ReorgEvent{}
+func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
+	for {
+		time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
+		txTrackers := s.worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
+		failedReason := ErrExpiredTransaction.Error()
+		for _, txTracker := range txTrackers {
+			err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
+			metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
+			if err != nil {
+				log.Errorf("failed to update tx status, err: %v", err)
+			}
+		}
 	}
 }
 
 // loadFromPool keeps loading transactions from the pool
 func (s *Sequencer) loadFromPool(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.DBManager.PoolRetrievalInterval.Duration)
+		time.Sleep(s.cfg.PoolRetrievalInterval.Duration)
 
 		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx)
 		if err != nil && err != pool.ErrNotFound {
@@ -298,6 +271,14 @@ func (s *Sequencer) sendDataToStreamer() {
 			}
 
 			for _, l2Transaction := range l2Transactions {
+				// Populate intermediate state root
+				position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
+				imStateRoot, err := s.stateI.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+				if err != nil {
+					log.Errorf("failed to get storage at for l2block %v: %v", l2Block.L2BlockNumber, err)
+				}
+				l2Transaction.StateRoot = common.BigToHash(imStateRoot)
+
 				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
 				if err != nil {
 					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
@@ -323,15 +304,6 @@ func (s *Sequencer) sendDataToStreamer() {
 				continue
 			}
 		}
-	}
-}
-
-func waitTick(ctx context.Context, ticker *time.Ticker) {
-	select {
-	case <-ticker.C:
-		// nothing
-	case <-ctx.Done():
-		return
 	}
 }
 

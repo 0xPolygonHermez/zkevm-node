@@ -167,7 +167,7 @@ func (f *finalizer) addForcedTxToWorker(forcedBatchResponse *state.ProcessBatchR
 func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchResponse *state.ProcessBatchResponse, dbTx pgx.Tx) error {
 	f.addForcedTxToWorker(batchResponse)
 
-	f.updateLastPendingFlushID(batchResponse.FlushID)
+	f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
 
 	// Wait until forced batch has been flushed/stored by the executor
 	f.storedFlushIDCond.L.Lock()
@@ -210,4 +210,77 @@ func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchR
 	}
 
 	return nil
+}
+
+// sortForcedBatches sorts the forced batches by ForcedBatchNumber
+func (f *finalizer) sortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatch {
+	if len(fb) == 0 {
+		return fb
+	}
+	// Sort by ForcedBatchNumber
+	for i := 0; i < len(fb)-1; i++ {
+		for j := i + 1; j < len(fb); j++ {
+			if fb[i].ForcedBatchNumber > fb[j].ForcedBatchNumber {
+				fb[i], fb[j] = fb[j], fb[i]
+			}
+		}
+	}
+
+	return fb
+}
+
+// setNextForcedBatchDeadline sets the next forced batch deadline
+func (f *finalizer) setNextForcedBatchDeadline() {
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+}
+
+func (f *finalizer) checkForcedBatches(ctx context.Context) {
+	for {
+		time.Sleep(f.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
+
+		if f.lastForcedBatchNum == 0 {
+			lastTrustedForcedBatchNum, err := f.state.GetLastTrustedForcedBatchNumber(ctx, nil)
+			if err != nil {
+				log.Errorf("error getting last trusted forced batch number. Error: %w", err)
+				continue
+			}
+			if lastTrustedForcedBatchNum > 0 {
+				f.lastForcedBatchNum = lastTrustedForcedBatchNum
+			}
+		}
+		// Take into account L1 finality
+		lastBlock, err := f.state.GetLastBlock(ctx, nil)
+		if err != nil {
+			log.Errorf("failed to get latest L1 block number. Error: %w", err)
+			continue
+		}
+
+		blockNumber := lastBlock.BlockNumber
+
+		maxBlockNumber := uint64(0)
+		finalityNumberOfBlocks := f.cfg.ForcedBatchesFinalityNumberOfBlocks
+
+		if finalityNumberOfBlocks <= blockNumber {
+			maxBlockNumber = blockNumber - finalityNumberOfBlocks
+		}
+
+		forcedBatches, err := f.state.GetForcedBatchesSince(ctx, f.lastForcedBatchNum, maxBlockNumber, nil)
+		if err != nil {
+			log.Errorf("error checking forced batches. Error: %w", err)
+			continue
+		}
+
+		for _, forcedBatch := range forcedBatches {
+			log.Debugf("finalizer received forced batch at block number: %d", forcedBatch.BlockNumber)
+
+			f.nextForcedBatchesMux.Lock()
+			f.nextForcedBatches = f.sortForcedBatches(append(f.nextForcedBatches, *forcedBatch))
+			if f.nextForcedBatchDeadline == 0 {
+				f.setNextForcedBatchDeadline()
+			}
+			f.nextForcedBatchesMux.Unlock()
+
+			f.lastForcedBatchNum = forcedBatch.ForcedBatchNumber
+		}
+	}
 }

@@ -51,11 +51,6 @@ var (
 		MaxSteps:             7570538,
 		MaxSHA256Hashes:      1596,
 	}
-	closingSignalCh = ClosingSignalCh{
-		ForcedBatchCh: make(chan state.ForcedBatch),
-		GERCh:         make(chan common.Hash),
-		L2ReorgCh:     make(chan L2ReorgEvent),
-	}
 	cfg = FinalizerCfg{
 		GERDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
@@ -132,7 +127,7 @@ func TestNewFinalizer(t *testing.T) {
 	poolMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	f = newFinalizer(cfg, poolCfg, workerMock, poolMock, stateMock, ethermanMock, seqAddr, isSynced, closingSignalCh, bc, eventLog, nil, nil)
+	f = newFinalizer(cfg, poolCfg, workerMock, poolMock, stateMock, ethermanMock, seqAddr, isSynced, bc, eventLog, nil, nil)
 
 	// assert
 	assert.NotNil(t, f)
@@ -141,7 +136,6 @@ func TestNewFinalizer(t *testing.T) {
 	assert.Equal(t, poolMock, poolMock)
 	assert.Equal(t, f.state, stateMock)
 	assert.Equal(t, f.sequencerAddress, seqAddr)
-	assert.Equal(t, f.closingSignalCh, closingSignalCh)
 	assert.Equal(t, f.batchConstraints, bc)
 }
 
@@ -2290,7 +2284,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 	return &finalizer{
 		cfg:                        cfg,
-		closingSignalCh:            closingSignalCh,
 		isSynced:                   isSynced,
 		sequencerAddress:           seqAddr,
 		worker:                     workerMock,
@@ -2301,7 +2294,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline:    0,
 		nextForcedBatchesMux:       new(sync.Mutex),
-		handlingL2Reorg:            false,
 		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
 		eventLog:                   eventLog,
 		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),

@@ -23,11 +23,14 @@ type Config struct {
 	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
 	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
 
+	// PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool
+	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
+
+	// L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened
+	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
-
-	// DBManager's specific config properties
-	DBManager DBManagerCfg `mapstructure:"DBManager"`
 
 	// StreamServerCfg is the config for the stream server
 	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
@@ -92,10 +95,4 @@ type FinalizerCfg struct {
 	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
 	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
-}
-
-// DBManagerCfg contains the DBManager's configuration properties
-type DBManagerCfg struct {
-	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
-	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }

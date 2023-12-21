@@ -55,20 +55,16 @@ type finalizer struct {
 	wipL2Block       *L2Block
 	batchConstraints statePackage.BatchConstraintsCfg
 	haltFinalizer    atomic.Bool
-	haltError        error
-	// closing signals
-	closingSignalCh ClosingSignalCh
 	// forced batches
 	nextForcedBatches       []statePackage.ForcedBatch
 	nextForcedBatchDeadline int64
 	nextForcedBatchesMux    *sync.Mutex
+	lastForcedBatchNum      uint64
 	// L1InfoTree
 	lastL1InfoTreeValid bool
 	lastL1InfoTree      statePackage.L1InfoTreeExitRootStorageEntry
 	lastL1InfoTreeMux   *sync.Mutex
 	lastL1InfoTreeCond  *sync.Cond
-	// L2 reorg
-	handlingL2Reorg bool
 	// event log
 	eventLog *event.EventLog
 	// effective gas price calculation instance
@@ -100,7 +96,6 @@ func newFinalizer(
 	etherman etherman,
 	sequencerAddr common.Address,
 	isSynced func(ctx context.Context) bool,
-	closingSignalCh ClosingSignalCh,
 	batchConstraints statePackage.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 	streamServer *datastreamer.StreamServer,
@@ -115,8 +110,6 @@ func newFinalizer(
 		state:            state,
 		etherman:         etherman,
 		batchConstraints: batchConstraints,
-		// closing signals
-		closingSignalCh: closingSignalCh,
 		// forced batches
 		nextForcedBatches:       make([]statePackage.ForcedBatch, 0),
 		nextForcedBatchDeadline: 0,
@@ -125,8 +118,6 @@ func newFinalizer(
 		lastL1InfoTreeValid: false,
 		lastL1InfoTreeMux:   new(sync.Mutex),
 		lastL1InfoTreeCond:  sync.NewCond(&sync.Mutex{}),
-		// L2 reorg
-		handlingL2Reorg: false,
 		// event log
 		eventLog: eventLog,
 		// effective gas price calculation instance
@@ -169,9 +160,6 @@ func (f *finalizer) Start(ctx context.Context) {
 	// Initializes the wip L2 block
 	f.initWIPL2Block(ctx)
 
-	// Closing signals receiver
-	go f.listenForClosingSignals(ctx)
-
 	// Update the prover id and flush id
 	go f.updateProverIdAndFlushId(ctx)
 
@@ -180,6 +168,9 @@ func (f *finalizer) Start(ctx context.Context) {
 
 	// Store L2 Blocks
 	go f.storePendingL2Blocks(ctx)
+
+	// Foced batches checking
+	go f.checkForcedBatches(ctx)
 
 	// Processing transactions and finalizing batches
 	f.finalizeBatches(ctx)
@@ -216,19 +207,26 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 	}
 }
 
+// updateFlushIDs updates f.lastPendingFLushID and f.storedFlushID with newPendingFlushID and newStoredFlushID values (it they have changed)
+// and sends the signals conditions f.pendingFlushIDCond and f.storedFlushIDCond to notify other go funcs that the values have changed
+func (f *finalizer) updateFlushIDs(newPendingFlushID, newStoredFlushID uint64) {
+	if newPendingFlushID > f.lastPendingFlushID {
+		f.lastPendingFlushID = newPendingFlushID
+		f.pendingFlushIDCond.Broadcast()
+	}
+
+	f.storedFlushIDCond.L.Lock()
+	if newStoredFlushID > f.storedFlushID {
+		f.storedFlushID = newStoredFlushID
+		f.storedFlushIDCond.Broadcast()
+	}
+	f.storedFlushIDCond.L.Unlock()
+}
+
 func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
-	var (
-		firstL1InfoRootUpdate = true
-		firstSleepSkipped     = false
-	)
+	firstL1InfoRootUpdate := true
 
 	for {
-		if firstSleepSkipped {
-			time.Sleep(f.cfg.WaitForCheckingL1InfoRoot.Duration)
-		} else {
-			firstSleepSkipped = true
-		}
-
 		lastL1BlockNumber, err := f.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
 			log.Errorf("error getting latest L1 block number: %v", err)
@@ -261,42 +259,8 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 				f.lastL1InfoTreeCond.L.Unlock()
 			}
 		}
-	}
-}
 
-// listenForClosingSignals listens for signals for the batch and sets the deadline for when they need to be closed.
-func (f *finalizer) listenForClosingSignals(ctx context.Context) {
-	for {
-		select {
-		case <-ctx.Done():
-			log.Infof("finalizer closing signal listener received context done, Err: %s", ctx.Err())
-			return
-		// ForcedBatch ch
-		case fb := <-f.closingSignalCh.ForcedBatchCh:
-			log.Debugf("finalizer received forced batch at block number: %v", fb.BlockNumber)
-
-			f.nextForcedBatchesMux.Lock()
-			f.nextForcedBatches = f.sortForcedBatches(append(f.nextForcedBatches, fb))
-			if f.nextForcedBatchDeadline == 0 {
-				f.setNextForcedBatchDeadline()
-			}
-			f.nextForcedBatchesMux.Unlock()
-		// L2Reorg ch
-		case <-f.closingSignalCh.L2ReorgCh:
-			log.Debug("finalizer received L2 reorg event")
-			f.handlingL2Reorg = true
-			f.halt(ctx, fmt.Errorf("L2 reorg event received"))
-			return
-		}
-	}
-}
-
-// updateLastPendingFLushID updates f.lastPendingFLushID with newFlushID value (it it has changed) and sends
-// the signal condition f.pendingFlushIDCond to notify other go funcs that the f.lastPendingFlushID value has changed
-func (f *finalizer) updateLastPendingFlushID(newFlushID uint64) {
-	if newFlushID > f.lastPendingFlushID {
-		f.lastPendingFlushID = newFlushID
-		f.pendingFlushIDCond.Broadcast()
+		time.Sleep(f.cfg.WaitForCheckingL1InfoRoot.Duration)
 	}
 }
 
@@ -307,7 +271,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
 		if f.wipBatch.batchNumber == f.cfg.StopSequencerOnBatchNum {
-			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+			return
 		}
 
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
@@ -357,7 +322,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		if f.haltFinalizer.Load() {
 			// There is a fatal error and we need to halt the finalizer and stop processing new txs
 			for {
-				log.Errorf("halting the finalizer, fatal error: %s", f.haltError)
 				time.Sleep(5 * time.Second) //nolint:gomnd
 			}
 		}
@@ -372,44 +336,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			log.Infof("stopping finalizer because of context, err: %s", err)
 			return
 		}
-	}
-}
-
-// sortForcedBatches sorts the forced batches by ForcedBatchNumber
-func (f *finalizer) sortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatch {
-	if len(fb) == 0 {
-		return fb
-	}
-	// Sort by ForcedBatchNumber
-	for i := 0; i < len(fb)-1; i++ {
-		for j := i + 1; j < len(fb); j++ {
-			if fb[i].ForcedBatchNumber > fb[j].ForcedBatchNumber {
-				fb[i], fb[j] = fb[j], fb[i]
-			}
-		}
-	}
-
-	return fb
-}
-
-// checkIfProverRestarted checks if the proverID changed
-func (f *finalizer) checkIfProverRestarted(proverID string) {
-	if f.proverID != "" && f.proverID != proverID {
-		event := &event.Event{
-			ReceivedAt:  time.Now(),
-			Source:      event.Source_Node,
-			Component:   event.Component_Sequencer,
-			Level:       event.Level_Critical,
-			EventID:     event.EventID_FinalizerRestart,
-			Description: fmt.Sprintf("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor", f.proverID, proverID),
-		}
-
-		err := f.eventLog.LogEvent(context.Background(), event)
-		if err != nil {
-			log.Errorf("error storing payload: %v", err)
-		}
-
-		log.Fatal("restarting sequencer to discard current WIP batch and work with new executor")
 	}
 }
 
@@ -543,7 +469,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		log.Errorf("failed to process transaction: %s", err)
 		return nil, err
 	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
-		f.halt(ctx, fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr))
+		err = fmt.Errorf("executor returned no errors and no responses for tx: %s", tx.HashStr)
+		f.Halt(ctx, err)
+		return nil, err
 	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
 		log.Errorf("error received from executor. Error: %v", err)
 		// Delete tx from the worker
@@ -647,10 +575,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		tx.EGPLog.ValueFinal, tx.EGPLog.ValueFirst, tx.EGPLog.ValueSecond, tx.EGPLog.Percentage, tx.EGPLog.FinalDeviation, tx.EGPLog.MaxDeviation, tx.EGPLog.GasUsedFirst, tx.EGPLog.GasUsedSecond,
 		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
-	tx.FlushId = result.FlushID
 	f.wipL2Block.addTx(tx)
-
-	f.updateLastPendingFlushID(result.FlushID)
 
 	f.wipBatch.countOfTxs++
 
@@ -814,14 +739,29 @@ func (f *finalizer) isDeadlineEncountered() bool {
 	return false
 }
 
-// setNextForcedBatchDeadline sets the next forced batch deadline
-func (f *finalizer) setNextForcedBatchDeadline() {
-	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+// checkIfProverRestarted checks if the proverID changed
+func (f *finalizer) checkIfProverRestarted(proverID string) {
+	if f.proverID != "" && f.proverID != proverID {
+		event := &event.Event{
+			ReceivedAt:  time.Now(),
+			Source:      event.Source_Node,
+			Component:   event.Component_Sequencer,
+			Level:       event.Level_Critical,
+			EventID:     event.EventID_FinalizerRestart,
+			Description: fmt.Sprintf("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor", f.proverID, proverID),
+		}
+
+		err := f.eventLog.LogEvent(context.Background(), event)
+		if err != nil {
+			log.Errorf("error storing payload: %v", err)
+		}
+
+		log.Fatal("restarting sequencer to discard current WIP batch and work with new executor")
+	}
 }
 
-// halt halts the finalizer
-func (f *finalizer) halt(ctx context.Context, err error) {
-	f.haltError = err
+// Halt halts the finalizer
+func (f *finalizer) Halt(ctx context.Context, err error) {
 	f.haltFinalizer.Store(true)
 
 	event := &event.Event{
@@ -836,5 +776,10 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	eventErr := f.eventLog.LogEvent(ctx, event)
 	if eventErr != nil {
 		log.Errorf("error storing finalizer halt event: %v", eventErr)
+	}
+
+	for {
+		log.Errorf("halting the finalizer, fatal error: %s", err)
+		time.Sleep(5 * time.Second) //nolint:gomnd
 	}
 }

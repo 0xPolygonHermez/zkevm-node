@@ -1545,8 +1545,9 @@ FallbackToSequentialModeOnSynchronized=false
 | - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
 | - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
 | - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
 | - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
+| - [PoolRetrievalInterval](#Sequencer_PoolRetrievalInterval )                 | No      | string  | No         | -          | Duration                                                                                     |
+| - [L2ReorgRetrievalInterval](#Sequencer_L2ReorgRetrievalInterval )           | No      | string  | No         | -          | Duration                                                                                     |
 
 ### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
 
@@ -2009,65 +2010,7 @@ sequential way (instead than in parallel)
 SequentialReprocessFullBatch=false
 ```
 
-### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`
-
-**Type:** : `object`
-**Description:** DBManager's specific config properties
-
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
-
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"500ms"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("500ms"):
-```
-[Sequencer.DBManager]
-PoolRetrievalInterval="500ms"
-```
-
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.7.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"5s"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("5s"):
-```
-[Sequencer.DBManager]
-L2ReorgRetrievalInterval="5s"
-```
-
-### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
+### <a name="Sequencer_StreamServer"></a>10.7. `[Sequencer.StreamServer]`
 
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
@@ -2079,7 +2022,7 @@ L2ReorgRetrievalInterval="5s"
 | - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
 | - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
 
-#### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
+#### <a name="Sequencer_StreamServer_Port"></a>10.7.1. `Sequencer.StreamServer.Port`
 
 **Type:** : `integer`
 
@@ -2093,7 +2036,7 @@ L2ReorgRetrievalInterval="5s"
 Port=0
 ```
 
-#### <a name="Sequencer_StreamServer_Filename"></a>10.8.2. `Sequencer.StreamServer.Filename`
+#### <a name="Sequencer_StreamServer_Filename"></a>10.7.2. `Sequencer.StreamServer.Filename`
 
 **Type:** : `string`
 
@@ -2107,7 +2050,7 @@ Port=0
 Filename=""
 ```
 
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.3. `Sequencer.StreamServer.Enabled`
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.7.3. `Sequencer.StreamServer.Enabled`
 
 **Type:** : `boolean`
 
@@ -2121,7 +2064,7 @@ Filename=""
 Enabled=false
 ```
 
-#### <a name="Sequencer_StreamServer_Log"></a>10.8.4. `[Sequencer.StreamServer.Log]`
+#### <a name="Sequencer_StreamServer_Log"></a>10.7.4. `[Sequencer.StreamServer.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2132,7 +2075,7 @@ Enabled=false
 | - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
 | - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
 
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.4.1. `Sequencer.StreamServer.Log.Environment`
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.7.4.1. `Sequencer.StreamServer.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2148,7 +2091,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.4.2. `Sequencer.StreamServer.Log.Level`
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.7.4.2. `Sequencer.StreamServer.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2169,9 +2112,61 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.4.3. `Sequencer.StreamServer.Log.Outputs`
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.7.4.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
+
+### <a name="Sequencer_PoolRetrievalInterval"></a>10.8. `Sequencer.PoolRetrievalInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"500ms"`
+
+**Description:** PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("500ms"):
+```
+[Sequencer]
+PoolRetrievalInterval="500ms"
+```
+
+### <a name="Sequencer_L2ReorgRetrievalInterval"></a>10.9. `Sequencer.L2ReorgRetrievalInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"5s"`
+
+**Description:** L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("5s"):
+```
+[Sequencer]
+L2ReorgRetrievalInterval="5s"
+```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
