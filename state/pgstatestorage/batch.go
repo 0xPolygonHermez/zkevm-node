@@ -975,7 +975,7 @@ func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNu
 	return common.HexToHash(parentHash), nil
 }
 
-// GetForcedBatchParentHash returns the parent hash of the virtual batch with the given number.
+// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number.
 func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
 	var (
 		parentHash string
