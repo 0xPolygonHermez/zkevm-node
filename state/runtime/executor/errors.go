@@ -430,6 +430,14 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidNewAccInputHash
 	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT:
 		return runtime.ErrExecutorErrorInvalidNewLocalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND:
+		return runtime.ErrExecutorErrorDBKeyNotFound
+	case ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE:
+		return runtime.ErrExecutorErrorSMTInvalidDataSize
+	case ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR:
+		return runtime.ErrExecutorErrorHashDBGRPCError
+	case ExecutorError_EXECUTOR_ERROR_STATE_MANAGER:
+		return runtime.ErrExecutorErrorStateManager
 	}
 	return ErrExecutorUnknown
 }
@@ -644,6 +652,20 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE
 	case runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch:
 		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH
+	case runtime.ErrExecutorErrorInvalidNewStateRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT
+	case runtime.ErrExecutorErrorInvalidNewAccInputHash:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH
+	case runtime.ErrExecutorErrorInvalidNewLocalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorDBKeyNotFound:
+		return ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND
+	case runtime.ErrExecutorErrorSMTInvalidDataSize:
+		return ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE
+	case runtime.ErrExecutorErrorHashDBGRPCError:
+		return ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR
+	case runtime.ErrExecutorErrorStateManager:
+		return ExecutorError_EXECUTOR_ERROR_STATE_MANAGER
 	}
 	return ErrCodeExecutorUnknown
 }

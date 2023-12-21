@@ -297,6 +297,14 @@ var (
 	ErrExecutorErrorInvalidNewAccInputHash = errors.New("new_acc_input_hash is invalid")
 	// ErrExecutorErrorInvalidNewLocalExitRoot indicates that the input parameter new_local_exit_root is invalid
 	ErrExecutorErrorInvalidNewLocalExitRoot = errors.New("new_local_exit_root is invalid")
+	// ErrExecutorErrorDBKeyNotFound indicates that the requested key was not found in the database
+	ErrExecutorErrorDBKeyNotFound = errors.New("key not found in the database")
+	// ErrExecutorErrorSMTInvalidDataSize indicates that the SMT data returned from the database does not have a valid size
+	ErrExecutorErrorSMTInvalidDataSize = errors.New("invalid SMT data size")
+	// ErrExecutorErrorHashDBGRPCError indicates that the executor failed calling the HashDB service via GRPC, when configured
+	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
+	// ErrExecutorErrorStateManager indicates an error in the State Manager
+	ErrExecutorErrorStateManager = errors.New("state Manager error")
 
 	// GRPC ERRORS
 	// ===========
