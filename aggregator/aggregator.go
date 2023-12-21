@@ -978,22 +978,20 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
-	batchRawData := &state.BatchRawV2{}
+	batchRawData, err := state.DecodeBatchV2(batchToVerify.BatchL2Data)
 	isForcedBatch := false
-
-	if batchToVerify.BatchNumber != 1 {
-		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
-	}
-	if (err != nil && errors.Is(err, state.ErrInvalidBatchV2)) || batchToVerify.BatchNumber == 1 {
-		_, _, _, err = state.DecodeTxs(batchToVerify.BatchL2Data, a.cfg.ChainID)
-		if err != nil {
-			log.Errorf("Failed to decode batch data as V1 (forced batch?), err: %v", err)
+	if err != nil {
+		if errors.Is(err, state.ErrInvalidBatchV2) {
+			_, _, _, err = state.DecodeTxs(batchToVerify.BatchL2Data, a.cfg.ChainID)
+			if err != nil {
+				log.Errorf("Failed to decode batch data as V1 (forced batch?), err: %v", err)
+				return nil, err
+			}
+			isForcedBatch = true
+		} else {
+			log.Errorf("Failed to decode batch data as V2, err: %v", err)
 			return nil, err
 		}
-		isForcedBatch = true
-	} else if err != nil {
-		log.Errorf("Failed to decode batch data as V2, err: %v", err)
-		return nil, err
 	}
 
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
