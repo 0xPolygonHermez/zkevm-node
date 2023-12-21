@@ -75,10 +75,11 @@ const (
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
 type ProcessingReceipt struct {
-	BatchNumber   uint64
-	StateRoot     common.Hash
-	LocalExitRoot common.Hash
-	AccInputHash  common.Hash
+	BatchNumber    uint64
+	StateRoot      common.Hash
+	LocalExitRoot  common.Hash
+	GlobalExitRoot common.Hash
+	AccInputHash   common.Hash
 	// Txs           []types.Transaction
 	BatchL2Data    []byte
 	ClosingReason  ClosingReason
