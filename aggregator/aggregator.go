@@ -979,15 +979,16 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	}
 
 	isForcedBatch := false
+	batchRawData := &state.BatchRawV2{}
 
-	batchRawData, err := state.DecodeBatchV2(batchToVerify.BatchL2Data)
-	if err != nil {
-		_, _, _, err = state.DecodeTxs(batchToVerify.BatchL2Data, a.cfg.ChainID)
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil {
+		isForcedBatch = true
+	} else {
+		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
 		if err != nil {
 			log.Errorf("Failed to decode batch data, err: %v", err)
 			return nil, err
 		}
-		isForcedBatch = true
 	}
 
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
