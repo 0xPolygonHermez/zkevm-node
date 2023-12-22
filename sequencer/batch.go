@@ -207,6 +207,10 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 
 	log.Infof("batch %d closed", f.wipBatch.batchNumber)
 
+	if f.wipBatch.batchNumber == f.cfg.StopSequencerOnBatchNum {
+		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+	}
+
 	//TODO: Call DSUpdateGER function
 	// Check if the batch is empty and sending a GER Update to the stream is needed
 	//TODO: is this UpdateGER still needed?

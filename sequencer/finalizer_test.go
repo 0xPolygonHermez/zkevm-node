@@ -52,26 +52,16 @@ var (
 		MaxSHA256Hashes:      1596,
 	}
 	cfg = FinalizerCfg{
-		GERDeadlineTimeout: cfgTypes.Duration{
-			Duration: 60,
-		},
 		ForcedBatchDeadlineTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
 		SleepDuration: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ClosingSignalsManagerWaitForCheckingL1Timeout: cfgTypes.Duration{
-			Duration: 10 * time.Second,
-		},
-		ClosingSignalsManagerWaitForCheckingGER: cfgTypes.Duration{
-			Duration: 10 * time.Second,
-		},
 		ClosingSignalsManagerWaitForCheckingForcedBatches: cfgTypes.Duration{
 			Duration: 10 * time.Second,
 		},
 		ResourcePercentageToCloseBatch: 10,
-		GERFinalityNumberOfBlocks:      64,
 		SequentialReprocessFullBatch:   true,
 	}
 	poolCfg = pool.Config{

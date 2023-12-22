@@ -67,7 +67,7 @@ func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txP
 func (s *Sequencer) Start(ctx context.Context) {
 	for !s.isSynced(ctx) {
 		log.Infof("waiting for synchronizer to sync...")
-		time.Sleep(s.cfg.WaitPeriodPoolIsEmpty.Duration)
+		time.Sleep(time.Second)
 	}
 	metrics.Register()
 
@@ -101,7 +101,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateI, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
 	go s.finalizer.Start(ctx)
 
-	go s.purgeOldPoolTxs(ctx) //TODO: Review if this function is needed as we have other go func to expire old txs in the worker
+	go s.deleteOldPoolTxs(ctx)
 
 	go s.expireOldWorkerTxs(ctx)
 
@@ -135,7 +135,7 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
 	log.Info("Data streamer file updated")
 }
 
-func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
+func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 	for {
 		time.Sleep(s.cfg.FrequencyToCheckTxsForDelete.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
