@@ -91,6 +91,7 @@ MaxLogsCount = 10000
 MaxLogsBlockRange = 10000
 MaxNativeBlockHashBlockRange = 60000
 EnableHttpLog = true
+GasLimitFactor = 1
 DisableAPIs = []
 	[RPC.WebSockets]
 		Enabled = true

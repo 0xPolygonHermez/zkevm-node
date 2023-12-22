@@ -197,7 +197,12 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
 		}
-		return hex.EncodeUint64(gasEstimation), nil
+		gasEstimationWithFactor := gasEstimation
+		if e.cfg.GasLimitFactor > 0 {
+			gasEstimationWithFactor = uint64(float64(gasEstimation) * e.cfg.GasLimitFactor)
+		}
+
+		return hex.EncodeUint64(gasEstimationWithFactor), nil
 	})
 }
 
