@@ -1031,6 +1031,10 @@ func (_m *StateMock) GetTransactionByL2BlockNumberAndIndex(ctx context.Context, 
 func (_m *StateMock) GetTransactionByL2Hash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*coretypes.Transaction, error) {
 	ret := _m.Called(ctx, transactionHash, dbTx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetTransactionByL2Hash")
+	}
+
 	var r0 *coretypes.Transaction
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*coretypes.Transaction, error)); ok {

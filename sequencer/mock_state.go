@@ -1377,9 +1377,9 @@ func (_m *StateMock) StoreL2Block(ctx context.Context, batchNumber uint64, l2Blo
 	return r0
 }
 
-// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
-func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
-	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx
+func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, globalExitRoot common.Hash, blockInfoRoot common.Hash, dbTx pgx.Tx) (*state.L2Header, error) {
+	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreTransaction")
@@ -1387,19 +1387,19 @@ func (_m *StateMock) StoreTransaction(ctx context.Context, batchNumber uint64, p
 
 	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*state.L2Header, error)); ok {
-		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) (*state.L2Header, error)); ok {
+		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *state.L2Header); ok {
-		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) *state.L2Header); ok {
+		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
