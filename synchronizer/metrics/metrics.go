@@ -37,10 +37,19 @@ const (
 
 	// ProcessTrustedBatchTimeName is the name of the label to process trusted batch.
 	ProcessTrustedBatchTimeName = Prefix + "process_trusted_batch_time"
+
+	// LastSyncedBatchNumberName is the name of tha lable to get latest synced batch number
+	LastSyncedBatchNumberName = Prefix + "latest_synced_batch_number"
 )
 
 // Register the metrics for the synchronizer package.
 func Register() {
+	gauges := []prometheus.GaugeOpts{
+		{
+			Name: LastSyncedBatchNumberName,
+			Help: "[SYNCHRONIZER] last synced batch number",
+		},
+	}
 	histograms := []prometheus.HistogramOpts{
 		{
 			Name: InitializationTimeName,
@@ -80,7 +89,13 @@ func Register() {
 		},
 	}
 
+	metrics.RegisterGauges(gauges...)
 	metrics.RegisterHistograms(histograms...)
+}
+
+// LastSyncedBatchNumber observes latest synced batch number
+func LastSyncedBatchNumber(batchNum float64) {
+	metrics.GaugeSet(LastSyncedBatchNumberName, batchNum)
 }
 
 // InitializationTime observes the time initializing the synchronizer on the histogram.
