@@ -899,6 +899,7 @@ L2GasPriceSuggesterFactor=0.5
 | - [EnablePendingTransactionFilter](#RPC_EnablePendingTransactionFilter )     | No      | boolean          | No         | -          | EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction                                                                       |
 | - [Nacos](#RPC_Nacos )                                                       | No      | object           | No         | -          | Nacos configuration                                                                                                                                                                   |
 | - [NacosWs](#RPC_NacosWs )                                                   | No      | object           | No         | -          | NacosWs configuration                                                                                                                                                                 |
+| - [DisableAPIs](#RPC_DisableAPIs )                                           | No      | array of string  | No         | -          | DisableAPIs disable some API                                                                                                                                                          |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -1349,6 +1350,20 @@ ApplicationName=""
 ```
 [RPC.NacosWs]
 ExternalListenAddr=""
+```
+
+### <a name="RPC_DisableAPIs"></a>8.20. `RPC.DisableAPIs`
+
+**Type:** : `array of string`
+
+**Default:** `[]`
+
+**Description:** DisableAPIs disable some API
+
+**Example setting the default value** ([]):
+```
+[RPC]
+DisableAPIs=[]
 ```
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`

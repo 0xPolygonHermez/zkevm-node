@@ -487,6 +487,10 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
+	if len(e.cfg.DisableAPIs) > 0 && types.Contains(e.cfg.DisableAPIs, "eth_getLogs") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
+
 	fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, dbTx)
 	if rpcErr != nil {
 		return nil, rpcErr
@@ -818,6 +822,9 @@ func (e *EthEndpoints) NewBlockFilter() (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newBlockFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
+	if len(e.cfg.DisableAPIs) > 0 && types.Contains(e.cfg.DisableAPIs, "eth_newBlockFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new block filter", err, true)
@@ -837,6 +844,9 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *concurrentWsConn, filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
+	if len(e.cfg.DisableAPIs) > 0 && types.Contains(e.cfg.DisableAPIs, "eth_newFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	if filter.ShouldFilterByBlockRange() {
 		_, _, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, nil)
 		if rpcErr != nil {
@@ -863,6 +873,9 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 
 // internal
 func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
+	if len(e.cfg.DisableAPIs) > 0 && types.Contains(e.cfg.DisableAPIs, "eth_newPendingTransactionFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	if !e.cfg.EnablePendingTransactionFilter {
 		return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
 	}

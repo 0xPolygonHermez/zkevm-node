@@ -73,6 +73,7 @@ WriteTimeout = "60s"
 MaxRequestsPerIPAndSecond = 5000
 SequencerNodeURI = "https://internal.x1-test.net:2083/"
 EnableL2SuggestedGasPricePolling = true
+DisableAPIs = []
 	[RPC.WebSockets]
 		Enabled = true
 		Port = 8546

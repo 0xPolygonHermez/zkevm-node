@@ -19,6 +19,9 @@ var once sync.Once
 
 // GetInternalTransactions returns a transaction by his hash
 func (e *EthEndpoints) GetInternalTransactions(hash types.ArgHash) (interface{}, types.Error) {
+	if len(e.cfg.DisableAPIs) > 0 && types.Contains(e.cfg.DisableAPIs, "eth_getInternalTransactions") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	once.Do(func() {
 		debugEndPoints = &DebugEndpoints{
 			state: e.state,
