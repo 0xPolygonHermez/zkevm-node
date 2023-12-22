@@ -2852,6 +2852,8 @@ func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, la
 		getBatchByNumberSQL += " AND b.state_root is not null"
 	}
 
+	getBatchByNumberSQL += " ORDER BY b.batch_num"
+
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getBatchByNumberSQL, firstBatchNumber, lastBatchNumber)
 	if err != nil {
