@@ -137,6 +137,7 @@ MaxTxLifetime = "3h"
 		TimestampResolution = "10s"
 		StopSequencerOnBatchNum = 0
 		SequentialReprocessFullBatch = false
+		FullBatchSleepDuration = "0s"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"

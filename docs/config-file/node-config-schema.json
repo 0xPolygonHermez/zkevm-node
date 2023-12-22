@@ -801,6 +801,16 @@
 							"type": "boolean",
 							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
+						},
+						"FullBatchSleepDuration": {
+							"type": "string",
+							"title": "Duration",
+							"description": "FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration",
+							"default": "0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
 						}
 					},
 					"additionalProperties": false,

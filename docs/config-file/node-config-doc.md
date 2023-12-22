@@ -1894,6 +1894,7 @@ MaxTxLifetime="3h0m0s"
 | - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 | - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
+| - [FullBatchSleepDuration](#Sequencer_Finalizer_FullBatchSleepDuration )                                                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
 
 #### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
 
@@ -2146,6 +2147,32 @@ sequential way (instead than in parallel)
 ```
 [Sequencer.Finalizer]
 SequentialReprocessFullBatch=false
+```
+
+#### <a name="Sequencer_Finalizer_FullBatchSleepDuration"></a>10.6.13. `Sequencer.Finalizer.FullBatchSleepDuration`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"0s"`
+
+**Description:** FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("0s"):
+```
+[Sequencer.Finalizer]
+FullBatchSleepDuration="0s"
 ```
 
 ### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`

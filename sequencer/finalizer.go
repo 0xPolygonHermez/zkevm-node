@@ -399,6 +399,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			log.Infof(metrics.GetLogStatistics().Summary())
 			metrics.GetLogStatistics().ResetStatistics()
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
+
+			if f.cfg.FullBatchSleepDuration.Duration > 0 {
+				time.Sleep(f.cfg.FullBatchSleepDuration.Duration)
+				log.Infof("Slow down sequencer: %v", f.cfg.FullBatchSleepDuration.Duration)
+			}
 		}
 
 		if err := ctx.Err(); err != nil {

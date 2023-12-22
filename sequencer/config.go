@@ -83,6 +83,9 @@ type FinalizerCfg struct {
 	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
 	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
+
+	// FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
+	FullBatchSleepDuration types.Duration `mapstructure:"FullBatchSleepDuration"`
 }
 
 // DBManagerCfg contains the DBManager's configuration properties
