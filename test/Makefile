@@ -331,7 +331,7 @@ stop-network: ## Stops the l1 network
 	$(STOPNETWORK)
 
 .PHONY: stop-network-v1tov2
-stop-network: ## Stops the l1 network
+stop-network-v1tov2: ## Stops the l1 network
 	$(STOPV1TOV2NETWORK)
 
 .PHONY: run-zkprover
