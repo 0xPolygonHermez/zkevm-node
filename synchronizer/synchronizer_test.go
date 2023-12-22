@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,7 +34,7 @@ type mocks struct {
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *syncMocks.DbTxMock
-	ZKEVMClient  *zkEVMClientMock
+	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
 	//EventLog     *eventLogMock
 }
 
@@ -108,7 +109,7 @@ func TestForcedBatch(t *testing.T) {
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
+		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
 	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
@@ -361,7 +362,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
+		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
 	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
@@ -613,7 +614,7 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 		State:       newStateMock(t),
 		Pool:        newPoolMock(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
+		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 		//EventLog:    newEventLogMock(t),
 	}
 	return &genesis, &cfg, &m
