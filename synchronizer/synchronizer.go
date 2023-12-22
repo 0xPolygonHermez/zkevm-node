@@ -27,6 +27,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1_parallel_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -63,7 +64,7 @@ type ClientSynchronizer struct {
 	state                    stateInterface
 	pool                     poolInterface
 	ethTxManager             ethTxManager
-	zkEVMClient              zkEVMClientInterface
+	zkEVMClient              syncinterfaces.ZKEVMClientInterface
 	eventLog                 syncinterfaces.EventLogInterface
 	ctx                      context.Context
 	cancelCtx                context.CancelFunc
@@ -89,7 +90,7 @@ func NewSynchronizer(
 	st stateInterface,
 	pool poolInterface,
 	ethTxManager ethTxManager,
-	zkEVMClient zkEVMClientInterface,
+	zkEVMClient syncinterfaces.ZKEVMClientInterface,
 	eventLog syncinterfaces.EventLogInterface,
 	genesis state.Genesis,
 	cfg Config,
@@ -116,7 +117,8 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
-	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{})
+	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{}, L1SyncChecker)
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -379,6 +381,19 @@ func (s *ClientSynchronizer) Sync() error {
 					if err != nil {
 						log.Warn("error syncing trusted state. Error: ", err)
 						s.CleanTrustedState()
+					}
+					if err != nil && errors.Is(err, syncinterfaces.ErrFatalDesyncFromL1) {
+						l1BlockNumber := err.(*l2_shared.DeSyncPermissionlessAndTrustedNodeError).L1BlockNumber
+						log.Error("Trusted and permissionless desync! reseting to last common point: L1Block (%d-1)", l1BlockNumber)
+						err = s.resetState(l1BlockNumber - 1)
+						if err != nil {
+							log.Errorf("error resetting the state to a discrepancy block. Retrying... Err: %v", err)
+							continue
+						}
+					} else if err != nil && errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
+						log.Info("Syncing from trusted node need data from L1")
+					} else {
+						// We break for resync from Trusted
 						continue
 					}
 				}

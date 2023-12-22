@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -75,6 +74,7 @@ type stateInterface interface {
 	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 	UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
+	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
 }
 
 type ethTxManager interface {
@@ -84,9 +84,4 @@ type ethTxManager interface {
 type poolInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*ethTypes.Transaction) error
 	StoreTx(ctx context.Context, tx ethTypes.Transaction, ip string, isWIP bool) error
-}
-
-type zkEVMClientInterface interface {
-	BatchNumber(ctx context.Context) (uint64, error)
-	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }

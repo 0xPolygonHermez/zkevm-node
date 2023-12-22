@@ -867,6 +867,66 @@ func (_c *stateMock_GetCurrentL1InfoRoot_Call) RunAndReturn(run func() common.Ha
 	return _c
 }
 
+// GetExitRootByGlobalExitRoot provides a mock function with given fields: ctx, ger, dbTx
+func (_m *stateMock) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
+	ret := _m.Called(ctx, ger, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetExitRootByGlobalExitRoot")
+	}
+
+	var r0 *state.GlobalExitRoot
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*state.GlobalExitRoot, error)); ok {
+		return rf(ctx, ger, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *state.GlobalExitRoot); ok {
+		r0 = rf(ctx, ger, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.GlobalExitRoot)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, ger, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// stateMock_GetExitRootByGlobalExitRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetExitRootByGlobalExitRoot'
+type stateMock_GetExitRootByGlobalExitRoot_Call struct {
+	*mock.Call
+}
+
+// GetExitRootByGlobalExitRoot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ger common.Hash
+//   - dbTx pgx.Tx
+func (_e *stateMock_Expecter) GetExitRootByGlobalExitRoot(ctx interface{}, ger interface{}, dbTx interface{}) *stateMock_GetExitRootByGlobalExitRoot_Call {
+	return &stateMock_GetExitRootByGlobalExitRoot_Call{Call: _e.mock.On("GetExitRootByGlobalExitRoot", ctx, ger, dbTx)}
+}
+
+func (_c *stateMock_GetExitRootByGlobalExitRoot_Call) Run(run func(ctx context.Context, ger common.Hash, dbTx pgx.Tx)) *stateMock_GetExitRootByGlobalExitRoot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.Hash), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *stateMock_GetExitRootByGlobalExitRoot_Call) Return(_a0 *state.GlobalExitRoot, _a1 error) *stateMock_GetExitRootByGlobalExitRoot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *stateMock_GetExitRootByGlobalExitRoot_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (*state.GlobalExitRoot, error)) *stateMock_GetExitRootByGlobalExitRoot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
 func (_m *stateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	ret := _m.Called(batchNumber)
