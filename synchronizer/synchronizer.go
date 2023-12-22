@@ -394,6 +394,8 @@ func (s *ClientSynchronizer) Sync() error {
 						log.Info("Syncing from trusted node need data from L1")
 					} else {
 						// We break for resync from Trusted
+						log.Debug("Sleeping for 1 second to avoid respawn too fast")
+						time.Sleep(time.Second)
 						continue
 					}
 				}
