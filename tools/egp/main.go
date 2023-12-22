@@ -350,7 +350,7 @@ func runStats(ctx *cli.Context) error {
 
 	// Print stats results
 	diff := timeLast.Sub(timeFirst).Hours()
-	logf("\nPERIOD [%.2f days]: %v ... %v", diff/24, timeFirst, timeLast)
+	logf("\nPERIOD [%.2f days]: %v ... %v", diff/24, timeFirst, timeLast) // nolint:gomnd
 	if !showOnlyCfg {
 		logf("\nEGP REAL STATS:")
 		printStats(&stats)
@@ -517,24 +517,24 @@ func printStats(stats *egpStats) {
 		return
 	}
 
-	fmt.Printf("Error Tx.........: [%.0f] (%.2f%%)\n", stats.totalError, stats.totalError/stats.totalTx*100)
-	fmt.Printf("Total No EGP info: [%.0f] (%.2f%%)\n", stats.totalNoInfo, stats.totalNoInfo/stats.totalTx*100)
+	fmt.Printf("Error Tx.........: [%.0f] (%.2f%%)\n", stats.totalError, stats.totalError/stats.totalTx*100)   // nolint:gomnd
+	fmt.Printf("Total No EGP info: [%.0f] (%.2f%%)\n", stats.totalNoInfo, stats.totalNoInfo/stats.totalTx*100) // nolint:gomnd
 
 	statsCount := stats.totalTx - stats.totalNoInfo
-	fmt.Printf("Total Tx EGP info: [%.0f] (%.2f%%)\n", statsCount, statsCount/stats.totalTx*100)
+	fmt.Printf("Total Tx EGP info: [%.0f] (%.2f%%)\n", statsCount, statsCount/stats.totalTx*100) // nolint:gomnd
 	if statsCount > 0 {
-		fmt.Printf("    EGP enable.......: [%.0f] (%.2f%%)\n", stats.totalEgp, stats.totalEgp/statsCount*100)
-		fmt.Printf("    Reprocessed Tx...: [%.0f] (%.2f%%)\n", stats.totalReprocessed, stats.totalReprocessed/statsCount*100)
+		fmt.Printf("    EGP enable.......: [%.0f] (%.2f%%)\n", stats.totalEgp, stats.totalEgp/statsCount*100)                 // nolint:gomnd
+		fmt.Printf("    Reprocessed Tx...: [%.0f] (%.2f%%)\n", stats.totalReprocessed, stats.totalReprocessed/statsCount*100) // nolint:gomnd
 		if stats.totalReprocessed > 0 {
-			fmt.Printf("        Suspicious Tx....: [%.0f] (%.2f%%)\n", stats.totalShady, stats.totalShady/stats.totalReprocessed*100)
+			fmt.Printf("        Suspicious Tx....: [%.0f] (%.2f%%)\n", stats.totalShady, stats.totalShady/stats.totalReprocessed*100) // nolint:gomnd
 		} else {
 			fmt.Printf("        Suspicious Tx....: [%.0f] (0.00%%)\n", stats.totalShady)
 		}
 		fmt.Printf("    Final gas:\n")
-		fmt.Printf("        Used EGP1........: [%.0f] (%.2f%%)\n", stats.totalUsedFirst, stats.totalUsedFirst/statsCount*100)
-		fmt.Printf("        Used EGP2........: [%.0f] (%.2f%%)\n", stats.totalUsedSecond, stats.totalUsedSecond/statsCount*100)
-		fmt.Printf("        Used User Gas....: [%.0f] (%.2f%%)\n", stats.totalUsedUser, stats.totalUsedUser/statsCount*100)
-		fmt.Printf("        Used Weird Gas...: [%.0f] (%.2f%%)\n", stats.totalUsedWeird, stats.totalUsedWeird/statsCount*100)
+		fmt.Printf("        Used EGP1........: [%.0f] (%.2f%%)\n", stats.totalUsedFirst, stats.totalUsedFirst/statsCount*100)   // nolint:gomnd
+		fmt.Printf("        Used EGP2........: [%.0f] (%.2f%%)\n", stats.totalUsedSecond, stats.totalUsedSecond/statsCount*100) // nolint:gomnd
+		fmt.Printf("        Used User Gas....: [%.0f] (%.2f%%)\n", stats.totalUsedUser, stats.totalUsedUser/statsCount*100)     // nolint:gomnd
+		fmt.Printf("        Used Weird Gas...: [%.0f] (%.2f%%)\n", stats.totalUsedWeird, stats.totalUsedWeird/statsCount*100)   // nolint:gomnd
 		if stats.countGasFinal > 0 {
 			fmt.Printf("    Gas price avg........: [%.0f] (%.3f GWei) (%.9f ETH)\n", stats.sumGasFinal/stats.countGasFinal,
 				stats.sumGasFinal/stats.countGasFinal/GWEI_DIV, stats.sumGasFinal/stats.countGasFinal/ETH_DIV)
@@ -553,7 +553,7 @@ func printStats(stats *egpStats) {
 		}
 		fmt.Printf("    Diff fee EGP-preEGP..: [%.0f] (%.3f Gwei) (%.9f ETH)\n", stats.sumFee-stats.sumFeePreEGP,
 			(stats.sumFee-stats.sumFeePreEGP)/GWEI_DIV, (stats.sumFee-stats.sumFeePreEGP)/ETH_DIV)
-		fmt.Printf("    Loss count.......: [%.0f] (%.2f%%)\n", stats.totalLossCount, stats.totalLossCount/statsCount*100)
+		fmt.Printf("    Loss count.......: [%.0f] (%.2f%%)\n", stats.totalLossCount, stats.totalLossCount/statsCount*100) // nolint:gomnd
 		fmt.Printf("    Loss total.......: [%.0f] (%.3f GWei) (%.9f ETH)\n", stats.totalLoss, stats.totalLoss/GWEI_DIV, stats.totalLoss/ETH_DIV)
 		if stats.totalLossCount > 0 {
 			fmt.Printf("    Loss average.....: [%.0f] (%.0f GWei) (%.9f ETH)\n", stats.totalLoss/stats.totalLossCount, stats.totalLoss/stats.totalLossCount/GWEI_DIV,
@@ -582,12 +582,12 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 		egp.LogValueSecond, err = calcEffectiveGasPrice(egp.LogGasUsedSecond, egp, cfg)
 		if err != nil {
 			logf("Simulation error in L2 block [%d], NEGP failed, error: %v", egp.l2BlockNum, err)
-			os.Exit(2)
+			os.Exit(2) // nolint:gomnd
 		}
 
 		// Gas price deviation
 		egp.LogFinalDeviation = math.Abs(egp.LogValueSecond - egp.LogValueFirst)
-		egp.LogMaxDeviation = egp.LogValueFirst * float64(cfg.FinalDeviationPct) / 100
+		egp.LogMaxDeviation = egp.LogValueFirst * float64(cfg.FinalDeviationPct) / 100 // nolint:gomnd
 
 		if egp.LogFinalDeviation < egp.LogMaxDeviation {
 			// Final gas: EGP
@@ -611,7 +611,7 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 
 	// Gas price effective percentage
 	if egp.LogGasPrice > 0 {
-		egp.LogPercentage = uint64(((egp.LogValueFinal*256)+egp.LogGasPrice-1)/egp.LogGasPrice - 1)
+		egp.LogPercentage = uint64(((egp.LogValueFinal*256)+egp.LogGasPrice-1)/egp.LogGasPrice - 1) // nolint:gomnd
 	} else {
 		egp.LogPercentage = 0
 	}
