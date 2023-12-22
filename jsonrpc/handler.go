@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 )
@@ -143,11 +145,13 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 // HandleWs handle websocket requests
 func (h *Handler) HandleWs(reqBody []byte, wsConn *concurrentWsConn, httpReq *http.Request) ([]byte, error) {
 	log.Debugf("WS message received: %v", string(reqBody))
+	st := time.Now()
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
 		return types.NewResponse(req, nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")).Bytes()
 	}
-
+	defer metrics.WsRequestMethodCount(req.Method)
+	defer metrics.WsRequestMethodDuration(req.Method, st)
 	handleReq := handleRequest{
 		Request:     req,
 		wsConn:      wsConn,
