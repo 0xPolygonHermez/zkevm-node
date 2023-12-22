@@ -432,14 +432,14 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 		OldStateRoot:     l2Block.Root().Bytes(),
 		OldAccInputHash:  batch.AccInputHash.Bytes(),
 		ForkId:           forkID,
-		Coinbase:         batch.Coinbase.String(),
+		Coinbase:         l2Block.Coinbase().String(),
 		BatchL2Data:      batchL2Data,
 		ChainId:          s.cfg.ChainID,
 		UpdateMerkleTree: cFalse,
 		ContextId:        uuid.NewString(),
 
 		// v1 fields
-		GlobalExitRoot: batch.GlobalExitRoot.Bytes(),
+		GlobalExitRoot: l2Block.GlobalExitRoot().Bytes(),
 		EthTimestamp:   timestamp,
 	}
 	if noZKEVMCounters {
