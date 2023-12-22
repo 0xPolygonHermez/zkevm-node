@@ -1893,10 +1893,10 @@ type ProcessTransactionResponse struct {
 	CreateAddress string `protobuf:"bytes,9,opt,name=create_address,json=createAddress,proto3" json:"create_address,omitempty"`
 	// State Root
 	StateRoot []byte `protobuf:"bytes,10,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// Logs emited by LOG opcode
+	// Logs emitted by LOG opcode
 	Logs      []*Log     `protobuf:"bytes,11,rep,name=logs,proto3" json:"logs,omitempty"`
 	FullTrace *FullTrace `protobuf:"bytes,14,opt,name=full_trace,json=fullTrace,proto3" json:"full_trace,omitempty"`
-	// Efective Gas Price
+	// Effective Gas Price
 	EffectiveGasPrice   string `protobuf:"bytes,15,opt,name=effective_gas_price,json=effectiveGasPrice,proto3" json:"effective_gas_price,omitempty"`
 	EffectivePercentage uint32 `protobuf:"varint,16,opt,name=effective_percentage,json=effectivePercentage,proto3" json:"effective_percentage,omitempty"`
 	// Flag to indicate if opcode 'GASPRICE' has been called
@@ -3532,7 +3532,7 @@ type ProcessBlockResponseV2 struct {
 	BlockHash []byte `protobuf:"bytes,10,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
 	// transaction responses
 	Responses []*ProcessTransactionResponseV2 `protobuf:"bytes,11,rep,name=responses,proto3" json:"responses,omitempty"`
-	// All Logs emited by LOG opcode during the block
+	// All Logs emitted by LOG opcode during the block
 	Logs []*LogV2 `protobuf:"bytes,12,rep,name=logs,proto3" json:"logs,omitempty"`
 	// Any error encountered during block execution
 	Error RomError `protobuf:"varint,13,opt,name=error,proto3,enum=executor.v1.RomError" json:"error,omitempty"`
@@ -3696,11 +3696,11 @@ type ProcessTransactionResponseV2 struct {
 	CreateAddress string `protobuf:"bytes,13,opt,name=create_address,json=createAddress,proto3" json:"create_address,omitempty"`
 	// State Root
 	StateRoot []byte `protobuf:"bytes,14,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
-	// All Logs emited by LOG opcode during this transaction
+	// All Logs emitted by LOG opcode during this transaction
 	Logs []*LogV2 `protobuf:"bytes,15,rep,name=logs,proto3" json:"logs,omitempty"`
 	// Trace
 	FullTrace *FullTraceV2 `protobuf:"bytes,16,opt,name=full_trace,json=fullTrace,proto3" json:"full_trace,omitempty"`
-	// Efective Gas Price
+	// Effective Gas Price
 	EffectiveGasPrice   string `protobuf:"bytes,17,opt,name=effective_gas_price,json=effectiveGasPrice,proto3" json:"effective_gas_price,omitempty"`
 	EffectivePercentage uint32 `protobuf:"varint,18,opt,name=effective_percentage,json=effectivePercentage,proto3" json:"effective_percentage,omitempty"`
 	// Flag to indicate if opcode 'GASPRICE' has been called

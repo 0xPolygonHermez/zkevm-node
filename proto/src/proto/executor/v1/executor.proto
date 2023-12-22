@@ -221,10 +221,10 @@ message ProcessTransactionResponse {
     string create_address = 9;
     // State Root
     bytes state_root = 10;
-    // Logs emited by LOG opcode
+    // Logs emitted by LOG opcode
     repeated Log logs = 11;
     FullTrace full_trace = 14;
-    // Efective Gas Price
+    // Effective Gas Price
     string effective_gas_price = 15;
     uint32 effective_percentage = 16;
     // Flag to indicate if opcode 'GASPRICE' has been called
@@ -479,7 +479,7 @@ message ProcessBlockResponseV2 {
     bytes block_hash = 10;
     // transaction responses
     repeated ProcessTransactionResponseV2 responses = 11;
-    // All Logs emited by LOG opcode during the block
+    // All Logs emitted by LOG opcode during the block
     repeated LogV2 logs = 12;
     // Any error encountered during block execution
     RomError error = 13;
@@ -516,11 +516,11 @@ message ProcessTransactionResponseV2 {
     string create_address = 13;
     // State Root
     bytes state_root = 14;
-    // All Logs emited by LOG opcode during this transaction
+    // All Logs emitted by LOG opcode during this transaction
     repeated LogV2 logs = 15;
     // Trace
     FullTraceV2 full_trace = 16;
-    // Efective Gas Price
+    // Effective Gas Price
     string effective_gas_price = 17;
     uint32 effective_percentage = 18;
     // Flag to indicate if opcode 'GASPRICE' has been called
