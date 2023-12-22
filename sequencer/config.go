@@ -7,10 +7,6 @@ import (
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
-	// trying to add new txs to the state
-	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
-
 	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
 	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
 
@@ -50,9 +46,6 @@ type StreamServerCfg struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	// GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
-	GERDeadlineTimeout types.Duration `mapstructure:"GERDeadlineTimeout"`
-
 	// ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
 	ForcedBatchDeadlineTimeout types.Duration `mapstructure:"ForcedBatchDeadlineTimeout"`
 
@@ -62,20 +55,11 @@ type FinalizerCfg struct {
 	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
 	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
 
-	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
-	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
-
 	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
 	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
 
 	// L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
 	L1InfoRootFinalityNumberOfBlocks uint64 `mapstructure:"L1InfoRootFinalityNumberOfBlocks"`
-
-	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
-
-	// ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingGER types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGER"`
 
 	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
 	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`

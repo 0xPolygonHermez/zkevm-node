@@ -583,16 +583,6 @@
 		},
 		"Sequencer": {
 			"properties": {
-				"WaitPeriodPoolIsEmpty": {
-					"type": "string",
-					"title": "Duration",
-					"description": "WaitPeriodPoolIsEmpty is the time the sequencer waits until\ntrying to add new txs to the state",
-					"default": "1s",
-					"examples": [
-						"1m",
-						"300ms"
-					]
-				},
 				"BlocksAmountForTxsToBeDeleted": {
 					"type": "integer",
 					"description": "BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool",
@@ -650,16 +640,6 @@
 				},
 				"Finalizer": {
 					"properties": {
-						"GERDeadlineTimeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
 						"ForcedBatchDeadlineTimeout": {
 							"type": "string",
 							"title": "Duration",
@@ -685,11 +665,6 @@
 							"description": "ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed",
 							"default": 10
 						},
-						"GERFinalityNumberOfBlocks": {
-							"type": "integer",
-							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final",
-							"default": 64
-						},
 						"ForcedBatchesFinalityNumberOfBlocks": {
 							"type": "integer",
 							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
@@ -699,26 +674,6 @@
 							"type": "integer",
 							"description": "L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final",
 							"default": 64
-						},
-						"ClosingSignalsManagerWaitForCheckingL1Timeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ClosingSignalsManagerWaitForCheckingGER": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
 						},
 						"ClosingSignalsManagerWaitForCheckingForcedBatches": {
 							"type": "string",

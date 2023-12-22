@@ -53,10 +53,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(25),
 		},
 		{
-			path:          "Sequencer.WaitPeriodPoolIsEmpty",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
 			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
 			expectedValue: uint64(100),
 		},
@@ -81,10 +77,6 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
 			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
 			expectedValue: types.NewDuration(60 * time.Second),
 		},
@@ -97,24 +89,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint32(10),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
 			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
 			expectedValue: uint64(64),
 		},
 		{
 			path:          "Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks",
 			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER",
-			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches",
