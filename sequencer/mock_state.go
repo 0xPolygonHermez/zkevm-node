@@ -210,25 +210,25 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
-// GetDSBatches provides a mock function with given fields: ctx, firstBatchNumber, lastBatchNumber, dbTx
-func (_m *StateMock) GetDSBatches(ctx context.Context, firstBatchNumber uint64, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSBatch, error) {
-	ret := _m.Called(ctx, firstBatchNumber, lastBatchNumber, dbTx)
+// GetDSBatches provides a mock function with given fields: ctx, firstBatchNumber, lastBatchNumber, readWIPBatch, dbTx
+func (_m *StateMock) GetDSBatches(ctx context.Context, firstBatchNumber uint64, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error) {
+	ret := _m.Called(ctx, firstBatchNumber, lastBatchNumber, readWIPBatch, dbTx)
 
 	var r0 []*state.DSBatch
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) ([]*state.DSBatch, error)); ok {
-		return rf(ctx, firstBatchNumber, lastBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, bool, pgx.Tx) ([]*state.DSBatch, error)); ok {
+		return rf(ctx, firstBatchNumber, lastBatchNumber, readWIPBatch, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) []*state.DSBatch); ok {
-		r0 = rf(ctx, firstBatchNumber, lastBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, bool, pgx.Tx) []*state.DSBatch); ok {
+		r0 = rf(ctx, firstBatchNumber, lastBatchNumber, readWIPBatch, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]*state.DSBatch)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, firstBatchNumber, lastBatchNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, bool, pgx.Tx) error); ok {
+		r1 = rf(ctx, firstBatchNumber, lastBatchNumber, readWIPBatch, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -746,6 +746,32 @@ func (_m *StateMock) GetNonceByStateRoot(ctx context.Context, address common.Add
 	return r0, r1
 }
 
+// GetStorageAt provides a mock function with given fields: ctx, address, position, root
+func (_m *StateMock) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	ret := _m.Called(ctx, address, position, root)
+
+	var r0 *big.Int
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, *big.Int, common.Hash) (*big.Int, error)); ok {
+		return rf(ctx, address, position, root)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address, *big.Int, common.Hash) *big.Int); ok {
+		r0 = rf(ctx, address, position, root)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address, *big.Int, common.Hash) error); ok {
+		r1 = rf(ctx, address, position, root)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetStoredFlushID provides a mock function with given fields: ctx
 func (_m *StateMock) GetStoredFlushID(ctx context.Context) (uint64, string, error) {
 	ret := _m.Called(ctx)
@@ -985,6 +1011,20 @@ func (_m *StateMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, pgx.Tx) error); ok {
 		r0 = rf(ctx, batchNumber, batchL2Data, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateBatchL2DataAndLER provides a mock function with given fields: ctx, batchNumber, batchL2Data, localExitRoot, dbTx
+func (_m *StateMock) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, []byte, common.Hash, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, batchL2Data, localExitRoot, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -44,6 +44,9 @@ type Config struct {
 	FreeGasAddress string `mapstructure:"FreeGasAddress"`
 	// EffectiveGasPrice is the config for the effective gas price calculation
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
+
+	// ForkID is the current fork ID of the chain
+	ForkID uint64 `mapstructure:"ForkID"`
 }
 
 // EffectiveGasPriceCfg contains the configuration properties for the effective gas price

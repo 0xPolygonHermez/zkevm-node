@@ -165,6 +165,7 @@ func (p *Pool) refreshBlockedAddresses() {
 
 // StartPollingMinSuggestedGasPrice starts polling the minimum suggested gas price
 func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
+	p.tryUpdateMinSuggestedGasPrice(p.cfg.DefaultMinGasPriceAllowed)
 	p.pollMinSuggestedGasPrice(ctx)
 	go func() {
 		for {
@@ -436,7 +437,12 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions over defined size to prevent DOS attacks
-	if poolTx.Size() > p.cfg.MaxTxBytesSize {
+	decodedTx, err := state.EncodeTransaction(poolTx.Transaction, 0xFF, p.cfg.ForkID) //nolint: gomnd
+	if err != nil {
+		return ErrTxTypeNotSupported
+	}
+
+	if uint64(len(decodedTx)) > p.cfg.MaxTxBytesSize {
 		log.Infof("%v: %v", ErrOversizedData.Error(), from.String())
 		return ErrOversizedData
 	}
@@ -569,6 +575,8 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	return nil
 }
 
+// pollMinSuggestedGasPrice polls the minimum L2 gas price since the previous
+// check accordingly to the configured interval and tries to update it
 func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 	fromTimestamp := time.Now().UTC().Add(-p.cfg.MinAllowedGasPriceInterval.Duration)
 	// Ensuring we don't use a timestamp before the pool start as it may be using older L1 gas price factor
@@ -578,24 +586,26 @@ func (p *Pool) pollMinSuggestedGasPrice(ctx context.Context) {
 
 	l2GasPrice, err := p.storage.MinL2GasPriceSince(ctx, fromTimestamp)
 	if err != nil {
-		p.minSuggestedGasPriceMux.Lock()
-		// Ensuring we always have suggested minimum gas price
-		if p.minSuggestedGasPrice == nil {
-			p.minSuggestedGasPrice = big.NewInt(0).SetUint64(p.cfg.DefaultMinGasPriceAllowed)
-			log.Infof("Min allowed gas price updated to: %d", p.cfg.DefaultMinGasPriceAllowed)
-		}
-		p.minSuggestedGasPriceMux.Unlock()
 		if err == state.ErrNotFound {
 			log.Warnf("No suggested min gas price since: %v", fromTimestamp)
 		} else {
 			log.Errorf("Error getting min gas price since: %v", fromTimestamp)
 		}
 	} else {
-		p.minSuggestedGasPriceMux.Lock()
-		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(l2GasPrice)
-		p.minSuggestedGasPriceMux.Unlock()
-		log.Infof("Min allowed gas price updated to: %d", l2GasPrice)
+		p.tryUpdateMinSuggestedGasPrice(l2GasPrice)
 	}
+}
+
+// tryUpdateMinSuggestedGasPrice tries to update the min suggested gas price
+// with the provided minSuggestedGasPrice, it updates if the provided value
+// is different from the value already store in p.minSuggestedGasPriceMux
+func (p *Pool) tryUpdateMinSuggestedGasPrice(minSuggestedGasPrice uint64) {
+	p.minSuggestedGasPriceMux.Lock()
+	if p.minSuggestedGasPrice == nil || p.minSuggestedGasPrice.Uint64() != minSuggestedGasPrice {
+		p.minSuggestedGasPrice = big.NewInt(0).SetUint64(minSuggestedGasPrice)
+		log.Infof("Min suggested gas price updated to: %d", minSuggestedGasPrice)
+	}
+	p.minSuggestedGasPriceMux.Unlock()
 }
 
 // checkTxFieldCompatibilityWithExecutor checks the field sizes of the transaction to make sure

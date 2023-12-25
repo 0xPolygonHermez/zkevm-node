@@ -129,9 +129,10 @@ func start(cliCtx *cli.Context) error {
 	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
 	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
 	c.Aggregator.ChainID = l2ChainID
+	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
 	// If the aggregator is restarted before the end of the sync process, this currentForkID could be wrong
 	c.Aggregator.ForkId = currentForkID
-	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
+	c.Pool.ForkID = currentForkID
 
 	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.State.DB)
 	if err != nil {

@@ -113,5 +113,5 @@ func WaitStatusSelected(countByStatusFunc func(ctx context.Context, status ...po
 }
 
 func ShouldRetryError(err error) bool {
-	return errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFunds) || errors.Is(err, pool.ErrNonceTooHigh)
+	return errors.Is(err, state.ErrStateNotSynchronized) || errors.Is(err, state.ErrInsufficientFundsForTransfer) || errors.Is(err, pool.ErrNonceTooHigh)
 }

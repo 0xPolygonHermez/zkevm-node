@@ -24,11 +24,6 @@ import (
 )
 
 const (
-	// DefaultSenderAddress is the address that jRPC will use
-	// to communicate with the state for eth_EstimateGas and eth_Call when
-	// the From field is not specified because it is optional
-	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-
 	// maxTopics is the max number of topics a log can have
 	maxTopics = 4
 )
@@ -101,7 +96,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			arg.Gas = &gas
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -117,7 +112,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			copy(data, result.ReturnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), &data)
 		} else if result.Failed() {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, result.Err.Error(), nil)
+			return nil, types.NewRPCError(types.DefaultErrorCode, result.Err.Error())
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -183,7 +178,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			}
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -195,7 +190,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
+			return nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
 		gasEstimationWithFactor := gasEstimation
 		if e.cfg.GasLimitFactor > 0 {
@@ -903,7 +898,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 
 		// TODO: this is temporary patch remove this log
 		realIp := httpRequest.Header.Get("X-Real-IP")
-		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+		log.Debugf("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
 
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
@@ -1078,7 +1073,7 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
-	log.Infof("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
 	start := time.Now()
 	wg := sync.WaitGroup{}
 
@@ -1089,7 +1084,7 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	go e.notifyNewLogs(&wg, event)
 
 	wg.Wait()
-	log.Infof("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
@@ -1108,7 +1103,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	}
 
 	filters := e.storage.GetAllBlockFiltersWithWSConn()
-	log.Infof("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
+	log.Debugf("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
 
 	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
@@ -1116,11 +1111,11 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 			f := filter
 			start := time.Now()
 			f.EnqueueSubscriptionDataToBeSent(data)
-			log.Infof("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
+			log.Debugf("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
 		}
 	})
 
-	log.Infof("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
@@ -1128,7 +1123,7 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 	start := time.Now()
 
 	filters := e.storage.GetAllLogFiltersWithWSConn()
-	log.Infof("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
+	log.Debugf("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
 
 	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
@@ -1138,12 +1133,12 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 			if e.shouldSkipLogFilter(event, filter) {
 				return
 			}
-			log.Infof("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
 
 			start = time.Now()
 			// get new logs for this specific filter
 			logs := filterLogs(event.Logs, filter)
-			log.Infof("[notifyNewLogs] took %v to filter logs", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to filter logs", time.Since(start))
 
 			start = time.Now()
 			for _, l := range logs {
@@ -1153,11 +1148,11 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 				}
 				f.EnqueueSubscriptionDataToBeSent(data)
 			}
-			log.Infof("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
 		}
 	})
 
-	log.Infof("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
 }
 
 // shouldSkipLogFilter checks if the log filter can be skipped while notifying new logs.

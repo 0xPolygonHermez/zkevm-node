@@ -140,7 +140,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer) {
-	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state)
+	err := state.GenerateDataStreamerFile(ctx, streamServer, s.state, true, nil)
 	if err != nil {
 		log.Fatalf("failed to generate data streamer file, err: %v", err)
 	}

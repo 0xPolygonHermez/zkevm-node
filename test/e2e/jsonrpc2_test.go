@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Counter"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Storage"
@@ -579,6 +581,188 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	rpcErr := err.(rpc.Error)
 	assert.Equal(t, -32000, rpcErr.ErrorCode())
 	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
+}
+
+func TestEstimateGas(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+	setup()
+	defer teardown()
+
+	ctx := context.Background()
+
+	for _, network := range networks {
+		log.Infof("Network %s", network.Name)
+
+		ethereumClient, err := ethclient.Dial(network.URL)
+		require.NoError(t, err)
+
+		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+
+		// deploy a smart contract
+		_, tx, sc, err := Counter.DeployCounter(auth, ethereumClient)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		gasPrice, err := ethereumClient.SuggestGasPrice(ctx)
+		require.NoError(t, err)
+
+		// prepare a tx information to be estimated
+		auth.NoSend = true // force the tx to not be sent while using the sc method
+		auth.GasLimit = 1  // force gas limit to avoid estimation while building the tx
+		txToMsg, err := sc.Increment(auth)
+		require.NoError(t, err)
+
+		// add funds to address 0x000...001 used in the test
+		nonce, err := ethereumClient.NonceAt(ctx, auth.From, nil)
+		require.NoError(t, err)
+		value := big.NewInt(1000)
+		require.NoError(t, err)
+		tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+			Nonce:    nonce,
+			To:       ptr(common.HexToAddress("0x1")),
+			Value:    value,
+			Gas:      24000,
+			GasPrice: gasPrice,
+		})
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+		err = ethereumClient.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+		err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+		require.NoError(t, err)
+
+		type testCase struct {
+			name          string
+			address       *common.Address
+			value         *int64
+			setGasPrice   bool
+			expectedError rpc.Error
+		}
+
+		testCases := []testCase{
+			{
+				name:          "with gasPrice set and address with enough balance",
+				address:       ptr(auth.From),
+				setGasPrice:   true,
+				expectedError: nil,
+			},
+			{
+				name:          "with gasPrice set and address without enough balance",
+				address:       ptr(common.HexToAddress("0x1")),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			{
+				name:          "with gasPrice set and address with balance zero",
+				address:       ptr(common.HexToAddress("0x2")),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			{
+				name:          "with gasPrice set and without from address",
+				address:       nil,
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "gas required exceeds allowance"),
+			},
+			// TODO: This test is failing due to geth bug
+			//       we can uncomment it when updating geth version
+			//       on l1 image, it's returning error code -32000 when
+			//       it should be returning error code 3 due to execution message
+			// {
+			// 	name:          "with gasPrice and value set and address with enough balance",
+			// 	address:       ptr(auth.From),
+			// 	value:         ptr(int64(1)),
+			// 	setGasPrice:   true,
+			// 	expectedError: types.NewRPCError(3, "execution reverted"),
+			// },
+			{
+				name:          "with gasPrice and value set and address without enough balance",
+				address:       ptr(common.HexToAddress("0x1")),
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
+			},
+			{
+				name:          "with gasPrice and value set and address with balance zero",
+				address:       ptr(common.HexToAddress("0x2")),
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
+			},
+			{
+				name:          "with gasPrice and value set and without from address",
+				address:       nil,
+				value:         ptr(int64(-1)),
+				setGasPrice:   true,
+				expectedError: types.NewRPCError(-32000, "insufficient funds for transfer"),
+			},
+			{
+				name:          "without gasPrice set and address with enough balance",
+				address:       ptr(auth.From),
+				setGasPrice:   false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and address without enough balance",
+				address:       ptr(common.HexToAddress("0x1")),
+				setGasPrice:   false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and address with balance zero",
+				address:       ptr(common.HexToAddress("0x2")),
+				setGasPrice:   false,
+				expectedError: nil,
+			},
+			{
+				name:          "without gasPrice set and without from address",
+				address:       nil,
+				setGasPrice:   false,
+				expectedError: nil,
+			},
+		}
+
+		for _, testCase := range testCases {
+			t.Run(testCase.name, func(t *testing.T) {
+				msg := ethereum.CallMsg{
+					To:   txToMsg.To(),
+					Data: txToMsg.Data(),
+				}
+				if testCase.address != nil {
+					msg.From = *testCase.address
+				}
+				balance, err := ethereumClient.BalanceAt(ctx, msg.From, nil)
+				require.NoError(t, err)
+
+				if testCase.value != nil {
+					v := *testCase.value
+					if v == -1 { //set the value as acc balance + 1 to force overflow
+
+						msg.Value = common.Big0.Add(balance, common.Big1)
+					} else {
+						msg.Value = big.NewInt(0).SetInt64(v)
+					}
+				}
+
+				if testCase.setGasPrice {
+					msg.GasPrice = gasPrice
+				}
+
+				_, err = ethereumClient.EstimateGas(ctx, msg)
+				if testCase.expectedError != nil {
+					rpcErr := err.(rpc.Error)
+					errMsg := fmt.Sprintf("[%v] expected: %v %v found: %v %v", network.Name, testCase.expectedError.ErrorCode(), testCase.expectedError.Error(), rpcErr.ErrorCode(), rpcErr.Error())
+					assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode(), errMsg)
+					assert.True(t, strings.HasPrefix(rpcErr.Error(), testCase.expectedError.Error()), errMsg)
+				} else {
+					assert.Nil(t, err)
+				}
+			})
+		}
+	}
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.

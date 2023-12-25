@@ -1502,7 +1502,7 @@ func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transa
 
 // AddL2Block adds a new L2 block to the State Store
 func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *types.Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
-	log.Infof("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
+	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
 	start := time.Now()
 
 	e := p.getExecQuerier(dbTx)
@@ -1577,7 +1577,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			}
 		}
 	}
-	log.Infof("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
+	log.Debugf("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
 	return nil
 }
 
@@ -2528,6 +2528,15 @@ func (p *PostgresStorage) UpdateBatchL2Data(ctx context.Context, batchNumber uin
 	return err
 }
 
+// UpdateBatchL2DataAndLER updates data tx data in a batch and the local exit root
+func (p *PostgresStorage) UpdateBatchL2DataAndLER(ctx context.Context, batchNumber uint64, batchL2Data []byte, localExitRoot common.Hash, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET raw_txs_data = $2, local_exit_root = $3 WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber, batchL2Data, localExitRoot.String())
+	return err
+}
+
 // AddAccumulatedInputHash adds the accumulated input hash
 func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
 	const addAccInputHashBatchSQL = "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
@@ -2848,11 +2857,17 @@ func scanDSL2Transaction(row pgx.Row) (*DSL2Transaction, error) {
 }
 
 // GetDSBatches returns the DS batches
-func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSBatch, error) {
-	const getBatchByNumberSQL = `
+func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error) {
+	var getBatchByNumberSQL = `
 		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
 		  FROM state.batch b, state.fork_id f
-		 WHERE b.state_root is not null AND b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
+		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
+
+	if !readWIPBatch {
+		getBatchByNumberSQL += " AND b.state_root is not null"
+	}
+
+	getBatchByNumberSQL += " ORDER BY b.batch_num ASC"
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, getBatchByNumberSQL, firstBatchNumber, lastBatchNumber)

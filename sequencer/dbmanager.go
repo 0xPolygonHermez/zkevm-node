@@ -201,6 +201,14 @@ func (d *dbManager) sendDataToStreamer() {
 			}
 
 			for _, l2Transaction := range l2Transactions {
+				// Populate intermediate state root
+				position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
+				imStateRoot, err := d.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+				if err != nil {
+					log.Errorf("failed to get storage at for l2block %v: %v", l2Block.L2BlockNumber, err)
+				}
+				l2Transaction.StateRoot = common.BigToHash(imStateRoot)
+
 				_, err = d.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
 				if err != nil {
 					log.Errorf("failed to add l2tx stream entry for l2block %v: %v", l2Block.L2BlockNumber, err)
@@ -293,7 +301,7 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 	batch.BatchL2Data = append(batch.BatchL2Data, txData...)
 
 	if !tx.isForcedBatch {
-		err = d.state.UpdateBatchL2Data(ctx, tx.batchNumber, batch.BatchL2Data, dbTx)
+		err = d.state.UpdateBatchL2DataAndLER(ctx, tx.batchNumber, batch.BatchL2Data, tx.batchResponse.NewLocalExitRoot, dbTx)
 		if err != nil {
 			err2 := dbTx.Rollback(ctx)
 			if err2 != nil {
@@ -725,4 +733,9 @@ func (d *dbManager) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (d *dbManager) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	return d.state.GetForkIDByBatchNumber(batchNumber)
+}
+
+// GetStorageAt returns the storage at a given address and position
+func (d *dbManager) GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error) {
+	return d.state.GetStorageAt(ctx, address, position, root)
 }

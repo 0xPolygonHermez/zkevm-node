@@ -427,6 +427,7 @@ MaxGasPriceLimit=0
 | - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
 | - [FreeGasAddress](#Pool_FreeGasAddress )                                       | No      | string  | No         | -          | FreeGasAddress is the default free gas address                                                       |
 | - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
+| - [ForkID](#Pool_ForkID )                                                       | No      | integer | No         | -          | ForkID is the current fork ID of the chain                                                           |
 
 ### <a name="Pool_FreeClaimGasLimit"></a>7.1. `Pool.FreeClaimGasLimit`
 
@@ -871,6 +872,20 @@ calculations when the effective gas price is disabled (testing/metrics purposes)
 ```
 [Pool.EffectiveGasPrice]
 L2GasPriceSuggesterFactor=0.5
+```
+
+### <a name="Pool_ForkID"></a>7.14. `Pool.ForkID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ForkID is the current fork ID of the chain
+
+**Example setting the default value** (0):
+```
+[Pool]
+ForkID=0
 ```
 
 ## <a name="RPC"></a>8. `[RPC]`

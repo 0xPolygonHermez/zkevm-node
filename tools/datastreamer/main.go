@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -190,10 +192,50 @@ func generate(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 	defer stateSqlDB.Close()
-	stateDB := state.NewPostgresStorage(state.Config{}, stateSqlDB)
+	stateDBStorage := state.NewPostgresStorage(state.Config{}, stateSqlDB)
 	log.Debug("Connected to the database")
 
-	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB)
+	mtDBServerConfig := merkletree.Config{URI: c.MerkleTree.URI}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(cliCtx.Context, mtDBServerConfig)
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+	log.Debug("Connected to the merkle tree")
+
+	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil)
+
+	// Calculate intermediate state roots
+	var imStateRoots map[uint64][]byte
+	var imStateRootsMux *sync.Mutex = new(sync.Mutex)
+	var wg sync.WaitGroup
+
+	lastL2BlockHeader, err := stateDB.GetLastL2BlockHeader(cliCtx.Context, nil)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	maxL2Block := lastL2BlockHeader.Number.Uint64()
+	imStateRoots = make(map[uint64][]byte, maxL2Block)
+
+	for x := 0; x < c.MerkleTree.MaxThreads; x++ {
+		start := uint64(x) * (maxL2Block / uint64(c.MerkleTree.MaxThreads))
+		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) - 1
+
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			log.Debugf("Thread %d: Start: %d, End: %d\n", i, start, end)
+			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
+		}(x)
+	}
+
+	wg.Wait()
+
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -202,6 +244,21 @@ func generate(cliCtx *cli.Context) error {
 	printColored(color.FgGreen, "Process finished\n")
 
 	return nil
+}
+
+func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State, stateRoot common.Hash) {
+	for x := start; x <= end; x++ {
+		// Populate intermediate state root
+		position := state.GetSystemSCPosition(x)
+		imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), stateRoot)
+		if err != nil {
+			log.Errorf("Error: %v\n", err)
+			os.Exit(1)
+		}
+		imStateRootMux.Lock()
+		(*isStateRoots)[x] = imStateRoot.Bytes()
+		imStateRootMux.Unlock()
+	}
 }
 
 func reprocess(cliCtx *cli.Context) error {
@@ -239,7 +296,7 @@ func reprocess(cliCtx *cli.Context) error {
 	if currentL2BlockNumber == 0 {
 		printColored(color.FgHiYellow, "\n\nSetting Genesis block\n\n")
 
-		mtDBServerConfig := merkletree.Config{URI: c.MerkeTree.URI}
+		mtDBServerConfig := merkletree.Config{URI: c.MerkleTree.URI}
 		var mtDBCancel context.CancelFunc
 		mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 		defer func() {
@@ -668,6 +725,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EffectiveGasPricePercentage))
 		printColored(color.FgGreen, "Is Valid........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%t\n", dsTx.IsValid == 1))
+		printColored(color.FgGreen, "State Root......: ")
+		printColored(color.FgHiWhite, fmt.Sprint(dsTx.StateRoot.Hex()+"\n"))
 		printColored(color.FgGreen, "Encoded Length..: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EncodedLength))
 		printColored(color.FgGreen, "Encoded.........: ")
