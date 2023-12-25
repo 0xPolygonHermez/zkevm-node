@@ -1693,6 +1693,29 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "State service configuration"
+		},
+		"Apollo": {
+			"properties": {
+				"Enable": {
+					"type": "boolean",
+					"default": false
+				},
+				"IP": {
+					"type": "string",
+					"default": ""
+				},
+				"AppID": {
+					"type": "string",
+					"default": ""
+				},
+				"NamespaceName": {
+					"type": "string",
+					"default": ""
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "Apollo configuration"
 		}
 	},
 	"additionalProperties": false,

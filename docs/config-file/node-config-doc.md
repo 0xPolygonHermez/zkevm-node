@@ -27,6 +27,7 @@
 | - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | - [State](#State )                                   | No      | object  | No         | -          | State service configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| - [Apollo](#Apollo )                                 | No      | object  | No         | -          | Apollo configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -4246,6 +4247,66 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [State]
 MaxNativeBlockHashBlockRange=0
+```
+
+## <a name="Apollo"></a>21. `[Apollo]`
+
+**Type:** : `object`
+**Description:** Apollo configuration
+
+| Property                                  | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ----------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [Enable](#Apollo_Enable )               | No      | boolean | No         | -          | -                 |
+| - [IP](#Apollo_IP )                       | No      | string  | No         | -          | -                 |
+| - [AppID](#Apollo_AppID )                 | No      | string  | No         | -          | -                 |
+| - [NamespaceName](#Apollo_NamespaceName ) | No      | string  | No         | -          | -                 |
+
+### <a name="Apollo_Enable"></a>21.1. `Apollo.Enable`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Example setting the default value** (false):
+```
+[Apollo]
+Enable=false
+```
+
+### <a name="Apollo_IP"></a>21.2. `Apollo.IP`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Apollo]
+IP=""
+```
+
+### <a name="Apollo_AppID"></a>21.3. `Apollo.AppID`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Apollo]
+AppID=""
+```
+
+### <a name="Apollo_NamespaceName"></a>21.4. `Apollo.NamespaceName`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Apollo]
+NamespaceName=""
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

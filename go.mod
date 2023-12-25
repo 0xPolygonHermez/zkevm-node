@@ -171,6 +171,7 @@ require (
 )
 
 require (
+	github.com/apolloconfig/agollo/v4 v4.3.1
 	github.com/fatih/color v1.15.0
 	github.com/joho/godotenv v1.5.1
 	github.com/nacos-group/nacos-sdk-go v1.1.4

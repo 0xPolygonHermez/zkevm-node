@@ -33,7 +33,7 @@ func TestUpdateGasPriceFollower(t *testing.T) {
 	ethM := new(ethermanMock)
 	ethM.On("GetL1GasPrice", ctx).Return(l1GasPrice).Once()
 	poolM.On("SetGasPrices", ctx, l2GasPrice, l1GasPrice.Uint64()).Return(nil).Once()
-	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM)
+	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM, nil)
 
 	ethM.On("GetL1GasPrice", ctx).Return(l1GasPrice, l1GasPrice).Once()
 	poolM.On("SetGasPrices", ctx, l2GasPrice, l1GasPrice.Uint64()).Return(nil).Once()
@@ -57,6 +57,6 @@ func TestLimitMasGasPrice(t *testing.T) {
 	ethM.On("GetL1GasPrice", ctx).Return(l1GasPrice)
 	// Ensure SetGasPrices is called with the MaxGasPriceWei
 	poolM.On("SetGasPrices", ctx, cfg.MaxGasPriceWei, l1GasPrice.Uint64()).Return(nil)
-	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM)
+	f := newFollowerGasPriceSuggester(ctx, cfg, poolM, ethM, nil)
 	f.UpdateGasPriceAvg()
 }

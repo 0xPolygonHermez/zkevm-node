@@ -17,15 +17,19 @@ type FollowerGasPrice struct {
 	ctx      context.Context
 	eth      ethermanInterface
 	kafkaPrc *KafkaProcessor
+
+	apolloConfig Apollo
 }
 
 // newFollowerGasPriceSuggester inits l2 follower gas price suggester which is based on the l1 gas price.
-func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool poolInterface, ethMan ethermanInterface) *FollowerGasPrice {
+func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool poolInterface, ethMan ethermanInterface, fetch Apollo) *FollowerGasPrice {
 	gps := &FollowerGasPrice{
 		cfg:  cfg,
 		pool: pool,
 		ctx:  ctx,
 		eth:  ethMan,
+
+		apolloConfig: fetch,
 	}
 	if cfg.EnableFollowerAdjustByL2L1Price {
 		gps.kafkaPrc = newKafkaProcessor(cfg, ctx)
@@ -36,6 +40,9 @@ func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool poolInte
 
 // UpdateGasPriceAvg updates the gas price.
 func (f *FollowerGasPrice) UpdateGasPriceAvg() {
+	if f.apolloConfig != nil {
+		f.apolloConfig.FetchL2GasPricerConfig(&f.cfg)
+	}
 	ctx := context.Background()
 	// Get L1 gasprice
 	l1GasPrice := f.eth.GetL1GasPrice(f.ctx)
