@@ -52,17 +52,17 @@ var (
 		MaxSHA256Hashes:      1596,
 	}
 	cfg = FinalizerCfg{
-		ForcedBatchDeadlineTimeout: cfgTypes.Duration{
+		ForcedBatchesTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		SleepDuration: cfgTypes.Duration{
+		NewTxsWaitInterval: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ClosingSignalsManagerWaitForCheckingForcedBatches: cfgTypes.Duration{
+		ForcedBatchesCheckInterval: cfgTypes.Duration{
 			Duration: 10 * time.Second,
 		},
-		ResourcePercentageToCloseBatch: 10,
-		SequentialReprocessFullBatch:   true,
+		ResourceExhaustedMarginPct: 10,
+		SequentialBatchSanityCheck: true,
 	}
 	poolCfg = pool.Config{
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
@@ -1050,7 +1050,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			// specifically for "Timestamp resolution deadline" test case
 			if tc.timestampResolutionDeadline == true {
 				// ensure that the batch is not empty and the timestamp is in the past
-				f.wipBatch.timestamp = now().Add(-f.cfg.TimestampResolution.Duration * 2)
+				f.wipBatch.timestamp = now().Add(-f.cfg.BatchMaxDeltaTimestamp.Duration * 2)
 				f.wipBatch.countOfTxs = 1
 			}
 
@@ -2124,7 +2124,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.ForcedBatchesTimeout.Duration.Seconds())
 
 	// act
 	f.setNextForcedBatchDeadline()
@@ -2137,7 +2137,7 @@ func TestFinalizer_getConstraintThresholdUint64(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
 	input := uint64(100)
-	expect := input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100
+	expect := input * uint64(f.cfg.ResourceExhaustedMarginPct) / 100
 
 	// act
 	result := f.getConstraintThresholdUint64(input)
@@ -2150,7 +2150,7 @@ func TestFinalizer_getConstraintThresholdUint32(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
 	input := uint32(100)
-	expect := input * f.cfg.ResourcePercentageToCloseBatch / 100
+	expect := input * f.cfg.ResourceExhaustedMarginPct / 100
 
 	// act
 	result := f.getConstraintThresholdUint32(input)

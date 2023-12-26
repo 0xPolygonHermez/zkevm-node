@@ -7,23 +7,23 @@ import (
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
-	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
+	// DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool
+	DeletePoolTxsL1BlockConfirmations uint64 `mapstructure:"DeletePoolTxsL1BlockConfirmations"`
 
-	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
-	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
+	// DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting
+	DeletePoolTxsCheckInterval types.Duration `mapstructure:"DeletePoolTxsCheckInterval"`
 
-	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
-	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
+	// TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime
+	TxLifetimeCheckInterval types.Duration `mapstructure:"TxLifetimeCheckInterval"`
 
-	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
-	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
+	// TxLifetimeMax is the time a tx can be in the sequencer/worker memory
+	TxLifetimeMax types.Duration `mapstructure:"TxLifetimeMax"`
 
-	// PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool
-	PoolRetrievalInterval types.Duration `mapstructure:"PoolRetrievalInterval"`
+	// LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool
+	LoadPoolTxsCheckInterval types.Duration `mapstructure:"LoadPoolTxsCheckInterval"`
 
-	// L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened
-	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+	// StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened
+	StateConsistencyCheckInterval types.Duration `mapstructure:"StateConsistencyCheckInterval"`
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
@@ -46,37 +46,37 @@ type StreamServerCfg struct {
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	// ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
-	ForcedBatchDeadlineTimeout types.Duration `mapstructure:"ForcedBatchDeadlineTimeout"`
+	// ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+	ForcedBatchesTimeout types.Duration `mapstructure:"ForcedBatchesTimeout"`
 
-	// SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
-	SleepDuration types.Duration `mapstructure:"SleepDuration"`
+	// NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	NewTxsWaitInterval types.Duration `mapstructure:"NewTxsWaitInterval"`
 
-	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
-	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
+	// ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed
+	ResourceExhaustedMarginPct uint32 `mapstructure:"ResourceExhaustedMarginPct"`
 
-	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
-	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+	// ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final
+	ForcedBatchesL1BlockConfirmations uint64 `mapstructure:"ForcedBatchesL1BlockConfirmations"`
 
-	// L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
-	L1InfoRootFinalityNumberOfBlocks uint64 `mapstructure:"L1InfoRootFinalityNumberOfBlocks"`
+	// L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final
+	L1InfoTreeL1BlockConfirmations uint64 `mapstructure:"L1InfoTreeL1BlockConfirmations"`
 
-	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
+	// ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation
+	ForcedBatchesCheckInterval types.Duration `mapstructure:"ForcedBatchesCheckInterval"`
 
-	// WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
-	WaitForCheckingL1InfoRoot types.Duration `mapstructure:"WaitForCheckingL1InfoRoot"`
+	// L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated
+	L1InfoTreeCheckInterval types.Duration `mapstructure:"L1InfoTreeCheckInterval"`
 
-	// TimestampResolution is the resolution of the timestamp used to close a batch
-	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+	// BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch
+	BatchMaxDeltaTimestamp types.Duration `mapstructure:"BatchMaxDeltaTimestamp"`
 
-	// L2BlockTime is the resolution of the timestamp used to close a L2 block
-	L2BlockTime types.Duration `mapstructure:"L2BlockTime"`
+	// L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block
+	L2BlockMaxDeltaTimestamp types.Duration `mapstructure:"L2BlockMaxDeltaTimestamp"`
 
-	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
-	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
+	// HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+	HaltOnBatchNumber uint64 `mapstructure:"HaltOnBatchNumber"`
 
-	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+	// SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
-	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
+	SequentialBatchSanityCheck bool `mapstructure:"SequentialBatchSanityCheck"`
 }

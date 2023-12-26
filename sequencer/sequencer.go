@@ -114,7 +114,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 // checkStateInconsistency checks if state inconsistency happened
 func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.L2ReorgRetrievalInterval.Duration)
+		time.Sleep(s.cfg.StateConsistencyCheckInterval.Duration)
 		stateInconsistenciesDetected, err := s.stateI.CountReorgs(ctx, nil)
 		if err != nil {
 			log.Error("failed to get number of reorgs: %v", err)
@@ -137,9 +137,9 @@ func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
 
 func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.FrequencyToCheckTxsForDelete.Duration)
+		time.Sleep(s.cfg.DeletePoolTxsCheckInterval.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
-		txHashes, err := s.stateI.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
+		txHashes, err := s.stateI.GetTxsOlderThanNL1Blocks(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
@@ -154,7 +154,7 @@ func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 
 		log.Infof("trying to delete failed txs from the pool")
 		// Delete failed txs older than a certain date (14 seconds per L1 block)
-		err = s.pool.DeleteFailedTransactionsOlderThan(ctx, time.Now().Add(-time.Duration(s.cfg.BlocksAmountForTxsToBeDeleted*14)*time.Second)) //nolint:gomnd
+		err = s.pool.DeleteFailedTransactionsOlderThan(ctx, time.Now().Add(-time.Duration(s.cfg.DeletePoolTxsL1BlockConfirmations*14)*time.Second)) //nolint:gomnd
 		if err != nil {
 			log.Errorf("failed to delete failed txs from the pool, err: %v", err)
 			continue
@@ -165,8 +165,8 @@ func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 
 func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.TxLifetimeCheckTimeout.Duration)
-		txTrackers := s.worker.ExpireTransactions(s.cfg.MaxTxLifetime.Duration)
+		time.Sleep(s.cfg.TxLifetimeCheckInterval.Duration)
+		txTrackers := s.worker.ExpireTransactions(s.cfg.TxLifetimeMax.Duration)
 		failedReason := ErrExpiredTransaction.Error()
 		for _, txTracker := range txTrackers {
 			err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
@@ -181,7 +181,7 @@ func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 // loadFromPool keeps loading transactions from the pool
 func (s *Sequencer) loadFromPool(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.PoolRetrievalInterval.Duration)
+		time.Sleep(s.cfg.LoadPoolTxsCheckInterval.Duration)
 
 		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx)
 		if err != nil && err != pool.ErrNotFound {
