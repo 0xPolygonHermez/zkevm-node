@@ -185,7 +185,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 	}
 
 	// Reprocess full batch as sanity check
-	if f.cfg.SequentialReprocessFullBatch {
+	if f.cfg.SequentialBatchSanityCheck {
 		// Do the full batch reprocess now
 		_, err := f.reprocessFullBatch(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot)
 		if err != nil {
@@ -207,8 +207,8 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 
 	log.Infof("batch %d closed", f.wipBatch.batchNumber)
 
-	if f.wipBatch.batchNumber == f.cfg.StopSequencerOnBatchNum {
-		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
+	if f.wipBatch.batchNumber == f.cfg.HaltOnBatchNumber {
+		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.HaltOnBatchNumber))
 	}
 
 	//TODO: Call DSUpdateGER function
@@ -399,7 +399,7 @@ func (f *finalizer) reprocessFullBatch(ctx context.Context, batchNum uint64, ini
 	}
 
 	caller := stateMetrics.DiscardCallerLabel
-	if f.cfg.SequentialReprocessFullBatch {
+	if f.cfg.SequentialBatchSanityCheck {
 		caller = stateMetrics.SequencerCallerLabel
 	}
 
@@ -536,12 +536,12 @@ func (f *finalizer) isBatchResourcesExhausted() bool {
 
 // getConstraintThresholdUint64 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint64(input uint64) uint64 {
-	return input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100 //nolint:gomnd
+	return input * uint64(f.cfg.ResourceExhaustedMarginPct) / 100 //nolint:gomnd
 }
 
 // getConstraintThresholdUint32 returns the threshold for the given input
 func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
-	return input * f.cfg.ResourcePercentageToCloseBatch / 100 //nolint:gomnd
+	return input * f.cfg.ResourceExhaustedMarginPct / 100 //nolint:gomnd
 }
 
 // getUsedBatchResources returns the max resources that can be used in a batch

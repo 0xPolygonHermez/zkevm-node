@@ -233,8 +233,8 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 		}
 
 		maxBlockNumber := uint64(0)
-		if f.cfg.L1InfoRootFinalityNumberOfBlocks <= lastL1BlockNumber {
-			maxBlockNumber = lastL1BlockNumber - f.cfg.L1InfoRootFinalityNumberOfBlocks
+		if f.cfg.L1InfoTreeL1BlockConfirmations <= lastL1BlockNumber {
+			maxBlockNumber = lastL1BlockNumber - f.cfg.L1InfoTreeL1BlockConfirmations
 		}
 
 		l1InfoRoot, err := f.state.GetLatestL1InfoRoot(ctx, maxBlockNumber)
@@ -260,7 +260,7 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 			}
 		}
 
-		time.Sleep(f.cfg.WaitForCheckingL1InfoRoot.Duration)
+		time.Sleep(f.cfg.L1InfoTreeCheckInterval.Duration)
 	}
 }
 
@@ -271,7 +271,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
-		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockTime.Duration).After(time.Now()) {
+		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockMaxDeltaTimestamp.Duration).After(time.Now()) {
 			f.finalizeL2Block(ctx)
 		}
 
@@ -309,8 +309,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				log.Debug("no transactions to be processed. Waiting...")
 				showNotFoundTxLog = false
 			}
-			if f.cfg.SleepDuration.Duration > 0 {
-				time.Sleep(f.cfg.SleepDuration.Duration)
+			if f.cfg.NewTxsWaitInterval.Duration > 0 {
+				time.Sleep(f.cfg.NewTxsWaitInterval.Duration)
 			}
 		}
 
@@ -723,9 +723,8 @@ func (f *finalizer) isDeadlineEncountered() bool {
 		log.Infof("closing batch %d, forced batch deadline encountered.", f.wipBatch.batchNumber)
 		return true
 	}
-	//TODO: rename f.cfg.TimestampResolution to BatchTime or BatchMaxTime
 	// Timestamp resolution deadline
-	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.TimestampResolution.Duration).Before(time.Now()) {
+	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.BatchMaxDeltaTimestamp.Duration).Before(time.Now()) {
 		log.Infof("closing batch %d, because of max batch time reached.", f.wipBatch.batchNumber)
 		f.wipBatch.closingReason = state.TimeoutResolutionDeadlineClosingReason
 		return true

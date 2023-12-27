@@ -1537,32 +1537,32 @@ FallbackToSequentialModeOnSynchronized=false
 **Type:** : `object`
 **Description:** Configuration of the sequencer service
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                            |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- |
-| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool |
-| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
-| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
-| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [PoolRetrievalInterval](#Sequencer_PoolRetrievalInterval )                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [L2ReorgRetrievalInterval](#Sequencer_L2ReorgRetrievalInterval )           | No      | string  | No         | -          | Duration                                                                                     |
-| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
+| Property                                                                             | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                |
+| ------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| - [DeletePoolTxsL1BlockConfirmations](#Sequencer_DeletePoolTxsL1BlockConfirmations ) | No      | integer | No         | -          | DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool |
+| - [DeletePoolTxsCheckInterval](#Sequencer_DeletePoolTxsCheckInterval )               | No      | string  | No         | -          | Duration                                                                                         |
+| - [TxLifetimeCheckInterval](#Sequencer_TxLifetimeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                         |
+| - [TxLifetimeMax](#Sequencer_TxLifetimeMax )                                         | No      | string  | No         | -          | Duration                                                                                         |
+| - [LoadPoolTxsCheckInterval](#Sequencer_LoadPoolTxsCheckInterval )                   | No      | string  | No         | -          | Duration                                                                                         |
+| - [StateConsistencyCheckInterval](#Sequencer_StateConsistencyCheckInterval )         | No      | string  | No         | -          | Duration                                                                                         |
+| - [Finalizer](#Sequencer_Finalizer )                                                 | No      | object  | No         | -          | Finalizer's specific config properties                                                           |
+| - [StreamServer](#Sequencer_StreamServer )                                           | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                              |
 
-### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>10.1. `Sequencer.BlocksAmountForTxsToBeDeleted`
+### <a name="Sequencer_DeletePoolTxsL1BlockConfirmations"></a>10.1. `Sequencer.DeletePoolTxsL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `100`
 
-**Description:** BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
+**Description:** DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool
 
 **Example setting the default value** (100):
 ```
 [Sequencer]
-BlocksAmountForTxsToBeDeleted=100
+DeletePoolTxsL1BlockConfirmations=100
 ```
 
-### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>10.2. `Sequencer.FrequencyToCheckTxsForDelete`
+### <a name="Sequencer_DeletePoolTxsCheckInterval"></a>10.2. `Sequencer.DeletePoolTxsCheckInterval`
 
 **Title:** Duration
 
@@ -1570,7 +1570,7 @@ BlocksAmountForTxsToBeDeleted=100
 
 **Default:** `"12h0m0s"`
 
-**Description:** FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
+**Description:** DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting
 
 **Examples:** 
 
@@ -1585,10 +1585,10 @@ BlocksAmountForTxsToBeDeleted=100
 **Example setting the default value** ("12h0m0s"):
 ```
 [Sequencer]
-FrequencyToCheckTxsForDelete="12h0m0s"
+DeletePoolTxsCheckInterval="12h0m0s"
 ```
 
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>10.3. `Sequencer.TxLifetimeCheckTimeout`
+### <a name="Sequencer_TxLifetimeCheckInterval"></a>10.3. `Sequencer.TxLifetimeCheckInterval`
 
 **Title:** Duration
 
@@ -1596,7 +1596,7 @@ FrequencyToCheckTxsForDelete="12h0m0s"
 
 **Default:** `"10m0s"`
 
-**Description:** TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
+**Description:** TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime
 
 **Examples:** 
 
@@ -1611,10 +1611,10 @@ FrequencyToCheckTxsForDelete="12h0m0s"
 **Example setting the default value** ("10m0s"):
 ```
 [Sequencer]
-TxLifetimeCheckTimeout="10m0s"
+TxLifetimeCheckInterval="10m0s"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>10.4. `Sequencer.MaxTxLifetime`
+### <a name="Sequencer_TxLifetimeMax"></a>10.4. `Sequencer.TxLifetimeMax`
 
 **Title:** Duration
 
@@ -1622,7 +1622,7 @@ TxLifetimeCheckTimeout="10m0s"
 
 **Default:** `"3h0m0s"`
 
-**Description:** MaxTxLifetime is the time a tx can be in the sequencer/worker memory
+**Description:** TxLifetimeMax is the time a tx can be in the sequencer/worker memory
 
 **Examples:** 
 
@@ -1637,10 +1637,10 @@ TxLifetimeCheckTimeout="10m0s"
 **Example setting the default value** ("3h0m0s"):
 ```
 [Sequencer]
-MaxTxLifetime="3h0m0s"
+TxLifetimeMax="3h0m0s"
 ```
 
-### <a name="Sequencer_PoolRetrievalInterval"></a>10.5. `Sequencer.PoolRetrievalInterval`
+### <a name="Sequencer_LoadPoolTxsCheckInterval"></a>10.5. `Sequencer.LoadPoolTxsCheckInterval`
 
 **Title:** Duration
 
@@ -1648,7 +1648,7 @@ MaxTxLifetime="3h0m0s"
 
 **Default:** `"500ms"`
 
-**Description:** PoolRetrievalInteral is the time the sequencer waits to check in there are new txs in the pool
+**Description:** LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool
 
 **Examples:** 
 
@@ -1663,10 +1663,10 @@ MaxTxLifetime="3h0m0s"
 **Example setting the default value** ("500ms"):
 ```
 [Sequencer]
-PoolRetrievalInterval="500ms"
+LoadPoolTxsCheckInterval="500ms"
 ```
 
-### <a name="Sequencer_L2ReorgRetrievalInterval"></a>10.6. `Sequencer.L2ReorgRetrievalInterval`
+### <a name="Sequencer_StateConsistencyCheckInterval"></a>10.6. `Sequencer.StateConsistencyCheckInterval`
 
 **Title:** Duration
 
@@ -1674,7 +1674,7 @@ PoolRetrievalInterval="500ms"
 
 **Default:** `"5s"`
 
-**Description:** L2ReorgRetrievalInterval is the time the sequencer waits to check if a state inconsistency has happened
+**Description:** StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened
 
 **Examples:** 
 
@@ -1689,7 +1689,7 @@ PoolRetrievalInterval="500ms"
 **Example setting the default value** ("5s"):
 ```
 [Sequencer]
-L2ReorgRetrievalInterval="5s"
+StateConsistencyCheckInterval="5s"
 ```
 
 ### <a name="Sequencer_Finalizer"></a>10.7. `[Sequencer.Finalizer]`
@@ -1697,21 +1697,21 @@ L2ReorgRetrievalInterval="5s"
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
 
-| Property                                                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [ForcedBatchDeadlineTimeout](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                                                                                                    |
-| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
-| - [L1InfoRootFinalityNumberOfBlocks](#Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks )                                   | No      | integer | No         | -          | L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final                                                                                                                              |
-| - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [WaitForCheckingL1InfoRoot](#Sequencer_Finalizer_WaitForCheckingL1InfoRoot )                                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [L2BlockTime](#Sequencer_Finalizer_L2BlockTime )                                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
-| - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
+| Property                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [ForcedBatchesTimeout](#Sequencer_Finalizer_ForcedBatchesTimeout )                           | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [NewTxsWaitInterval](#Sequencer_Finalizer_NewTxsWaitInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [ResourceExhaustedMarginPct](#Sequencer_Finalizer_ResourceExhaustedMarginPct )               | No      | integer | No         | -          | ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed                                                                                                  |
+| - [ForcedBatchesL1BlockConfirmations](#Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations ) | No      | integer | No         | -          | ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final                                                                                                                              |
+| - [L1InfoTreeL1BlockConfirmations](#Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations )       | No      | integer | No         | -          | L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final                                                                                                                          |
+| - [ForcedBatchesCheckInterval](#Sequencer_Finalizer_ForcedBatchesCheckInterval )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [L1InfoTreeCheckInterval](#Sequencer_Finalizer_L1InfoTreeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [BatchMaxDeltaTimestamp](#Sequencer_Finalizer_BatchMaxDeltaTimestamp )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [L2BlockMaxDeltaTimestamp](#Sequencer_Finalizer_L2BlockMaxDeltaTimestamp )                   | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
+| - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
+| - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                  |
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.7.1. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+#### <a name="Sequencer_Finalizer_ForcedBatchesTimeout"></a>10.7.1. `Sequencer.Finalizer.ForcedBatchesTimeout`
 
 **Title:** Duration
 
@@ -1719,7 +1719,7 @@ L2ReorgRetrievalInterval="5s"
 
 **Default:** `"1m0s"`
 
-**Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+**Description:** ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
 
 **Examples:** 
 
@@ -1734,10 +1734,10 @@ L2ReorgRetrievalInterval="5s"
 **Example setting the default value** ("1m0s"):
 ```
 [Sequencer.Finalizer]
-ForcedBatchDeadlineTimeout="1m0s"
+ForcedBatchesTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.7.2. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_NewTxsWaitInterval"></a>10.7.2. `Sequencer.Finalizer.NewTxsWaitInterval`
 
 **Title:** Duration
 
@@ -1745,7 +1745,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 
 **Default:** `"100ms"`
 
-**Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+**Description:** NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 
 **Examples:** 
 
@@ -1760,52 +1760,52 @@ ForcedBatchDeadlineTimeout="1m0s"
 **Example setting the default value** ("100ms"):
 ```
 [Sequencer.Finalizer]
-SleepDuration="100ms"
+NewTxsWaitInterval="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.7.3. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourceExhaustedMarginPct"></a>10.7.3. `Sequencer.Finalizer.ResourceExhaustedMarginPct`
 
 **Type:** : `integer`
 
 **Default:** `10`
 
-**Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+**Description:** ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed
 
 **Example setting the default value** (10):
 ```
 [Sequencer.Finalizer]
-ResourcePercentageToCloseBatch=10
+ResourceExhaustedMarginPct=10
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.7.4. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations"></a>10.7.4. `Sequencer.Finalizer.ForcedBatchesL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `64`
 
-**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+**Description:** ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final
 
 **Example setting the default value** (64):
 ```
 [Sequencer.Finalizer]
-ForcedBatchesFinalityNumberOfBlocks=64
+ForcedBatchesL1BlockConfirmations=64
 ```
 
-#### <a name="Sequencer_Finalizer_L1InfoRootFinalityNumberOfBlocks"></a>10.7.5. `Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations"></a>10.7.5. `Sequencer.Finalizer.L1InfoTreeL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `64`
 
-**Description:** L1InfoRootFinalityNumberOfBlocks is number of blocks to consider L1InfoRoot final
+**Description:** L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final
 
 **Example setting the default value** (64):
 ```
 [Sequencer.Finalizer]
-L1InfoRootFinalityNumberOfBlocks=64
+L1InfoTreeL1BlockConfirmations=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.7.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
+#### <a name="Sequencer_Finalizer_ForcedBatchesCheckInterval"></a>10.7.6. `Sequencer.Finalizer.ForcedBatchesCheckInterval`
 
 **Title:** Duration
 
@@ -1813,7 +1813,7 @@ L1InfoRootFinalityNumberOfBlocks=64
 
 **Default:** `"10s"`
 
-**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
+**Description:** ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation
 
 **Examples:** 
 
@@ -1828,10 +1828,10 @@ L1InfoRootFinalityNumberOfBlocks=64
 **Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
+ForcedBatchesCheckInterval="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_WaitForCheckingL1InfoRoot"></a>10.7.7. `Sequencer.Finalizer.WaitForCheckingL1InfoRoot`
+#### <a name="Sequencer_Finalizer_L1InfoTreeCheckInterval"></a>10.7.7. `Sequencer.Finalizer.L1InfoTreeCheckInterval`
 
 **Title:** Duration
 
@@ -1839,7 +1839,7 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 
 **Default:** `"10s"`
 
-**Description:** WaitForCheckingL1InfoRoot is the wait time to check if the L1InfoRoot has been updated
+**Description:** L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated
 
 **Examples:** 
 
@@ -1854,10 +1854,10 @@ ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
 **Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-WaitForCheckingL1InfoRoot="10s"
+L1InfoTreeCheckInterval="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.7.8. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_BatchMaxDeltaTimestamp"></a>10.7.8. `Sequencer.Finalizer.BatchMaxDeltaTimestamp`
 
 **Title:** Duration
 
@@ -1865,7 +1865,7 @@ WaitForCheckingL1InfoRoot="10s"
 
 **Default:** `"10s"`
 
-**Description:** TimestampResolution is the resolution of the timestamp used to close a batch
+**Description:** BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch
 
 **Examples:** 
 
@@ -1880,10 +1880,10 @@ WaitForCheckingL1InfoRoot="10s"
 **Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-TimestampResolution="10s"
+BatchMaxDeltaTimestamp="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_L2BlockTime"></a>10.7.9. `Sequencer.Finalizer.L2BlockTime`
+#### <a name="Sequencer_Finalizer_L2BlockMaxDeltaTimestamp"></a>10.7.9. `Sequencer.Finalizer.L2BlockMaxDeltaTimestamp`
 
 **Title:** Duration
 
@@ -1891,7 +1891,7 @@ TimestampResolution="10s"
 
 **Default:** `"3s"`
 
-**Description:** L2BlockTime is the resolution of the timestamp used to close a L2 block
+**Description:** L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block
 
 **Examples:** 
 
@@ -1906,36 +1906,36 @@ TimestampResolution="10s"
 **Example setting the default value** ("3s"):
 ```
 [Sequencer.Finalizer]
-L2BlockTime="3s"
+L2BlockMaxDeltaTimestamp="3s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.7.10. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_HaltOnBatchNumber"></a>10.7.10. `Sequencer.Finalizer.HaltOnBatchNumber`
 
 **Type:** : `integer`
 
 **Default:** `0`
 
-**Description:** StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+**Description:** HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
 
 **Example setting the default value** (0):
 ```
 [Sequencer.Finalizer]
-StopSequencerOnBatchNum=0
+HaltOnBatchNumber=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.7.11. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+#### <a name="Sequencer_Finalizer_SequentialBatchSanityCheck"></a>10.7.11. `Sequencer.Finalizer.SequentialBatchSanityCheck`
 
 **Type:** : `boolean`
 
 **Default:** `false`
 
-**Description:** SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+**Description:** SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a
 sequential way (instead than in parallel)
 
 **Example setting the default value** (false):
 ```
 [Sequencer.Finalizer]
-SequentialReprocessFullBatch=false
+SequentialBatchSanityCheck=false
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`

@@ -231,12 +231,12 @@ func (f *finalizer) sortForcedBatches(fb []state.ForcedBatch) []state.ForcedBatc
 
 // setNextForcedBatchDeadline sets the next forced batch deadline
 func (f *finalizer) setNextForcedBatchDeadline() {
-	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+	f.nextForcedBatchDeadline = now().Unix() + int64(f.cfg.ForcedBatchesTimeout.Duration.Seconds())
 }
 
 func (f *finalizer) checkForcedBatches(ctx context.Context) {
 	for {
-		time.Sleep(f.cfg.ClosingSignalsManagerWaitForCheckingForcedBatches.Duration)
+		time.Sleep(f.cfg.ForcedBatchesCheckInterval.Duration)
 
 		if f.lastForcedBatchNum == 0 {
 			lastTrustedForcedBatchNum, err := f.state.GetLastTrustedForcedBatchNumber(ctx, nil)
@@ -258,7 +258,7 @@ func (f *finalizer) checkForcedBatches(ctx context.Context) {
 		blockNumber := lastBlock.BlockNumber
 
 		maxBlockNumber := uint64(0)
-		finalityNumberOfBlocks := f.cfg.ForcedBatchesFinalityNumberOfBlocks
+		finalityNumberOfBlocks := f.cfg.ForcedBatchesL1BlockConfirmations
 
 		if finalityNumberOfBlocks <= blockNumber {
 			maxBlockNumber = blockNumber - finalityNumberOfBlocks
