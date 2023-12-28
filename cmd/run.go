@@ -361,7 +361,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	if _, ok := apis[jsonrpc.APIZKEVM]; ok {
 		services = append(services, jsonrpc.Service{
 			Name:    jsonrpc.APIZKEVM,
-			Service: jsonrpc.NewZKEVMEndpoints(c.RPC, st, etherman),
+			Service: jsonrpc.NewZKEVMEndpoints(c.RPC, pool, st, etherman),
 		})
 	}
 
