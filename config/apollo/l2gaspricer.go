@@ -63,5 +63,6 @@ func (c *Client) FetchL2GasPricerConfig(config *gasprice.Config) {
 	if c == nil || !c.config.Apollo.Enable || config == nil {
 		return
 	}
+
 	c.updateL2GasPricer(config, c.config.L2GasPriceSuggester)
 }

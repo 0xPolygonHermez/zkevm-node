@@ -324,7 +324,20 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	// Checking if batch requests are enabled
-	if !s.config.BatchRequestsEnabled {
+	var batchRequestEnable bool
+	var batchRequestLimit uint
+	// if apollo is enabled, get the config from apollo
+	if getApolloConfig().Enable() {
+		getApolloConfig().RLock()
+		batchRequestEnable = getApolloConfig().BatchRequestsEnabled
+		batchRequestLimit = getApolloConfig().BatchRequestsLimit
+		getApolloConfig().RUnlock()
+	} else {
+		batchRequestEnable = s.config.BatchRequestsEnabled
+		batchRequestLimit = s.config.BatchRequestsLimit
+	}
+
+	if !batchRequestEnable {
 		handleInvalidRequest(w, types.ErrBatchRequestsDisabled, http.StatusBadRequest)
 		return 0
 	}
@@ -337,8 +350,8 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	}
 
 	// Checking if batch requests limit is exceeded
-	if s.config.BatchRequestsLimit > 0 {
-		if len(requests) > int(s.config.BatchRequestsLimit) {
+	if batchRequestLimit > 0 {
+		if len(requests) > int(batchRequestLimit) {
 			handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded, http.StatusRequestEntityTooLarge)
 			return 0
 		}

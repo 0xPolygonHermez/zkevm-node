@@ -38,8 +38,8 @@ func NewClient(conf *nodeconfig.Config) *Client {
 	}
 
 	apc := &Client{
-		client,
-		conf,
+		Client: client,
+		config: conf,
 	}
 	client.AddChangeListener(&CustomChangeListener{apc})
 
@@ -59,6 +59,8 @@ func (c *Client) LoadConfig() (loaded bool) {
 			switch namespace {
 			case L2GasPricer:
 				c.loadL2GasPricer(value)
+			case JsonRPCRO, JsonRPCExplorer, JsonRPCSubgraph, JsonRPCLight:
+				c.loadJsonRPC(value)
 			}
 			return true
 		})
@@ -76,10 +78,12 @@ func (c *CustomChangeListener) OnChange(changeEvent *storage.ChangeEvent) {
 	for key, value := range changeEvent.Changes {
 		if value.ChangeType == storage.MODIFIED {
 			switch changeEvent.Namespace {
-			case L2GasPricerHalt:
+			case L2GasPricerHalt, JsonRPCROHalt, JsonRPCExplorerHalt, JsonRPCSubgraphHalt, JsonRPCLightHalt:
 				c.fireHalt(key, value)
 			case L2GasPricer:
 				c.fireL2GasPricer(key, value)
+			case JsonRPCRO, JsonRPCExplorer, JsonRPCSubgraph, JsonRPCLight:
+				c.fireJsonRPC(key, value)
 			}
 		}
 	}
