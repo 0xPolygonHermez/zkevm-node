@@ -53,7 +53,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 	// Make sure the transaction's batch resources are within the constraints.
 	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
-		log.Errorf("outOfCounters Error (Node level) for tx: %s", tx.Hash.String())
+		log.Errorf("outOfCounters error (node level) for tx %s", tx.Hash.String())
 		w.workerMutex.Unlock()
 		return nil, pool.ErrOutOfCounters
 	}
@@ -65,19 +65,19 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
-			dropReason = fmt.Errorf("[AddTxTracker] GetLastStateRoot error: %v", err)
+			dropReason = fmt.Errorf("error getting last state root from hashdb service, error: %w", err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			dropReason = fmt.Errorf("[AddTxTracker] GetNonceByStateRoot error: %v", err)
+			dropReason = fmt.Errorf("error getting nonce for address %s from hashdb service, error: %w", tx.From, err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			dropReason = fmt.Errorf("[AddTxTracker] GetBalanceByStateRoot error: %v", err)
+			dropReason = fmt.Errorf("error getting balance for address %s from hashdb service, error: %w", tx.From, err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}
@@ -88,31 +88,31 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		w.workerMutex.Lock()
 
 		w.pool[tx.FromStr] = addr
-		log.Debugf("new addrQueue created for addr(%s) nonce(%d) balance(%s)", tx.FromStr, nonce.Uint64(), balance.String())
+		log.Debugf("new addrQueue %s created (nonce: %d, balance: %s)", tx.FromStr, nonce.Uint64(), balance.String())
 	}
 
 	// Add the txTracker to Addr and get the newReadyTx and prevReadyTx
-	log.Infof("added new tx(%s) nonce(%d) gasPrice(%d) to addrQueue(%s) nonce(%d) balance(%d)", tx.HashStr, tx.Nonce, tx.GasPrice, addr.fromStr, addr.currentNonce, addr.currentBalance)
+	log.Infof("added new tx %s (nonce: %d, gasPrice: %d) to addrQueue %s (nonce: %d, balance: %d)", tx.HashStr, tx.Nonce, tx.GasPrice, addr.fromStr, addr.currentNonce, addr.currentBalance)
 	var newReadyTx, prevReadyTx, repTx *TxTracker
 	newReadyTx, prevReadyTx, repTx, dropReason = addr.addTx(tx)
 	if dropReason != nil {
-		log.Infof("dropped tx(%s) from addrQueue(%s), reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
+		log.Infof("dropped tx %s from addrQueue %s, reason: %s", tx.HashStr, tx.FromStr, dropReason.Error())
 		w.workerMutex.Unlock()
 		return repTx, dropReason
 	}
 
 	// Update the txSortedList (if needed)
 	if prevReadyTx != nil {
-		log.Debugf("[AddTxTracker] prevReadyTx(%s) nonce(%d) gasPrice(%d) addr(%s) deleted from TxSortedList", prevReadyTx.HashStr, prevReadyTx.Nonce, prevReadyTx.GasPrice, tx.FromStr)
+		log.Debugf("prevReadyTx %s (nonce: %d, gasPrice: %d, addr: %s) deleted from TxSortedList", prevReadyTx.HashStr, prevReadyTx.Nonce, prevReadyTx.GasPrice, tx.FromStr)
 		w.txSortedList.delete(prevReadyTx)
 	}
 	if newReadyTx != nil {
-		log.Debugf("[AddTxTracker] newReadyTx(%s) nonce(%d) gasPrice(%d) addr(%s) added to TxSortedList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.GasPrice, tx.FromStr)
+		log.Debugf("newReadyTx %s (nonce: %d, gasPrice: %d, addr: %s) added to TxSortedList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.GasPrice, tx.FromStr)
 		w.txSortedList.add(newReadyTx)
 	}
 
 	if repTx != nil {
-		log.Debugf("[AddTxTracker] replacedTx(%s) nonce(%d) gasPrice(%d) addr(%s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.GasPrice, tx.FromStr)
+		log.Debugf("tx %s (nonce: %d, gasPrice: %d, addr: %s) has been replaced", repTx.HashStr, repTx.Nonce, repTx.GasPrice, tx.FromStr)
 	}
 
 	w.workerMutex.Unlock()
@@ -127,11 +127,11 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 
 		// Update the TxSortedList (if needed)
 		if prevReadyTx != nil {
-			log.Debugf("[applyAddressUpdate] prevReadyTx(%s) nonce(%d) gasPrice(%d) deleted from TxSortedList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.GasPrice)
+			log.Debugf("prevReadyTx %s (nonce: %d, gasPrice: %d) deleted from TxSortedList", prevReadyTx.Hash.String(), prevReadyTx.Nonce, prevReadyTx.GasPrice)
 			w.txSortedList.delete(prevReadyTx)
 		}
 		if newReadyTx != nil {
-			log.Debugf("[applyAddressUpdate] newReadyTx(%s) nonce(%d) gasPrice(%d) added to TxSortedList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.GasPrice)
+			log.Debugf("newReadyTx %s (nonce: %d, gasPrice: %d) added to TxSortedList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.GasPrice)
 			w.txSortedList.add(newReadyTx)
 		}
 
@@ -146,7 +146,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 	if len(touchedAddresses) == 0 {
-		log.Warnf("[UpdateAfterSingleSuccessfulTxExecution] touchedAddresses is nil or empty")
+		log.Warnf("touchedAddresses is nil or empty")
 	}
 	txsToDelete := make([]*TxTracker, 0)
 	touchedFrom, found := touchedAddresses[from]
@@ -154,7 +154,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 		fromNonce, fromBalance := touchedFrom.Nonce, touchedFrom.Balance
 		_, _, txsToDelete = w.applyAddressUpdate(from, fromNonce, fromBalance)
 	} else {
-		log.Warnf("[updateAfterSingleSuccessfulTxExecution] from(%s) not found in touchedAddresses", from.String())
+		log.Warnf("from address %s not found in touchedAddresses", from.String())
 	}
 
 	for addr, addressInfo := range touchedAddresses {
@@ -170,7 +170,7 @@ func (w *Worker) UpdateAfterSingleSuccessfulTxExecution(from common.Address, tou
 func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
-	log.Debugf("[MoveTxToNotReady] tx(%s) from(%s) actualNonce(%d) actualBalance(%s)", txHash.String(), from.String(), actualNonce, actualBalance.String())
+	log.Debugf("move tx %s to notReady (from: %s, actualNonce: %d, actualBalance: %s)", txHash.String(), from.String(), actualNonce, actualBalance.String())
 
 	addrQueue, found := w.pool[from.String()]
 	if found {
@@ -180,7 +180,7 @@ func (w *Worker) MoveTxToNotReady(txHash common.Hash, from common.Address, actua
 			if addrQueue.readyTx != nil {
 				readyHashStr = addrQueue.readyTx.HashStr
 			}
-			log.Warnf("[MoveTxToNotReady] txHash(%s) is not the readyTx(%s)", txHash.String(), readyHashStr)
+			log.Warnf("tx %s is not the readyTx %s", txHash.String(), readyHashStr)
 		}
 	}
 	_, _, txsToDelete := w.applyAddressUpdate(from, actualNonce, actualBalance)
@@ -197,11 +197,11 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 	if found {
 		deletedReadyTx := addrQueue.deleteTx(txHash)
 		if deletedReadyTx != nil {
-			log.Debugf("[DeleteTx] tx(%s) deleted from TxSortedList", deletedReadyTx.Hash.String())
+			log.Debugf("tx %s deleted from TxSortedList", deletedReadyTx.Hash.String())
 			w.txSortedList.delete(deletedReadyTx)
 		}
 	} else {
-		log.Warnf("[DeleteTx] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -214,7 +214,7 @@ func (w *Worker) DeleteForcedTx(txHash common.Hash, addr common.Address) {
 	if found {
 		addrQueue.deleteForcedTx(txHash)
 	} else {
-		log.Warnf("[DeleteForcedTx] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -223,23 +223,23 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
-	log.Infof("update ZK counters for tx(%s) addr(%s)", txHash.String(), addr.String())
-	log.Debugf("[UpdateTxZKCounters] counters.CumulativeGasUsed: %d", counters.GasUsed)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedMemAligns: %d", counters.UsedMemAligns)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedArithmetics: %d", counters.UsedArithmetics)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedBinaries: %d", counters.UsedBinaries)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedSteps: %d", counters.UsedSteps)
-	log.Debugf("[UpdateTxZKCounters] counters.UsedSha256Hashes_V2: %d", counters.UsedSha256Hashes_V2)
+	log.Infof("update ZK counters for tx %s addr %s", txHash.String(), addr.String())
+	log.Debugf("counters.CumulativeGasUsed: %d", counters.GasUsed)
+	log.Debugf("counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
+	log.Debugf("counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
+	log.Debugf("counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)
+	log.Debugf("counters.UsedMemAligns: %d", counters.UsedMemAligns)
+	log.Debugf("counters.UsedArithmetics: %d", counters.UsedArithmetics)
+	log.Debugf("counters.UsedBinaries: %d", counters.UsedBinaries)
+	log.Debugf("counters.UsedSteps: %d", counters.UsedSteps)
+	log.Debugf("counters.UsedSha256Hashes_V2: %d", counters.UsedSha256Hashes_V2)
 
 	addrQueue, found := w.pool[addr.String()]
 
 	if found {
 		addrQueue.UpdateTxZKCounters(txHash, counters)
 	} else {
-		log.Warnf("[UpdateTxZKCounters] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -253,7 +253,7 @@ func (w *Worker) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
 	if found {
 		addrQueue.addPendingTxToStore(txHash)
 	} else {
-		log.Warnf("[AddPendingTxToStore] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -267,7 +267,7 @@ func (w *Worker) AddForcedTx(txHash common.Hash, addr common.Address) {
 	if found {
 		addrQueue.addForcedTx(txHash)
 	} else {
-		log.Warnf("[AddForcedTx] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -281,7 +281,7 @@ func (w *Worker) DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 	if found {
 		addrQueue.deletePendingTxToStore(txHash)
 	} else {
-		log.Warnf("[DeletePendingTxToStore] addrQueue(%s) not found", addr.String())
+		log.Warnf("addrQueue %s not found", addr.String())
 	}
 }
 
@@ -338,7 +338,7 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, e
 	wg.Wait()
 
 	if foundAt != -1 {
-		log.Debugf("[GetBestFittingTx] found tx(%s) at index(%d) with gasPrice(%d)", tx.Hash.String(), foundAt, tx.GasPrice)
+		log.Debugf("best fitting tx found: tx %s at index %d with gasPrice %d", tx.HashStr, foundAt, tx.GasPrice)
 		return tx, nil
 	} else {
 		return nil, ErrNoFittingTransaction
@@ -352,7 +352,7 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 
 	var txs []*TxTracker
 
-	log.Debug("expire transactions started. addrQueue len: ", len(w.pool))
+	log.Debugf("expire transactions started, addrQueue length: %d", len(w.pool))
 	for _, addrQueue := range w.pool {
 		subTxs, prevReadyTx := addrQueue.ExpireTransactions(maxTime)
 		txs = append(txs, subTxs...)
@@ -365,12 +365,7 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 			delete(w.pool, addrQueue.fromStr)
 		}
 	}
-	log.Debug("expire transactions ended. addrQueue len: ", len(w.pool), " deleteCount: ", len(txs))
+	log.Debug("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
 
 	return txs
-}
-
-// HandleL2Reorg handles the L2 reorg signal
-func (w *Worker) HandleL2Reorg(txHashes []common.Hash) {
-	log.Fatal("L2 Reorg detected. Restarting to sync with the new L2 state...")
 }
