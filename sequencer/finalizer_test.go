@@ -1870,7 +1870,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
+			result, err := f.batchSanityCheck(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
 
 			// assert
 			if tc.expectedError != nil {
@@ -1880,64 +1880,6 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 				assert.Equal(t, tc.expectedResult, result)
 			}
 			stateMock.AssertExpectations(t)
-			stateMock.AssertExpectations(t)
-		})
-	}
-}
-
-func TestFinalizer_getLastStateRoot(t *testing.T) {
-	f = setupFinalizer(false)
-	testCases := []struct {
-		name              string
-		mockBatches       []*state.Batch
-		mockError         error
-		expectedStateRoot common.Hash
-		expectedError     error
-	}{
-		{
-			name: "Success with two batches",
-			mockBatches: []*state.Batch{
-				{BatchNumber: 2, StateRoot: common.BytesToHash([]byte("stateRoot2"))},
-				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
-			},
-			mockError:         nil,
-			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
-			expectedError:     nil,
-		},
-		{
-			name: "Success with one batch",
-			mockBatches: []*state.Batch{
-				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
-			},
-			mockError:         nil,
-			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
-			expectedError:     nil,
-		},
-		{
-			name:              "Error while getting batches",
-			mockBatches:       nil,
-			mockError:         errors.New("database err"),
-			expectedStateRoot: common.Hash{},
-			expectedError:     errors.New("failed to get last 2 batches, err: database err"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			stateMock.On("GetLastNBatches", context.Background(), uint(2), nil).Return(tc.mockBatches, tc.mockError).Once()
-
-			// act
-			stateRoot, err := f.getLastStateRoot(context.Background())
-
-			// assert
-			assert.Equal(t, tc.expectedStateRoot, stateRoot)
-			if tc.expectedError != nil {
-				assert.EqualError(t, err, tc.expectedError.Error())
-			} else {
-				assert.NoError(t, err)
-			}
-
 			stateMock.AssertExpectations(t)
 		})
 	}
