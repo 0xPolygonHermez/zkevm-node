@@ -141,14 +141,14 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 	// Wait until all L2 blocks are processed by the executor
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
-	elapsed := time.Now().Sub(startWait)
+	elapsed := time.Since(startWait)
 	stateMetrics.ExecutorProcessingTime(string(stateMetrics.SequencerCallerLabel), elapsed)
 	log.Debugf("waiting for pending L2 blocks to be processed took: %v", elapsed)
 
 	// Wait until all L2 blocks are store
 	startWait = time.Now()
 	f.pendingL2BlocksToStoreWG.Wait()
-	log.Debugf("waiting for pending L2 blocks to be stored took: %v", time.Now().Sub(startWait))
+	log.Debugf("waiting for pending L2 blocks to be stored took: %v", time.Since(startWait))
 
 	var err error
 
