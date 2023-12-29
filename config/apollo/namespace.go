@@ -6,6 +6,11 @@ const (
 	// L2GasPricerHalt is the l2gaspricer halt namespace,change the Halt to different value will halt l2gaspricer
 	L2GasPricerHalt = "l2gaspricer-halt"
 
+	// Sequencer is the sequencer namespace,the content of the namespace is the config for sequencer with toml format
+	Sequencer = "sequencer.txt"
+	// SequencerHalt is the sequencer halt namespace,change the Halt to different value will halt sequencer
+	SequencerHalt = "sequencer-halt"
+
 	// JsonRPCRO is the json-rpc-ro namespace, the content of the namespace is the config for json-rpc-ro with toml format
 	JsonRPCRO = "jsonrpc-ro.txt"
 	// JsonRPCROHalt is the json-rpc-ro halt namespace,change the Halt to different value will halt json-rpc-ro
@@ -22,4 +27,8 @@ const (
 	JsonRPCLight = "jsonrpc-light.txt"
 	// JsonRPCLightHalt is the json-rpc-light halt namespace,change the Halt to different value will halt json-rpc-light
 	JsonRPCLightHalt = "jsonrpc-light-halt"
+	// JsonRPCBridge is the json-rpc-bridge namespace, the content of the namespace is the config for json-rpc-light with toml format
+	JsonRPCBridge = "jsonrpc-bridge.txt"
+	// JsonRPCBridgeHalt is the json-rpc-bridge halt namespace,change the Halt to different value will halt json-rpc-light
+	JsonRPCBridgeHalt = "jsonrpc-bridge-halt"
 )
