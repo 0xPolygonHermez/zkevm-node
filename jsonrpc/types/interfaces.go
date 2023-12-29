@@ -22,6 +22,8 @@ type PoolInterface interface {
 	GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Transaction, error)
 	CountPendingTransactions(ctx context.Context) (uint64, error)
 	GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error)
+	CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error)
+	EffectiveGasPriceEnabled() bool
 }
 
 // StateInterface gathers the methods required to interact with the state.

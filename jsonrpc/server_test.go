@@ -82,7 +82,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIZKEVM]; ok {
 		services = append(services, Service{
 			Name:    APIZKEVM,
-			Service: NewZKEVMEndpoints(cfg, st, etherman),
+			Service: NewZKEVMEndpoints(cfg, pool, st, etherman),
 		})
 	}
 
