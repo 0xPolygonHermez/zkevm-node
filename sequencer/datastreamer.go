@@ -5,7 +5,7 @@ import (
 )
 
 func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.ProcessBlockResponse) error {
-	forkID := f.state.GetForkIDByBatchNumber(batchNumber)
+	forkID := f.stateIntf.GetForkIDByBatchNumber(batchNumber)
 
 	// Send data to streamer
 	if f.streamServer != nil {
