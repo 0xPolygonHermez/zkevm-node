@@ -6,8 +6,7 @@ ALTER TABLE state.exit_root
 CREATE INDEX IF NOT EXISTS idx_exit_root_l1_info_tree_index ON state.exit_root (l1_info_tree_index);
 
 ALTER TABLE state.transaction
-    ADD COLUMN l2_hash VARCHAR UNIQUE,
-    ADD COLUMN used_sha256_hashes INTEGER;
+    ADD COLUMN l2_hash VARCHAR UNIQUE;
 
 CREATE INDEX IF NOT EXISTS idx_transaction_l2_hash ON state.transaction (l2_hash);
 
@@ -25,9 +24,8 @@ ALTER TABLE state.exit_root
 DROP INDEX IF EXISTS state.idx_exit_root_l1_info_tree_index;
 
 ALTER TABLE state.transaction
-    DROP COLUMN l2_hash,
-    DROP COLUMN used_sha256_hashes;
-
+    DROP COLUMN l2_hash;
+    
 DROP INDEX IF EXISTS state.idx_transaction_l2_hash;
 
 ALTER TABLE state.batch
