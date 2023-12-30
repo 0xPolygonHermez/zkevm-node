@@ -26,7 +26,7 @@ type Sequencer struct {
 	poolCfg  pool.Config
 
 	pool      txPool
-	stateI    stateInterface
+	stateIntf stateInterface
 	eventLog  *event.EventLog
 	etherman  etherman
 	worker    *Worker
@@ -41,21 +41,21 @@ type Sequencer struct {
 }
 
 // New init sequencer
-func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txPool, stateI stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
+func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txPool, stateIntf stateInterface, etherman etherman, eventLog *event.EventLog) (*Sequencer, error) {
 	addr, err := etherman.TrustedSequencer()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trusted sequencer address, error: %w", err)
 	}
 
 	sequencer := &Sequencer{
-		cfg:      cfg,
-		batchCfg: batchCfg,
-		poolCfg:  poolCfg,
-		pool:     txPool,
-		stateI:   stateI,
-		etherman: etherman,
-		address:  addr,
-		eventLog: eventLog,
+		cfg:       cfg,
+		batchCfg:  batchCfg,
+		poolCfg:   poolCfg,
+		pool:      txPool,
+		stateIntf: stateIntf,
+		etherman:  etherman,
+		address:   addr,
+		eventLog:  eventLog,
 	}
 
 	sequencer.dataToStream = make(chan state.DSL2FullBlock, batchCfg.Constraints.MaxTxsPerBatch*datastreamChannelMultiplier)
@@ -97,8 +97,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 		go s.sendDataToStreamer()
 	}
 
-	s.worker = NewWorker(s.stateI, s.batchCfg.Constraints)
-	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateI, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
+	s.worker = NewWorker(s.stateIntf, s.batchCfg.Constraints)
+	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateIntf, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
 	go s.finalizer.Start(ctx)
 
 	go s.deleteOldPoolTxs(ctx)
@@ -115,7 +115,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 	for {
 		time.Sleep(s.cfg.StateConsistencyCheckInterval.Duration)
-		stateInconsistenciesDetected, err := s.stateI.CountReorgs(ctx, nil)
+		stateInconsistenciesDetected, err := s.stateIntf.CountReorgs(ctx, nil)
 		if err != nil {
 			log.Error("failed to get number of reorgs, error: %w", err)
 			return
@@ -128,7 +128,7 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 }
 
 func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
-	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateI, true, nil)
+	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateIntf, true, nil)
 	if err != nil {
 		log.Fatalf("failed to generate data streamer file, error: %w", err)
 	}
@@ -139,7 +139,7 @@ func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 	for {
 		time.Sleep(s.cfg.DeletePoolTxsCheckInterval.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
-		txHashes, err := s.stateI.GetTxsOlderThanNL1Blocks(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, nil)
+		txHashes, err := s.stateIntf.GetTxsOlderThanNL1Blocks(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, error: %w", err)
 			continue
@@ -273,7 +273,7 @@ func (s *Sequencer) sendDataToStreamer() {
 			for _, l2Transaction := range l2Transactions {
 				// Populate intermediate state root
 				position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
-				imStateRoot, err := s.stateI.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+				imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
 				if err != nil {
 					log.Errorf("failed to get storage at for l2block %d, error: %w", l2Block.L2BlockNumber, err)
 				}
@@ -308,12 +308,12 @@ func (s *Sequencer) sendDataToStreamer() {
 }
 
 func (s *Sequencer) isSynced(ctx context.Context) bool {
-	lastVirtualBatchNum, err := s.stateI.GetLastVirtualBatchNum(ctx, nil)
+	lastVirtualBatchNum, err := s.stateIntf.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last isSynced batch, error: %w", err)
 		return false
 	}
-	lastTrustedBatchNum, err := s.stateI.GetLastBatchNumber(ctx, nil)
+	lastTrustedBatchNum, err := s.stateIntf.GetLastBatchNumber(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
 		log.Errorf("failed to get last batch num, error: %w", err)
 		return false

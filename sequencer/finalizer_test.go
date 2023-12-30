@@ -122,9 +122,9 @@ func TestNewFinalizer(t *testing.T) {
 	// assert
 	assert.NotNil(t, f)
 	assert.Equal(t, f.cfg, cfg)
-	assert.Equal(t, f.worker, workerMock)
+	assert.Equal(t, f.workerIntf, workerMock)
 	assert.Equal(t, poolMock, poolMock)
-	assert.Equal(t, f.state, stateMock)
+	assert.Equal(t, f.stateIntf, stateMock)
 	assert.Equal(t, f.sequencerAddress, seqAddr)
 	assert.Equal(t, f.batchConstraints, bc)
 }
@@ -2218,9 +2218,9 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		cfg:                        cfg,
 		isSynced:                   isSynced,
 		sequencerAddress:           seqAddr,
-		worker:                     workerMock,
-		pool:                       poolMock,
-		state:                      stateMock,
+		workerIntf:                 workerMock,
+		poolIntf:                   poolMock,
+		stateIntf:                  stateMock,
 		wipBatch:                   wipBatch,
 		batchConstraints:           bc,
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
