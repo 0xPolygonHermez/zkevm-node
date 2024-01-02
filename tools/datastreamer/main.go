@@ -574,15 +574,18 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	secondEntry := client.Entry
 	printEntry(secondEntry)
 
-	if l2BlockNumber != 0 {
-		client.FromEntry = firstEntry.Number + 2 //nolint:gomnd
+	i := uint64(2) //nolint:gomnd
+	for secondEntry.Type == state.EntryTypeL2Tx {
+
+		client.FromEntry = firstEntry.Number + i
 		err = client.ExecCommand(datastreamer.CmdEntry)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		thirdEntry := client.Entry
-		printEntry(thirdEntry)
+		secondEntry = client.Entry
+		printEntry(secondEntry)
+		i++
 	}
 
 	return nil
@@ -648,15 +651,17 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
-	printEntry(secondEntry)
 
-	if l2BlockNumber != 0 {
-		thirdEntry, err := streamServer.GetEntry(firstEntry.Number + 2) //nolint:gomnd
+	i := uint64(2) //nolint:gomnd
+	printEntry(secondEntry)
+	for secondEntry.Type == state.EntryTypeL2Tx {
+		secondEntry, err = streamServer.GetEntry(firstEntry.Number + i)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		printEntry(thirdEntry)
+		printEntry(secondEntry)
+		i++
 	}
 
 	return nil
