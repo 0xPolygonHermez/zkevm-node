@@ -28,7 +28,7 @@ MaxGRPCMessageSize = 100000000
 [MerkleTree]
 URI = "zkevm-prover:50061"
 MaxThreads = 20
-CacheFile = "merkle_tree_cache.json"
+CacheFile = ""
 
 [Log]
 Environment = "development" # "production" or "development"
