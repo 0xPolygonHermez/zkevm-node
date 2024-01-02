@@ -255,7 +255,7 @@ type Block struct {
 	Timestamp       ArgUint64           `json:"timestamp"`
 	ExtraData       ArgBytes            `json:"extraData"`
 	MixHash         common.Hash         `json:"mixHash"`
-	Nonce           *ArgBytes           `json:"nonce"`
+	Nonce           ArgBytes            `json:"nonce"`
 	Hash            *common.Hash        `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
@@ -273,13 +273,8 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		miner = &cb
 	}
 
-	var nonce *ArgBytes
-	if h.Nonce.Uint64() > 0 {
-		nBig := big.NewInt(0).SetUint64(h.Nonce.Uint64())
-		nBytes := common.LeftPadBytes(nBig.Bytes(), 8) //nolint:gomnd
-		n := ArgBytes(nBytes)
-		nonce = &n
-	}
+	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
+	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
 
 	difficulty := ArgUint64(0)
 	var totalDifficulty *ArgUint64
