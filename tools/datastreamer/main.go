@@ -223,7 +223,7 @@ func generate(cliCtx *cli.Context) error {
 	maxL2Block := lastL2BlockHeader.Number.Uint64()
 	imStateRoots = make(map[uint64][]byte, maxL2Block)
 
-	// Check if we have a cache file
+	// Check if a cache file exists
 	if c.MerkleTree.CacheFile != "" {
 		// Check if the file exists
 		if _, err := os.Stat(c.MerkleTree.CacheFile); os.IsNotExist(err) {
