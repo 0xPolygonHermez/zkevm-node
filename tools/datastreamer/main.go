@@ -227,7 +227,7 @@ func generate(cliCtx *cli.Context) error {
 	if c.MerkleTree.CacheFile != "" {
 		// Check if the file exists
 		if _, err := os.Stat(c.MerkleTree.CacheFile); os.IsNotExist(err) {
-			log.Warnf("Error: Cache file %s does not exist\n", c.MerkleTree.CacheFile)
+			log.Infof("Cache file %s does not exist\n", c.MerkleTree.CacheFile)
 		} else {
 			ReadFile, err := os.ReadFile(c.MerkleTree.CacheFile)
 			if err != nil {
@@ -243,8 +243,9 @@ func generate(cliCtx *cli.Context) error {
 	}
 
 	cacheLength := len(imStateRoots)
+	dif := int(maxL2Block) - cacheLength
 
-	for x := 0; x < c.MerkleTree.MaxThreads; x++ {
+	for x := 0; dif > 0 && x < c.MerkleTree.MaxThreads && x < dif; x++ {
 		start := uint64(x)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength)
 		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength) - 1
 
