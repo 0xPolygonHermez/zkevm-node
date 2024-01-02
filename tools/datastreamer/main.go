@@ -239,6 +239,7 @@ func generate(cliCtx *cli.Context) error {
 				fmt.Printf("Error: %v\n", err)
 				os.Exit(1)
 			}
+			log.Infof("Cache file %s loaded", c.MerkleTree.CacheFile)
 		}
 	}
 
