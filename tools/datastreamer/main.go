@@ -246,6 +246,8 @@ func generate(cliCtx *cli.Context) error {
 	cacheLength := len(imStateRoots)
 	dif := int(maxL2Block) - cacheLength
 
+	log.Debugf("Cache length: %d, Dif: %d\n", cacheLength, dif)
+
 	for x := 0; dif > 0 && x < c.MerkleTree.MaxThreads && x < dif; x++ {
 		start := uint64(x)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength)
 		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength) - 1
