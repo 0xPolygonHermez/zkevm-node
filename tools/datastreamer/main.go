@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -222,9 +223,30 @@ func generate(cliCtx *cli.Context) error {
 	maxL2Block := lastL2BlockHeader.Number.Uint64()
 	imStateRoots = make(map[uint64][]byte, maxL2Block)
 
+	// Check if we have a cache file
+	if c.MerkleTree.CacheFile != "" {
+		// Check if the file exists
+		if _, err := os.Stat(c.MerkleTree.CacheFile); os.IsNotExist(err) {
+			log.Warnf("Error: Cache file %s does not exist\n", c.MerkleTree.CacheFile)
+		} else {
+			ReadFile, err := os.ReadFile(c.MerkleTree.CacheFile)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
+			err = json.Unmarshal(ReadFile, &imStateRoots)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	cacheLength := len(imStateRoots)
+
 	for x := 0; x < c.MerkleTree.MaxThreads; x++ {
-		start := uint64(x) * (maxL2Block / uint64(c.MerkleTree.MaxThreads))
-		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) - 1
+		start := uint64(x)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength)
+		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength) - 1
 
 		wg.Add(1)
 		go func(i int) {
@@ -235,6 +257,16 @@ func generate(cliCtx *cli.Context) error {
 	}
 
 	wg.Wait()
+
+	// Convert imStateRoots to a json and save it to a file
+	if c.MerkleTree.CacheFile != "" {
+		jsonFile, _ := json.Marshal(imStateRoots)
+		err = os.WriteFile(c.MerkleTree.CacheFile, jsonFile, 0644) // nolint:gosec, gomnd
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
@@ -576,7 +608,6 @@ func decodeL2Block(cliCtx *cli.Context) error {
 
 	i := uint64(2) //nolint:gomnd
 	for secondEntry.Type == state.EntryTypeL2Tx {
-
 		client.FromEntry = firstEntry.Number + i
 		err = client.ExecCommand(datastreamer.CmdEntry)
 		if err != nil {
