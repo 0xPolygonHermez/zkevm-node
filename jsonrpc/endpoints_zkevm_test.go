@@ -1429,13 +1429,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		miner = &cb
 	}
 
-	var rpcBlockNonce *types.ArgBytes
-	if l2Block.Nonce() > 0 {
-		nBig := big.NewInt(0).SetUint64(l2Block.Nonce())
-		nBytes := common.LeftPadBytes(nBig.Bytes(), 8) //nolint:gomnd
-		n := types.ArgBytes(nBytes)
-		rpcBlockNonce = &n
-	}
+	n := big.NewInt(0).SetUint64(l2Block.Nonce())
+	rpcBlockNonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
 
 	difficulty := types.ArgUint64(0)
 	var totalDifficulty *types.ArgUint64
@@ -1622,6 +1617,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
+				tc.ExpectedResult.Nonce = rpcBlockNonce
 
 				m.DbTx.
 					On("Commit", context.Background()).
