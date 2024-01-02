@@ -205,9 +205,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 		// firstTxToInsert := len(existingTxs)
 
-		firstTxToInsert := 0
-
-		for i := firstTxToInsert; i < len(processedTxs); i++ {
+		for i := 0; i < len(processedTxs); i++ {
 			processedTx := processedTxs[i]
 			// if the transaction has an intrinsic invalid tx error it means
 			// the transaction has not changed the state, so we don't store it
@@ -232,7 +230,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			})
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := GenerateReceipt(header.Number, processedTx)
+			receipt := GenerateReceipt(header.Number, processedTx, uint(i))
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -304,7 +302,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
 		}
 
-		receipt := GenerateReceipt(header.Number, txResponse)
+		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
 		receipts = append(receipts, receipt)
 	}
 
@@ -681,7 +679,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	})
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt := GenerateReceipt(header.Number, processedTx)
+	receipt := GenerateReceipt(header.Number, processedTx, 0)
 	receipts := []*types.Receipt{receipt}
 
 	// Create l2Block to be able to calculate its hash

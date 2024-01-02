@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -463,6 +464,36 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 	return err
 }
 
+// AddReceipts adds a list of receipts to the State Store
+func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, dbTx pgx.Tx) error {
+	if len(receipts) == 0 {
+		return nil
+	}
+
+	e := p.getExecQuerier(dbTx)
+
+	var egp uint64
+
+	var addReceiptsSQL = "INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address) VALUES "
+
+	for _, receipt := range receipts {
+		if receipt.EffectiveGasPrice != nil {
+			egp = receipt.EffectiveGasPrice.Uint64()
+		}
+
+		addReceiptsSQL = addReceiptsSQL + fmt.Sprintf("('%s', %d, '\\x%s', %d, %d, %d, %d, %d, %d, '%s'),",
+			receipt.TxHash.String(), receipt.Type, hex.EncodeToString(receipt.PostState), receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+
+	}
+
+	// remove last comma
+	addReceiptsSQL = addReceiptsSQL[:len(addReceiptsSQL)-1]
+
+	_, err := e.Exec(ctx, addReceiptsSQL)
+
+	return err
+}
+
 // AddLog adds a new log to the State Store
 func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
 	const addLogSQL = `INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3)
@@ -478,6 +509,35 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	_, err := e.Exec(ctx, addLogSQL,
 		l.TxHash.String(), l.Index, l.Address.String(), hex.EncodeToHex(l.Data),
 		topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
+	return err
+}
+
+// // AddLogs adds a list of logs to the State Store
+func (p *PostgresStorage) AddLogs(ctx context.Context, logs []*types.Log, dbTx pgx.Tx) error {
+	if len(logs) == 0 {
+		return nil
+	}
+
+	var addLogsSQL = "INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3) VALUES "
+
+	e := p.getExecQuerier(dbTx)
+
+	for _, l := range logs {
+		var topicsAsHex [maxTopics]string
+		for i := 0; i < len(l.Topics); i++ {
+			topicHex := l.Topics[i].String()
+			topicsAsHex[i] = topicHex
+		}
+
+		addLogsSQL = addLogsSQL + fmt.Sprintf("('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s'),",
+			l.TxHash.String(), l.Index, l.Address.String(), hex.EncodeToHex(l.Data), topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
+	}
+
+	// remove last comma
+	addLogsSQL = addLogsSQL[:len(addLogsSQL)-1]
+
+	_, err := e.Exec(ctx, addLogsSQL)
+
 	return err
 }
 
