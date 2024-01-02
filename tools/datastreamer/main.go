@@ -249,8 +249,8 @@ func generate(cliCtx *cli.Context) error {
 	log.Infof("Cache length: %d, Max L2Block: %d, Dif: %d", cacheLength, maxL2Block, dif)
 
 	for x := 0; dif > 0 && x < c.MerkleTree.MaxThreads && x < dif; x++ {
-		start := uint64(x)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength)
-		end := uint64(x+1)*(maxL2Block/uint64(c.MerkleTree.MaxThreads)) + uint64(cacheLength) - 1
+		start := uint64((x * dif / c.MerkleTree.MaxThreads) + cacheLength)
+		end := uint64(((x + 1) * dif / c.MerkleTree.MaxThreads) + cacheLength - 1)
 
 		wg.Add(1)
 		go func(i int) {
