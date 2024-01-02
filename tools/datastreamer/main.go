@@ -152,7 +152,7 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 }
@@ -175,7 +175,7 @@ func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error
 func generate(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -183,14 +183,14 @@ func generate(cliCtx *cli.Context) error {
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	// Connect to the database
 	stateSqlDB, err := db.NewSQLDB(c.StateDB)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 	defer stateSqlDB.Close()
@@ -216,7 +216,7 @@ func generate(cliCtx *cli.Context) error {
 
 	lastL2BlockHeader, err := stateDB.GetLastL2BlockHeader(cliCtx.Context, nil)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -231,12 +231,12 @@ func generate(cliCtx *cli.Context) error {
 		} else {
 			ReadFile, err := os.ReadFile(c.MerkleTree.CacheFile)
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 			err = json.Unmarshal(ReadFile, &imStateRoots)
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 			log.Infof("Cache file %s loaded", c.MerkleTree.CacheFile)
@@ -255,7 +255,7 @@ func generate(cliCtx *cli.Context) error {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			log.Debugf("Thread %d: Start: %d, End: %d\n", i, start, end)
+			log.Debugf("Thread %d: Start: %d, End: %d, Total: %d", i, start, end, end-start)
 			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
 		}(x)
 	}
@@ -267,14 +267,14 @@ func generate(cliCtx *cli.Context) error {
 		jsonFile, _ := json.Marshal(imStateRoots)
 		err = os.WriteFile(c.MerkleTree.CacheFile, jsonFile, 0644) // nolint:gosec, gomnd
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 	}
 
 	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -301,7 +301,7 @@ func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[u
 func reprocess(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -326,7 +326,7 @@ func reprocess(cliCtx *cli.Context) error {
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -345,7 +345,7 @@ func reprocess(cliCtx *cli.Context) error {
 
 		stateRoot, err = setGenesis(ctx, stateTree, networkConfig.Genesis)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 
@@ -357,14 +357,14 @@ func reprocess(cliCtx *cli.Context) error {
 
 		firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		printEntry(firstEntry)
 
 		secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		printEntry(secondEntry)
@@ -392,7 +392,7 @@ func reprocess(cliCtx *cli.Context) error {
 
 	startEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -404,7 +404,7 @@ func reprocess(cliCtx *cli.Context) error {
 
 		currentEntry, err := streamServer.GetEntry(x)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 
@@ -440,14 +440,14 @@ func reprocess(cliCtx *cli.Context) error {
 
 			txEntry, err := streamServer.GetEntry(startEntry.Number + 1)
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 			printEntry(txEntry)
 
 			endEntry, err := streamServer.GetEntry(startEntry.Number + 2) //nolint:gomnd
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 			printEntry(endEntry)
@@ -456,7 +456,7 @@ func reprocess(cliCtx *cli.Context) error {
 
 			tx, err := state.DecodeTx(common.Bytes2Hex((txEntry.Data[6:])))
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 
@@ -466,7 +466,7 @@ func reprocess(cliCtx *cli.Context) error {
 			// RLP encode the transaction using the proper fork id
 			batchL2Data, err := state.EncodeTransaction(*tx, txEntry.Data[0], forkID) //nolint:gomnd
 			if err != nil {
-				fmt.Printf("Error: %v\n", err)
+				log.Error(err)
 				os.Exit(1)
 			}
 
@@ -491,7 +491,7 @@ func reprocess(cliCtx *cli.Context) error {
 		// Process batch
 		processBatchResponse, err := executorClient.ProcessBatch(ctx, processBatchRequest)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 
@@ -533,7 +533,7 @@ func reprocess(cliCtx *cli.Context) error {
 func decodeEntry(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -541,20 +541,20 @@ func decodeEntry(cliCtx *cli.Context) error {
 
 	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	err = client.Start()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	client.FromEntry = cliCtx.Uint64("entry")
 	err = client.ExecCommand(datastreamer.CmdEntry)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -565,7 +565,7 @@ func decodeEntry(cliCtx *cli.Context) error {
 func decodeL2Block(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -573,13 +573,13 @@ func decodeL2Block(cliCtx *cli.Context) error {
 
 	client, err := datastreamer.NewClient(c.Online.URI, c.Online.StreamType)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	err = client.Start()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -593,7 +593,7 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	client.FromBookmark = bookMark.Encode()
 	err = client.ExecCommand(datastreamer.CmdBookmark)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -603,7 +603,7 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	client.FromEntry = firstEntry.Number + 1
 	err = client.ExecCommand(datastreamer.CmdEntry)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -615,7 +615,7 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		client.FromEntry = firstEntry.Number + i
 		err = client.ExecCommand(datastreamer.CmdEntry)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		secondEntry = client.Entry
@@ -629,7 +629,7 @@ func decodeL2Block(cliCtx *cli.Context) error {
 func decodeEntryOffline(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -637,13 +637,13 @@ func decodeEntryOffline(cliCtx *cli.Context) error {
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	entry, err := streamServer.GetEntry(cliCtx.Uint64("entry"))
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -655,7 +655,7 @@ func decodeEntryOffline(cliCtx *cli.Context) error {
 func decodeL2BlockOffline(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -663,7 +663,7 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -676,14 +676,14 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 
 	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 	printEntry(firstEntry)
 
 	secondEntry, err := streamServer.GetEntry(firstEntry.Number + 1)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -692,7 +692,7 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 	for secondEntry.Type == state.EntryTypeL2Tx {
 		secondEntry, err = streamServer.GetEntry(firstEntry.Number + i)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		printEntry(secondEntry)
@@ -705,7 +705,7 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 func truncate(cliCtx *cli.Context) error {
 	c, err := config.Load(cliCtx)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -713,13 +713,13 @@ func truncate(cliCtx *cli.Context) error {
 
 	streamServer, err := initializeStreamServer(c)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
 	err = streamServer.TruncateFile(cliCtx.Uint64("entry"))
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		log.Error(err)
 		os.Exit(1)
 	}
 
@@ -775,14 +775,14 @@ func printEntry(entry datastreamer.FileEntry) {
 
 		tx, err := state.DecodeTx(common.Bytes2Hex(dsTx.Encoded))
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		printColored(color.FgGreen, "Decoded.........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%+v\n", tx))
 		sender, err := state.GetSender(*tx)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 		printColored(color.FgGreen, "Sender..........: ")
@@ -913,7 +913,7 @@ func getOldStateRoot(entityNumber uint64, streamServer *datastreamer.StreamServe
 		entityNumber--
 		entry, err = streamServer.GetEntry(entityNumber)
 		if err != nil {
-			fmt.Printf("Error: %v\n", err)
+			log.Error(err)
 			os.Exit(1)
 		}
 
