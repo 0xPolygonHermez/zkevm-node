@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -197,16 +196,16 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	}
 
 	if len(l2Block.Transactions()) > 0 {
-		var addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, egp_log, l2_hash) VALUES "
+		txRows := [][]interface{}{}
 
 		for idx, tx := range l2Block.Transactions() {
-			egpLog := ""
+			egpLogBytes := []byte{}
 			if txsEGPData != nil {
-				egpLogBytes, err := json.Marshal(txsEGPData[idx].EGPLog)
+				var err error
+				egpLogBytes, err = json.Marshal(txsEGPData[idx].EGPLog)
 				if err != nil {
 					return err
 				}
-				egpLog = string(egpLogBytes)
 			}
 
 			binary, err := tx.MarshalBinary()
@@ -215,26 +214,24 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 			}
 			encoded := hex.EncodeToHex(binary)
 
-			binary, err = tx.MarshalJSON()
+			decoded, err := tx.MarshalJSON()
 			if err != nil {
 				return err
 			}
-			decoded := string(binary)
 
 			l2TxHash, err := state.GetL2Hash(*tx)
 			if err != nil {
 				return err
 			}
 
-			addTransactionSQL = addTransactionSQL + fmt.Sprintf("('%s', '%s', '%s', %d, %d, '%s', '%s'),",
-				tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLog, l2TxHash.String())
-
+			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes, l2TxHash.String()}
+			txRows = append(txRows, txRow)
 		}
 
-		// remove last comma
-		addTransactionSQL = addTransactionSQL[:len(addTransactionSQL)-1]
+		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"},
+			[]string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log", "l2_hash"},
+			pgx.CopyFromRows(txRows))
 
-		_, err := e.Exec(ctx, addTransactionSQL)
 		if err != nil {
 			return err
 		}

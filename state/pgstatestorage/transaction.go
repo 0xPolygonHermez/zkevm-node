@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -470,26 +469,20 @@ func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Rec
 		return nil
 	}
 
-	e := p.getExecQuerier(dbTx)
-
-	var egp uint64
-
-	var addReceiptsSQL = "INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address) VALUES "
+	receiptRows := [][]interface{}{}
 
 	for _, receipt := range receipts {
+		var egp uint64
 		if receipt.EffectiveGasPrice != nil {
 			egp = receipt.EffectiveGasPrice.Uint64()
 		}
-
-		addReceiptsSQL = addReceiptsSQL + fmt.Sprintf("('%s', %d, '\\x%s', %d, %d, %d, %d, %d, %d, '%s'),",
-			receipt.TxHash.String(), receipt.Type, hex.EncodeToString(receipt.PostState), receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
-
+		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
+		receiptRows = append(receiptRows, receiptRow)
 	}
 
-	// remove last comma
-	addReceiptsSQL = addReceiptsSQL[:len(addReceiptsSQL)-1]
-
-	_, err := e.Exec(ctx, addReceiptsSQL)
+	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "receipt"},
+		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address"},
+		pgx.CopyFromRows(receiptRows))
 
 	return err
 }
@@ -518,25 +511,21 @@ func (p *PostgresStorage) AddLogs(ctx context.Context, logs []*types.Log, dbTx p
 		return nil
 	}
 
-	var addLogsSQL = "INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3) VALUES "
+	logsRows := [][]interface{}{}
 
-	e := p.getExecQuerier(dbTx)
-
-	for _, l := range logs {
-		var topicsAsHex [maxTopics]string
-		for i := 0; i < len(l.Topics); i++ {
-			topicHex := l.Topics[i].String()
-			topicsAsHex[i] = topicHex
+	for _, log := range logs {
+		var topicsAsHex [maxTopics]*string
+		for i := 0; i < len(log.Topics); i++ {
+			topicHex := log.Topics[i].String()
+			topicsAsHex[i] = &topicHex
 		}
-
-		addLogsSQL = addLogsSQL + fmt.Sprintf("('%s', %d, '%s', '%s', '%s', '%s', '%s', '%s'),",
-			l.TxHash.String(), l.Index, l.Address.String(), hex.EncodeToHex(l.Data), topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
+		logRow := []interface{}{log.TxHash.String(), log.Index, log.Address.String(), hex.EncodeToHex(log.Data), topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3]}
+		logsRows = append(logsRows, logRow)
 	}
 
-	// remove last comma
-	addLogsSQL = addLogsSQL[:len(addLogsSQL)-1]
-
-	_, err := e.Exec(ctx, addLogsSQL)
+	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "log"},
+		[]string{"tx_hash", "log_index", "address", "data", "topic0", "topic1", "topic2", "topic3"},
+		pgx.CopyFromRows(logsRows))
 
 	return err
 }
