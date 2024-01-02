@@ -286,12 +286,12 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	}
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
-	log.Debug(processBatchResponseToString(res, ""))
 	if err != nil {
 		log.Errorf("Error s.executorClient.ProcessBatchV2: %v", err)
 		log.Errorf("Error s.executorClient.ProcessBatchV2: %s", err.Error())
 		log.Errorf("Error s.executorClient.ProcessBatchV2 response: %v", res)
 	} else if res.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		log.Debug(processBatchResponseToString(res, ""))
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, res.Error, processBatchRequest)
 	}

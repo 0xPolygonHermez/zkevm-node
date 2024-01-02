@@ -116,24 +116,24 @@ L1SynchronizationMode = "parallel"
 			ApplyAfterNumRollupReceived = 10
 
 [Sequencer]
-BlocksAmountForTxsToBeDeleted = 100
-FrequencyToCheckTxsForDelete = "12h"
-TxLifetimeCheckTimeout = "10m"
-MaxTxLifetime = "3h"
-PoolRetrievalInterval = "500ms"
-L2ReorgRetrievalInterval = "5s"
+DeletePoolTxsL1BlockConfirmations = 100
+DeletePoolTxsCheckInterval = "12h"
+TxLifetimeCheckInterval = "10m"
+TxLifetimeMax = "3h"
+LoadPoolTxsCheckInterval = "500ms"
+StateConsistencyCheckInterval = "5s"
 	[Sequencer.Finalizer]
-		ForcedBatchDeadlineTimeout = "60s"
-		SleepDuration = "100ms"
-		ResourcePercentageToCloseBatch = 10
-		ForcedBatchesFinalityNumberOfBlocks = 64
-		L1InfoRootFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		WaitForCheckingL1InfoRoot = "10s"
-		TimestampResolution = "10s"
-		L2BlockTime = "3s"
-		StopSequencerOnBatchNum = 0
-		SequentialReprocessFullBatch = false
+		NewTxsWaitInterval = "100ms"
+		ForcedBatchesTimeout = "60s"
+		ForcedBatchesL1BlockConfirmations = 64
+		ForcedBatchesCheckInterval = "10s"
+		L1InfoTreeL1BlockConfirmations = 64
+		L1InfoTreeCheckInterval = "10s"
+		BatchMaxDeltaTimestamp = "10s"
+		L2BlockMaxDeltaTimestamp = "3s"
+		ResourceExhaustedMarginPct = 10
+		HaltOnBatchNumber = 0
+		SequentialBatchSanityCheck = false
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

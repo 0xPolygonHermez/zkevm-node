@@ -52,17 +52,17 @@ var (
 		MaxSHA256Hashes:      1596,
 	}
 	cfg = FinalizerCfg{
-		ForcedBatchDeadlineTimeout: cfgTypes.Duration{
+		ForcedBatchesTimeout: cfgTypes.Duration{
 			Duration: 60,
 		},
-		SleepDuration: cfgTypes.Duration{
+		NewTxsWaitInterval: cfgTypes.Duration{
 			Duration: 60,
 		},
-		ClosingSignalsManagerWaitForCheckingForcedBatches: cfgTypes.Duration{
+		ForcedBatchesCheckInterval: cfgTypes.Duration{
 			Duration: 10 * time.Second,
 		},
-		ResourcePercentageToCloseBatch: 10,
-		SequentialReprocessFullBatch:   true,
+		ResourceExhaustedMarginPct: 10,
+		SequentialBatchSanityCheck: true,
 	}
 	poolCfg = pool.Config{
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
@@ -122,9 +122,9 @@ func TestNewFinalizer(t *testing.T) {
 	// assert
 	assert.NotNil(t, f)
 	assert.Equal(t, f.cfg, cfg)
-	assert.Equal(t, f.worker, workerMock)
+	assert.Equal(t, f.workerIntf, workerMock)
 	assert.Equal(t, poolMock, poolMock)
-	assert.Equal(t, f.state, stateMock)
+	assert.Equal(t, f.stateIntf, stateMock)
 	assert.Equal(t, f.sequencerAddress, seqAddr)
 	assert.Equal(t, f.batchConstraints, bc)
 }
@@ -1050,7 +1050,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			// specifically for "Timestamp resolution deadline" test case
 			if tc.timestampResolutionDeadline == true {
 				// ensure that the batch is not empty and the timestamp is in the past
-				f.wipBatch.timestamp = now().Add(-f.cfg.TimestampResolution.Duration * 2)
+				f.wipBatch.timestamp = now().Add(-f.cfg.BatchMaxDeltaTimestamp.Duration * 2)
 				f.wipBatch.countOfTxs = 1
 			}
 
@@ -1870,7 +1870,7 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 			}
 
 			// act
-			result, err := f.reprocessFullBatch(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
+			result, err := f.batchSanityCheck(context.Background(), tc.batchNum, f.wipBatch.initialStateRoot, newHash)
 
 			// assert
 			if tc.expectedError != nil {
@@ -1880,64 +1880,6 @@ func TestFinalizer_reprocessFullBatch(t *testing.T) {
 				assert.Equal(t, tc.expectedResult, result)
 			}
 			stateMock.AssertExpectations(t)
-			stateMock.AssertExpectations(t)
-		})
-	}
-}
-
-func TestFinalizer_getLastStateRoot(t *testing.T) {
-	f = setupFinalizer(false)
-	testCases := []struct {
-		name              string
-		mockBatches       []*state.Batch
-		mockError         error
-		expectedStateRoot common.Hash
-		expectedError     error
-	}{
-		{
-			name: "Success with two batches",
-			mockBatches: []*state.Batch{
-				{BatchNumber: 2, StateRoot: common.BytesToHash([]byte("stateRoot2"))},
-				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
-			},
-			mockError:         nil,
-			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
-			expectedError:     nil,
-		},
-		{
-			name: "Success with one batch",
-			mockBatches: []*state.Batch{
-				{BatchNumber: 1, StateRoot: common.BytesToHash([]byte("stateRoot1"))},
-			},
-			mockError:         nil,
-			expectedStateRoot: common.BytesToHash([]byte("stateRoot1")),
-			expectedError:     nil,
-		},
-		{
-			name:              "Error while getting batches",
-			mockBatches:       nil,
-			mockError:         errors.New("database err"),
-			expectedStateRoot: common.Hash{},
-			expectedError:     errors.New("failed to get last 2 batches, err: database err"),
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// arrange
-			stateMock.On("GetLastNBatches", context.Background(), uint(2), nil).Return(tc.mockBatches, tc.mockError).Once()
-
-			// act
-			stateRoot, err := f.getLastStateRoot(context.Background())
-
-			// assert
-			assert.Equal(t, tc.expectedStateRoot, stateRoot)
-			if tc.expectedError != nil {
-				assert.EqualError(t, err, tc.expectedError.Error())
-			} else {
-				assert.NoError(t, err)
-			}
-
 			stateMock.AssertExpectations(t)
 		})
 	}
@@ -2124,7 +2066,7 @@ func TestFinalizer_setNextForcedBatchDeadline(t *testing.T) {
 	defer func() {
 		now = time.Now
 	}()
-	expected := now().Unix() + int64(f.cfg.ForcedBatchDeadlineTimeout.Duration.Seconds())
+	expected := now().Unix() + int64(f.cfg.ForcedBatchesTimeout.Duration.Seconds())
 
 	// act
 	f.setNextForcedBatchDeadline()
@@ -2137,7 +2079,7 @@ func TestFinalizer_getConstraintThresholdUint64(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
 	input := uint64(100)
-	expect := input * uint64(f.cfg.ResourcePercentageToCloseBatch) / 100
+	expect := input * uint64(f.cfg.ResourceExhaustedMarginPct) / 100
 
 	// act
 	result := f.getConstraintThresholdUint64(input)
@@ -2150,7 +2092,7 @@ func TestFinalizer_getConstraintThresholdUint32(t *testing.T) {
 	// arrange
 	f = setupFinalizer(false)
 	input := uint32(100)
-	expect := input * f.cfg.ResourcePercentageToCloseBatch / 100
+	expect := input * f.cfg.ResourceExhaustedMarginPct / 100
 
 	// act
 	result := f.getConstraintThresholdUint32(input)
@@ -2276,9 +2218,9 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		cfg:                        cfg,
 		isSynced:                   isSynced,
 		sequencerAddress:           seqAddr,
-		worker:                     workerMock,
-		pool:                       poolMock,
-		state:                      stateMock,
+		workerIntf:                 workerMock,
+		poolIntf:                   poolMock,
+		stateIntf:                  stateMock,
 		wipBatch:                   wipBatch,
 		batchConstraints:           bc,
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
