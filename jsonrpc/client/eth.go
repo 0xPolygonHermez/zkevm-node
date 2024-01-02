@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // BlockNumber returns the latest block number
@@ -41,6 +42,26 @@ func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Blo
 	}
 
 	response, err := JSONRPCCall(c.url, "eth_getBlockByNumber", bn.StringOrHex(), true)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Error != nil {
+		return nil, response.Error.RPCError()
+	}
+
+	var result *types.Block
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// BlockByHash returns a block from the current canonical chain.
+func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	response, err := JSONRPCCall(c.url, "eth_getBlockByHash", hash.String(), true)
 	if err != nil {
 		return nil, err
 	}
