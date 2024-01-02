@@ -227,7 +227,7 @@ func generate(cliCtx *cli.Context) error {
 	if c.MerkleTree.CacheFile != "" {
 		// Check if the file exists
 		if _, err := os.Stat(c.MerkleTree.CacheFile); os.IsNotExist(err) {
-			log.Infof("Cache file %s does not exist\n", c.MerkleTree.CacheFile)
+			log.Infof("Cache file %s does not exist", c.MerkleTree.CacheFile)
 		} else {
 			ReadFile, err := os.ReadFile(c.MerkleTree.CacheFile)
 			if err != nil {
