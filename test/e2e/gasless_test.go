@@ -23,18 +23,18 @@ func TestEthTransferGasless(t *testing.T) {
 	// Edit config
 	const path = "../../test/config/test.node.config.toml"
 	require.NoError(t,
-		exec.Command("sed", "-i", "", "-e", "s/DefaultMinGasPriceAllowed = 1000000000/DefaultMinGasPriceAllowed = 0/g", path).Run(),
+		exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 1000000000/DefaultMinGasPriceAllowed = 0/g", path).Run(),
 	)
 	require.NoError(t,
-		exec.Command("sed", "-i", "", "-e", "s/EnableL2SuggestedGasPricePolling = true/EnableL2SuggestedGasPricePolling = false/g", path).Run(),
+		exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = true/EnableL2SuggestedGasPricePolling = false/g", path).Run(),
 	)
 	// Undo edit config
 	defer func() {
 		require.NoError(t,
-			exec.Command("sed", "-i", "", "-e", "s/DefaultMinGasPriceAllowed = 0/DefaultMinGasPriceAllowed = 1000000000/g", path).Run(),
+			exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 0/DefaultMinGasPriceAllowed = 1000000000/g", path).Run(),
 		)
 		require.NoError(t,
-			exec.Command("sed", "-i", "", "-e", "s/EnableL2SuggestedGasPricePolling = false/EnableL2SuggestedGasPricePolling = true/g", path).Run(),
+			exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = false/EnableL2SuggestedGasPricePolling = true/g", path).Run(),
 		)
 	}()
 
