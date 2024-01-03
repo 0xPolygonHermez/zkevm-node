@@ -192,7 +192,7 @@ func (f *finalizer) updateProverIdAndFlushId(ctx context.Context) {
 		for f.storedFlushID < f.lastPendingFlushID { //TODO: review this loop as could be is pulling all the time, no sleep
 			storedFlushID, proverID, err := f.stateIntf.GetStoredFlushID(ctx)
 			if err != nil {
-				log.Errorf("failed to get stored flush id, error: %w", err)
+				log.Errorf("failed to get stored flush id, error: %v", err)
 			} else {
 				if storedFlushID != f.storedFlushID {
 					// Check if prover/Executor has been restarted
@@ -231,7 +231,7 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 	for {
 		lastL1BlockNumber, err := f.etherman.GetLatestBlockNumber(ctx)
 		if err != nil {
-			log.Errorf("error getting latest L1 block number, error: %w", err)
+			log.Errorf("error getting latest L1 block number, error: %v", err)
 		}
 
 		maxBlockNumber := uint64(0)
@@ -241,7 +241,7 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 
 		l1InfoRoot, err := f.stateIntf.GetLatestL1InfoRoot(ctx, maxBlockNumber)
 		if err != nil {
-			log.Errorf("error checking latest L1InfoRoot, error: %w", err)
+			log.Errorf("error checking latest L1InfoRoot, error: %v", err)
 			continue
 		}
 
@@ -299,7 +299,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 						log.Infof("reprocessing tx %s because of effective gas price calculation", tx.HashStr)
 						continue
 					} else {
-						log.Errorf("failed to process tx %s, error: %w", err)
+						log.Errorf("failed to process tx %s, error: %v", err)
 						break
 					}
 				}
@@ -330,7 +330,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		}
 
 		if err := ctx.Err(); err != nil {
-			log.Infof("stopping finalizer because of context, error: %w", err)
+			log.Errorf("stopping finalizer because of context, error: %v", err)
 			return
 		}
 	}
@@ -396,7 +396,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 				if f.effectiveGasPrice.IsEnabled() {
 					return nil, err
 				} else {
-					log.Warnf("effectiveGasPrice is disabled, but failed to calculate effectiveGasPrice for tx %s, error: %w", hashStr, err)
+					log.Warnf("effectiveGasPrice is disabled, but failed to calculate effectiveGasPrice for tx %s, error: %v", hashStr, err)
 					tx.EGPLog.Error = fmt.Sprintf("CalculateEffectiveGasPrice#1: %s", err)
 				}
 			} else {
@@ -425,7 +425,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 			if f.effectiveGasPrice.IsEnabled() {
 				return nil, err
 			} else {
-				log.Warnf("effectiveGasPrice is disabled, but failed to to calculate efftive gas price percentage (#1), error: %w", err)
+				log.Warnf("effectiveGasPrice is disabled, but failed to to calculate efftive gas price percentage (#1), error: %v", err)
 				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPricePercentage#1: %s", tx.EGPLog.Error, err)
 			}
 		} else {
@@ -455,13 +455,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	processBatchResponse, err := f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, false)
 
 	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
-		log.Errorf("failed to process tx %s, error: %w", hashStr, err)
+		log.Errorf("failed to process tx %s, error: %v", hashStr, err)
 		return nil, err
 	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
 		f.Halt(ctx, err)
 	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
-		log.Errorf("error received from executor, error: %w", err)
+		log.Errorf("error received from executor, error: %v", err)
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
@@ -469,7 +469,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		errMsg := processBatchResponse.ExecutorError.Error()
 		err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
 		if err != nil {
-			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %w", tx.Hash.String(), err)
+			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
 		} else {
 			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 		}
@@ -521,10 +521,10 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, result.BlockResponses[0].TransactionResponses[0].GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if egpEnabled {
-				log.Errorf("failed to calculate effective gas price with new gasUsed for tx %s, error: %w", tx.HashStr, err.Error())
+				log.Errorf("failed to calculate effective gas price with new gasUsed for tx %s, error: %v", tx.HashStr, err.Error())
 				return nil, err
 			} else {
-				log.Warnf("effectiveGasPrice is disabled, but failed to calculate effective gas price with new gasUsed for tx %s, error: %w", tx.HashStr, err.Error())
+				log.Warnf("effectiveGasPrice is disabled, but failed to calculate effective gas price with new gasUsed for tx %s, error: %v", tx.HashStr, err.Error())
 				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPrice#2: %s", tx.EGPLog.Error, err)
 			}
 		} else {
@@ -538,7 +538,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			if !egpEnabled {
 				effectivePercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
 				if err != nil {
-					log.Warnf("effectiveGasPrice is disabled, but failed to calculate effective gas price percentage (#2), error: %w", err)
+					log.Warnf("effectiveGasPrice is disabled, but failed to calculate effective gas price percentage (#2), error: %v", err)
 					tx.EGPLog.Error = fmt.Sprintf("%s, CalculateEffectiveGasPricePercentage#2: %s", tx.EGPLog.Error, err)
 				} else {
 					// Save percentage for later logging
@@ -632,7 +632,7 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 	for _, txToDelete := range txsToDelete {
 		err := f.poolIntf.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
 		if err != nil {
-			log.Errorf("failed to update status to failed in the pool for tx %s, error: %w", txToDelete.Hash.String(), err)
+			log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", txToDelete.Hash.String(), err)
 			continue
 		}
 		metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
@@ -659,7 +659,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			defer wg.Done()
 			err := f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
-				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %w", tx.HashStr, err)
+				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.HashStr, err)
 			} else {
 				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 			}
@@ -674,7 +674,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			balance = addressInfo.Balance
 		}
 		start := time.Now()
-		log.Errorf("intrinsic error, moving tx %s to not ready: nonce: %d, balance: %d. gasPrice: %d, error: %w", tx.Hash, nonce, balance, tx.GasPrice, txResponse.RomError)
+		log.Errorf("intrinsic error, moving tx %s to not ready: nonce: %d, balance: %d. gasPrice: %d, error: %v", tx.Hash, nonce, balance, tx.GasPrice, txResponse.RomError)
 		txsToDelete := f.workerIntf.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
 		for _, txToDelete := range txsToDelete {
 			wg.Add(1)
@@ -684,7 +684,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 				err := f.poolIntf.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
 				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
-					log.Errorf("failed to update status to failed in the pool for tx %s, error: %w", txToDelete.Hash.String(), err)
+					log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", txToDelete.Hash.String(), err)
 				}
 			}()
 		}
@@ -700,7 +700,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			// Update the status of the transaction to failed
 			err := f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
-				log.Errorf("failed to update status to failed in the pool for tx %s, error: %w", tx.Hash.String(), err)
+				log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", tx.Hash.String(), err)
 			} else {
 				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 			}
@@ -740,7 +740,7 @@ func (f *finalizer) checkIfProverRestarted(proverID string) {
 
 		err := f.eventLog.LogEvent(context.Background(), event)
 		if err != nil {
-			log.Errorf("error storing payload, error: %w", err)
+			log.Errorf("error storing payload, error: %v", err)
 		}
 
 		log.Fatal("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor")
@@ -762,11 +762,11 @@ func (f *finalizer) Halt(ctx context.Context, err error) {
 
 	eventErr := f.eventLog.LogEvent(ctx, event)
 	if eventErr != nil {
-		log.Errorf("error storing finalizer halt event, error: %w", eventErr)
+		log.Errorf("error storing finalizer halt event, error: %v", eventErr)
 	}
 
 	for {
-		log.Errorf("halting finalizer, fatal error: %w", err)
+		log.Errorf("halting finalizer, fatal error: %v", err)
 		time.Sleep(5 * time.Second) //nolint:gomnd
 	}
 }

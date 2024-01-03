@@ -95,7 +95,7 @@ var (
 	}
 	testErrStr              = "some err"
 	testErr                 = fmt.Errorf(testErrStr)
-	openBatchError          = fmt.Errorf("failed to open new batch, err: %w", testErr)
+	openBatchError          = fmt.Errorf("failed to open new batch, err: %v", testErr)
 	cumulativeGasErr        = state.GetZKCounterError("CumulativeGasUsed")
 	testBatchL2DataAsString = "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	decodedBatchL2Data      []byte
@@ -464,7 +464,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			closeBatchParams: closeBatchParams,
 			batches:          batches,
 			closeBatchErr:    testErr,
-			expectedErr:      fmt.Errorf("failed to close batch, err: %w", testErr),
+			expectedErr:      fmt.Errorf("failed to close batch, err: %v", testErr),
 			reprocessFullBatchResponse: &state.ProcessBatchResponse{
 				NewStateRoot:     f.wipBatch.stateRoot,
 				NewLocalExitRoot: f.wipBatch.localExitRoot,
@@ -477,7 +477,7 @@ func TestFinalizer_handleProcessTransactionResponse(t *testing.T) {
 			closeBatchParams: closeBatchParams,
 			batches:          batches,
 			openBatchErr:     testErr,
-			expectedErr:      fmt.Errorf("failed to open new batch, err: %w", testErr),
+			expectedErr:      fmt.Errorf("failed to open new batch, err: %v", testErr),
 			reprocessFullBatchResponse: &state.ProcessBatchResponse{
 				NewStateRoot:     f.wipBatch.stateRoot,
 				NewLocalExitRoot: f.wipBatch.localExitRoot,
@@ -886,24 +886,24 @@ func TestFinalizer_openWIPBatch(t *testing.T) {
 		{
 			name:        "Error BeginTransaction",
 			beginTxErr:  testErr,
-			expectedErr: fmt.Errorf("failed to begin state transaction to open batch, err: %w", testErr),
+			expectedErr: fmt.Errorf("failed to begin state transaction to open batch, err: %v", testErr),
 		},
 		{
 			name:         "Error OpenBatch",
 			openBatchErr: testErr,
-			expectedErr:  fmt.Errorf("failed to open new batch, err: %w", testErr),
+			expectedErr:  fmt.Errorf("failed to open new batch, err: %v", testErr),
 		},
 		{
 			name:        "Error Commit",
 			commitErr:   testErr,
-			expectedErr: fmt.Errorf("failed to commit database transaction for opening a batch, err: %w", testErr),
+			expectedErr: fmt.Errorf("failed to commit database transaction for opening a batch, err: %v", testErr),
 		},
 		{
 			name:         "Error Rollback",
 			openBatchErr: testErr,
 			rollbackErr:  testErr,
 			expectedErr: fmt.Errorf(
-				"failed to rollback dbTx: %s. Rollback err: %w",
+				"failed to rollback dbTx: %s. Rollback err: %v",
 				testErr.Error(), openBatchError,
 			),
 		},

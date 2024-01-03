@@ -50,7 +50,7 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 
 	lastL2Block, err := f.stateIntf.GetLastL2Block(ctx, nil)
 	if err != nil {
-		log.Fatalf("failed to get last L2 block number, error: %w", err)
+		log.Fatalf("failed to get last L2 block number, error: %v", err)
 	}
 
 	f.openNewWIPL2Block(ctx, &lastL2Block.ReceivedAt)
@@ -108,7 +108,7 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			endProcessing := time.Now()
 
 			if err != nil {
-				f.Halt(ctx, fmt.Errorf("error processing L2 block, error: %w", err))
+				f.Halt(ctx, fmt.Errorf("error processing L2 block, error: %v", err))
 			}
 
 			if len(batchResponse.BlockResponses) == 0 {
@@ -186,7 +186,7 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 			endStoring := time.Now()
 
 			if err != nil {
-				f.Halt(ctx, fmt.Errorf("error storing L2 block %d, error: %w", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
+				f.Halt(ctx, fmt.Errorf("error storing L2 block %d, error: %v", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
 			}
 
 			log.Infof("stored L2 block: %d, batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
@@ -229,7 +229,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 	for _, tx := range l2Block.transactions {
 		epHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
 		if err != nil {
-			log.Errorf("error decoding hex value for effective gas price percentage for tx %s, error: %w", tx.HashStr, err)
+			log.Errorf("error decoding hex value for effective gas price percentage for tx %s, error: %v", tx.HashStr, err)
 			return nil, err
 		}
 
@@ -288,13 +288,13 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	//log.Infof("storeL2Block: storing processed txToStore: %s", txToStore.response.TxHash.String())
 	dbTx, err := f.stateIntf.BeginStateTransaction(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating db transaction to store L2 block, error: %w", err)
+		return fmt.Errorf("error creating db transaction to store L2 block, error: %v", err)
 	}
 
 	rollbackOnError := func(retError error) error {
 		err := dbTx.Rollback(ctx)
 		if err != nil {
-			return fmt.Errorf("rollback error due to error %w, error: %w", retError, err)
+			return fmt.Errorf("rollback error due to error %v, error: %v", retError, err)
 		}
 		return retError
 	}
@@ -311,14 +311,14 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	// Store L2 block in the state
 	err = f.stateIntf.StoreL2Block(ctx, f.wipBatch.batchNumber, blockResponse, txsEGPLog, dbTx)
 	if err != nil {
-		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d, error: %w", blockResponse.BlockNumber, err))
+		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d, error: %v", blockResponse.BlockNumber, err))
 	}
 
 	// Now we need to update de BatchL2Data of the wip batch and also update the status of the L2 block txs in the pool
 
 	batch, err := f.stateIntf.GetBatchByNumber(ctx, f.wipBatch.batchNumber, dbTx)
 	if err != nil {
-		return rollbackOnError(fmt.Errorf("error when getting batch %d from the state, error: %w", f.wipBatch.batchNumber, err))
+		return rollbackOnError(fmt.Errorf("error when getting batch %d from the state, error: %v", f.wipBatch.batchNumber, err))
 	}
 
 	// Add changeL2Block to batch.BatchL2Data
@@ -330,7 +330,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	for _, txResponse := range blockResponse.TransactionResponses {
 		txData, err := state.EncodeTransaction(txResponse.Tx, uint8(txResponse.EffectivePercentage), forkID)
 		if err != nil {
-			return rollbackOnError(fmt.Errorf("error when encoding tx %s, error: %w", txResponse.TxHash.String(), err))
+			return rollbackOnError(fmt.Errorf("error when encoding tx %s, error: %v", txResponse.TxHash.String(), err))
 		}
 		blockL2Data = append(blockL2Data, txData...)
 	}
@@ -349,7 +349,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 
 	err = f.stateIntf.UpdateWIPBatch(ctx, receipt, dbTx)
 	if err != nil {
-		return rollbackOnError(fmt.Errorf("error when updating wip batch %d, error: %w", f.wipBatch.batchNumber, err))
+		return rollbackOnError(fmt.Errorf("error when updating wip batch %d, error: %v", f.wipBatch.batchNumber, err))
 	}
 
 	err = dbTx.Commit(ctx)
@@ -370,7 +370,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	err = f.DSSendL2Block(f.wipBatch.batchNumber, blockResponse)
 	if err != nil {
 		//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
-		log.Errorf("error sending L2 block %d to data streamer, error: %w", blockResponse.BlockNumber, err)
+		log.Errorf("error sending L2 block %d to data streamer, error: %v", blockResponse.BlockNumber, err)
 	}
 
 	return nil
