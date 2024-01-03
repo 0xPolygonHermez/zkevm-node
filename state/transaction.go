@@ -165,9 +165,7 @@ func RlpFieldsToLegacyTx(fields [][]byte, v, r, s []byte) (tx *types.LegacyTx, e
 	}, nil
 }
 
-// StoreTransactions is used by the sequencer to add processed transactions into
-// an open batch. If the batch already has txs, the processedTxs must be a super
-// set of the existing ones, preserving order.
+// StoreTransactions is used by the synchronizer through the method ProcessAndStoreClosedBatch.
 func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, processedBlocks []*ProcessBlockResponse, txsEGPLog []*EffectiveGasPriceLog, dbTx pgx.Tx) error {
 	if dbTx == nil {
 		return ErrDBTxNil
@@ -230,6 +228,8 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				GasLimit:   s.cfg.MaxCumulativeGasUsed,
 				Time:       uint64(processingContext.Timestamp.Unix()),
 			})
+			header.GlobalExitRoot = processedBlock.GlobalExitRoot
+			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
 			receipt := GenerateReceipt(header.Number, processedTx)
@@ -653,8 +653,8 @@ func (s *State) isContractCreation(tx *types.Transaction) bool {
 	return tx.To() == nil && len(tx.Data()) > 0
 }
 
-// StoreTransaction is used by the sequencer and trusted state synchronizer to add process a transaction.
-func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *EffectiveGasPriceLog, dbTx pgx.Tx) (*L2Header, error) {
+// StoreTransaction is used by the trusted state synchronizer to add process a transaction.
+func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *EffectiveGasPriceLog, globalExitRoot, blockInfoRoot common.Hash, dbTx pgx.Tx) (*L2Header, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -679,6 +679,8 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 		GasLimit:   s.cfg.MaxCumulativeGasUsed,
 		Time:       timestamp,
 	})
+	header.GlobalExitRoot = globalExitRoot
+	header.BlockInfoRoot = blockInfoRoot
 	transactions := []*types.Transaction{&processedTx.Tx}
 
 	receipt := GenerateReceipt(header.Number, processedTx)

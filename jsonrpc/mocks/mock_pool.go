@@ -217,6 +217,10 @@ func (_m *PoolMock) GetTransactionByHash(ctx context.Context, hash common.Hash) 
 func (_m *PoolMock) GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	ret := _m.Called(ctx, hash)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetTransactionByL2Hash")
+	}
+
 	var r0 *pool.Transaction
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*pool.Transaction, error)); ok {

@@ -2412,9 +2412,9 @@ func (_c *stateMock_StoreL2Block_Call) RunAndReturn(run func(context.Context, ui
 	return _c
 }
 
-// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx
-func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx) (*state.L2Header, error) {
-	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+// StoreTransaction provides a mock function with given fields: ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx
+func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, globalExitRoot common.Hash, blockInfoRoot common.Hash, dbTx pgx.Tx) (*state.L2Header, error) {
+	ret := _m.Called(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreTransaction")
@@ -2422,19 +2422,19 @@ func (_m *stateMock) StoreTransaction(ctx context.Context, batchNumber uint64, p
 
 	var r0 *state.L2Header
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*state.L2Header, error)); ok {
-		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) (*state.L2Header, error)); ok {
+		return rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) *state.L2Header); ok {
-		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) *state.L2Header); ok {
+		r0 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.L2Header)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2454,14 +2454,16 @@ type stateMock_StoreTransaction_Call struct {
 //   - coinbase common.Address
 //   - timestamp uint64
 //   - egpLog *state.EffectiveGasPriceLog
+//   - globalExitRoot common.Hash
+//   - blockInfoRoot common.Hash
 //   - dbTx pgx.Tx
-func (_e *stateMock_Expecter) StoreTransaction(ctx interface{}, batchNumber interface{}, processedTx interface{}, coinbase interface{}, timestamp interface{}, egpLog interface{}, dbTx interface{}) *stateMock_StoreTransaction_Call {
-	return &stateMock_StoreTransaction_Call{Call: _e.mock.On("StoreTransaction", ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, dbTx)}
+func (_e *stateMock_Expecter) StoreTransaction(ctx interface{}, batchNumber interface{}, processedTx interface{}, coinbase interface{}, timestamp interface{}, egpLog interface{}, globalExitRoot interface{}, blockInfoRoot interface{}, dbTx interface{}) *stateMock_StoreTransaction_Call {
+	return &stateMock_StoreTransaction_Call{Call: _e.mock.On("StoreTransaction", ctx, batchNumber, processedTx, coinbase, timestamp, egpLog, globalExitRoot, blockInfoRoot, dbTx)}
 }
 
-func (_c *stateMock_StoreTransaction_Call) Run(run func(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, dbTx pgx.Tx)) *stateMock_StoreTransaction_Call {
+func (_c *stateMock_StoreTransaction_Call) Run(run func(ctx context.Context, batchNumber uint64, processedTx *state.ProcessTransactionResponse, coinbase common.Address, timestamp uint64, egpLog *state.EffectiveGasPriceLog, globalExitRoot common.Hash, blockInfoRoot common.Hash, dbTx pgx.Tx)) *stateMock_StoreTransaction_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(*state.ProcessTransactionResponse), args[3].(common.Address), args[4].(uint64), args[5].(*state.EffectiveGasPriceLog), args[6].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(uint64), args[2].(*state.ProcessTransactionResponse), args[3].(common.Address), args[4].(uint64), args[5].(*state.EffectiveGasPriceLog), args[6].(common.Hash), args[7].(common.Hash), args[8].(pgx.Tx))
 	})
 	return _c
 }
@@ -2471,7 +2473,7 @@ func (_c *stateMock_StoreTransaction_Call) Return(_a0 *state.L2Header, _a1 error
 	return _c
 }
 
-func (_c *stateMock_StoreTransaction_Call) RunAndReturn(run func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, pgx.Tx) (*state.L2Header, error)) *stateMock_StoreTransaction_Call {
+func (_c *stateMock_StoreTransaction_Call) RunAndReturn(run func(context.Context, uint64, *state.ProcessTransactionResponse, common.Address, uint64, *state.EffectiveGasPriceLog, common.Hash, common.Hash, pgx.Tx) (*state.L2Header, error)) *stateMock_StoreTransaction_Call {
 	_c.Call.Return(run)
 	return _c
 }
