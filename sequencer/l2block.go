@@ -381,6 +381,8 @@ func (f *finalizer) finalizeL2Block(ctx context.Context) {
 	log.Debugf("finalizing L2 block")
 
 	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+	f.pendingL2BlocksToProcessWG.Wait()
+	f.wipBatch.imStateRoot = f.wipBatch.finalStateRoot
 
 	f.openNewWIPL2Block(ctx, nil)
 }
