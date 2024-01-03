@@ -601,7 +601,7 @@ func Test_OOCErrors(t *testing.T) {
 				})
 				return err.Error()
 			},
-			expectedError: "failed to estimate gas: not enough poseidon counters to continue the execution",
+			expectedError: "not enough poseidon counters to continue the execution",
 		},
 		{
 			name: "estimate gas OOG",
@@ -621,7 +621,7 @@ func Test_OOCErrors(t *testing.T) {
 				})
 				return err.Error()
 			},
-			expectedError: "failed to estimate gas: gas required exceeds allowance (50000)",
+			expectedError: "gas required exceeds allowance (50000)",
 		},
 	}
 
