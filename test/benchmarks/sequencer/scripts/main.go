@@ -74,7 +74,7 @@ func main() {
 	fmt.Println("---------------------------")
 	sshArgs := []string{"-fN",
 		"-L", os.Getenv("POOLDB_PORT") + ":" + os.Getenv("POOLDB_EP") + ":5432",
-		"ubuntu@" + os.Getenv("BASTION_HOST")}
+		os.Getenv("BASTION_HOST")}
 	_, err = runCmd("ssh", sshArgs...)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to forward BASTION ports: %v", err))
@@ -86,7 +86,7 @@ func main() {
 	fmt.Println("Fetching start metrics...")
 	fmt.Println("--------------------------")
 
-	output, err := retryCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+	output, err := retryCmd("ssh", os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9092/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
 	}
@@ -95,7 +95,7 @@ func main() {
 		fmt.Println(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
 		fmt.Println("Retrying...")
 		time.Sleep(1 * time.Second)
-		output, err = runCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+		output, err = runCmd("ssh", os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9092/metrics")
 		retryTimes++
 		if retryTimes == 5 {
 			panic(fmt.Sprintf("Failed to collect start metrics from BASTION HOST: %v", err))
@@ -141,7 +141,7 @@ func main() {
 	// Execute wget to get metrics from the BASTION HOST
 	fmt.Println("Fetching end metrics...")
 	fmt.Println("------------------------")
-	output, err = retryCmd("ssh", "ubuntu@"+os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9091/metrics")
+	output, err = retryCmd("ssh", os.Getenv("BASTION_HOST"), "wget", "-qO-", "http://"+sequencerIP+":9092/metrics")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to collect end metrics from BASTION HOST: %v", err))
 	}
