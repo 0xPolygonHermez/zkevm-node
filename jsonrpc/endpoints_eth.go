@@ -192,8 +192,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			copy(data, returnValue)
 			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
 		} else if err != nil {
-			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
-			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+			return nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
