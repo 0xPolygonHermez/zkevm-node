@@ -12,6 +12,8 @@ type logStatistics interface {
 	CumulativeValue(tag logTag, value int64)
 	CumulativeTiming(tag logTag, duration time.Duration)
 	SetTag(tag logTag, value string)
+	GetTag(tag logTag) string
+	GetStatistics(tag logTag) int64
 	Summary() string
 	ResetStatistics()
 

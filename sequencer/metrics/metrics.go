@@ -24,12 +24,20 @@ const (
 	SequenceRewardInMaticName = Prefix + "sequence_reward_in_matic"
 	// ProcessingTimeName is the name of the metric that shows the processing time.
 	ProcessingTimeName = Prefix + "processing_time"
+	// PendingTxCountName is the name of metric that shows the number of pending transactions.
+	PendingTxCountName = Prefix + "pending_tx_count"
+	// BatchExecuteTimeName is the name of the metric that shows the batch execution time.
+	BatchExecuteTimeName = Prefix + "batch_execute_time"
+	// TrustBatchNumName is the name of the metric that shows the trust batch num
+	TrustBatchNumName = Prefix + "trust_batch_num"
 	// WorkerPrefix is the prefix for the metrics of the worker.
 	WorkerPrefix = Prefix + "worker_"
 	// WorkerProcessingTimeName is the name of the metric that shows the worker processing time.
 	WorkerProcessingTimeName = WorkerPrefix + "processing_time"
 	// TxProcessedLabelName is the name of the label for the processed transactions.
 	TxProcessedLabelName = "status"
+	// BatchFinalizeTypeLabelName is the name of the label for the batch finalize type.
+	BatchFinalizeTypeLabelName = "batch_type"
 )
 
 // TxProcessedLabel represents the possible values for the
@@ -45,12 +53,23 @@ const (
 	TxProcessedLabelFailed TxProcessedLabel = "failed"
 )
 
+// BatchFinalizeTypeLabel batch finalize type label
+type BatchFinalizeTypeLabel string
+
+const (
+	// BatchFinalizeTypeLabelDeadline batch finalize type deadline label
+	BatchFinalizeTypeLabelDeadline BatchFinalizeTypeLabel = "deadline"
+	// BatchFinalizeTypeLabelFullBatch batch finalize type full batch label
+	BatchFinalizeTypeLabelFullBatch BatchFinalizeTypeLabel = "full_batch"
+)
+
 // Register the metrics for the sequencer package.
 func Register() {
 	var (
 		counters    []prometheus.CounterOpts
 		counterVecs []metrics.CounterVecOpts
 		gauges      []prometheus.GaugeOpts
+		gaugeVecs   []metrics.GaugeVecOpts
 		histograms  []prometheus.HistogramOpts
 	)
 
@@ -88,6 +107,24 @@ func Register() {
 			Name: SequenceRewardInMaticName,
 			Help: "[SEQUENCER] reward for a sequence in Matic",
 		},
+		{
+			Name: PendingTxCountName,
+			Help: "[SEQUENCER] number of pending transactions",
+		},
+		{
+			Name: TrustBatchNumName,
+			Help: "[SEQUENCER] trust batch num",
+		},
+	}
+
+	gaugeVecs = []metrics.GaugeVecOpts{
+		{
+			GaugeOpts: prometheus.GaugeOpts{
+				Name: BatchExecuteTimeName,
+				Help: "[SEQUENCER] batch execution time",
+			},
+			Labels: []string{BatchFinalizeTypeLabelName},
+		},
 	}
 
 	histograms = []prometheus.HistogramOpts{
@@ -104,7 +141,23 @@ func Register() {
 	metrics.RegisterCounters(counters...)
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterGauges(gauges...)
+	metrics.RegisterGaugeVecs(gaugeVecs...)
 	metrics.RegisterHistograms(histograms...)
+}
+
+// PendingTxCount sets the gauge to the given number of pending transactions.
+func PendingTxCount(count int) {
+	metrics.GaugeSet(PendingTxCountName, float64(count))
+}
+
+// BatchExecuteTime sets the gauge vector to the given batch type and time.
+func BatchExecuteTime(batchType BatchFinalizeTypeLabel, time int64) {
+	metrics.GaugeVecSet(BatchExecuteTimeName, string(batchType), float64(time))
+}
+
+// TrustBatchNum set the gauge to the given trust batch num
+func TrustBatchNum(batchNum uint64) {
+	metrics.GaugeSet(TrustBatchNumName, float64(batchNum))
 }
 
 // AverageGasPrice sets the gauge to the given average gas price.

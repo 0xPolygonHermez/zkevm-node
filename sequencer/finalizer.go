@@ -392,6 +392,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			log.Infof(metrics.GetLogStatistics().Summary())
 			metrics.GetLogStatistics().ResetStatistics()
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
+			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelDeadline, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
+			metrics.TrustBatchNum(f.batch.batchNumber - 1)
 		} else if f.isBatchFull() || f.isBatchAlmostFull() {
 			log.Infof("closing batch %d because it's almost full.", f.batch.batchNumber)
 			metrics.GetLogStatistics().SetTag(metrics.BatchCloseReason, "full")
@@ -399,6 +401,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			log.Infof(metrics.GetLogStatistics().Summary())
 			metrics.GetLogStatistics().ResetStatistics()
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
+			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelFullBatch, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
+			metrics.TrustBatchNum(f.batch.batchNumber - 1)
 
 			fullBatchSleepDuration := getFullBatchSleepDuration(f.cfg.FullBatchSleepDuration.Duration, f.cfg.TimestampResolution.Duration)
 			if fullBatchSleepDuration > 0 {
