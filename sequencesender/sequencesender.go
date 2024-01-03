@@ -175,7 +175,15 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 				return nil, err
 			}
 
+			// Get L1 block for the forced batch
+			fbL1Block, err := s.state.GetBlockByNumber(ctx, forcedBatch.BlockNumber, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			seq.GlobalExitRoot = forcedBatch.GlobalExitRoot
 			seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
+			seq.PrevBlockHash = fbL1Block.ParentHash
 		}
 
 		sequences = append(sequences, seq)
