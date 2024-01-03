@@ -308,7 +308,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			if isOOG {
 				response.OOGError = err
 			}
-			if processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
+			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
 				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
