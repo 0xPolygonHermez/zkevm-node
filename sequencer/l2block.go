@@ -381,11 +381,24 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 func (f *finalizer) finalizeL2Block(ctx context.Context) {
 	log.Debugf("finalizing L2 block")
 
-	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
-	f.pendingL2BlocksToProcessWG.Wait()
-	f.wipBatch.imStateRoot = f.wipBatch.finalStateRoot
+	f.closeWIPL2Block(ctx)
+	//TODO: remove this commented lines
+	//f.pendingL2BlocksToProcessWG.Wait()
+	//f.wipBatch.imStateRoot = f.wipBatch.finalStateRoot
 
 	f.openNewWIPL2Block(ctx, nil)
+}
+
+func (f *finalizer) closeWIPL2Block(ctx context.Context) {
+	// If the L2 block is empty (no txs) We need to process it to update the state root before closing it
+	if f.wipL2Block.isEmpty() {
+		log.Debug("processing L2 block because it is empty")
+		if _, err := f.processTransaction(ctx, nil, true); err != nil {
+			f.Halt(ctx, fmt.Errorf("failed to process empty L2 block. Error: %s ", err))
+		}
+	}
+
+	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
