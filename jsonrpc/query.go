@@ -373,13 +373,9 @@ func (f *NativeBlockHashBlockRangeFilter) GetNumericBlockNumbers(ctx context.Con
 // getNumericBlockNumbers load the numeric block numbers from state accordingly
 // to the provided from and to block number
 func getNumericBlockNumbers(ctx context.Context, s types.StateInterface, e types.EthermanInterface, fromBlock, toBlock *types.BlockNumber, maxBlockRange uint64, maxBlockRangeErr error, dbTx pgx.Tx) (uint64, uint64, types.Error) {
-	var fromBlockNumber uint64 = 0
-	if fromBlock != nil {
-		fbn, rpcErr := fromBlock.GetNumericBlockNumber(ctx, s, e, dbTx)
-		if rpcErr != nil {
-			return 0, 0, rpcErr
-		}
-		fromBlockNumber = fbn
+	fromBlockNumber, rpcErr := fromBlock.GetNumericBlockNumber(ctx, s, e, dbTx)
+	if rpcErr != nil {
+		return 0, 0, rpcErr
 	}
 
 	toBlockNumber, rpcErr := toBlock.GetNumericBlockNumber(ctx, s, e, dbTx)
