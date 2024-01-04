@@ -162,8 +162,16 @@ func Test_Filters(t *testing.T) {
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 		// test getFilterChanges for a blockFilter ID
-		blockBeforeFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
-		require.NoError(t, err)
+		var blockBeforeFilterHash common.Hash
+		if network.Name == "Local L2" {
+			blockBeforeFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockBeforeFilterHash = *blockBeforeFilter.Hash
+		} else {
+			blockBeforeFilter, err := ethereumClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockBeforeFilterHash = blockBeforeFilter.Hash()
+		}
 
 		response, err = client.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
@@ -181,8 +189,16 @@ func Test_Filters(t *testing.T) {
 		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		blockAfterFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
-		require.NoError(t, err)
+		var blockAfterFilterHash common.Hash
+		if network.Name == "Local L2" {
+			blockAfterFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockAfterFilterHash = *blockAfterFilter.Hash
+		} else {
+			blockAfterFilter, err := ethereumClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockAfterFilterHash = blockAfterFilter.Hash()
+		}
 
 		response, err = client.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
 		require.NoError(t, err)
@@ -193,8 +209,8 @@ func Test_Filters(t *testing.T) {
 		err = json.Unmarshal(response.Result, &blockFilterChanges)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, blockBeforeFilter.Hash.String(), blockFilterChanges[0].String())
-		assert.Equal(t, blockAfterFilter.Hash.String(), blockFilterChanges[len(blockFilterChanges)-1].String())
+		assert.NotEqual(t, blockBeforeFilterHash.String(), blockFilterChanges[0].String())
+		assert.Equal(t, blockAfterFilterHash.String(), blockFilterChanges[len(blockFilterChanges)-1].String())
 
 		// test getFilterChanges for a logFilter ID
 		// create a SC to emit some logs
