@@ -158,13 +158,13 @@ func Test_Filters(t *testing.T) {
 		require.False(t, uninstalled)
 
 		ethereumClient := operations.MustGetClient(network.URL)
-		zmEVMClient := client.NewClient(network.URL)
+		zkEVMClient := client.NewClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 		// test getFilterChanges for a blockFilter ID
 		var blockBeforeFilterHash common.Hash
 		if network.Name == "Local L2" {
-			blockBeforeFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
+			blockBeforeFilter, err := zkEVMClient.BlockByNumber(ctx, nil)
 			require.NoError(t, err)
 			blockBeforeFilterHash = *blockBeforeFilter.Hash
 		} else {
@@ -191,7 +191,7 @@ func Test_Filters(t *testing.T) {
 
 		var blockAfterFilterHash common.Hash
 		if network.Name == "Local L2" {
-			blockAfterFilter, err := zmEVMClient.BlockByNumber(ctx, nil)
+			blockAfterFilter, err := zkEVMClient.BlockByNumber(ctx, nil)
 			require.NoError(t, err)
 			blockAfterFilterHash = *blockAfterFilter.Hash
 		} else {
@@ -366,17 +366,31 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, receipt.Type, tx.Type())
 		require.Equal(t, uint(0), receipt.TransactionIndex)
 
-		block, err := zkEVMClient.BlockByNumber(ctx, receipt.BlockNumber)
-		require.NoError(t, err)
-		require.NotNil(t, block)
-		require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
-		require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
+		if network.Name == "Local L2" {
+			block, err := zkEVMClient.BlockByNumber(ctx, receipt.BlockNumber)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
+			require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
 
-		block, err = zkEVMClient.BlockByHash(ctx, receipt.BlockHash)
-		require.NoError(t, err)
-		require.NotNil(t, block)
-		require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
-		require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
+			block, err = zkEVMClient.BlockByHash(ctx, receipt.BlockHash)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
+			require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
+		} else {
+			block, err := ethereumClient.BlockByNumber(ctx, receipt.BlockNumber)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), block.NumberU64())
+			require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
+
+			block, err = ethereumClient.BlockByHash(ctx, receipt.BlockHash)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), block.NumberU64())
+			require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
+		}
 
 		blockNumber, err := ethereumClient.BlockNumber(ctx)
 		require.NoError(t, err)
