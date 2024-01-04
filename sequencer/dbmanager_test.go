@@ -26,6 +26,8 @@ package sequencer
 	"google.golang.org/grpc"
 )
 
+//TODO: Fix tests ETROG
+
 var (
 	mtDBCancel context.CancelFunc
 	ctx        context.Context
