@@ -482,6 +482,7 @@ func GetSystemSCPosition(blockNumber uint64) []byte {
 
 // computeFullBatches computes the full batches
 func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction) []*DSFullBatch {
+	prevL2BlockNumber := uint64(0)
 	currentL2Block := 0
 	currentL2Tx := 0
 
@@ -492,15 +493,18 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 			DSBatch: *batch,
 		}
 
-	blocks:
 		for i := currentL2Block; i < len(l2Blocks); i++ {
 			l2Block := l2Blocks[i]
+
+			if prevL2BlockNumber != 0 && l2Block.L2BlockNumber == prevL2BlockNumber {
+				continue
+			}
+
 			if l2Block.BatchNumber == batch.BatchNumber {
 				fullBlock := DSL2FullBlock{
 					DSL2Block: *l2Block,
 				}
 
-			txs:
 				for j := currentL2Tx; j < len(l2Txs); j++ {
 					l2Tx := l2Txs[j]
 					if l2Tx.L2BlockNumber == l2Block.L2BlockNumber {
@@ -508,16 +512,15 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 						currentL2Tx++
 					}
 					if l2Tx.L2BlockNumber > l2Block.L2BlockNumber {
-						break txs
+						break
 					}
 				}
 
 				fullBatch.L2Blocks = append(fullBatch.L2Blocks, fullBlock)
+				prevL2BlockNumber = l2Block.L2BlockNumber
 				currentL2Block++
-			}
-
-			if l2Block.BatchNumber > batch.BatchNumber {
-				break blocks
+			} else if l2Block.BatchNumber > batch.BatchNumber {
+				break
 			}
 		}
 
