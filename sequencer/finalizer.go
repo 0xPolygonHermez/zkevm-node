@@ -146,7 +146,7 @@ func newFinalizer(
 		// event log
 		eventLog: eventLog,
 		// effective gas price calculation instance
-		effectiveGasPrice:            pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:            pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice),
 		pendingTransactionsToStore:   make(chan transactionToStore, batchConstraints.MaxTxsPerBatch*pendingTxsBufferSizeMultiplier),
 		pendingTransactionsToStoreWG: new(sync.WaitGroup),
 		storedFlushID:                0,
