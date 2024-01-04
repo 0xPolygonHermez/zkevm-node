@@ -128,7 +128,7 @@ func (p *PostgresStorage) GetLastTrustedForcedBatchNumber(ctx context.Context, d
 // GetBatchByForcedBatchNum returns the batch with the given forced batch number.
 func (p *PostgresStorage) GetBatchByForcedBatchNum(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const getForcedBatchByNumberSQL = `
-		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources, wip
 		  FROM state.batch
 		 WHERE forced_batch_num = $1`
 

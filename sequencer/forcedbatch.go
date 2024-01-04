@@ -74,7 +74,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 	}
 
 	// Get L1 block for the forced batch
-	fbL1Block, err := f.stateIntf.GetBlockByNumber(ctx, forcedBatch.ForcedBatchNumber, dbTx)
+	fbL1Block, err := f.stateIntf.GetBlockByNumber(ctx, forcedBatch.BlockNumber, dbTx)
 	if err != nil {
 		return lastBatchNumber, stateRoot, fmt.Errorf("error getting L1 block number %d for forced batch %d, error: %v", forcedBatch.ForcedBatchNumber, forcedBatch.ForcedBatchNumber, err)
 	}
