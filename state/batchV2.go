@@ -264,26 +264,25 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 	if s.executorClient == nil {
 		return nil, ErrExecutorNil
 	}
-	// Send Batch to the Executor
-	if caller != metrics.DiscardCallerLabel {
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.From]: %v", processBatchRequest.From)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequest.L1InfoRoot))
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.TimestampLimit]: %v", processBatchRequest.TimestampLimit)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipFirstChangeL2Block]: %v", processBatchRequest.SkipFirstChangeL2Block)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipWriteBlockInfoRoot]: %v", processBatchRequest.SkipWriteBlockInfoRoot)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
-		log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
-		log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
-		log.Debugf("ExecuteBatchV2[processBatchRequest.ForcedBlockhashL1]: %v", hex.EncodeToHex(processBatchRequest.ForcedBlockhashL1))
-		log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData: %+v", processBatchRequest.L1InfoTreeData)
-	}
+
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldBatchNum]: %v", processBatchRequest.OldBatchNum)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.BatchL2Data]: %v", hex.EncodeToHex(processBatchRequest.BatchL2Data))
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.From]: %v", processBatchRequest.From)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldStateRoot]: %v", hex.EncodeToHex(processBatchRequest.OldStateRoot))
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.L1InfoRoot]: %v", hex.EncodeToHex(processBatchRequest.L1InfoRoot))
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.OldAccInputHash]: %v", hex.EncodeToHex(processBatchRequest.OldAccInputHash))
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.TimestampLimit]: %v", processBatchRequest.TimestampLimit)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.Coinbase]: %v", processBatchRequest.Coinbase)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.UpdateMerkleTree]: %v", processBatchRequest.UpdateMerkleTree)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipFirstChangeL2Block]: %v", processBatchRequest.SkipFirstChangeL2Block)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.SkipWriteBlockInfoRoot]: %v", processBatchRequest.SkipWriteBlockInfoRoot)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ChainId]: %v", processBatchRequest.ChainId)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
+	log.Debugf("sendBatchRequestToExecutorV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.ForcedBlockhashL1]: %v", hex.EncodeToHex(processBatchRequest.ForcedBlockhashL1))
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData: %+v", processBatchRequest.L1InfoTreeData)
+
 	now := time.Now()
 	res, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {

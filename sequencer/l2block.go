@@ -101,7 +101,8 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 
 			l2Block.initialStateRoot = f.wipBatch.finalStateRoot
 
-			log.Infof("processing L2 block, batch: %d, initialStateRoot: %s txs: %d", f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions))
+			log.Infof("processing L2 block, batch: %d, initialStateRoot: %s txs: %d, l1InfoTreeIndex: %d",
+				f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions), l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 
 			startProcessing := time.Now()
 			batchResponse, err := f.processL2Block(ctx, l2Block)
@@ -413,5 +414,6 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 
 	f.wipL2Block = newL2Block
 
-	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d", f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix())
+	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d, l1InfoTreeIndex: %d",
+		f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 }
