@@ -49,7 +49,7 @@ func TestBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	type testCase struct {
 		Name           string
@@ -108,7 +108,7 @@ func TestBlockNumber(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			result, err := c.BlockNumber(context.Background())
+			result, err := zkEVMClient.BlockNumber(context.Background())
 			assert.Equal(t, testCase.ExpectedResult, result)
 
 			if err != nil || testCase.ExpectedError != nil {
@@ -1456,14 +1456,14 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(m, &tc)
 
-			result, err := c.BlockByNumber(context.Background(), tc.Number)
+			result, err := zkEVMClient.BlockByNumber(context.Background(), tc.Number)
 
 			if result != nil || tc.ExpectedResult != nil {
 				assert.Equal(t, tc.ExpectedResult.ParentHash.String(), result.ParentHash.String())

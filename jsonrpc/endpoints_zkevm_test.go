@@ -2533,14 +2533,14 @@ func TestGetExitRootsByGER(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(s, m, &tc)
 
-			exitRoots, err := c.ExitRootsByGER(context.Background(), tc.GER)
+			exitRoots, err := zkEVMClient.ExitRootsByGER(context.Background(), tc.GER)
 			require.NoError(t, err)
 
 			if exitRoots != nil || tc.ExpectedResult != nil {
