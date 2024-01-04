@@ -101,7 +101,8 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 
 			l2Block.initialStateRoot = f.wipBatch.finalStateRoot
 
-			log.Infof("processing L2 block, batch: %d, initialStateRoot: %s txs: %d", f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions))
+			log.Infof("processing L2 block, batch: %d, initialStateRoot: %s txs: %d, l1InfoTreeIndex: %d",
+				f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions), l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 
 			startProcessing := time.Now()
 			batchResponse, err := f.processL2Block(ctx, l2Block)
@@ -380,9 +381,21 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 func (f *finalizer) finalizeL2Block(ctx context.Context) {
 	log.Debugf("finalizing L2 block")
 
-	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+	f.closeWIPL2Block(ctx)
 
 	f.openNewWIPL2Block(ctx, nil)
+}
+
+func (f *finalizer) closeWIPL2Block(ctx context.Context) {
+	// If the L2 block is empty (no txs) We need to process it to update the state root before closing it
+	if f.wipL2Block.isEmpty() {
+		log.Debug("processing L2 block because it is empty")
+		if _, err := f.processTransaction(ctx, nil, true); err != nil {
+			f.Halt(ctx, fmt.Errorf("failed to process empty L2 block. Error: %s ", err))
+		}
+	}
+
+	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
@@ -411,5 +424,6 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 
 	f.wipL2Block = newL2Block
 
-	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d", f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix())
+	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d, l1InfoTreeIndex: %d",
+		f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
 }
