@@ -1,5 +1,7 @@
 package sequencer
 
+//TODO: Fix tests ETROG
+
 /* const numberOfForcesBatches = 10
 
 var (

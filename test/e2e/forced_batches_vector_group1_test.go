@@ -1,6 +1,6 @@
 package e2e
 
-//TODO: Fix test
+//TODO: Fix test ETROG
 /*func TestForcedBatchesVectorFilesGroup1(t *testing.T) {
 	if testing.Short() {
 		t.Skip()

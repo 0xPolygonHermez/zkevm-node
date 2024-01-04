@@ -49,7 +49,7 @@ type l2Stuff struct {
 	nonce         uint64
 }
 
-//TODO: Fix test
+//TODO: Fix test ETROG
 /*func TestForcedBatches(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
