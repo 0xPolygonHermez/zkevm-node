@@ -1251,8 +1251,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
-		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		BlockInfoRoot:   l2Block.BlockInfoRoot(),
+		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
+		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
 	}
@@ -1408,6 +1408,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
+				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
 				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
 				tc.ExpectedResult.Nonce = rpcBlockNonce
 

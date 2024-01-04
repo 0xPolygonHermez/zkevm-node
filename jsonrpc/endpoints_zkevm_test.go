@@ -1458,8 +1458,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
-		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		BlockInfoRoot:   l2Block.BlockInfoRoot(),
+		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
+		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
 	}
@@ -1617,6 +1617,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
+				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
 				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
 				tc.ExpectedResult.Nonce = rpcBlockNonce
 
@@ -1930,7 +1932,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 		TxIndex:     state.Ptr(types.ArgUint64(0)),
 		ChainID:     types.ArgBig(*chainID),
 		Type:        0,
-		L2Hash:      l2Hash,
+		L2Hash:      state.Ptr(l2Hash),
 	}
 
 	testCases := []testCase{
