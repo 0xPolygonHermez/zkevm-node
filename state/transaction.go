@@ -203,9 +203,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 
 		// firstTxToInsert := len(existingTxs)
 
-		firstTxToInsert := 0
-
-		for i := firstTxToInsert; i < len(processedTxs); i++ {
+		for i := 0; i < len(processedTxs); i++ {
 			processedTx := processedTxs[i]
 			// if the transaction has an intrinsic invalid tx error it means
 			// the transaction has not changed the state, so we don't store it
@@ -232,7 +230,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := GenerateReceipt(header.Number, processedTx)
+			receipt := GenerateReceipt(header.Number, processedTx, uint(i))
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -304,7 +302,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
 		}
 
-		receipt := GenerateReceipt(header.Number, txResponse)
+		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
 		receipts = append(receipts, receipt)
 	}
 
@@ -633,6 +631,12 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, err
 	}
 
+	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
+		err = executor.RomErr(processBatchResponseV2.ErrorRom)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		return nil, err
+	}
+
 	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
 	if err != nil {
 		return nil, err
@@ -683,7 +687,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header.BlockInfoRoot = blockInfoRoot
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt := GenerateReceipt(header.Number, processedTx)
+	receipt := GenerateReceipt(header.Number, processedTx, 0)
 	receipts := []*types.Receipt{receipt}
 
 	// Create l2Block to be able to calculate its hash
@@ -1047,20 +1051,27 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 	log.Debugf("EstimateGas[processBatchRequestV2.SkipWriteBlockInfoRoot]: %v", processBatchRequestV2.SkipWriteBlockInfoRoot)
 
 	txExecutionOnExecutorTime := time.Now()
-	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
+	processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
 	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
 	if err != nil {
 		log.Errorf("error estimating gas: %v", err)
 		return false, false, gasUsed, nil, err
 	}
-	if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
-		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponse.Error, processBatchRequestV2)
+	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		err = executor.ExecutorErr(processBatchResponseV2.Error)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
 	}
-	gasUsed = processBatchResponse.BlockResponses[0].GasUsed
 
-	txResponse := processBatchResponse.BlockResponses[0].Responses[0]
+	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
+		err = executor.RomErr(processBatchResponseV2.ErrorRom)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		return false, false, gasUsed, nil, err
+	}
+
+	gasUsed = processBatchResponseV2.BlockResponses[0].GasUsed
+
+	txResponse := processBatchResponseV2.BlockResponses[0].Responses[0]
 	// Check if an out of gas error happened during EVM execution
 	if txResponse.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 		err := executor.RomErr(txResponse.Error)

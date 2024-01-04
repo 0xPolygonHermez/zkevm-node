@@ -65,19 +65,19 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 		root, err := w.state.GetLastStateRoot(ctx, nil)
 		if err != nil {
-			dropReason = fmt.Errorf("error getting last state root from hashdb service, error: %w", err)
+			dropReason = fmt.Errorf("error getting last state root from hashdb service, error: %v", err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}
 		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			dropReason = fmt.Errorf("error getting nonce for address %s from hashdb service, error: %w", tx.From, err)
+			dropReason = fmt.Errorf("error getting nonce for address %s from hashdb service, error: %v", tx.From, err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}
 		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
 		if err != nil {
-			dropReason = fmt.Errorf("error getting balance for address %s from hashdb service, error: %w", tx.From, err)
+			dropReason = fmt.Errorf("error getting balance for address %s from hashdb service, error: %v", tx.From, err)
 			log.Error(dropReason)
 			return nil, dropReason
 		}

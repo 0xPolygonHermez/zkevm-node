@@ -32,13 +32,13 @@ var (
 	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
 	ErrOutOfCountersBinary = errors.New("not enough binary counters to continue the execution")
 	// ErrOutOfCountersMemory indicates there are not enough memory align counters to continue the execution
-	ErrOutOfCountersMemory = errors.New("not enough memory align counters counters to continue the execution")
+	ErrOutOfCountersMemory = errors.New("not enough memory align counters to continue the execution")
 	// ErrOutOfCountersArith indicates there are not enough arith counters to continue the execution
-	ErrOutOfCountersArith = errors.New("not enough arith counters counters to continue the execution")
+	ErrOutOfCountersArith = errors.New("not enough arith counters to continue the execution")
 	// ErrOutOfCountersPadding indicates there are not enough padding counters to continue the execution
-	ErrOutOfCountersPadding = errors.New("not enough padding counters counters to continue the execution")
+	ErrOutOfCountersPadding = errors.New("not enough padding counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
-	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters counters to continue the execution")
+	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters to continue the execution")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check

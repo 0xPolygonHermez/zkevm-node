@@ -277,7 +277,7 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // GenerateReceipt generates a receipt from a processed transaction
-func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),
@@ -285,7 +285,7 @@ func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
 		TxHash:            processedTx.Tx.Hash(),
-		TransactionIndex:  0,
+		TransactionIndex:  txIndex,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
 	}

@@ -294,7 +294,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, processBatchRe
 		log.Debug(processBatchResponseToString(res, ""))
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, res.Error, processBatchRequest)
-	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR{
+	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 		log.Debug(processBatchResponseToString(res, ""))
 		err = executor.RomErr(res.ErrorRom)
 	}

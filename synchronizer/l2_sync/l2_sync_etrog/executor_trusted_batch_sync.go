@@ -108,7 +108,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		return nil, err
 	}
 	debugStr := data.DebugPrefix
-	processBatchResp, err := b.processAndStoreTxs(ctx, data.TrustedBatch, b.getProcessRequest(data, leafs, l1InfoRoot), dbTx, debugStr)
+	processBatchResp, err := b.processAndStoreTxs(ctx, b.getProcessRequest(data, leafs, l1InfoRoot), dbTx, debugStr)
 	if err != nil {
 		log.Error("%s error procesingAndStoringTxs. Error: ", debugStr, err)
 		return nil, err
@@ -168,14 +168,13 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		return nil, err
 	}
 
-	madeUpBatch := *data.TrustedBatch
-	madeUpBatch.BatchL2Data, err = b.composePartialBatch(data.StateBatch, data.TrustedBatch)
+	PartialBatchL2Data, err := b.composePartialBatch(data.StateBatch, data.TrustedBatch)
 	if err != nil {
 		log.Errorf("%s error composePartialBatch batch Error:%w", data.DebugPrefix, err)
 		return nil, err
 	}
 
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, madeUpBatch.BatchL2Data, dbTx)
+	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		// TODO: Need to refine, depending of the response of GetL1InfoTreeDataFromBatchL2Data
@@ -183,7 +182,9 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		return nil, syncinterfaces.ErrMissingSyncFromL1
 	}
 	debugStr := fmt.Sprintf("%s: Batch %d:", data.Mode, uint64(data.TrustedBatch.Number))
-	processBatchResp, err := b.processAndStoreTxs(ctx, &madeUpBatch, b.getProcessRequest(data, leafs, l1InfoRoot), dbTx, debugStr)
+	processReq := b.getProcessRequest(data, leafs, l1InfoRoot)
+	processReq.Transactions = PartialBatchL2Data
+	processBatchResp, err := b.processAndStoreTxs(ctx, processReq, dbTx, debugStr)
 	if err != nil {
 		log.Errorf("%s error procesingAndStoringTxs. Error: ", data.DebugPrefix, err)
 		return nil, err
@@ -269,8 +270,8 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, ErrNotExpectedBathResult)
 	}
 	if processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w",
-			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), debugStr, ErrNotExpectedBathResult)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w", debugStr,
+			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), ErrNotExpectedBathResult)
 	}
 	if processBatchResp.NewLocalExitRoot != data.TrustedBatch.LocalExitRoot {
 		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
@@ -331,18 +332,18 @@ func (b *SyncTrustedBatchExecutorForEtrog) openBatch(ctx context.Context, truste
 	return nil
 }
 
-func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Context, trustedBatch *types.Batch, request state.ProcessRequest, dbTx pgx.Tx, debugPrefix string) (*state.ProcessBatchResponse, error) {
+func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Context, request state.ProcessRequest, dbTx pgx.Tx, debugPrefix string) (*state.ProcessBatchResponse, error) {
 	if request.OldStateRoot == state.ZeroHash {
 		log.Warnf("%s Processing batch with oldStateRoot == zero....", debugPrefix)
 	}
 	processBatchResp, err := b.state.ProcessBatchV2(ctx, request, true)
 	if err != nil {
-		log.Errorf("%s error processing sequencer batch for batch: %v error:%v ", debugPrefix, trustedBatch.Number, err)
+		log.Errorf("%s error processing sequencer batch for batch: %v error:%v ", debugPrefix, request.BatchNumber, err)
 		return nil, err
 	}
 	b.sync.PendingFlushID(processBatchResp.FlushID, processBatchResp.ProverID)
 
-	log.Debugf("%s Storing %d blocks for batch %v", debugPrefix, len(processBatchResp.BlockResponses), trustedBatch.Number)
+	log.Debugf("%s Storing %d blocks for batch %v", debugPrefix, len(processBatchResp.BlockResponses), request.BatchNumber)
 	if processBatchResp.IsExecutorLevelError {
 		log.Warnf("%s executorLevelError detected. Avoid store txs...", debugPrefix)
 		return nil, fmt.Errorf("%s executorLevelError detected err: %w", debugPrefix, ErrFailExecuteBatch)
@@ -352,13 +353,13 @@ func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Contex
 	}
 	for _, block := range processBatchResp.BlockResponses {
 		log.Debugf("%s Storing trusted tx %+v", block.BlockNumber, debugPrefix)
-		if err = b.state.StoreL2Block(ctx, uint64(trustedBatch.Number), block, nil, dbTx); err != nil {
+		if err = b.state.StoreL2Block(ctx, request.BatchNumber, block, nil, dbTx); err != nil {
 			newErr := fmt.Errorf("%s failed to store l2block: %v  err:%w", debugPrefix, block.BlockNumber, err)
 			log.Error(newErr.Error())
 			return nil, newErr
 		}
 	}
-	log.Infof("%s Batch %v: batchl2data len:%d processed and stored: %s oldStateRoot: %s -> newStateRoot:%s", debugPrefix, trustedBatch.Number, len(request.Transactions), getResponseInfo(processBatchResp),
+	log.Infof("%s Batch %v: batchl2data len:%d processed and stored: %s oldStateRoot: %s -> newStateRoot:%s", debugPrefix, request.BatchNumber, len(request.Transactions), getResponseInfo(processBatchResp),
 		request.OldStateRoot.String(), processBatchResp.NewStateRoot.String())
 	return processBatchResp, nil
 }
@@ -378,12 +379,11 @@ func getResponseInfo(response *state.ProcessBatchResponse) string {
 
 func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.ProcessData, l1InfoTreeLeafs map[uint32]state.L1DataV2, l1InfoTreeRoot common.Hash) state.ProcessRequest {
 	request := state.ProcessRequest{
-		BatchNumber:     uint64(data.TrustedBatch.Number),
-		OldStateRoot:    data.OldStateRoot,
-		OldAccInputHash: data.OldAccInputHash,
-		Coinbase:        common.HexToAddress(data.TrustedBatch.Coinbase.String()),
-		L1InfoRoot_V2:   l1InfoTreeRoot,
-		//TODO: Fill L1InfoTreeData
+		BatchNumber:             uint64(data.TrustedBatch.Number),
+		OldStateRoot:            data.OldStateRoot,
+		OldAccInputHash:         data.OldAccInputHash,
+		Coinbase:                common.HexToAddress(data.TrustedBatch.Coinbase.String()),
+		L1InfoRoot_V2:           l1InfoTreeRoot,
 		L1InfoTreeData_V2:       l1InfoTreeLeafs,
 		TimestampLimit_V2:       uint64(data.TrustedBatch.Timestamp),
 		Transactions:            data.TrustedBatch.BatchL2Data,
@@ -409,15 +409,7 @@ func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
 	return nil
 }
 
-func sumAllL2BlockDeltaTimestamp(rawBatch *state.BatchRawV2) uint32 {
-	var sum uint32 = 0
-	for _, l2block := range rawBatch.Blocks {
-		sum += l2block.DeltaTimestamp
-	}
-	return sum
-}
-
-func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *state.Batch, newBatch *types.Batch) (types.ArgBytes, error) {
+func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *state.Batch, newBatch *types.Batch) ([]byte, error) {
 	debugStr := " composePartialBatch: "
 	rawPreviousBatch, err := state.DecodeBatchV2(previousBatch.BatchL2Data)
 	if err != nil {
@@ -434,11 +426,6 @@ func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *st
 	}
 	debugStr += fmt.Sprintf(" deltaBatch.blocks: %v (%v) ", len(rawPartialBatch.Blocks), len(newData))
 
-	if len(rawPreviousBatch.Blocks) > 0 {
-		// We put in first block the absolute timestamp
-		rawPartialBatch.Blocks[0].DeltaTimestamp += sumAllL2BlockDeltaTimestamp(rawPreviousBatch)
-		debugStr += fmt.Sprintf(" firstBlock tstamp: %v", rawPartialBatch.Blocks[0].DeltaTimestamp)
-	}
 	newBatchEncoded, err := state.EncodeBatchV2(rawPartialBatch)
 	if err != nil {
 		return nil, err

@@ -581,7 +581,7 @@ func TestEstimateTxWithDataBiggerThanMaxAllowed(t *testing.T) {
 	})
 	rpcErr := err.(rpc.Error)
 	assert.Equal(t, -32000, rpcErr.ErrorCode())
-	assert.Equal(t, "failed to estimate gas: batch_l2_data is invalid", rpcErr.Error())
+	assert.Equal(t, "batch_l2_data is invalid", rpcErr.Error())
 }
 
 func TestEstimateGas(t *testing.T) {
