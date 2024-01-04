@@ -12,12 +12,12 @@ import (
 
 func TestL2BlockStartEncode(t *testing.T) {
 	l2BlockStart := state.DSL2BlockStart{
-		BatchNumber:    1,                           // 8 bytes
-		L2BlockNumber:  2,                           // 8 bytes
-		Timestamp:      3,                           // 8 bytes
-		GlobalExitRoot: common.HexToHash("0x04"),    // 32 bytes
-		Coinbase:       common.HexToAddress("0x05"), // 20 bytes
-		ForkID:         5,
+		BatchNumber:   1,                           // 8 bytes
+		L2BlockNumber: 2,                           // 8 bytes
+		Timestamp:     3,                           // 8 bytes
+		GERorInfoRoot: common.HexToHash("0x04"),    // 32 bytes
+		Coinbase:      common.HexToAddress("0x05"), // 20 bytes
+		ForkID:        5,
 	}
 
 	encoded := l2BlockStart.Encode()

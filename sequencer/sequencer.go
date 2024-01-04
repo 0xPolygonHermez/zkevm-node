@@ -256,12 +256,12 @@ func (s *Sequencer) sendDataToStreamer() {
 			}
 
 			blockStart := state.DSL2BlockStart{
-				BatchNumber:    l2Block.BatchNumber,
-				L2BlockNumber:  l2Block.L2BlockNumber,
-				Timestamp:      l2Block.Timestamp,
-				GlobalExitRoot: l2Block.GlobalExitRoot,
-				Coinbase:       l2Block.Coinbase,
-				ForkID:         l2Block.ForkID,
+				BatchNumber:   l2Block.BatchNumber,
+				L2BlockNumber: l2Block.L2BlockNumber,
+				Timestamp:     l2Block.Timestamp,
+				GERorInfoRoot: l2Block.GERorInfoRoot,
+				Coinbase:      l2Block.Coinbase,
+				ForkID:        l2Block.ForkID,
 			}
 
 			_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
