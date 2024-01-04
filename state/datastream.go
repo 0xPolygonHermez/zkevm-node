@@ -493,7 +493,7 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 		}
 
 		for i := currentL2Block; i < len(l2Blocks); i++ {
-			l2Block := l2Blocks[currentL2Block]
+			l2Block := l2Blocks[i]
 			if l2Block.BatchNumber == batch.BatchNumber {
 				fullBlock := DSL2FullBlock{
 					DSL2Block: *l2Block,
@@ -511,8 +511,9 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 				}
 
 				fullBatch.L2Blocks = append(fullBatch.L2Blocks, fullBlock)
-				currentL2Block++
 			}
+
+			currentL2Block++
 
 			if l2Block.BatchNumber > batch.BatchNumber {
 				break
