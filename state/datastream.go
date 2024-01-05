@@ -221,7 +221,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 	var currentBatchNumber uint64 = 0
 	var currentL2Block uint64 = 0
-	var addedL2Blocks map[uint64]bool = make(map[uint64]bool)
+	var lastAddedL2Block uint64 = 0
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
@@ -398,10 +398,10 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 
 			for _, l2block := range batch.L2Blocks {
-				if addedL2Blocks[l2block.L2BlockNumber] {
+				if l2block.L2BlockNumber < lastAddedL2Block {
 					continue
 				} else {
-					addedL2Blocks[l2block.L2BlockNumber] = true
+					lastAddedL2Block = l2block.L2BlockNumber
 				}
 
 				blockStart := DSL2BlockStart{
