@@ -3,9 +3,9 @@ package pool
 import (
 	"bytes"
 	"errors"
-	"log"
 	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
@@ -108,6 +108,8 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 		//ratioPriority = (txGasPrice / l2GasPrice)
 		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
 	}
+
+	log.Infof("bfL2GasPrice: %d, bfTxGasPrice: %d, ratioPriority: %d", bfL2GasPrice, bfTxGasPrice, ratioPriority)
 
 	bfEffectiveGasPrice := new(big.Float).Mul(new(big.Float).SetInt(breakEvenGasPrice), ratioPriority)
 
