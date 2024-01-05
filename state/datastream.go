@@ -399,7 +399,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 			for _, l2block := range batch.L2Blocks {
 				if addedL2Blocks[l2block.L2BlockNumber] {
-					log.Errorf("L2 block %d already added", l2block.L2BlockNumber)
 					continue
 				} else {
 					addedL2Blocks[l2block.L2BlockNumber] = true
