@@ -218,9 +218,9 @@ func (_m *StateMock) ExecuteBatch(ctx context.Context, batch state.Batch, update
 	return r0, r1
 }
 
-// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx
-func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1InfoTree state.L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
-	ret := _m.Called(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
+// ExecuteBatchV2 provides a mock function with given fields: ctx, batch, L1InfoTreeRoot, l1InfoTreeData, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx
+func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, L1InfoTreeRoot common.Hash, l1InfoTreeData map[uint32]state.L1DataV2, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+	ret := _m.Called(ctx, batch, L1InfoTreeRoot, l1InfoTreeData, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExecuteBatchV2")
@@ -228,19 +228,19 @@ func (_m *StateMock) ExecuteBatchV2(ctx context.Context, batch state.Batch, l1In
 
 	var r0 *executor.ProcessBatchResponseV2
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, state.L1InfoTreeExitRootStorageEntry, time.Time, bool, uint32, *common.Hash, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
-		return rf(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, map[uint32]state.L1DataV2, time.Time, bool, uint32, *common.Hash, pgx.Tx) (*executor.ProcessBatchResponseV2, error)); ok {
+		return rf(ctx, batch, L1InfoTreeRoot, l1InfoTreeData, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, state.L1InfoTreeExitRootStorageEntry, time.Time, bool, uint32, *common.Hash, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
-		r0 = rf(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, common.Hash, map[uint32]state.L1DataV2, time.Time, bool, uint32, *common.Hash, pgx.Tx) *executor.ProcessBatchResponseV2); ok {
+		r0 = rf(ctx, batch, L1InfoTreeRoot, l1InfoTreeData, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*executor.ProcessBatchResponseV2)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, state.L1InfoTreeExitRootStorageEntry, time.Time, bool, uint32, *common.Hash, pgx.Tx) error); ok {
-		r1 = rf(ctx, batch, l1InfoTree, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, state.Batch, common.Hash, map[uint32]state.L1DataV2, time.Time, bool, uint32, *common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, batch, L1InfoTreeRoot, l1InfoTreeData, timestampLimit, updateMerkleTree, skipVerifyL1InfoRoot, forcedBlockHashL1, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
