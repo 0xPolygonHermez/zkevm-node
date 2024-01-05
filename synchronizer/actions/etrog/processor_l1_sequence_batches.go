@@ -163,12 +163,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			}
 			log.Debug("Setting forcedBatchNum: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
-			var l1InfoTreeIndex uint32 = 0 // l1InfoTreeIndex for forced batch is 0 to be ignored
-			leaves[l1InfoTreeIndex] = state.L1DataV2{
-				GlobalExitRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
-				BlockHashL1:    sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1,
-				MinTimestamp:   sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp,
-			}
 			l1InfoRoot = sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot
 			tstampLimit := forcedBatches[0].ForcedAt
 			txs := forcedBatches[0].RawTxsData
@@ -187,11 +181,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			forcedBlockHashL1 = &fBHL1
 			txs := sbatch.PolygonRollupBaseEtrogBatchData.Transactions
 			tstampLimit := time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
-			leaves[0] = state.L1DataV2{
-				GlobalExitRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
-				BlockHashL1:    sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1,
-				MinTimestamp:   sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp,
-			}
 			l1InfoRoot = sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot
 			processCtx = state.ProcessingContextV2{
 				BatchNumber:          1,
