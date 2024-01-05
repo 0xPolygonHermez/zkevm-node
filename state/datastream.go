@@ -222,6 +222,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 	var currentBatchNumber uint64 = 0
 	var currentL2Block uint64 = 0
+	var lastAddedL2Block uint64 = 0
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
@@ -355,7 +356,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 		}
 
-		// Gererate full batches
+		// Generate full batches
 		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
 		currentBatchNumber += limit
 
@@ -403,6 +404,12 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 
 			for _, l2block := range batch.L2Blocks {
+				if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
+					continue
+				} else {
+					lastAddedL2Block = l2block.L2BlockNumber
+				}
+
 				blockStart := DSL2BlockStart{
 					BatchNumber:    l2block.BatchNumber,
 					L2BlockNumber:  l2block.L2BlockNumber,
@@ -487,6 +494,7 @@ func GetSystemSCPosition(blockNumber uint64) []byte {
 
 // computeFullBatches computes the full batches
 func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction) []*DSFullBatch {
+	prevL2BlockNumber := uint64(0)
 	currentL2Block := 0
 	currentL2Tx := 0
 
@@ -499,6 +507,11 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 
 		for i := currentL2Block; i < len(l2Blocks); i++ {
 			l2Block := l2Blocks[i]
+
+			if prevL2BlockNumber != 0 && l2Block.L2BlockNumber <= prevL2BlockNumber {
+				continue
+			}
+
 			if l2Block.BatchNumber == batch.BatchNumber {
 				fullBlock := DSL2FullBlock{
 					DSL2Block: *l2Block,
@@ -516,10 +529,9 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 				}
 
 				fullBatch.L2Blocks = append(fullBatch.L2Blocks, fullBlock)
+				prevL2BlockNumber = l2Block.L2BlockNumber
 				currentL2Block++
-			}
-
-			if l2Block.BatchNumber > batch.BatchNumber {
+			} else if l2Block.BatchNumber > batch.BatchNumber {
 				break
 			}
 		}
