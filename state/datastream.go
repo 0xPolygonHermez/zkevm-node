@@ -398,7 +398,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 
 			for _, l2block := range batch.L2Blocks {
-				if l2block.L2BlockNumber <= lastAddedL2Block {
+				if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
 					continue
 				} else {
 					lastAddedL2Block = l2block.L2BlockNumber
