@@ -173,6 +173,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			}
 			//TODO: Check what we have to pass to executor for forcedBatch >1
 			tstampLimit := time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
+			batchL2Data := sbatch.PolygonRollupBaseEtrogBatchData.Transactions
 			processCtx = state.ProcessingContextV2{
 				BatchNumber: sbatch.BatchNumber,
 				Coinbase:    sbatch.SequencerAddr,
@@ -180,7 +181,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				L1InfoRoot:  sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 				//L1InfoTreeData:       leafs,
 				ForcedBatchNum:       batch.ForcedBatchNum,
-				BatchL2Data:          &sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				BatchL2Data:          &batchL2Data,
 				SkipVerifyL1InfoRoot: 0,
 			}
 		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {

@@ -25,10 +25,10 @@ import (
 )
 
 const (
-	cProverIDExecution            = "PROVER_ID-EXE001"
-	ETROG_MODE_FLAG               = true
-	RETRIVE_BATCH_FROM_DB_FLAG    = true
-	RETRIVE_BATCH_FROM_CACHE_FLAG = false
+	cProverIDExecution             = "PROVER_ID-EXE001"
+	ETROG_MODE_FLAG                = true
+	RETRIEVE_BATCH_FROM_DB_FLAG    = true
+	RETRIEVE_BATCH_FROM_CACHE_FLAG = false
 )
 
 type mocks struct {
@@ -56,7 +56,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
 
-	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, RETRIVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
+	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	// Is the first time that appears this batch, so it need to OpenBatch
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
 	err = sync.syncTrustedState(lastBatchNumber)
@@ -65,7 +65,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	m.checkExpectedCalls(t)
 
 	// This call is going to be a incremental process of the batch using the cache data
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, previousBatch09, RETRIVE_BATCH_FROM_CACHE_FLAG, ETROG_MODE_FLAG)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With2Tx, batch10With3Tx, previousBatch09, RETRIEVE_BATCH_FROM_CACHE_FLAG, ETROG_MODE_FLAG)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 
 	// This is a incremental process, permissionless have batch10With1Tx and we add a new block
 	// but the cache doesnt have this information so it need to get from db
-	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, previousBatch09, RETRIVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
+	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
@@ -675,7 +675,7 @@ func createTransaction(txIndex uint64) types.Transaction {
 	return transaction
 }
 
-func createBatchL2DataIncaberry(howManyTx int) ([]byte, error) {
+func createBatchL2DataIncaberry(howManyTx int) ([]byte, []types.TransactionOrHash, error) {
 	transactions := []types.TransactionOrHash{}
 	transactions_state := []ethTypes.Transaction{}
 	for i := 0; i < howManyTx; i++ {
@@ -684,13 +684,13 @@ func createBatchL2DataIncaberry(howManyTx int) ([]byte, error) {
 		transactions = append(transactions, transaction)
 		transactions_state = append(transactions_state, *transactionToTxData(t))
 	}
-	return state.EncodeTransactions(transactions_state, nil, 4)
+	encoded, err := state.EncodeTransactions(transactions_state, nil, 4)
+	return encoded, transactions, err
 }
 
-func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, error) {
-
+func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, []types.TransactionOrHash, error) {
 	batchV2 := state.BatchRawV2{Blocks: []state.L2BlockRaw{}}
-
+	transactions := []types.TransactionOrHash{}
 	for nBlock := 0; nBlock < howManyBlocks; nBlock++ {
 		block := state.L2BlockRaw{
 			DeltaTimestamp:  123,
@@ -699,6 +699,7 @@ func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, error) {
 		}
 		for i := 0; i < howManyTx; i++ {
 			tx := createTransaction(uint64(i + 1))
+			transactions = append(transactions, types.TransactionOrHash{Tx: &tx})
 			l2Tx := state.L2TxRaw{
 				Tx: *transactionToTxData(tx),
 			}
@@ -707,26 +708,28 @@ func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, error) {
 		}
 		batchV2.Blocks = append(batchV2.Blocks, block)
 	}
-	return state.EncodeBatchV2(&batchV2)
+	encoded, err := state.EncodeBatchV2(&batchV2)
+	return encoded, transactions, err
 }
 
 func createBatch(t *testing.T, batchNumber uint64, howManyTx int, etrogMode bool) *types.Batch {
 	var err error
 	var batchL2Data []byte
+	var transactions []types.TransactionOrHash
 	if etrogMode {
-		batchL2Data, err = createBatchL2DataEtrog(howManyTx, 1)
+		batchL2Data, transactions, err = createBatchL2DataEtrog(howManyTx, 1)
 		require.NoError(t, err)
 	} else {
-		batchL2Data, err = createBatchL2DataIncaberry(howManyTx)
+		batchL2Data, transactions, err = createBatchL2DataIncaberry(howManyTx)
 		require.NoError(t, err)
 	}
 	batch := &types.Batch{
-		Number:    types.ArgUint64(batchNumber),
-		Coinbase:  common.Address([common.AddressLength]byte{243, 159, 214, 229, 26, 173, 136, 246, 244, 206, 106, 184, 130, 114, 121, 207, 255, 185, 34, 102}),
-		Timestamp: types.ArgUint64(1687854474), // Creation timestamp
-		//Transactions: transactions,
-		BatchL2Data: batchL2Data,
-		StateRoot:   common.HexToHash("0x444"),
+		Number:       types.ArgUint64(batchNumber),
+		Coinbase:     common.Address([common.AddressLength]byte{243, 159, 214, 229, 26, 173, 136, 246, 244, 206, 106, 184, 130, 114, 121, 207, 255, 185, 34, 102}),
+		Timestamp:    types.ArgUint64(1687854474), // Creation timestamp
+		Transactions: transactions,
+		BatchL2Data:  batchL2Data,
+		StateRoot:    common.HexToHash("0x444"),
 	}
 	return batch
 }
