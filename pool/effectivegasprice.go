@@ -104,7 +104,7 @@ func (e *EffectiveGasPrice) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice 
 
 	ratioPriority := new(big.Float).SetFloat64(1.0)
 
-	if bfTxGasPrice.Cmp(bfL2GasPrice) == 1 {
+	if bfL2GasPrice.Cmp(new(big.Float).SetUint64(0)) == 1 && bfTxGasPrice.Cmp(bfL2GasPrice) == 1 {
 		//ratioPriority = (txGasPrice / l2GasPrice)
 		ratioPriority = new(big.Float).Quo(bfTxGasPrice, bfL2GasPrice)
 	}
