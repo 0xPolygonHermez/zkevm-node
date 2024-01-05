@@ -164,7 +164,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
-	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData]: %v", l1InfoTreeData)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData]: %+v", l1InfoTreeData)
 
 	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {
