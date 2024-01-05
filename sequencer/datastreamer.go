@@ -10,14 +10,14 @@ func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.Proce
 	// Send data to streamer
 	if f.streamServer != nil {
 		l2Block := state.DSL2Block{
-			BatchNumber:    batchNumber,
-			L2BlockNumber:  blockResponse.BlockNumber,
-			Timestamp:      int64(blockResponse.Timestamp),
-			GlobalExitRoot: blockResponse.BlockInfoRoot, //TODO: is it ok?
-			Coinbase:       f.sequencerAddress,
-			ForkID:         uint16(forkID),
-			BlockHash:      blockResponse.BlockHash,
-			StateRoot:      blockResponse.BlockHash, //TODO: in etrog the blockhash is the block root
+			BatchNumber:   batchNumber,
+			L2BlockNumber: blockResponse.BlockNumber,
+			Timestamp:     int64(blockResponse.Timestamp),
+			GERorInfoRoot: blockResponse.BlockInfoRoot,
+			Coinbase:      f.sequencerAddress,
+			ForkID:        uint16(forkID),
+			BlockHash:     blockResponse.BlockHash,
+			StateRoot:     blockResponse.BlockHash, //From etrog the blockhash is the block root
 		}
 
 		l2Transactions := []state.DSL2Transaction{}
