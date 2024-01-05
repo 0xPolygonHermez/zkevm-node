@@ -101,7 +101,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 }
 
 // ExecuteBatchV2 is used by the synchronizer to reprocess batches to compare generated state root vs stored one
-func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1InfoTreeExitRootStorageEntry, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
+func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot common.Hash, l1InfoTreeData map[uint32]L1DataV2, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error) {
 	if dbTx == nil {
 		return nil, ErrDBTxNil
 	}
@@ -125,7 +125,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1In
 		Coinbase:        batch.Coinbase.String(),
 		BatchL2Data:     batch.BatchL2Data,
 		OldStateRoot:    previousBatch.StateRoot.Bytes(),
-		L1InfoRoot:      l1InfoTree.L1InfoTreeRoot.Bytes(),
+		L1InfoRoot:      L1InfoTreeRoot.Bytes(),
 		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
 		TimestampLimit:  uint64(timestampLimit.Unix()),
 		// Changed for new sequencer strategy
@@ -139,11 +139,15 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1In
 	if forcedBlockHashL1 != nil {
 		processBatchRequest.ForcedBlockhashL1 = forcedBlockHashL1.Bytes()
 	} else {
-		processBatchRequest.L1InfoTreeData = map[uint32]*executor.L1DataV2{l1InfoTree.L1InfoTreeIndex: {
-			GlobalExitRoot: l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
-			BlockHashL1:    l1InfoTree.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
-			MinTimestamp:   uint64(l1InfoTree.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
-		}}
+		l1InfoTree := make(map[uint32]*executor.L1DataV2)
+		for i, v := range l1InfoTreeData {
+			l1InfoTree[i] = &executor.L1DataV2{
+				GlobalExitRoot: v.GlobalExitRoot.Bytes(),
+				BlockHashL1:    v.BlockHashL1.Bytes(),
+				MinTimestamp:   v.MinTimestamp,
+			}
+		}
+		processBatchRequest.L1InfoTreeData = l1InfoTree
 	}
 
 	// Send Batch to the Executor
@@ -160,9 +164,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, l1InfoTree L1In
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ForkId]: %v", processBatchRequest.ForkId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
-	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].BlockHashL1]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].BlockHashL1)
-	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].GlobalExitRoot]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].GlobalExitRoot)
-	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData[%d].MinTimestamp]: %v", l1InfoTree.L1InfoTreeIndex, processBatchRequest.L1InfoTreeData[l1InfoTree.L1InfoTreeIndex].MinTimestamp)
+	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData]: %+v", l1InfoTreeData)
 
 	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
 	if err != nil {
