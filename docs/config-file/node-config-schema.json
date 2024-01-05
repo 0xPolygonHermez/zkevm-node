@@ -303,6 +303,16 @@
 							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
 						},
+						"EthTransferGasPrice": {
+							"type": "integer",
+							"description": "EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
+						},
+						"EthTransferL1GasPriceFactor": {
+							"type": "number",
+							"description": "EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
+						},
 						"L2GasPriceSuggesterFactor": {
 							"type": "number",
 							"description": "L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the\ncalculations when the effective gas price is disabled (testing/metrics purposes)",
