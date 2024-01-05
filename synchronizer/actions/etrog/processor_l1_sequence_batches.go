@@ -462,7 +462,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 			}
 		} else {
 			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
-
 		}
 		return true
 	}
