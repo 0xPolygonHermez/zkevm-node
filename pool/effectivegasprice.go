@@ -93,6 +93,9 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 		((txNonZeroBytes*e.cfg.ByteGasCost)+(txZeroBytes*e.cfg.ZeroByteGasCost))*l1GasPrice
 	breakEvenGasPrice := new(big.Int).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
 
+	log.Infof("egp-dbg l2MinGasPrice: %v, txZeroBytes: %v, txNonZeroBytes: %v, totalTxPrice: %v, breakEvenGasPrice: %v",
+		l2MinGasPrice, txZeroBytes, txNonZeroBytes, totalTxPrice, breakEvenGasPrice)
+
 	return breakEvenGasPrice, nil
 }
 
