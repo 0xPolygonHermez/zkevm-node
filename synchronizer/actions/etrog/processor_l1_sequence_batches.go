@@ -171,6 +171,18 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				},
 				L1InfoTreeRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 			}
+			//TODO: Check what we have to pass to executor for forcedBatch >1
+			tstampLimit := time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
+			processCtx = state.ProcessingContextV2{
+				BatchNumber: sbatch.BatchNumber,
+				Coinbase:    sbatch.SequencerAddr,
+				Timestamp:   &tstampLimit,
+				L1InfoRoot:  sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				//L1InfoTreeData:       leafs,
+				ForcedBatchNum:       batch.ForcedBatchNum,
+				BatchL2Data:          &sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
+				SkipVerifyL1InfoRoot: 0,
+			}
 		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {
 			log.Debug("Processing initial batch")
 			var fBHL1 common.Hash = sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1

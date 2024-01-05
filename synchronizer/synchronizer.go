@@ -392,9 +392,9 @@ func (s *ClientSynchronizer) Sync() error {
 						}
 					} else if err != nil && errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
 						log.Info("Syncing from trusted node need data from L1")
-					} else {
+					} else if err != nil {
 						// We break for resync from Trusted
-						log.Debug("Sleeping for 1 second to avoid respawn too fast")
+						log.Debug("Sleeping for 1 second to avoid respawn too fast, error: ", err)
 						time.Sleep(time.Second)
 						continue
 					}
