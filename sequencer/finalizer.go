@@ -454,8 +454,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	processBatchResponse, err := f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, false)
 
-	if err != nil && errors.Is(err, runtime.ErrExecutorDBError) {
-		log.Errorf("failed to process tx %s, error: %v", hashStr, err)
+	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
+		log.Errorf("failed to process tx %s, error: %w", hashStr, err)
 		return nil, err
 	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)

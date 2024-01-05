@@ -217,7 +217,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 				UncleHash:  ethTypes.EmptyUncleHash,
 			})
 			l2Block := state.NewL2BlockWithHeader(l2Header)
-			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false)
+			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false, state.Ptr(true))
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -247,7 +247,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -276,7 +276,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -323,7 +323,7 @@ func (z *ZKEVMEndpoints) GetTransactionByL2Hash(hash types.ArgHash) (interface{}
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
 			}
 
-			res, err := types.NewTransaction(*tx, receipt, false)
+			res, err := types.NewTransaction(*tx, receipt, false, state.Ptr(true))
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -343,7 +343,7 @@ func (z *ZKEVMEndpoints) GetTransactionByL2Hash(hash types.ArgHash) (interface{}
 		}
 		if poolTx.Status == pool.TxStatusPending {
 			tx = &poolTx.Transaction
-			res, err := types.NewTransaction(*tx, nil, false)
+			res, err := types.NewTransaction(*tx, nil, false, state.Ptr(true))
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}

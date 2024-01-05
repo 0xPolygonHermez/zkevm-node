@@ -105,11 +105,6 @@ func (_m *WorkerMock) GetBestFittingTx(resources state.BatchResources) (*TxTrack
 	return r0, r1
 }
 
-// HandleL2Reorg provides a mock function with given fields: txHashes
-func (_m *WorkerMock) HandleL2Reorg(txHashes []common.Hash) {
-	_m.Called(txHashes)
-}
-
 // MoveTxToNotReady provides a mock function with given fields: txHash, from, actualNonce, actualBalance
 func (_m *WorkerMock) MoveTxToNotReady(txHash common.Hash, from common.Address, actualNonce *uint64, actualBalance *big.Int) []*TxTracker {
 	ret := _m.Called(txHash, from, actualNonce, actualBalance)
