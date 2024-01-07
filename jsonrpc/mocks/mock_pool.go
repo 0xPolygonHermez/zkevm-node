@@ -44,6 +44,10 @@ func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) 
 func (_m *PoolMock) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
 	ret := _m.Called(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
 
+	if len(ret) == 0 {
+		panic("no return value specified for CalculateEffectiveGasPrice")
+	}
+
 	var r0 *big.Int
 	var r1 error
 	if rf, ok := ret.Get(0).(func([]byte, *big.Int, uint64, uint64, uint64) (*big.Int, error)); ok {
@@ -97,6 +101,10 @@ func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error
 // EffectiveGasPriceEnabled provides a mock function with given fields:
 func (_m *PoolMock) EffectiveGasPriceEnabled() bool {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for EffectiveGasPriceEnabled")
+	}
 
 	var r0 bool
 	if rf, ok := ret.Get(0).(func() bool); ok {
