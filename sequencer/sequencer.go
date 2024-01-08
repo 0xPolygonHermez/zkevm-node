@@ -78,7 +78,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Start stream server if enabled
 	if s.cfg.StreamServer.Enabled {
-		s.streamServer, err = datastreamer.NewServer(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
+		s.streamServer, err = datastreamer.NewServer(s.cfg.StreamServer.Port, s.cfg.StreamServer.Version, s.cfg.StreamServer.ChainID, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
 		if err != nil {
 			log.Fatalf("failed to create stream server, error: %v", err)
 		}
@@ -256,12 +256,14 @@ func (s *Sequencer) sendDataToStreamer() {
 			}
 
 			blockStart := state.DSL2BlockStart{
-				BatchNumber:   l2Block.BatchNumber,
-				L2BlockNumber: l2Block.L2BlockNumber,
-				Timestamp:     l2Block.Timestamp,
-				GERorInfoRoot: l2Block.GERorInfoRoot,
-				Coinbase:      l2Block.Coinbase,
-				ForkID:        l2Block.ForkID,
+				BatchNumber:    l2Block.BatchNumber,
+				L2BlockNumber:  l2Block.L2BlockNumber,
+				Timestamp:      l2Block.Timestamp,
+				L1BlockHash:    l2Block.L1BlockHash,
+				GlobalExitRoot: l2Block.GlobalExitRoot,
+				L1InfoRoot:     l2Block.L1InfoRoot,
+				Coinbase:       l2Block.Coinbase,
+				ForkID:         l2Block.ForkID,
 			}
 
 			_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())

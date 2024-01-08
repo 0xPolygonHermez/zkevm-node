@@ -53,24 +53,28 @@ type DSL2FullBlock struct {
 
 // DSL2Block is a full l2 block
 type DSL2Block struct {
-	BatchNumber   uint64         // 8 bytes
-	L2BlockNumber uint64         // 8 bytes
-	Timestamp     int64          // 8 bytes
-	GERorInfoRoot common.Hash    // 32 bytes
-	Coinbase      common.Address // 20 bytes
-	ForkID        uint16         // 2 bytes
-	BlockHash     common.Hash    // 32 bytes
-	StateRoot     common.Hash    // 32 bytes
+	BatchNumber    uint64         // 8 bytes
+	L2BlockNumber  uint64         // 8 bytes
+	Timestamp      int64          // 8 bytes
+	L1BlockHash    common.Hash    // 32 bytes
+	GlobalExitRoot common.Hash    // 32 bytes
+	L1InfoRoot     common.Hash    // 32 bytes
+	Coinbase       common.Address // 20 bytes
+	ForkID         uint16         // 2 bytes
+	BlockHash      common.Hash    // 32 bytes
+	StateRoot      common.Hash    // 32 bytes
 }
 
 // DSL2BlockStart represents a data stream L2 block start
 type DSL2BlockStart struct {
-	BatchNumber   uint64         // 8 bytes
-	L2BlockNumber uint64         // 8 bytes
-	Timestamp     int64          // 8 bytes
-	GERorInfoRoot common.Hash    // 32 bytes
-	Coinbase      common.Address // 20 bytes
-	ForkID        uint16         // 2 bytes
+	BatchNumber    uint64         // 8 bytes
+	L2BlockNumber  uint64         // 8 bytes
+	Timestamp      int64          // 8 bytes
+	L1BlockHash    common.Hash    // 32 bytes
+	GlobalExitRoot common.Hash    // 32 bytes
+	L1InfoRoot     common.Hash    // 32 bytes
+	Coinbase       common.Address // 20 bytes
+	ForkID         uint16         // 2 bytes
 }
 
 // Encode returns the encoded DSL2BlockStart as a byte slice
@@ -79,7 +83,9 @@ func (b DSL2BlockStart) Encode() []byte {
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.BatchNumber)
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
 	bytes = binary.LittleEndian.AppendUint64(bytes, uint64(b.Timestamp))
-	bytes = append(bytes, b.GERorInfoRoot.Bytes()...)
+	bytes = append(bytes, b.L1BlockHash.Bytes()...)
+	bytes = append(bytes, b.GlobalExitRoot.Bytes()...)
+	bytes = append(bytes, b.L1InfoRoot.Bytes()...)
 	bytes = append(bytes, b.Coinbase.Bytes()...)
 	bytes = binary.LittleEndian.AppendUint16(bytes, b.ForkID)
 	return bytes
@@ -90,9 +96,11 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 	b.BatchNumber = binary.LittleEndian.Uint64(data[0:8])
 	b.L2BlockNumber = binary.LittleEndian.Uint64(data[8:16])
 	b.Timestamp = int64(binary.LittleEndian.Uint64(data[16:24]))
-	b.GERorInfoRoot = common.BytesToHash(data[24:56])
-	b.Coinbase = common.BytesToAddress(data[56:76])
-	b.ForkID = binary.LittleEndian.Uint16(data[76:78])
+	b.L1BlockHash = common.BytesToHash(data[24:56])
+	b.GlobalExitRoot = common.BytesToHash(data[56:88])
+	b.L1InfoRoot = common.BytesToHash(data[88:120])
+	b.Coinbase = common.BytesToAddress(data[120:140])
+	b.ForkID = binary.LittleEndian.Uint16(data[140:142])
 	return b
 }
 
@@ -246,12 +254,14 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		}
 
 		genesisBlock := DSL2BlockStart{
-			BatchNumber:   genesisL2Block.BatchNumber,
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
-			Timestamp:     genesisL2Block.Timestamp,
-			GERorInfoRoot: genesisL2Block.GERorInfoRoot,
-			Coinbase:      genesisL2Block.Coinbase,
-			ForkID:        genesisL2Block.ForkID,
+			BatchNumber:    genesisL2Block.BatchNumber,
+			L2BlockNumber:  genesisL2Block.L2BlockNumber,
+			Timestamp:      genesisL2Block.Timestamp,
+			L1BlockHash:    genesisL2Block.L1BlockHash,
+			L1InfoRoot:     genesisL2Block.L1InfoRoot,
+			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
+			Coinbase:       genesisL2Block.Coinbase,
+			ForkID:         genesisL2Block.ForkID,
 		}
 
 		log.Infof("Genesis block: %+v", genesisBlock)
@@ -404,13 +414,21 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					lastAddedL2Block = l2block.L2BlockNumber
 				}
 
+				// Get L1 Info Root
+				batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
+				if err != nil {
+					log.Errorf("Failed to decode batch data, err: %v", err)
+					return nil, err
+				}
+
 				blockStart := DSL2BlockStart{
-					BatchNumber:   l2block.BatchNumber,
-					L2BlockNumber: l2block.L2BlockNumber,
-					Timestamp:     l2block.Timestamp,
-					GERorInfoRoot: l2block.GERorInfoRoot,
-					Coinbase:      l2block.Coinbase,
-					ForkID:        l2block.ForkID,
+					BatchNumber:    l2block.BatchNumber,
+					L2BlockNumber:  l2block.L2BlockNumber,
+					Timestamp:      l2block.Timestamp,
+					L1BlockHash:    l2block.L1BlockHash,
+					GlobalExitRoot: l2block.GlobalExitRoot,
+					Coinbase:       l2block.Coinbase,
+					ForkID:         l2block.ForkID,
 				}
 
 				bookMark := DSBookMark{
@@ -457,7 +475,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				if err != nil {
 					return err
 				}
-				currentGER = l2block.GERorInfoRoot
+				currentGER = l2block.GlobalExitRoot
 			}
 			// Commit at the end of each batch group
 			err = streamServer.CommitAtomicOp()
