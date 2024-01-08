@@ -418,7 +418,7 @@ func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interfac
 }
 
 // EstimateFee returns an estimate fee for the transaction.
-func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNumberOrHash, stateOverride *types.StateOverride) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		if arg == nil {
 			return RPCErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil, false)
@@ -446,7 +446,7 @@ func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNum
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
 
-		gasEstimation, returnValue, err := z.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+		gasEstimation, returnValue, err := z.state.EstimateGas(tx, sender, blockToProcess, stateOverride.ToStateOverride(), dbTx)
 		if errors.Is(err, runtime.ErrExecutionReverted) {
 			data := make([]byte, len(returnValue))
 			copy(data, returnValue)

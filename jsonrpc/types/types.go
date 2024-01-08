@@ -111,6 +111,12 @@ func (b ArgBig) Hex() string {
 	return string(bb)
 }
 
+// ArgBigPtr helps to marshal big value provided in the RPC requests
+func ArgBigPtr(b big.Int) *ArgBig {
+	bb := ArgBig(b)
+	return &bb
+}
+
 func decodeToHex(b []byte) ([]byte, error) {
 	str := string(b)
 	str = strings.TrimPrefix(str, "0x")
