@@ -335,6 +335,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
 			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
 		}
+		fullBatchSleepDuration := getFullBatchSleepDuration(f.cfg.FullBatchSleepDuration.Duration)
+		if fullBatchSleepDuration > 0 {
+			log.Infof("Slow down sequencer: %v", fullBatchSleepDuration)
+			time.Sleep(fullBatchSleepDuration)
+		}
 
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -403,12 +408,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
 			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelFullBatch, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
 			metrics.TrustBatchNum(f.batch.batchNumber - 1)
-
-			fullBatchSleepDuration := getFullBatchSleepDuration(f.cfg.FullBatchSleepDuration.Duration, f.cfg.TimestampResolution.Duration)
-			if fullBatchSleepDuration > 0 {
-				log.Infof("Slow down sequencer: %v", fullBatchSleepDuration)
-				time.Sleep(fullBatchSleepDuration)
-			}
 		}
 
 		if err := ctx.Err(); err != nil {

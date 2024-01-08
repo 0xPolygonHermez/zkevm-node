@@ -40,7 +40,7 @@ func UpdateConfig(apolloConfig Config) {
 	getApolloConfig().Unlock()
 }
 
-func getFullBatchSleepDuration(localDuration, timestampResolution time.Duration) time.Duration {
+func getFullBatchSleepDuration(localDuration time.Duration) time.Duration {
 	var ret time.Duration
 	if getApolloConfig().Enable() {
 		getApolloConfig().RLock()
@@ -48,9 +48,6 @@ func getFullBatchSleepDuration(localDuration, timestampResolution time.Duration)
 		ret = getApolloConfig().FullBatchSleepDuration.Duration
 	} else {
 		ret = localDuration
-	}
-	if ret > timestampResolution {
-		ret = timestampResolution
 	}
 
 	return ret

@@ -29,7 +29,7 @@ func (c *Client) fireSequencer(key string, value *storage.ConfigChange) {
 		log.Errorf("failed to unmarshal sequencer config: %v error: %v", value.NewValue, err)
 		return
 	}
-	log.Infof("apollo json-rpc old config : %+v", c.config.RPC)
-	log.Infof("apollo json-rpc config changed: %+v", value.NewValue.(string))
+	log.Infof("apollo sequencer old config : %+v", c.config.RPC)
+	log.Infof("apollo sequencer config changed: %+v", value.NewValue.(string))
 	sequencer.UpdateConfig(newConf.Sequencer)
 }
