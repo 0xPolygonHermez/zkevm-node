@@ -104,5 +104,6 @@ func getBlockByHash(ctx context.Context, url string, hash common.Hash) {
 		log.Errorf("error getting block by computed hash: %s. Error: %v", hash, err)
 	} else {
 		log.Info("blockByHash:", hash, blockByHash.Hash())
+		log.Info("Block StateRoot: ", blockByHash.Header().Root)
 	}
 }
