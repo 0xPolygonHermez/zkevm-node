@@ -24,6 +24,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	ctx := context.Background()
 	defer func() { require.NoError(t, operations.TeardownPermissionless()) }()
 	err := operations.Teardown()
@@ -34,6 +35,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, opsman.SetupWithPermissionless())
 	require.NoError(t, opsman.StopEthTxSender())
+	opsman.ShowDockerLogs()
 	time.Sleep(5 * time.Second)
 
 	// Step 1:
@@ -105,9 +107,13 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// Get the receipt of last tx to known the L2 block number
 	signedTx, err := auth.Signer(auth.From, txsStep2[len(txsStep2)-1])
 	require.NoError(t, err)
-	timeoutForTxReceipt := 4 * time.Minute //nolint:gomnd
+	timeoutForTxReceipt := 2 * time.Minute //nolint:gomnd
 	log.Infof("Getting tx receipt for last new tx [%s]to know the L2 block number (tout=%s)", signedTx.Hash(), timeoutForTxReceipt)
 	receipt, err := operations.WaitTxReceipt(ctx, signedTx.Hash(), timeoutForTxReceipt, client)
+	if err != nil {
+		log.Errorf("error waiting tx %s to be mined: %w", signedTx.Hash(), err)
+		opsman.ShowDockerLogs()
+	}
 	require.NoError(t, err)
 	lastL2BlockNumberStep2 := receipt.BlockNumber
 	log.Infof("waiting until L2 block %v is virtualized", lastL2BlockNumberStep2)

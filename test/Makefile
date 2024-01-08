@@ -551,6 +551,10 @@ stop-metrics: ## Stops the metrics container
 init-network: ## Initializes the network
 	go run ./scripts/init_network/main.go .
 
+.PHONY: show-logs
+show-logs:  ## Show logs for running docker 
+	$(DOCKERCOMPOSE) logs
+
 .PHONY: deploy-sc
 deploy-sc: ## deploys some examples of transactions and smart contracts
 	go run ./scripts/deploy_sc/main.go .
