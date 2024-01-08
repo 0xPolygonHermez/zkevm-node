@@ -106,7 +106,7 @@ func NewSynchronizer(
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
 		l1EventProcessors:       nil,
-		halter:                  syncCommon.NewHaltSynchronizer(eventLog, 5*time.Second), //nolint:gomnd
+		halter:                  syncCommon.NewHaltInfinteLoop(eventLog, 5*time.Second), //nolint:gomnd
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)

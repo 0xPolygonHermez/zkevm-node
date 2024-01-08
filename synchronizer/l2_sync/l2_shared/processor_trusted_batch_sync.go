@@ -208,7 +208,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			Description:  "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		batchSynced, strSync := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
+		batchSynced, strSync := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP|CMP_BATCH_IGNORE_WIP)
 		if batchSynced {
 			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
