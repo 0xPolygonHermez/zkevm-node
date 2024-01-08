@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"math/big"
 	"os"
-	"context"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/urfave/cli/v2"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -29,7 +29,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "gets Block by Hash",
 			Action:  getBlockHash,
-			Flags:   append(flags, &cli.StringFlag{
+			Flags: append(flags, &cli.StringFlag{
 				Name:    "hash",
 				Aliases: []string{"bh"},
 				Value:   common.Hash{}.String(),
@@ -40,7 +40,7 @@ func main() {
 			Aliases: []string{},
 			Usage:   "reads the block hash",
 			Action:  readBlockHash,
-			Flags:   append(flags, &cli.Uint64Flag{
+			Flags: append(flags, &cli.Uint64Flag{
 				Name:    "blocknumber",
 				Aliases: []string{"n"},
 				Value:   1,
@@ -83,7 +83,7 @@ func getBlockByNumber(ctx context.Context, url string, blockNumber int64) (*type
 		log.Errorf("error connecting to %s: %+v", url, err)
 		return nil, err
 	}
-	bn := big.NewInt(int64(blockNumber))
+	bn := big.NewInt(blockNumber)
 	block, err := ethClient.BlockByNumber(ctx, bn)
 	if err != nil {
 		log.Errorf("error getting block number: %d. Error: %v", blockNumber, err)
