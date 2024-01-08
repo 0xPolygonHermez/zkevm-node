@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -142,23 +143,11 @@ func TestNothingProcessDontCloseBatch(t *testing.T) {
 	require.Equal(t, true, data.StateBatch.WIP)
 }
 
-func TestNothingProcessCloseBatch(t *testing.T) {
+func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
 	testData := newTestData(t)
 	// Arrange
-	data := l2_shared.ProcessData{
-		BatchNumber:       123,
-		Mode:              l2_shared.NothingProcessMode,
-		BatchMustBeClosed: true,
-		DebugPrefix:       "test",
-		StateBatch:        &state.Batch{},
-		TrustedBatch: &types.Batch{
-			Number:        123,
-			StateRoot:     common.HexToHash(hashExamplesValues[0]),
-			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
-			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
-			BatchL2Data:   []byte{1, 2, 3, 4},
-		},
-	}
+	data := newData()
+	data.BatchMustBeClosed = true
 	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
 
 	response, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
@@ -168,7 +157,14 @@ func TestNothingProcessCloseBatch(t *testing.T) {
 	require.Equal(t, false, data.StateBatch.WIP)
 }
 
-func TestGivenCloseBatchAlreadyCloseAndTheBatchDataDoesntMatchExpectedThenHalt(t *testing.T) {
+func TestNothingProcessIfNotBatchMustBeClosedThenDoNothing(t *testing.T) {
+	testData := newTestData(t)
+	data := newData()
+	data.BatchMustBeClosed = false
+	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+}
+func TestCloseBatchGivenAlreadyCloseAndTheBatchDataDoesntMatchExpectedThenHalt(t *testing.T) {
 	testData := newTestData(t)
 	data := newData()
 
@@ -178,4 +174,25 @@ func TestGivenCloseBatchAlreadyCloseAndTheBatchDataDoesntMatchExpectedThenHalt(t
 	testData.halterMock.EXPECT().Halt(testData.ctx, mock.Anything).Once()
 	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
 	require.Error(t, res)
+}
+
+func TestCloseBatchGivenAlreadyClosedAndTheDataAreRightThenNoError(t *testing.T) {
+	testData := newTestData(t)
+	data := newData()
+	data.TrustedBatch.Closed = true
+	stateBatchEqualToTrusted := &state.Batch{
+		BatchNumber:    data.BatchNumber,
+		GlobalExitRoot: data.TrustedBatch.GlobalExitRoot,
+		LocalExitRoot:  data.TrustedBatch.LocalExitRoot,
+		StateRoot:      data.TrustedBatch.StateRoot,
+		AccInputHash:   data.TrustedBatch.AccInputHash,
+		BatchL2Data:    data.TrustedBatch.BatchL2Data,
+		WIP:            false,
+		Timestamp:      time.Unix(int64(data.TrustedBatch.Timestamp+123), 0),
+	}
+	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(state.ErrBatchAlreadyClosed).Once()
+	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(stateBatchEqualToTrusted, nil).Once()
+	// No call to HALT!
+	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
+	require.NoError(t, res)
 }

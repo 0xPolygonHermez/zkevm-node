@@ -313,7 +313,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trust
 				log.Errorf("%s error getting local batch %d", debugStr, trustedBatch.Number)
 				return err
 			}
-			equals, str := l2_shared.AreEqualStateBatchAndTrustedBatch(dbBatch, trustedBatch, l2_shared.CMP_BATCH_NONE)
+			equals, str := l2_shared.AreEqualStateBatchAndTrustedBatch(dbBatch, trustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP)
 			if !equals {
 				// This is a situation impossible to reach!, if it happens we halt sync and we need to develop a recovery process
 				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) HALTING", debugStr, str)

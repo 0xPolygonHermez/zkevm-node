@@ -92,60 +92,79 @@ func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 // ProcessTrustedBatch processes a trusted batch and return the new state
 func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error) {
 	log.Debugf("%s Processing trusted batch: %v", debugPrefix, trustedBatch.Number)
-	// Duplicate batches to avoid interferences with cache
-	var stateCurrentBatch *state.Batch = nil
-	var statePreviousBatch *state.Batch = nil
-	if status.LastTrustedBatches[0] != nil {
-		tmpBatch := *status.LastTrustedBatches[0]
-		stateCurrentBatch = &tmpBatch
-	}
-	if status.LastTrustedBatches[1] != nil {
-		tmpBatch := *status.LastTrustedBatches[1]
-		statePreviousBatch = &tmpBatch
-	}
-	processMode, err := s.getModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch)
-	processMode.DebugPrefix = fmt.Sprintf("%s mode %s:", debugPrefix, processMode.Mode)
+	stateCurrentBatch, statePreviousBatch := s.GetCurrentAndPreviousBatchFromCache(&status)
+	processMode, err := s.GetModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch, debugPrefix)
 	if err != nil {
 		log.Error("%s error getting processMode. Error: ", debugPrefix, trustedBatch.Number, err)
 		return nil, err
 	}
-	log.Infof("%s  Processing trusted batch: mode=%s desc=%s", processMode.DebugPrefix, processMode.Mode, processMode.Description)
-	var processBatchResp *ProcessResponse = nil
-	switch processMode.Mode {
-	case NothingProcessMode:
-		log.Debugf("%s  is already synchronized", processMode.DebugPrefix, trustedBatch.Number)
-		err = nil
-	case FullProcessMode:
-		log.Debugf("%s is not on database, so is the first time we process it", debugPrefix)
-		processBatchResp, err = s.Steps.FullProcess(ctx, &processMode, dbTx)
-	case IncrementalProcessMode:
-		log.Debugf("%s is partially synchronized", processMode.DebugPrefix)
-		processBatchResp, err = s.Steps.IncrementalProcess(ctx, &processMode, dbTx)
-	case ReprocessProcessMode:
-		log.Debugf("%s is partially synchronized but we don't have intermediate stateRoot so it needs to be fully reprocessed", processMode.DebugPrefix)
-		processBatchResp, err = s.Steps.ReProcess(ctx, &processMode, dbTx)
-	}
+	processBatchResp, err := s.ExecuteProcessBatch(ctx, &processMode, dbTx)
 	if err != nil {
 		log.Errorf("%s error processing trusted batch. Error: %s", processMode.DebugPrefix, err)
 		return nil, err
 	}
+	return s.GetNextCache(&processMode, processBatchResp, status)
+}
 
+// GetCurrentAndPreviousBatchFromCache returns the current and previous batch from cache
+func (s *ProcessorTrustedBatchSync) GetCurrentAndPreviousBatchFromCache(status *TrustedState) (*state.Batch, *state.Batch) {
+	if status == nil {
+		return nil, nil
+	}
+	// Duplicate batches to avoid interferences with cache
+	var stateCurrentBatch *state.Batch = nil
+	var statePreviousBatch *state.Batch = nil
+	if len(status.LastTrustedBatches) > 0 && status.LastTrustedBatches[0] != nil {
+		tmpBatch := *status.LastTrustedBatches[0]
+		stateCurrentBatch = &tmpBatch
+	}
+	if len(status.LastTrustedBatches) > 1 && status.LastTrustedBatches[1] != nil {
+		tmpBatch := *status.LastTrustedBatches[1]
+		statePreviousBatch = &tmpBatch
+	}
+	return stateCurrentBatch, statePreviousBatch
+}
+
+// GetNextCache returns the next cache for use in the next run
+// it could be nil, that means discard current cache
+func (s *ProcessorTrustedBatchSync) GetNextCache(processMode *ProcessData, processBatchResp *ProcessResponse, status TrustedState) (*TrustedState, error) {
+	if processBatchResp != nil && !processBatchResp.ClearCache {
+		newStatus := updateCache(status, processBatchResp, processMode.BatchMustBeClosed)
+		log.Debugf("%s Batch synchronized, updated cache for next run", processMode.DebugPrefix)
+		return &newStatus, nil
+	} else {
+		log.Debugf("%s Batch synchronized -> clear cache", processMode.DebugPrefix)
+		return nil, nil
+	}
+}
+
+// ExecuteProcessBatch execute the batch and process it
+func (s *ProcessorTrustedBatchSync) ExecuteProcessBatch(ctx context.Context, processMode *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error) {
+	log.Infof("%s  Processing trusted batch: mode=%s desc=%s", processMode.DebugPrefix, processMode.Mode, processMode.Description)
+	var processBatchResp *ProcessResponse = nil
+	var err error
+	switch processMode.Mode {
+	case NothingProcessMode:
+		log.Debugf("%s  is already synchronized", processMode.DebugPrefix, processMode.BatchNumber)
+		processBatchResp, err = s.Steps.NothingProcess(ctx, processMode, dbTx)
+	case FullProcessMode:
+		log.Debugf("%s is not on database, so is the first time we process it", processMode.DebugPrefix)
+		processBatchResp, err = s.Steps.FullProcess(ctx, processMode, dbTx)
+	case IncrementalProcessMode:
+		log.Debugf("%s is partially synchronized", processMode.DebugPrefix)
+		processBatchResp, err = s.Steps.IncrementalProcess(ctx, processMode, dbTx)
+	case ReprocessProcessMode:
+		log.Debugf("%s is partially synchronized but we don't have intermediate stateRoot so it needs to be fully reprocessed", processMode.DebugPrefix)
+		processBatchResp, err = s.Steps.ReProcess(ctx, processMode, dbTx)
+	}
 	if processMode.BatchMustBeClosed {
-		err = checkProcessBatchResultMatchExpected(&processMode, processBatchResp.ProcessBatchResponse)
+		err = checkProcessBatchResultMatchExpected(processMode, processBatchResp.ProcessBatchResponse)
 		if err != nil {
-			log.Error("%s error verifying batch result!  Error: ", debugPrefix, err)
+			log.Error("%s error verifying batch result!  Error: ", processMode.DebugPrefix, err)
 			return nil, err
 		}
 	}
-
-	if processBatchResp != nil && !processBatchResp.ClearCache {
-		newStatus := updateCache(status, processBatchResp, processMode.BatchMustBeClosed)
-		log.Debugf("%s Batch %v synchronized, updated cache for next run", debugPrefix, trustedBatch.Number)
-		return &newStatus, nil
-	} else {
-		log.Debugf("%s Batch %v synchronized -> clear cache", debugPrefix, trustedBatch.Number)
-		return nil, nil
-	}
+	return processBatchResp, err
 }
 
 func updateCache(status TrustedState, response *ProcessResponse, closedBatch bool) TrustedState {
@@ -174,7 +193,8 @@ func updateCache(status TrustedState, response *ProcessResponse, closedBatch boo
 	return res
 }
 
-func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch) (ProcessData, error) {
+// GetModeForProcessBatch returns the mode for process a batch
+func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *types.Batch, stateBatch *state.Batch, statePreviousBatch *state.Batch, debugPrefix string) (ProcessData, error) {
 	// Check parameters
 	if trustedNodeBatch == nil || statePreviousBatch == nil {
 		return ProcessData{}, fmt.Errorf("trustedNodeBatch and statePreviousBatch can't be nil")
@@ -224,6 +244,7 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 	result.TrustedBatch = trustedNodeBatch
 	result.OldAccInputHash = statePreviousBatch.AccInputHash
 	result.Now = s.timeProvider.Now()
+	result.DebugPrefix = fmt.Sprintf("%s mode %s:", debugPrefix, result.Mode)
 	return result, nil
 }
 
