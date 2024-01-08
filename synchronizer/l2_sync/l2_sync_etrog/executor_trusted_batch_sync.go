@@ -91,7 +91,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
-	log.Debugf("%s FullProcess", data.DebugPrefix, uint64(data.TrustedBatch.Number))
+	log.Debugf("%s FullProcess", data.DebugPrefix)
 	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
 	if err != nil {
 		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)

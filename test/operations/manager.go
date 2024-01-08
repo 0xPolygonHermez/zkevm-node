@@ -436,6 +436,15 @@ func (m *Manager) StopSequenceSender() error {
 	return StopComponent("seqsender")
 }
 
+// ShowDockerLogs for running dockers
+func (m *Manager) ShowDockerLogs() error {
+	cmdLogs := "show-logs"
+	if err := RunMakeTarget(cmdLogs); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()

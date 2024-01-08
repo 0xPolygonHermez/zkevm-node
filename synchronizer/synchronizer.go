@@ -381,22 +381,22 @@ func (s *ClientSynchronizer) Sync() error {
 					if err != nil {
 						log.Warn("error syncing trusted state. Error: ", err)
 						s.CleanTrustedState()
-					}
-					if err != nil && errors.Is(err, syncinterfaces.ErrFatalDesyncFromL1) {
-						l1BlockNumber := err.(*l2_shared.DeSyncPermissionlessAndTrustedNodeError).L1BlockNumber
-						log.Error("Trusted and permissionless desync! reseting to last common point: L1Block (%d-1)", l1BlockNumber)
-						err = s.resetState(l1BlockNumber - 1)
-						if err != nil {
-							log.Errorf("error resetting the state to a discrepancy block. Retrying... Err: %v", err)
+						if errors.Is(err, syncinterfaces.ErrFatalDesyncFromL1) {
+							l1BlockNumber := err.(*l2_shared.DeSyncPermissionlessAndTrustedNodeError).L1BlockNumber
+							log.Error("Trusted and permissionless desync! reseting to last common point: L1Block (%d-1)", l1BlockNumber)
+							err = s.resetState(l1BlockNumber - 1)
+							if err != nil {
+								log.Errorf("error resetting the state to a discrepancy block. Retrying... Err: %v", err)
+								continue
+							}
+						} else if errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
+							log.Info("Syncing from trusted node need data from L1")
+						} else {
+							// We break for resync from Trusted
+							log.Debug("Sleeping for 1 second to avoid respawn too fast, error: ", err)
+							time.Sleep(time.Second)
 							continue
 						}
-					} else if err != nil && errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
-						log.Info("Syncing from trusted node need data from L1")
-					} else {
-						// We break for resync from Trusted
-						log.Debug("Sleeping for 1 second to avoid respawn too fast")
-						time.Sleep(time.Second)
-						continue
 					}
 				}
 				waitDuration = s.cfg.SyncInterval.Duration

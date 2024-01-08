@@ -166,8 +166,9 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			l1InfoRoot = sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot
 			tstampLimit := forcedBatches[0].ForcedAt
 			txs := forcedBatches[0].RawTxsData
+			// The leaves are no needed for forced batches
 			processCtx = state.ProcessingContextV2{
-				BatchNumber:          1,
+				BatchNumber:          sbatch.BatchNumber,
 				Coinbase:             sbatch.SequencerAddr,
 				Timestamp:            &tstampLimit,
 				L1InfoRoot:           sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
@@ -426,23 +427,23 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
 
-		if tBatch.StateRoot == (common.Hash{}) { // TODO: change this check by tBatch.LocalExitRoot == (common.Hash{}) if sequencer stores intermediary stateRoots in batch table
-			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
-		} else {
-			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
-		}
 		if g.sync.IsTrustedSequencer() {
 			log.Errorf("TRUSTED REORG DETECTED! Batch: %d reson:%s", batch.BatchNumber, reason)
 			g.halt(ctx, fmt.Errorf("TRUSTED REORG DETECTED! Batch: %d", batch.BatchNumber))
 		}
-		// Store trusted reorg register
-		tr := state.TrustedReorg{
-			BatchNumber: tBatch.BatchNumber,
-			Reason:      reason,
-		}
-		err := g.state.AddTrustedReorg(ctx, &tr, dbTx)
-		if err != nil {
-			log.Error("error storing tursted reorg register into the db. Error: ", err)
+		if !tBatch.WIP {
+			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
+			// Store trusted reorg register
+			tr := state.TrustedReorg{
+				BatchNumber: tBatch.BatchNumber,
+				Reason:      reason,
+			}
+			err := g.state.AddTrustedReorg(ctx, &tr, dbTx)
+			if err != nil {
+				log.Error("error storing trusted reorg register into the db. Error: ", err)
+			}
+		} else {
+			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
 		}
 		return true
 	}
