@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
@@ -58,18 +57,18 @@ type ProcessorL1SequenceBatchesEtrog struct {
 	state        stateProcessSequenceBatches
 	etherMan     ethermanProcessSequenceBatches
 	pool         poolProcessSequenceBatchesInterface
-	eventLog     syncinterfaces.EventLogInterface
 	sync         syncProcessSequenceBatchesInterface
 	timeProvider syncCommon.TimeProvider
+	halter       syncinterfaces.Halter
 }
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	etherMan ethermanProcessSequenceBatches,
 	pool poolProcessSequenceBatchesInterface,
-	eventLog syncinterfaces.EventLogInterface,
 	sync syncProcessSequenceBatchesInterface,
-	timeProvider syncCommon.TimeProvider) *ProcessorL1SequenceBatchesEtrog {
+	timeProvider syncCommon.TimeProvider,
+	halter syncinterfaces.Halter) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
@@ -77,16 +76,16 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 		state:        state,
 		etherMan:     etherMan,
 		pool:         pool,
-		eventLog:     eventLog,
 		sync:         sync,
 		timeProvider: timeProvider,
+		halter:       halter,
 	}
 }
 
 // Process process event
 func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
-		return actions.ErrInvalidParams
+		return syncCommon.ErrInvalidParams
 	}
 	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
 	return err
@@ -452,23 +451,5 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 
 // halt halts the Synchronizer
 func (g *ProcessorL1SequenceBatchesEtrog) halt(ctx context.Context, err error) {
-	event := &event.Event{
-		ReceivedAt:  time.Now(),
-		Source:      event.Source_Node,
-		Component:   event.Component_Synchronizer,
-		Level:       event.Level_Critical,
-		EventID:     event.EventID_SynchronizerHalt,
-		Description: fmt.Sprintf("Synchronizer halted due to error: %s", err),
-	}
-
-	eventErr := g.eventLog.LogEvent(ctx, event)
-	if eventErr != nil {
-		log.Errorf("error storing Synchronizer halt event: %v", eventErr)
-	}
-
-	for {
-		log.Errorf("halting sync: fatal error: %s", err)
-		log.Error("halting the Synchronizer")
-		time.Sleep(5 * time.Second) //nolint:gomnd
-	}
+	g.halter.Halt(ctx, err)
 }

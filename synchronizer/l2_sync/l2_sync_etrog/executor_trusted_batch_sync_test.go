@@ -23,6 +23,22 @@ const (
 	codedRLP2Txs1 = "ee02843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e88080bff0e780ba7db409339fd3f71969fa2cbf1b8535f6c725a1499d3318d3ef9c2b6340ddfab84add2c188f9efddb99771db1fe621c981846394ea4f035c85bcdd51bffee03843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880805b346aa02230b22e62f73608de9ff39a162a6c24be9822209c770e3685b92d0756d5316ef954eefc58b068231ccea001fb7ac763ebe03afd009ad71cab36861e1bff"
 )
 
+var (
+	hashExamplesValues = []string{"0x723e5c4c7ee7890e1e66c2e391d553ee792d2204ecb4fe921830f12f8dcd1a92",
+		"0x9c8fa7ce2e197f9f1b3c30de9f93de3c1cb290e6c118a18446f47a9e1364c3ab",
+		"0x896cfc0684057d0560e950dee352189528167f4663609678d19c7a506a03fe4e",
+		"0xde6d2dac4b6e0cb39ed1924db533558a23e5c56ab60fadac8c7d21e7eceb121a",
+		"0x9883711e78d02992ac1bd6f19de3bf7bb3f926742d4601632da23525e33f8555"}
+)
+
+type testDataForBathExecutor struct {
+	ctx        context.Context
+	stateMock  *mock_l2_sync_etrog.StateInterface
+	syncMock   *mock_syncinterfaces.SynchronizerFlushIDManager
+	halterMock *mock_syncinterfaces.Halter
+	sut        *SyncTrustedBatchExecutorForEtrog
+}
+
 func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	// Arrange
 	stateMock := mock_l2_sync_etrog.NewStateInterface(t)
@@ -71,4 +87,95 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, trustedBatchL2Data, res.UpdateBatch.BatchL2Data)
 	require.Equal(t, false, res.ClearCache)
+}
+
+func newTestData(t *testing.T) testDataForBathExecutor {
+	stateMock := mock_l2_sync_etrog.NewStateInterface(t)
+	syncMock := mock_syncinterfaces.NewSynchronizerFlushIDManager(t)
+	halterMock := mock_syncinterfaces.NewHalter(t)
+
+	sut := SyncTrustedBatchExecutorForEtrog{
+		state:  stateMock,
+		sync:   syncMock,
+		halter: halterMock,
+	}
+	return testDataForBathExecutor{
+		ctx:        context.Background(),
+		stateMock:  stateMock,
+		syncMock:   syncMock,
+		halterMock: halterMock,
+		sut:        &sut,
+	}
+}
+
+func newData() l2_shared.ProcessData {
+	return l2_shared.ProcessData{
+		BatchNumber: 123,
+		Mode:        l2_shared.IncrementalProcessMode,
+		DebugPrefix: "test",
+		StateBatch:  &state.Batch{},
+		TrustedBatch: &types.Batch{
+			Number:        123,
+			StateRoot:     common.HexToHash(hashExamplesValues[0]),
+			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
+			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
+			BatchL2Data:   []byte{1, 2, 3, 4},
+		},
+	}
+}
+
+func TestNothingProcessDontCloseBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch:        &state.Batch{},
+	}
+
+	response, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+	require.Equal(t, false, response.ClearCache)
+	require.Equal(t, false, response.UpdateBatchWithProcessBatchResponse)
+	require.Equal(t, true, data.StateBatch.WIP)
+}
+
+func TestNothingProcessCloseBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: true,
+		DebugPrefix:       "test",
+		StateBatch:        &state.Batch{},
+		TrustedBatch: &types.Batch{
+			Number:        123,
+			StateRoot:     common.HexToHash(hashExamplesValues[0]),
+			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
+			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
+			BatchL2Data:   []byte{1, 2, 3, 4},
+		},
+	}
+	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+
+	response, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+	require.Equal(t, false, response.ClearCache)
+	require.Equal(t, false, response.UpdateBatchWithProcessBatchResponse)
+	require.Equal(t, false, data.StateBatch.WIP)
+}
+
+func TestGivenCloseBatchAlreadyCloseAndTheBatchDataDoesntMatchExpectedThenHalt(t *testing.T) {
+	testData := newTestData(t)
+	data := newData()
+
+	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(state.ErrBatchAlreadyClosed).Once()
+	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(&state.Batch{}, nil).Once()
+
+	testData.halterMock.EXPECT().Halt(testData.ctx, mock.Anything).Once()
+	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
+	require.Error(t, res)
 }

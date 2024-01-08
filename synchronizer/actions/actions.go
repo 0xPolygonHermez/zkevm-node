@@ -2,7 +2,6 @@ package actions
 
 import (
 	"context"
-	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/jackc/pgx/v4"
@@ -14,11 +13,6 @@ type ForkIdType uint64
 const (
 	// WildcardForkId It match for all forkIds
 	WildcardForkId ForkIdType = 0
-)
-
-var (
-	// ErrInvalidParams is used when the object is not found
-	ErrInvalidParams = errors.New("invalid params")
 )
 
 // L1EventProcessor is the interface for a processor of L1 events

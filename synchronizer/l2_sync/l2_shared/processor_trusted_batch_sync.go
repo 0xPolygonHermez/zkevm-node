@@ -2,7 +2,6 @@ package l2_shared
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -189,7 +188,7 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 			Description:  "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		batchSynced, strSync := checkIfSynced(stateBatch, trustedNodeBatch)
+		batchSynced, strSync := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
 		if batchSynced {
 			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
@@ -230,51 +229,6 @@ func (s *ProcessorTrustedBatchSync) getModeForProcessBatch(trustedNodeBatch *typ
 
 func isTrustedBatchClosed(batch *types.Batch) bool {
 	return batch.Closed
-}
-func checkIfSynced(stateBatch *state.Batch, trustedBatch *types.Batch) (bool, string) {
-	ok, str := checkIfSyncedWhitoutWIP(stateBatch, trustedBatch)
-	if stateBatch.WIP != !trustedBatch.Closed {
-		str += "matchWIP: false, "
-		ok = false
-	}
-	return ok, str
-}
-
-// Retruns true|false and a debug string
-func checkIfSyncedWhitoutWIP(stateBatch *state.Batch, trustedBatch *types.Batch) (bool, string) {
-	if stateBatch == nil || trustedBatch == nil {
-		log.Infof("checkIfSynced stateBatch or trustedBatch is nil, so is not synced")
-		return false, "nil pointers"
-	}
-	matchNumber := stateBatch.BatchNumber == uint64(trustedBatch.Number)
-	matchGER := stateBatch.GlobalExitRoot.String() == trustedBatch.GlobalExitRoot.String()
-	matchLER := stateBatch.LocalExitRoot.String() == trustedBatch.LocalExitRoot.String()
-	matchSR := stateBatch.StateRoot.String() == trustedBatch.StateRoot.String()
-	matchCoinbase := stateBatch.Coinbase.String() == trustedBatch.Coinbase.String()
-	// TODO: Check uint64(trustedBatch.Timestamp) <= uint64(stateBatch.Timestamp.Unix()) but pending issue #2953
-	matchTimestamp := true
-	matchL2Data := hex.EncodeToString(stateBatch.BatchL2Data) == hex.EncodeToString(trustedBatch.BatchL2Data)
-
-	if matchNumber && matchGER && matchLER && matchSR &&
-		matchCoinbase && matchTimestamp && matchL2Data {
-		return true, fmt.Sprintf("Equal batch: %v", stateBatch.BatchNumber)
-	}
-	log.Debug("matchNumber: ", matchNumber)
-	log.Debug("matchGER: ", matchGER)
-	log.Debug("matchLER: ", matchLER)
-	log.Debug("matchSR: ", matchSR)
-	log.Debug("matchCoinbase: ", matchCoinbase)
-	log.Debug("matchTimestamp: ", matchTimestamp)
-	log.Debug("matchL2Data: ", matchL2Data)
-	debugStrResult := ""
-	values := []bool{matchNumber, matchGER, matchLER, matchSR, matchCoinbase, matchTimestamp, matchL2Data}
-	names := []string{"matchNumber", "matchGER", "matchLER", "matchSR", "matchCoinbase", "matchTimestamp", "matchL2Data"}
-	for i, v := range values {
-		if !v {
-			debugStrResult += fmt.Sprintf("%s: %v, ", names[i], v)
-		}
-	}
-	return false, debugStrResult
 }
 
 func checkStateRootAndLER(batchNumber uint64, expectedStateRoot common.Hash, expectedLER common.Hash, calculatedStateRoot common.Hash, calculatedLER common.Hash) error {
