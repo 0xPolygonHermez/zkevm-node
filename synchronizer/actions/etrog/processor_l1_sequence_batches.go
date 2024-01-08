@@ -176,7 +176,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
 			}
-
 		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {
 			log.Debug("Processing initial batch")
 			var fBHL1 common.Hash = sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1
