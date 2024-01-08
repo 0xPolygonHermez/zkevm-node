@@ -26,6 +26,8 @@ package sequencer
 	"google.golang.org/grpc"
 )
 
+//TODO: Fix tests ETROG
+
 var (
 	mtDBCancel context.CancelFunc
 	ctx        context.Context
@@ -46,7 +48,7 @@ var (
 			Version:         "",
 		}},
 	}
-	dbManagerCfg      = DBManagerCfg{PoolRetrievalInterval: types.NewDuration(500 * time.Millisecond)}
+	dbManagerCfg      = DBManagerCfg{LoadPoolTxsCheckInterval: types.NewDuration(500 * time.Millisecond)}
 	executorClient    executor.ExecutorServiceClient
 	mtDBServiceClient hashdb.HashDBServiceClient
 	mtDBClientConn    *grpc.ClientConn
@@ -176,19 +178,5 @@ func TestGetLastBatchNumber(t *testing.T) {
 	cleanupDBManager()
 }
 
-func TestCreateFirstBatch(t *testing.T) {
-	setupDBManager()
-	defer stateDb.Close()
-
-	dbTx, err := testState.BeginStateTransaction(ctx)
-	require.NoError(t, err)
-	_, err = testState.SetGenesis(ctx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
-	require.NoError(t, err)
-	err = dbTx.Commit(ctx)
-	require.NoError(t, err)
-
-	processingContext := testDbManager.CreateFirstBatch(ctx, common.Address{})
-	require.Equal(t, uint64(1), processingContext.BatchNumber)
-	cleanupDBManager()
 }
 */

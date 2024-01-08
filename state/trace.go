@@ -43,117 +43,215 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// gets the l2 block including the transaction
-	block, err := s.GetL2BlockByNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
+	// gets the l2 l2Block including the transaction
+	l2Block, err := s.GetL2BlockByNumber(ctx, receipt.BlockNumber.Uint64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
 
-	// get the previous L2 Block
-	previousBlockNumber := uint64(0)
-	if receipt.BlockNumber.Uint64() > 0 {
-		previousBlockNumber = receipt.BlockNumber.Uint64() - 1
-	}
-	previousBlock, err := s.GetL2BlockByNumber(ctx, previousBlockNumber, dbTx)
-	if err != nil {
-		return nil, err
+	// if tx index is zero, we need to get the state root from the previous block
+	// else we need to get the state root from the previous tx
+	var oldStateRoot common.Hash
+	if receipt.TransactionIndex == 0 {
+		// get the previous L2 Block
+		previousL2BlockNumber := uint64(0)
+		if receipt.BlockNumber.Uint64() > 0 {
+			previousL2BlockNumber = receipt.BlockNumber.Uint64() - 1
+		}
+		previousL2Block, err := s.GetL2BlockByNumber(ctx, previousL2BlockNumber, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		oldStateRoot = previousL2Block.Root()
+	} else {
+		previousTx := l2Block.Transactions()[receipt.TransactionIndex-1]
+		// gets the tx receipt
+		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTx.Hash(), dbTx)
+		if err != nil {
+			return nil, err
+		}
+		oldStateRoot = common.BytesToHash(previousReceipt.PostState)
 	}
 
 	// gets batch that including the l2 block
-	batch, err := s.GetBatchByL2BlockNumber(ctx, block.NumberU64(), dbTx)
+	batch, err := s.GetBatchByL2BlockNumber(ctx, l2Block.NumberU64(), dbTx)
 	if err != nil {
 		return nil, err
 	}
 
 	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
-	// gets batch that including the previous l2 block
-	previousBatch, err := s.GetBatchByL2BlockNumber(ctx, previousBlock.NumberU64(), dbTx)
-	if err != nil {
-		return nil, err
-	}
-
-	// generate batch l2 data for the transaction
-	batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
-	if err != nil {
-		return nil, err
-	}
-
-	traceConfigRequest := &executor.TraceConfig{
-		TxHashToGenerateFullTrace: transactionHash.Bytes(),
-		// set the defaults to the maximum information we can have.
-		// this is needed to process custom tracers later
-		DisableStorage:   cFalse,
-		DisableStack:     cFalse,
-		EnableMemory:     cTrue,
-		EnableReturnData: cTrue,
-	}
-
-	// if the default tracer is used, then we review the information
-	// we want to have in the trace related to the parameters we received.
-	if traceConfig.IsDefaultTracer() {
-		if traceConfig.DisableStorage {
-			traceConfigRequest.DisableStorage = cTrue
+	var response *ProcessTransactionResponse
+	var startTime, endTime time.Time
+	if forkId < FORKID_ETROG {
+		traceConfigRequest := &executor.TraceConfig{
+			TxHashToGenerateFullTrace: transactionHash.Bytes(),
+			// set the defaults to the maximum information we can have.
+			// this is needed to process custom tracers later
+			DisableStorage:   cFalse,
+			DisableStack:     cFalse,
+			EnableMemory:     cTrue,
+			EnableReturnData: cTrue,
 		}
-		if traceConfig.DisableStack {
-			traceConfigRequest.DisableStack = cTrue
+
+		// if the default tracer is used, then we review the information
+		// we want to have in the trace related to the parameters we received.
+		if traceConfig.IsDefaultTracer() {
+			if traceConfig.DisableStorage {
+				traceConfigRequest.DisableStorage = cTrue
+			}
+			if traceConfig.DisableStack {
+				traceConfigRequest.DisableStack = cTrue
+			}
+			if !traceConfig.EnableMemory {
+				traceConfigRequest.EnableMemory = cFalse
+			}
+			if !traceConfig.EnableReturnData {
+				traceConfigRequest.EnableReturnData = cFalse
+			}
 		}
-		if !traceConfig.EnableMemory {
-			traceConfigRequest.EnableMemory = cFalse
+		// generate batch l2 data for the transaction
+		batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+		if err != nil {
+			return nil, err
 		}
-		if !traceConfig.EnableReturnData {
-			traceConfigRequest.EnableReturnData = cFalse
+
+		// prepare process batch request
+		processBatchRequest := &executor.ProcessBatchRequest{
+			OldBatchNum:     batch.BatchNumber - 1,
+			OldStateRoot:    oldStateRoot.Bytes(),
+			OldAccInputHash: batch.AccInputHash.Bytes(),
+
+			BatchL2Data:      batchL2Data,
+			Coinbase:         batch.Coinbase.String(),
+			UpdateMerkleTree: cFalse,
+			ChainId:          s.cfg.ChainID,
+			ForkId:           forkId,
+			TraceConfig:      traceConfigRequest,
+			ContextId:        uuid.NewString(),
+
+			GlobalExitRoot: batch.GlobalExitRoot.Bytes(),
+			EthTimestamp:   uint64(batch.Timestamp.Unix()),
 		}
-	}
 
-	// prepare process batch request
-	oldStateRoot := previousBlock.Root()
-	processBatchRequest := &executor.ProcessBatchRequest{
-		OldBatchNum:     batch.BatchNumber - 1,
-		OldStateRoot:    oldStateRoot.Bytes(),
-		OldAccInputHash: previousBatch.AccInputHash.Bytes(),
+		// Send Batch to the Executor
+		startTime = time.Now()
+		processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
+		endTime = time.Now()
+		if err != nil {
+			return nil, err
+		} else if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(processBatchResponse.Error)
+			s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
+			return nil, err
+		}
 
-		BatchL2Data:      batchL2Data,
-		GlobalExitRoot:   batch.GlobalExitRoot.Bytes(),
-		EthTimestamp:     uint64(batch.Timestamp.Unix()),
-		Coinbase:         batch.Coinbase.String(),
-		UpdateMerkleTree: cFalse,
-		ChainId:          s.cfg.ChainID,
-		ForkId:           forkId,
-		TraceConfig:      traceConfigRequest,
-		ContextId:        uuid.NewString(),
-	}
+		// Transactions are decoded only for logging purposes
+		// as they are not longer needed in the convertToProcessBatchResponse function
+		txs, _, _, err := DecodeTxs(batchL2Data, forkId)
+		if err != nil && !errors.Is(err, ErrInvalidData) {
+			return nil, err
+		}
 
-	// Send Batch to the Executor
-	startTime := time.Now()
-	processBatchResponse, err := s.executorClient.ProcessBatch(ctx, processBatchRequest)
-	endTime := time.Now()
-	if err != nil {
-		return nil, err
-	} else if processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
-		err = executor.ExecutorErr(processBatchResponse.Error)
-		s.eventLog.LogExecutorError(ctx, processBatchResponse.Error, processBatchRequest)
-		return nil, err
-	}
+		for _, tx := range txs {
+			log.Debugf(tx.Hash().String())
+		}
 
-	// Transactions are decoded only for logging purposes
-	// as they are not longer needed in the convertToProcessBatchResponse function
-	txs, _, _, err := DecodeTxs(batchL2Data, forkId)
-	if err != nil && !errors.Is(err, ErrInvalidData) {
-		return nil, err
-	}
+		convertedResponse, err := s.convertToProcessBatchResponse(processBatchResponse)
+		if err != nil {
+			return nil, err
+		}
+		response = convertedResponse.BlockResponses[0].TransactionResponses[0]
+	} else {
+		traceConfigRequestV2 := &executor.TraceConfigV2{
+			TxHashToGenerateFullTrace: transactionHash.Bytes(),
+			// set the defaults to the maximum information we can have.
+			// this is needed to process custom tracers later
+			DisableStorage:   cFalse,
+			DisableStack:     cFalse,
+			EnableMemory:     cTrue,
+			EnableReturnData: cTrue,
+		}
 
-	for _, tx := range txs {
-		log.Debugf(tx.Hash().String())
-	}
+		// if the default tracer is used, then we review the information
+		// we want to have in the trace related to the parameters we received.
+		if traceConfig.IsDefaultTracer() {
+			if traceConfig.DisableStorage {
+				traceConfigRequestV2.DisableStorage = cTrue
+			}
+			if traceConfig.DisableStack {
+				traceConfigRequestV2.DisableStack = cTrue
+			}
+			if !traceConfig.EnableMemory {
+				traceConfigRequestV2.EnableMemory = cFalse
+			}
+			if !traceConfig.EnableReturnData {
+				traceConfigRequestV2.EnableReturnData = cFalse
+			}
+		}
+		deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
+		transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
 
-	convertedResponse, err := s.convertToProcessBatchResponse(processBatchResponse)
-	if err != nil {
-		return nil, err
+		batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+		if err != nil {
+			log.Errorf("error encoding transaction ", err)
+			return nil, err
+		}
+
+		transactions = append(transactions, batchL2Data...)
+
+		// prepare process batch request
+		processBatchRequestV2 := &executor.ProcessBatchRequestV2{
+			OldBatchNum:     batch.BatchNumber - 1,
+			OldStateRoot:    oldStateRoot.Bytes(),
+			OldAccInputHash: batch.AccInputHash.Bytes(),
+
+			BatchL2Data:      transactions,
+			Coinbase:         l2Block.Coinbase().String(),
+			UpdateMerkleTree: cFalse,
+			ChainId:          s.cfg.ChainID,
+			ForkId:           forkId,
+			TraceConfig:      traceConfigRequestV2,
+			ContextId:        uuid.NewString(),
+
+			// v2 fields
+			L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
+			TimestampLimit:         uint64(time.Now().Unix()),
+			SkipFirstChangeL2Block: cFalse,
+			SkipWriteBlockInfoRoot: cTrue,
+		}
+
+		// Send Batch to the Executor
+		startTime = time.Now()
+		processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
+		endTime = time.Now()
+		if err != nil {
+			return nil, err
+		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(processBatchResponseV2.Error)
+			s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+			return nil, err
+		}
+
+		// Transactions are decoded only for logging purposes
+		// as they are not longer needed in the convertToProcessBatchResponse function
+		txs, _, _, err := DecodeTxs(batchL2Data, forkId)
+		if err != nil && !errors.Is(err, ErrInvalidData) {
+			return nil, err
+		}
+
+		for _, tx := range txs {
+			log.Debugf(tx.Hash().String())
+		}
+
+		convertedResponse, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+		if err != nil {
+			return nil, err
+		}
+		response = convertedResponse.BlockResponses[0].TransactionResponses[0]
 	}
 
 	// Sanity check
-	response := convertedResponse.BlockResponses[0].TransactionResponses[0]
 	log.Debugf(response.TxHash.String())
 	if response.TxHash != transactionHash {
 		return nil, fmt.Errorf("tx hash not found in executor response")

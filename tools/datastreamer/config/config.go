@@ -31,6 +31,7 @@ type OnlineConfig struct {
 type MTConfig struct {
 	URI        string `mapstructure:"URI"`
 	MaxThreads int    `mapstructure:"MaxThreads"`
+	CacheFile  string `mapstructure:"CacheFile"`
 }
 
 // Config is the configuration for the tool

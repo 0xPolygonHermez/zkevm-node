@@ -82,25 +82,24 @@ SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
 
 [Sequencer]
-TxLifetimeCheckTimeout = "10m"
-MaxTxLifetime = "3h"
-PoolRetrievalInterval = "500ms"
-L2ReorgRetrievalInterval = "5s"
+DeletePoolTxsL1BlockConfirmations = 100
+DeletePoolTxsCheckInterval = "12h"
+TxLifetimeCheckInterval = "10m"
+TxLifetimeMax = "3h"
+LoadPoolTxsCheckInterval = "500ms"
+StateConsistencyCheckInterval = "5s"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeout = "5s"
-		ForcedBatchDeadlineTimeout = "60s"
-		SleepDuration = "100ms"
-		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 0
-		ForcedBatchesFinalityNumberOfBlocks = 64
-		L1InfoRootFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
-		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		WaitForCheckingL1InfoTree = "10s"
-		TimestampResolution = "10s"
-		L2BlockTime = "3s"
-		StopSequencerOnBatchNum = 0
+		NewTxsWaitInterval = "100ms"
+		ForcedBatchesTimeout = "60s"
+		ForcedBatchesCheckInterval = "10s"
+		ForcedBatchesL1BlockConfirmations = 64
+		L1InfoTreeL1BlockConfirmations = 64
+		L1InfoTreeCheckInterval = "10s"
+		BatchMaxDeltaTimestamp = "120s"
+		L2BlockMaxDeltaTimestamp = "3s"
+		ResourceExhaustedMarginPct = 10
+		HaltOnBatchNumber = 0
+		SequentialBatchSanityCheck = false
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

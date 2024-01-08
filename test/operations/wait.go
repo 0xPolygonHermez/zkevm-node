@@ -20,7 +20,9 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -180,6 +182,30 @@ func WaitBatchToBeConsolidated(batchNum uint64, timeout time.Duration, state *st
 	return Poll(DefaultInterval, timeout, func() (bool, error) {
 		return state.IsBatchConsolidated(ctx, batchNum, nil)
 	})
+}
+
+func WaitTxReceipt(ctx context.Context, txHash common.Hash, timeout time.Duration, client *ethclient.Client) (*types.Receipt, error) {
+	if client == nil {
+		return nil, fmt.Errorf("client is nil")
+	}
+	var receipt *types.Receipt
+	pollErr := Poll(DefaultInterval, timeout, func() (bool, error) {
+		var err error
+		receipt, err = client.TransactionReceipt(ctx, txHash)
+		if err != nil {
+			if errors.Is(err, ethereum.NotFound) {
+				time.Sleep(time.Second)
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+	if pollErr != nil {
+		return nil, pollErr
+	}
+	return receipt, nil
 }
 
 // NodeUpCondition check if the container is up and running

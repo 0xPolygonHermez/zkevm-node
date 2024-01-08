@@ -158,11 +158,20 @@ func Test_Filters(t *testing.T) {
 		require.False(t, uninstalled)
 
 		ethereumClient := operations.MustGetClient(network.URL)
+		zkEVMClient := client.NewClient(network.URL)
 		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
 
 		// test getFilterChanges for a blockFilter ID
-		blockBeforeFilter, err := ethereumClient.BlockByNumber(ctx, nil)
-		require.NoError(t, err)
+		var blockBeforeFilterHash common.Hash
+		if network.Name == "Local L2" {
+			blockBeforeFilter, err := zkEVMClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockBeforeFilterHash = *blockBeforeFilter.Hash
+		} else {
+			blockBeforeFilter, err := ethereumClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockBeforeFilterHash = blockBeforeFilter.Hash()
+		}
 
 		response, err = client.JSONRPCCall(network.URL, "eth_newBlockFilter")
 		require.NoError(t, err)
@@ -180,8 +189,16 @@ func Test_Filters(t *testing.T) {
 		err = operations.WaitTxToBeMined(ctx, ethereumClient, tx, operations.DefaultTimeoutTxToBeMined)
 		require.NoError(t, err)
 
-		blockAfterFilter, err := ethereumClient.BlockByNumber(ctx, nil)
-		require.NoError(t, err)
+		var blockAfterFilterHash common.Hash
+		if network.Name == "Local L2" {
+			blockAfterFilter, err := zkEVMClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockAfterFilterHash = *blockAfterFilter.Hash
+		} else {
+			blockAfterFilter, err := ethereumClient.BlockByNumber(ctx, nil)
+			require.NoError(t, err)
+			blockAfterFilterHash = blockAfterFilter.Hash()
+		}
 
 		response, err = client.JSONRPCCall(network.URL, "eth_getFilterChanges", blockFilterId)
 		require.NoError(t, err)
@@ -192,8 +209,8 @@ func Test_Filters(t *testing.T) {
 		err = json.Unmarshal(response.Result, &blockFilterChanges)
 		require.NoError(t, err)
 
-		assert.NotEqual(t, blockBeforeFilter.Hash().String(), blockFilterChanges[0].String())
-		assert.Equal(t, blockAfterFilter.Hash().String(), blockFilterChanges[len(blockFilterChanges)-1].String())
+		assert.NotEqual(t, blockBeforeFilterHash.String(), blockFilterChanges[0].String())
+		assert.Equal(t, blockAfterFilterHash.String(), blockFilterChanges[len(blockFilterChanges)-1].String())
 
 		// test getFilterChanges for a logFilter ID
 		// create a SC to emit some logs
@@ -332,6 +349,7 @@ func Test_Block(t *testing.T) {
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
 		ethereumClient, err := ethclient.Dial(network.URL)
+		zkEVMClient := client.NewClient(network.URL)
 		require.NoError(t, err)
 		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
 		require.NoError(t, err)
@@ -348,34 +366,46 @@ func Test_Block(t *testing.T) {
 		require.Equal(t, receipt.Type, tx.Type())
 		require.Equal(t, uint(0), receipt.TransactionIndex)
 
+		if network.Name == "Local L2" {
+			block, err := zkEVMClient.BlockByNumber(ctx, receipt.BlockNumber)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
+			require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
+
+			block, err = zkEVMClient.BlockByHash(ctx, receipt.BlockHash)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), uint64(block.Number))
+			require.Equal(t, receipt.BlockHash.String(), block.Hash.String())
+		} else {
+			block, err := ethereumClient.BlockByNumber(ctx, receipt.BlockNumber)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), block.NumberU64())
+			require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
+
+			block, err = ethereumClient.BlockByHash(ctx, receipt.BlockHash)
+			require.NoError(t, err)
+			require.NotNil(t, block)
+			require.Equal(t, receipt.BlockNumber.Uint64(), block.NumberU64())
+			require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
+		}
+
 		blockNumber, err := ethereumClient.BlockNumber(ctx)
 		require.NoError(t, err)
 		log.Infof("\nBlock num %d", blockNumber)
 		require.GreaterOrEqual(t, blockNumber, receipt.BlockNumber.Uint64())
 
-		block, err := ethereumClient.BlockByNumber(ctx, receipt.BlockNumber)
-		require.NoError(t, err)
-		require.NotNil(t, block)
-		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
-		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
-
-		block, err = ethereumClient.BlockByHash(ctx, receipt.BlockHash)
-		require.NoError(t, err)
-		require.NotNil(t, block)
-		require.Equal(t, receipt.BlockNumber.Uint64(), block.Number().Uint64())
-		require.Equal(t, receipt.BlockHash.String(), block.Hash().String())
-
-		nonExistentBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1))
-		block, err = ethereumClient.BlockByNumber(ctx, nonExistentBlockNumber)
+		nonExistentBlockNumber := big.NewInt(0).SetUint64(blockNumber + uint64(1000))
+		_, err = ethereumClient.BlockByNumber(ctx, nonExistentBlockNumber)
 		require.Error(t, err)
-		require.Nil(t, block)
 
 		nonExistentBlockHash := common.HexToHash("0xFFFFFF")
-		block, err = ethereumClient.BlockByHash(ctx, nonExistentBlockHash)
+		_, err = ethereumClient.BlockByHash(ctx, nonExistentBlockHash)
 		require.Error(t, err)
-		require.Nil(t, block)
-		// its pending
 
+		// its pending
 		response, err := client.JSONRPCCall(network.URL, "eth_getBlockTransactionCountByNumber", hexutil.EncodeBig(receipt.BlockNumber))
 		require.NoError(t, err)
 		require.Nil(t, response.Error)
@@ -422,7 +452,6 @@ func Test_Block(t *testing.T) {
 		}
 
 		// checks for successful query
-
 		require.Equal(t, hexutil.EncodeBig(receipt.BlockNumber), newTx.BlockNumber)
 		require.Equal(t, receipt.BlockHash.String(), newTx.BlockHash)
 		require.Equal(t, hexutil.EncodeUint64(tx.Nonce()), newTx.Nonce)
@@ -542,7 +571,7 @@ func Test_OOCErrors(t *testing.T) {
 	}
 	ctx := context.Background()
 	setup()
-	// defer teardown()
+	defer teardown()
 	ethClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
@@ -582,7 +611,7 @@ func Test_OOCErrors(t *testing.T) {
 				err = c.SendTransaction(ctx, tx)
 				return err.Error()
 			},
-			expectedError: "failed to add tx to the pool: not enough step counters to continue the execution",
+			expectedError: "failed to add tx to the pool: not enough poseidon counters to continue the execution",
 		},
 		{
 			name: "estimate gas OOC poseidon",
@@ -602,7 +631,7 @@ func Test_OOCErrors(t *testing.T) {
 				})
 				return err.Error()
 			},
-			expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 30000000: not enough step counters to continue the execution",
+			expectedError: "not enough poseidon counters to continue the execution",
 		},
 		{
 			name: "estimate gas OOG",
@@ -622,7 +651,7 @@ func Test_OOCErrors(t *testing.T) {
 				})
 				return err.Error()
 			},
-			expectedError: "failed to estimate gas: unable to apply transaction even for the highest gas limit 50000: out of gas",
+			expectedError: "gas required exceeds allowance (50000)",
 		},
 	}
 

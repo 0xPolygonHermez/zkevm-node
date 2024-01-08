@@ -463,6 +463,30 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 	return err
 }
 
+// AddReceipts adds a list of receipts to the State Store
+func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, dbTx pgx.Tx) error {
+	if len(receipts) == 0 {
+		return nil
+	}
+
+	receiptRows := [][]interface{}{}
+
+	for _, receipt := range receipts {
+		var egp uint64
+		if receipt.EffectiveGasPrice != nil {
+			egp = receipt.EffectiveGasPrice.Uint64()
+		}
+		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
+		receiptRows = append(receiptRows, receiptRow)
+	}
+
+	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "receipt"},
+		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address"},
+		pgx.CopyFromRows(receiptRows))
+
+	return err
+}
+
 // AddLog adds a new log to the State Store
 func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error {
 	const addLogSQL = `INSERT INTO state.log (tx_hash, log_index, address, data, topic0, topic1, topic2, topic3)
@@ -478,6 +502,31 @@ func (p *PostgresStorage) AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx)
 	_, err := e.Exec(ctx, addLogSQL,
 		l.TxHash.String(), l.Index, l.Address.String(), hex.EncodeToHex(l.Data),
 		topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3])
+	return err
+}
+
+// // AddLogs adds a list of logs to the State Store
+func (p *PostgresStorage) AddLogs(ctx context.Context, logs []*types.Log, dbTx pgx.Tx) error {
+	if len(logs) == 0 {
+		return nil
+	}
+
+	logsRows := [][]interface{}{}
+
+	for _, log := range logs {
+		var topicsAsHex [maxTopics]*string
+		for i := 0; i < len(log.Topics); i++ {
+			topicHex := log.Topics[i].String()
+			topicsAsHex[i] = &topicHex
+		}
+		logRow := []interface{}{log.TxHash.String(), log.Index, log.Address.String(), hex.EncodeToHex(log.Data), topicsAsHex[0], topicsAsHex[1], topicsAsHex[2], topicsAsHex[3]}
+		logsRows = append(logsRows, logRow)
+	}
+
+	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "log"},
+		[]string{"tx_hash", "log_index", "address", "data", "topic0", "topic1", "topic2", "topic3"},
+		pgx.CopyFromRows(logsRows))
+
 	return err
 }
 

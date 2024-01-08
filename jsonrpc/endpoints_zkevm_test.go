@@ -1429,13 +1429,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		miner = &cb
 	}
 
-	var rpcBlockNonce *types.ArgBytes
-	if l2Block.Nonce() > 0 {
-		nBig := big.NewInt(0).SetUint64(l2Block.Nonce())
-		nBytes := common.LeftPadBytes(nBig.Bytes(), 8) //nolint:gomnd
-		n := types.ArgBytes(nBytes)
-		rpcBlockNonce = &n
-	}
+	n := big.NewInt(0).SetUint64(l2Block.Nonce())
+	rpcBlockNonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
 
 	difficulty := types.ArgUint64(0)
 	var totalDifficulty *types.ArgUint64
@@ -1463,8 +1458,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
-		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		BlockInfoRoot:   l2Block.BlockInfoRoot(),
+		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
+		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
 	}
@@ -1622,6 +1617,10 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
+				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
+				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
+				tc.ExpectedResult.Nonce = rpcBlockNonce
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1933,7 +1932,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 		TxIndex:     state.Ptr(types.ArgUint64(0)),
 		ChainID:     types.ArgBig(*chainID),
 		Type:        0,
-		L2Hash:      l2Hash,
+		L2Hash:      state.Ptr(l2Hash),
 	}
 
 	testCases := []testCase{
@@ -2534,14 +2533,14 @@ func TestGetExitRootsByGER(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(s, m, &tc)
 
-			exitRoots, err := c.ExitRootsByGER(context.Background(), tc.GER)
+			exitRoots, err := zkEVMClient.ExitRootsByGER(context.Background(), tc.GER)
 			require.NoError(t, err)
 
 			if exitRoots != nil || tc.ExpectedResult != nil {

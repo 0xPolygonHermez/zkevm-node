@@ -157,7 +157,6 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 
 	e := p.getExecQuerier(dbTx)
 
-	const addTransactionSQL = "INSERT INTO state.transaction (hash, encoded, decoded, l2_block_num, effective_percentage, egp_log, l2_hash) VALUES($1, $2, $3, $4, $5, $6, $7)"
 	const addL2BlockSQL = `
         INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
                            VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
@@ -196,52 +195,58 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		return err
 	}
 
-	for idx, tx := range l2Block.Transactions() {
-		egpLog := ""
-		if txsEGPData != nil {
-			egpLogBytes, err := json.Marshal(txsEGPData[idx].EGPLog)
+	if len(l2Block.Transactions()) > 0 {
+		txRows := [][]interface{}{}
+
+		for idx, tx := range l2Block.Transactions() {
+			egpLogBytes := []byte{}
+			if txsEGPData != nil {
+				var err error
+				egpLogBytes, err = json.Marshal(txsEGPData[idx].EGPLog)
+				if err != nil {
+					return err
+				}
+			}
+
+			binary, err := tx.MarshalBinary()
 			if err != nil {
 				return err
 			}
-			egpLog = string(egpLogBytes)
+			encoded := hex.EncodeToHex(binary)
+
+			decoded, err := tx.MarshalJSON()
+			if err != nil {
+				return err
+			}
+
+			l2TxHash, err := state.GetL2Hash(*tx)
+			if err != nil {
+				return err
+			}
+
+			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes, l2TxHash.String()}
+			txRows = append(txRows, txRow)
 		}
 
-		binary, err := tx.MarshalBinary()
-		if err != nil {
-			return err
-		}
-		encoded := hex.EncodeToHex(binary)
+		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"},
+			[]string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log", "l2_hash"},
+			pgx.CopyFromRows(txRows))
 
-		binary, err = tx.MarshalJSON()
-		if err != nil {
-			return err
-		}
-		decoded := string(binary)
-
-		l2TxHash, err := state.GetL2Hash(*tx)
-		if err != nil {
-			return err
-		}
-
-		_, err = e.Exec(ctx, addTransactionSQL, tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLog, l2TxHash.String())
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, receipt := range receipts {
-		err := p.AddReceipt(ctx, receipt, dbTx)
-		if err != nil {
-			return err
-		}
+	if len(receipts) > 0 {
+		p.AddReceipts(ctx, receipts, dbTx)
 
-		for _, log := range receipt.Logs {
-			err := p.AddLog(ctx, log, dbTx)
-			if err != nil {
-				return err
-			}
+		var logs []*types.Log
+		for _, receipt := range receipts {
+			logs = append(logs, receipt.Logs...)
 		}
+		p.AddLogs(ctx, logs, dbTx)
 	}
+
 	log.Debugf("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
 	return nil
 }

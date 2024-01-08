@@ -308,7 +308,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			if isOOG {
 				response.OOGError = err
 			}
-			if processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
+			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
 				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
@@ -674,6 +674,16 @@ const (
 	txGas                 uint64 = 21000
 	txDataZeroGas         uint64 = 4
 )
+
+// CalculateEffectiveGasPrice calculates the final effective gas price for a tx
+func (p *Pool) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+}
+
+// EffectiveGasPriceEnabled returns if effective gas price calculation is enabled or not
+func (p *Pool) EffectiveGasPriceEnabled() bool {
+	return p.effectiveGasPrice.IsEnabled()
+}
 
 // IntrinsicGas computes the 'intrinsic gas' for a given transaction.
 func IntrinsicGas(tx types.Transaction) (uint64, error) {

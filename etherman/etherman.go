@@ -1567,11 +1567,21 @@ func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
 
 // GetL2ChainID returns L2 Chain ID
 func (etherMan *Client) GetL2ChainID() (uint64, error) {
-	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
-	if err != nil {
-		return 0, err
+	chainID, err := etherMan.OldZkEVM.ChainID(&bind.CallOpts{Pending: false})
+	log.Debug("chainID read from oldZkevm: ", chainID)
+	if err != nil || chainID == 0 {
+		log.Debug("error from oldZkevm: ", err)
+		rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
+		log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
+		if err != nil {
+			log.Debug("error from rollupManager: ", err)
+			return 0, err
+		} else if rollupData.ChainID == 0 {
+			return rollupData.ChainID, fmt.Errorf("error: chainID received is 0!!")
+		}
+		return rollupData.ChainID, nil
 	}
-	return rollupData.ChainID, nil
+	return chainID, nil
 }
 
 // GetL1GasPrice gets the l1 gas price
