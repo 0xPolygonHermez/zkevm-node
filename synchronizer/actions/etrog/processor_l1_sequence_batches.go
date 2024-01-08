@@ -167,7 +167,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			tstampLimit := forcedBatches[0].ForcedAt
 			txs := forcedBatches[0].RawTxsData
 			processCtx = state.ProcessingContextV2{
-				BatchNumber:          1,
+				BatchNumber:          sbatch.BatchNumber,
 				Coinbase:             sbatch.SequencerAddr,
 				Timestamp:            &tstampLimit,
 				L1InfoRoot:           sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
