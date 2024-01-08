@@ -89,7 +89,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 		txsStep2 = append(txsStep2, tx)
 		nonceToBeUsedForNextTx += 1
 	}
-	log.Infof("sending %d txs and waiting until added into the trusted sequencer pool")
+	log.Infof("sending %d txs and waiting until added into the trusted sequencer pool", nTxsStep2)
 	_, err = operations.ApplyL2Txs(ctx, txsStep2, auth, client, operations.PoolConfirmationLevel)
 	require.NoError(t, err)
 	actualNonce, err := client.PendingNonceAt(ctx, auth.From)
@@ -105,8 +105,9 @@ func TestPermissionlessJRPC(t *testing.T) {
 	// Get the receipt of last tx to known the L2 block number
 	signedTx, err := auth.Signer(auth.From, txsStep2[len(txsStep2)-1])
 	require.NoError(t, err)
-	log.Infof("Getting tx receipt for last new tx to know the L2 block number")
-	receipt, err := operations.WaitTxReceipt(ctx, signedTx.Hash(), 4*time.Minute, client)
+	timeoutForTxReceipt := 4 * time.Minute //nolint:gomnd
+	log.Infof("Getting tx receipt for last new tx [%s]to know the L2 block number (tout=%s)", signedTx.Hash(), timeoutForTxReceipt)
+	receipt, err := operations.WaitTxReceipt(ctx, signedTx.Hash(), timeoutForTxReceipt, client)
 	require.NoError(t, err)
 	lastL2BlockNumberStep2 := receipt.BlockNumber
 	log.Infof("waiting until L2 block %v is virtualized", lastL2BlockNumberStep2)
