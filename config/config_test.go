@@ -294,6 +294,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Pool.EffectiveGasPrice.EthTransferGasPrice",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor",
+			expectedValue: float64(0),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
