@@ -742,6 +742,16 @@
 							"description": "Filename of the binary data file",
 							"default": ""
 						},
+						"Version": {
+							"type": "integer",
+							"description": "Version of the binary data file",
+							"default": 0
+						},
+						"ChainID": {
+							"type": "integer",
+							"description": "ChainID is the chain ID",
+							"default": 0
+						},
 						"Enabled": {
 							"type": "boolean",
 							"description": "Enabled is a flag to enable/disable the data streamer",
