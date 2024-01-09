@@ -438,7 +438,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 						l2blockRaw := batchRawData.Blocks[blockIndex]
 						if l2blockRaw.IndexL1InfoTree != 0 {
 							if l2block.L2BlockNumber == 1101 {
-								log.Infof("Lo2BlockRaw: %+v", l2blockRaw)
+								log.Fatalf("Lo2BlockRaw: %+v", l2blockRaw)
 							}
 							l1InfoTreeExitRootStorageEntry, err := stateDB.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
 							if err != nil {
