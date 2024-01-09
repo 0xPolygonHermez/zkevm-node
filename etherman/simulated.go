@@ -45,6 +45,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 	}
 	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
+
 	// DAC Setup
 	dataCommitteeAddr, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
 	if err != nil {
@@ -64,6 +65,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 	totalSupply, _ := new(big.Int).SetString("10000000000000000000000000000", 10) //nolint:gomnd
 	polAddr, _, polContract, err := pol.DeployPol(auth, client, "Pol Token", "POL", polDecimalPlaces, totalSupply)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, nil, err
 	}
 	rollupVerifierAddr, _, _, err := mockverifier.DeployMockverifier(auth, client)
@@ -72,6 +74,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 	}
 	nonce, err := client.PendingNonceAt(context.TODO(), auth.From)
 	if err != nil {
+		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, nil, err
 	}
 	const posBridge = 1
@@ -96,7 +99,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 		return nil, nil, common.Address{}, nil, nil, err
 	}
 	if calculatedRollupManagerAddr != mockRollupManagerAddr {
-		return nil, nil, common.Address{}, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
+		return nil, nil, common.Address{}, nil, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
 			mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
 	}
 	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
@@ -194,8 +197,9 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 		RollupManager:         rollupManager,
 		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
+		DataCommittee:         da,
 		RollupID:              rollupID,
-		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr},
+		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr, dataCommitteeAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
 		cfg:                   cfg,
 	}

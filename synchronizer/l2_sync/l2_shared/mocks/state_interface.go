@@ -29,10 +29,6 @@ func (_m *StateInterface) EXPECT() *StateInterface_Expecter {
 func (_m *StateInterface) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for BeginStateTransaction")
-	}
-
 	var r0 pgx.Tx
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {
@@ -86,10 +82,6 @@ func (_c *StateInterface_BeginStateTransaction_Call) RunAndReturn(run func(conte
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateInterface) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBatchByNumber")
-	}
 
 	var r0 *state.Batch
 	var r1 error

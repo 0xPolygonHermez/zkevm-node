@@ -26,10 +26,6 @@ func (_m *workersInterfaceMock) EXPECT() *workersInterfaceMock_Expecter {
 func (_m *workersInterfaceMock) String() string {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for String")
-	}
-
 	var r0 string
 	if rf, ok := ret.Get(0).(func() string); ok {
 		r0 = rf()
@@ -70,10 +66,6 @@ func (_c *workersInterfaceMock_String_Call) RunAndReturn(run func() string) *wor
 // asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, request
 func (_m *workersInterfaceMock) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
 	ret := _m.Called(ctx, request)
-
-	if len(ret) == 0 {
-		panic("no return value specified for asyncRequestRollupInfoByBlockRange")
-	}
 
 	var r0 chan responseRollupInfoByBlockRange
 	var r1 error
@@ -130,10 +122,6 @@ func (_c *workersInterfaceMock_asyncRequestRollupInfoByBlockRange_Call) RunAndRe
 func (_m *workersInterfaceMock) getResponseChannelForRollupInfo() chan responseRollupInfoByBlockRange {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for getResponseChannelForRollupInfo")
-	}
-
 	var r0 chan responseRollupInfoByBlockRange
 	if rf, ok := ret.Get(0).(func() chan responseRollupInfoByBlockRange); ok {
 		r0 = rf()
@@ -177,10 +165,6 @@ func (_c *workersInterfaceMock_getResponseChannelForRollupInfo_Call) RunAndRetur
 func (_m *workersInterfaceMock) howManyRunningWorkers() int {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for howManyRunningWorkers")
-	}
-
 	var r0 int
 	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
@@ -222,10 +206,6 @@ func (_c *workersInterfaceMock_howManyRunningWorkers_Call) RunAndReturn(run func
 func (_m *workersInterfaceMock) initialize() error {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for initialize")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func() error); ok {
 		r0 = rf()
@@ -266,10 +246,6 @@ func (_c *workersInterfaceMock_initialize_Call) RunAndReturn(run func() error) *
 // requestLastBlockWithRetries provides a mock function with given fields: ctx, timeout, maxPermittedRetries
 func (_m *workersInterfaceMock) requestLastBlockWithRetries(ctx context.Context, timeout time.Duration, maxPermittedRetries int) responseL1LastBlock {
 	ret := _m.Called(ctx, timeout, maxPermittedRetries)
-
-	if len(ret) == 0 {
-		panic("no return value specified for requestLastBlockWithRetries")
-	}
 
 	var r0 responseL1LastBlock
 	if rf, ok := ret.Get(0).(func(context.Context, time.Duration, int) responseL1LastBlock); ok {

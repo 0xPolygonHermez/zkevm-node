@@ -26,10 +26,6 @@ func (_m *l1RollupConsumerInterfaceMock) EXPECT() *l1RollupConsumerInterfaceMock
 func (_m *l1RollupConsumerInterfaceMock) GetLastEthBlockSynced() (state.Block, bool) {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetLastEthBlockSynced")
-	}
-
 	var r0 state.Block
 	var r1 bool
 	if rf, ok := ret.Get(0).(func() (state.Block, bool)); ok {
@@ -113,10 +109,6 @@ func (_c *l1RollupConsumerInterfaceMock_Reset_Call) RunAndReturn(run func(uint64
 // Start provides a mock function with given fields: ctx, lastEthBlockSynced
 func (_m *l1RollupConsumerInterfaceMock) Start(ctx context.Context, lastEthBlockSynced *state.Block) error {
 	ret := _m.Called(ctx, lastEthBlockSynced)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Start")
-	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *state.Block) error); ok {

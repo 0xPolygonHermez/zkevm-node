@@ -29,10 +29,6 @@ func (_m *ZKEVMClientGlobalExitRootGetter) EXPECT() *ZKEVMClientGlobalExitRootGe
 func (_m *ZKEVMClientGlobalExitRootGetter) ExitRootsByGER(ctx context.Context, globalExitRoot common.Hash) (*types.ExitRoots, error) {
 	ret := _m.Called(ctx, globalExitRoot)
 
-	if len(ret) == 0 {
-		panic("no return value specified for ExitRootsByGER")
-	}
-
 	var r0 *types.ExitRoots
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*types.ExitRoots, error)); ok {

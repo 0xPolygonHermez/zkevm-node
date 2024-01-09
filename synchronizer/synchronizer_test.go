@@ -18,7 +18,6 @@ import (
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -35,7 +34,7 @@ type mocks struct {
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *syncMocks.DbTxMock
-	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
+	ZKEVMClient  zkEVMClientInterface
 	//EventLog     *eventLogMock
 	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 }

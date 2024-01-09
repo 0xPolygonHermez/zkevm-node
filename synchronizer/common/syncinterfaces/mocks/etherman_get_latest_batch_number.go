@@ -21,10 +21,6 @@ func (_m *EthermanGetLatestBatchNumber) EXPECT() *EthermanGetLatestBatchNumber_E
 func (_m *EthermanGetLatestBatchNumber) GetLatestBatchNumber() (uint64, error) {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetLatestBatchNumber")
-	}
-
 	var r0 uint64
 	var r1 error
 	if rf, ok := ret.Get(0).(func() (uint64, error)); ok {

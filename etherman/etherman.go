@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
@@ -179,7 +180,7 @@ type Client struct {
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
 	Pol                      *pol.Pol
-	DataCommittee         *cdkdatacommittee.Cdkdatacommittee
+	DataCommittee            *cdkdatacommittee.Cdkdatacommittee
 	SCAddresses              []common.Address
 
 	RollupID uint32
@@ -905,19 +906,19 @@ func (etherMan *Client) sequenceBatches(
 	l2Coinbase common.Address,
 	committeeSignaturesAndAddrs []byte,
 ) (*types.Transaction, error) {
-	var batches []polygonzkevm.CDKValidiumBatchData
+	var batches []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
 	for _, seq := range sequences {
-		batch := polygonzkevm.CDKValidiumBatchData{
-			TransactionsHash:   crypto.Keccak256Hash(seq.BatchL2Data),
-			GlobalExitRoot:     seq.GlobalExitRoot,
-			Timestamp:          uint64(seq.Timestamp),
-			MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
+		batch := polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
+			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
+			ForcedGlobalExitRoot: seq.GlobalExitRoot,
+			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
+			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
 
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
+	tx, err := etherMan.ZkEVM.SequenceBatchesDataCommittee(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)

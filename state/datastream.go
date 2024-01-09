@@ -320,8 +320,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	var err error
 	const limit = 10000
 
-	const limit = 10000
-
 	for err == nil {
 		log.Debugf("Current entry number: %d", entry)
 		log.Debugf("Current batch number: %d", currentBatchNumber)

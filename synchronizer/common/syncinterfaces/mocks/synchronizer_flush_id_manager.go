@@ -24,10 +24,6 @@ func (_m *SynchronizerFlushIDManager) EXPECT() *SynchronizerFlushIDManager_Expec
 func (_m *SynchronizerFlushIDManager) CheckFlushID(dbTx pgx.Tx) error {
 	ret := _m.Called(dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for CheckFlushID")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(pgx.Tx) error); ok {
 		r0 = rf(dbTx)

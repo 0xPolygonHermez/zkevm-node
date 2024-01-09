@@ -26,10 +26,6 @@ func (_m *synchronizerProcessBlockRangeInterfaceMock) EXPECT() *synchronizerProc
 func (_m *synchronizerProcessBlockRangeInterfaceMock) ProcessBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
 	ret := _m.Called(blocks, order)
 
-	if len(ret) == 0 {
-		panic("no return value specified for ProcessBlockRange")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func([]etherman.Block, map[common.Hash][]etherman.Order) error); ok {
 		r0 = rf(blocks, order)

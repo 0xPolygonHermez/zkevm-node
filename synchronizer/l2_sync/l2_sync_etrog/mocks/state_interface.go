@@ -31,10 +31,6 @@ func (_m *StateInterface) EXPECT() *StateInterface_Expecter {
 func (_m *StateInterface) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for BeginStateTransaction")
-	}
-
 	var r0 pgx.Tx
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {
@@ -89,10 +85,6 @@ func (_c *StateInterface_BeginStateTransaction_Call) RunAndReturn(run func(conte
 func (_m *StateInterface) CloseBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, receipt, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for CloseBatch")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingReceipt, pgx.Tx) error); ok {
 		r0 = rf(ctx, receipt, dbTx)
@@ -136,10 +128,6 @@ func (_c *StateInterface_CloseBatch_Call) RunAndReturn(run func(context.Context,
 // GetBatchByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateInterface) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetBatchByNumber")
-	}
 
 	var r0 *state.Batch
 	var r1 error
@@ -197,10 +185,6 @@ func (_c *StateInterface_GetBatchByNumber_Call) RunAndReturn(run func(context.Co
 func (_m *StateInterface) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	ret := _m.Called(batchNumber)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetForkIDByBatchNumber")
-	}
-
 	var r0 uint64
 	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
 		r0 = rf(batchNumber)
@@ -242,10 +226,6 @@ func (_c *StateInterface_GetForkIDByBatchNumber_Call) RunAndReturn(run func(uint
 // GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
 func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
 	ret := _m.Called(ctx, batchL2Data, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetL1InfoTreeDataFromBatchL2Data")
-	}
 
 	var r0 map[uint32]state.L1DataV2
 	var r1 common.Hash
@@ -312,10 +292,6 @@ func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run
 func (_m *StateInterface) OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, processingContext, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for OpenBatch")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingContext, pgx.Tx) error); ok {
 		r0 = rf(ctx, processingContext, dbTx)
@@ -359,10 +335,6 @@ func (_c *StateInterface_OpenBatch_Call) RunAndReturn(run func(context.Context, 
 // ProcessBatchV2 provides a mock function with given fields: ctx, request, updateMerkleTree
 func (_m *StateInterface) ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error) {
 	ret := _m.Called(ctx, request, updateMerkleTree)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ProcessBatchV2")
-	}
 
 	var r0 *state.ProcessBatchResponse
 	var r1 error
@@ -420,10 +392,6 @@ func (_c *StateInterface_ProcessBatchV2_Call) RunAndReturn(run func(context.Cont
 func (_m *StateInterface) ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for ResetTrustedState")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, batchNumber, dbTx)
@@ -467,10 +435,6 @@ func (_c *StateInterface_ResetTrustedState_Call) RunAndReturn(run func(context.C
 // StoreL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, txsEGPLog, dbTx
 func (_m *StateInterface) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, l2Block, txsEGPLog, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for StoreL2Block")
-	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.ProcessBlockResponse, []*state.EffectiveGasPriceLog, pgx.Tx) error); ok {
@@ -517,10 +481,6 @@ func (_c *StateInterface_StoreL2Block_Call) RunAndReturn(run func(context.Contex
 // UpdateWIPBatch provides a mock function with given fields: ctx, receipt, dbTx
 func (_m *StateInterface) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, receipt, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateWIPBatch")
-	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, state.ProcessingReceipt, pgx.Tx) error); ok {

@@ -85,10 +85,9 @@ func NewServer(
 	}
 
 	srv := &Server{
-		config:           cfg,
-		handler:          handler,
-		chainID:          chainID,
-		connCounterMutex: &sync.Mutex{},
+		config:  cfg,
+		handler: handler,
+		chainID: chainID,
 	}
 	return srv
 }

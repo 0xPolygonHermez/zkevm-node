@@ -28,10 +28,6 @@ func (_m *SyncTrustedBatchExecutor) EXPECT() *SyncTrustedBatchExecutor_Expecter 
 func (_m *SyncTrustedBatchExecutor) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	ret := _m.Called(ctx, data, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for FullProcess")
-	}
-
 	var r0 *l2_shared.ProcessResponse
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *l2_shared.ProcessData, pgx.Tx) (*l2_shared.ProcessResponse, error)); ok {
@@ -87,10 +83,6 @@ func (_c *SyncTrustedBatchExecutor_FullProcess_Call) RunAndReturn(run func(conte
 // IncrementalProcess provides a mock function with given fields: ctx, data, dbTx
 func (_m *SyncTrustedBatchExecutor) IncrementalProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	ret := _m.Called(ctx, data, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IncrementalProcess")
-	}
 
 	var r0 *l2_shared.ProcessResponse
 	var r1 error
@@ -148,10 +140,6 @@ func (_c *SyncTrustedBatchExecutor_IncrementalProcess_Call) RunAndReturn(run fun
 func (_m *SyncTrustedBatchExecutor) NothingProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	ret := _m.Called(ctx, data, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for NothingProcess")
-	}
-
 	var r0 *l2_shared.ProcessResponse
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *l2_shared.ProcessData, pgx.Tx) (*l2_shared.ProcessResponse, error)); ok {
@@ -207,10 +195,6 @@ func (_c *SyncTrustedBatchExecutor_NothingProcess_Call) RunAndReturn(run func(co
 // ReProcess provides a mock function with given fields: ctx, data, dbTx
 func (_m *SyncTrustedBatchExecutor) ReProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	ret := _m.Called(ctx, data, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ReProcess")
-	}
 
 	var r0 *l2_shared.ProcessResponse
 	var r1 error

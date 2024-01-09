@@ -164,13 +164,13 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &currentBlockNumber)
 	require.NoError(t, err)
 	t.Log("Blocks: ", blocks)
-	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
-	sequences = append(sequences, polygonzkevm.PolygonRollupBaseEtrogBatchData{
-		Transactions: common.Hex2Bytes(rawTxs),
-	}, polygonzkevm.PolygonRollupBaseEtrogBatchData{
-		Transactions: common.Hex2Bytes(rawTxs),
+	var sequences []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
+	sequences = append(sequences, polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
+		TransactionsHash: crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
+	}, polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
+		TransactionsHash: crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	})
-	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, auth.From, []byte{})
+	_, err = etherman.ZkEVM.SequenceBatchesDataCommittee(auth, sequences, auth.From, []byte{})
 	require.NoError(t, err)
 
 	// Mine the tx in a block

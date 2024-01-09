@@ -26,10 +26,6 @@ func (_m *workerMock) EXPECT() *workerMock_Expecter {
 func (_m *workerMock) String() string {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for String")
-	}
-
 	var r0 string
 	if rf, ok := ret.Get(0).(func() string); ok {
 		r0 = rf()
@@ -70,10 +66,6 @@ func (_c *workerMock_String_Call) RunAndReturn(run func() string) *workerMock_St
 // asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, ch, wg, request
 func (_m *workerMock) asyncRequestRollupInfoByBlockRange(ctx contextWithCancel, ch chan responseRollupInfoByBlockRange, wg *sync.WaitGroup, request requestRollupInfoByBlockRange) error {
 	ret := _m.Called(ctx, ch, wg, request)
-
-	if len(ret) == 0 {
-		panic("no return value specified for asyncRequestRollupInfoByBlockRange")
-	}
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(contextWithCancel, chan responseRollupInfoByBlockRange, *sync.WaitGroup, requestRollupInfoByBlockRange) error); ok {
@@ -120,10 +112,6 @@ func (_c *workerMock_asyncRequestRollupInfoByBlockRange_Call) RunAndReturn(run f
 func (_m *workerMock) isIdle() bool {
 	ret := _m.Called()
 
-	if len(ret) == 0 {
-		panic("no return value specified for isIdle")
-	}
-
 	var r0 bool
 	if rf, ok := ret.Get(0).(func() bool); ok {
 		r0 = rf()
@@ -164,10 +152,6 @@ func (_c *workerMock_isIdle_Call) RunAndReturn(run func() bool) *workerMock_isId
 // requestLastBlock provides a mock function with given fields: ctx
 func (_m *workerMock) requestLastBlock(ctx context.Context) responseL1LastBlock {
 	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for requestLastBlock")
-	}
 
 	var r0 responseL1LastBlock
 	if rf, ok := ret.Get(0).(func(context.Context) responseL1LastBlock); ok {

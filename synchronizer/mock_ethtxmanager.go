@@ -26,10 +26,6 @@ func (_m *ethTxManagerMock) EXPECT() *ethTxManagerMock_Expecter {
 func (_m *ethTxManagerMock) Reorg(ctx context.Context, fromBlockNumber uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, fromBlockNumber, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for Reorg")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r0 = rf(ctx, fromBlockNumber, dbTx)

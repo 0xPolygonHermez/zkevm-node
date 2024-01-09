@@ -28,10 +28,6 @@ func (_m *ZKEVMClientTrustedBatchesGetter) EXPECT() *ZKEVMClientTrustedBatchesGe
 func (_m *ZKEVMClientTrustedBatchesGetter) BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error) {
 	ret := _m.Called(ctx, number)
 
-	if len(ret) == 0 {
-		panic("no return value specified for BatchByNumber")
-	}
-
 	var r0 *types.Batch
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *big.Int) (*types.Batch, error)); ok {
@@ -86,10 +82,6 @@ func (_c *ZKEVMClientTrustedBatchesGetter_BatchByNumber_Call) RunAndReturn(run f
 // BatchNumber provides a mock function with given fields: ctx
 func (_m *ZKEVMClientTrustedBatchesGetter) BatchNumber(ctx context.Context) (uint64, error) {
 	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for BatchNumber")
-	}
 
 	var r0 uint64
 	var r1 error

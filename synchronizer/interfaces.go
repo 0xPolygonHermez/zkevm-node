@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -86,4 +87,9 @@ type ethTxManager interface {
 type poolInterface interface {
 	DeleteReorgedTransactions(ctx context.Context, txs []*ethTypes.Transaction) error
 	StoreTx(ctx context.Context, tx ethTypes.Transaction, ip string, isWIP bool) error
+}
+
+type zkEVMClientInterface interface {
+	BatchNumber(ctx context.Context) (uint64, error)
+	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }

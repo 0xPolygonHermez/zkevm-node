@@ -5384,7 +5384,8 @@ func TestSendRawTransactionJSONRPCCallWithPolicyApplied(t *testing.T) {
 				require.NoError(t, err)
 
 				tc.Input = rawTx
-				tc.ExpectedResult = state.HashPtr(signedTx.Hash())
+				expectedHash := signedTx.Hash()
+				tc.ExpectedResult = &expectedHash
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {
@@ -5468,7 +5469,8 @@ func TestSendRawTransactionJSONRPCCallWithPolicyApplied(t *testing.T) {
 				require.NoError(t, err)
 
 				tc.Input = rawTx
-				tc.ExpectedResult = state.HashPtr(tx.Hash())
+				expectedHash := tx.Hash()
+				tc.ExpectedResult = &expectedHash
 				tc.ExpectedError = nil
 			},
 			SetupMocks: func(t *testing.T, m *mocksWrapper, tc testCase) {

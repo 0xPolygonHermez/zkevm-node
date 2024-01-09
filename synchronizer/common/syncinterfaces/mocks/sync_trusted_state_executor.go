@@ -57,10 +57,6 @@ func (_c *SyncTrustedStateExecutor_CleanTrustedState_Call) RunAndReturn(run func
 func (_m *SyncTrustedStateExecutor) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
 	ret := _m.Called(ctx, latestSyncedBatch)
 
-	if len(ret) == 0 {
-		panic("no return value specified for SyncTrustedState")
-	}
-
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
 		r0 = rf(ctx, latestSyncedBatch)

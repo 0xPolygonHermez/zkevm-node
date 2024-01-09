@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -23,7 +24,7 @@ var forkID uint64 = 5
 func TestGetBatchL2DataWithoutCommittee(t *testing.T) {
 	m := mocks{
 		State:       newStateMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
+		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 		Etherman:    newEthermanMock(t),
 	}
 
@@ -321,7 +322,7 @@ func TestGetBatchL2DataWithoutCommittee(t *testing.T) {
 func TestGetBatchL2DataWithCommittee(t *testing.T) {
 	m := mocks{
 		State:                      newStateMock(t),
-		ZKEVMClient:                newZkEVMClientMock(t),
+		ZKEVMClient:                mock_syncinterfaces.NewZKEVMClientInterface(t),
 		Etherman:                   newEthermanMock(t),
 		DataCommitteeClientFactory: newDataCommitteeClientFactoryMock(t),
 	}
