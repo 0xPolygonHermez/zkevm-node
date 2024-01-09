@@ -15,15 +15,22 @@ func TestL2BlockStartEncode(t *testing.T) {
 		BatchNumber:    1,                           // 8 bytes
 		L2BlockNumber:  2,                           // 8 bytes
 		Timestamp:      3,                           // 8 bytes
-		GlobalExitRoot: common.HexToHash("0x04"),    // 32 bytes
-		Coinbase:       common.HexToAddress("0x05"), // 20 bytes
+		L1BlockHash:    common.HexToHash("0x04"),    // 32 bytes
+		GlobalExitRoot: common.HexToHash("0x05"),    // 32 bytes
+		L1InfoRoot:     common.HexToHash("0x06"),    // 32 bytes
+		Coinbase:       common.HexToAddress("0x07"), // 20 bytes
 		ForkID:         5,
 	}
 
 	encoded := l2BlockStart.Encode()
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0,
+	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0,
+		2, 0, 0, 0, 0, 0, 0, 0,
+		3, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0}
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
+		5, 0}
 
 	assert.Equal(t, expected, encoded)
 }
