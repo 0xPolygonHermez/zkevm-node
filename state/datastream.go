@@ -416,6 +416,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					lastAddedL2Block = l2block.L2BlockNumber
 				}
 
+				l1InfoRoot := common.Hash{}
 				l1BlockHash := common.Hash{}
 
 				// Get L1 block hash
@@ -441,6 +442,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 							if err != nil {
 								return err
 							}
+							l1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 							l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
 						}
 					} else {
@@ -451,6 +453,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 								return err
 							}
 						} else {
+							l1InfoRoot = batch.GlobalExitRoot
 							l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
 							if err != nil {
 								return err
@@ -465,6 +468,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					Timestamp:      l2block.Timestamp,
 					L1BlockHash:    l1BlockHash,
 					GlobalExitRoot: l2block.GlobalExitRoot,
+					L1InfoRoot:     l1InfoRoot,
 					Coinbase:       l2block.Coinbase,
 					ForkID:         l2block.ForkID,
 				}
