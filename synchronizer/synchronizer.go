@@ -71,7 +71,7 @@ type ClientSynchronizer struct {
 	l1SyncOrchestration      *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors        *processor_manager.L1EventProcessors
 	syncTrustedStateExecutor syncinterfaces.SyncTrustedStateExecutor
-	halter                   syncinterfaces.Halter
+	halter                   syncinterfaces.CriticalErrorHandler
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -106,11 +106,11 @@ func NewSynchronizer(
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
 		l1EventProcessors:       nil,
-		halter:                  syncCommon.NewHaltInfinteLoop(eventLog, 5*time.Second), //nolint:gomnd
+		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
-	halterSlowDown := syncCommon.NewHaltSlowDownSynchronizer(5 * time.Second) //nolint:gomnd
+	halterSlowDown := syncCommon.NewCriticalErrorSlowDown(5 * time.Second) //nolint:gomnd
 	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
 		syncCommon.DefaultTimeProvider{}, L1SyncChecker, halterSlowDown)
 	res.l1EventProcessors = defaultsL1EventProcessors(res)

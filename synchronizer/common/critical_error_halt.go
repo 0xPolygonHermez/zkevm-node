@@ -10,23 +10,23 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 )
 
-// HaltInfinteLoop is a Synchronizer halter, implements syncinterfaces.Halter
+// CriticalErrorHalt is a Synchronizer halter, implements syncinterfaces.Halter
 // basically it logs an error and keep in a infinite loop to halt the synchronizer
-type HaltInfinteLoop struct {
+type CriticalErrorHalt struct {
 	EventLog  syncinterfaces.EventLogInterface
 	SleepTime time.Duration
 }
 
-// NewHaltInfinteLoop creates a new HaltSynchronizer
-func NewHaltInfinteLoop(eventLog syncinterfaces.EventLogInterface, sleepTime time.Duration) *HaltInfinteLoop {
-	return &HaltInfinteLoop{
+// NewCriticalErrorHalt creates a new HaltSynchronizer
+func NewCriticalErrorHalt(eventLog syncinterfaces.EventLogInterface, sleepTime time.Duration) *CriticalErrorHalt {
+	return &CriticalErrorHalt{
 		EventLog:  eventLog,
 		SleepTime: sleepTime,
 	}
 }
 
-// Halt halts the Synchronizer and write a eventLog on Database
-func (g *HaltInfinteLoop) Halt(ctx context.Context, err error) {
+// CriticalError halts the Synchronizer and write a eventLog on Database
+func (g *CriticalErrorHalt) CriticalError(ctx context.Context, err error) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,

@@ -59,7 +59,7 @@ type ProcessorL1SequenceBatchesEtrog struct {
 	pool         poolProcessSequenceBatchesInterface
 	sync         syncProcessSequenceBatchesInterface
 	timeProvider syncCommon.TimeProvider
-	halter       syncinterfaces.Halter
+	halter       syncinterfaces.CriticalErrorHandler
 }
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
@@ -68,7 +68,7 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	pool poolProcessSequenceBatchesInterface,
 	sync syncProcessSequenceBatchesInterface,
 	timeProvider syncCommon.TimeProvider,
-	halter syncinterfaces.Halter) *ProcessorL1SequenceBatchesEtrog {
+	halter syncinterfaces.CriticalErrorHandler) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
@@ -451,5 +451,5 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 
 // halt halts the Synchronizer
 func (g *ProcessorL1SequenceBatchesEtrog) halt(ctx context.Context, err error) {
-	g.halter.Halt(ctx, err)
+	g.halter.CriticalError(ctx, err)
 }

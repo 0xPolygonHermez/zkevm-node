@@ -53,14 +53,14 @@ type SyncTrustedBatchExecutorForEtrog struct {
 	state         StateInterface
 	sync          syncinterfaces.SynchronizerFlushIDManager
 	l1SyncChecker L1SyncChecker
-	halter        syncinterfaces.Halter
+	halter        syncinterfaces.CriticalErrorHandler
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
 	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker,
-	halter syncinterfaces.Halter) *l2_shared.TrustedBatchesRetrieve {
+	halter syncinterfaces.CriticalErrorHandler) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state:         stateBatchExecutor,
 		sync:          sync,
@@ -306,7 +306,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trust
 				// This is a situation impossible to reach!, if it happens we halt sync and we need to develop a recovery process
 				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) HALTING", debugStr, str)
 				log.Warnf(err.Error())
-				b.halter.Halt(ctx, err)
+				b.halter.CriticalError(ctx, err)
 				return err
 			}
 		}
