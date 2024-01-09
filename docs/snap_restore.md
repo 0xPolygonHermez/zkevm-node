@@ -77,7 +77,7 @@ OPTIONS:
 # How to test
 You could use `test/docker-compose.yml` to interact with `zkevm-node`:
 * Run the containers: `make run`
-* Launch a interactive container:
+* Launch an interactive container:
 ```
 docker-compose up -d zkevm-sh
 docker-compose exec zkevm-sh /bin/sh

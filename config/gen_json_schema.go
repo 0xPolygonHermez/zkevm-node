@@ -221,7 +221,13 @@ func fillDefaultValuesPartial(schema *jsonschema.Schema, default_config interfac
 					}
 				}
 			case "object":
-				fillDefaultValuesPartial(value_schema, default_value.Interface())
+				typeObj := reflect.ValueOf(default_value.Interface()).Kind()
+				isPointer := typeObj == reflect.Ptr
+				if !isPointer || (isPointer && !default_value.IsNil()) {
+					fillDefaultValuesPartial(value_schema, default_value.Interface())
+				} else {
+					log.Debugf("fillDefaultValuesPartial: key: %s is nil", key)
+				}
 			default: // string, number, integer, boolean
 				if default_value.Type() == reflect.TypeOf(types.Duration{}) {
 					duration, ok := default_value.Interface().(types.Duration)

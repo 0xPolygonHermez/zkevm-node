@@ -299,7 +299,7 @@ func sendBatches(cliCtx *cli.Context) error {
 								}
 							}
 						case etherman.TrustedVerifyBatchesSigHash():
-							vb, err := ethMan.ZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
+							vb, err := ethMan.ZkEVM.ParseVerifyBatches(vLog)
 							if err != nil {
 								return err
 							}

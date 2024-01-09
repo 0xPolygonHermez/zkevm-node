@@ -22,6 +22,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	// To be able to avoid relaunching docker you must set this to TRUE
+	// You can run the needed dockers with:
+	// make run
+	// make run-l2-explorer-json-rpc
+	dockersArePreLaunchedForDebugTests = false
+)
+
 func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -31,23 +39,28 @@ func TestDebugTraceTransactionNotFoundTx(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	if !dockersArePreLaunchedForDebugTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -98,23 +111,27 @@ func TestDebugTraceBlockByNumberNotFoundTx(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
-
+	if !dockersArePreLaunchedForDebugTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -162,23 +179,28 @@ func TestDebugTraceBlockByHashNotFoundTx(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	if !dockersArePreLaunchedForDebugTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -226,23 +248,28 @@ func TestDebugTraceTransaction(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
-
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+	if !dockersArePreLaunchedForDebugTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -267,7 +294,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 		},
 	}
 
-	results := map[string]json.RawMessage{}
+	results := map[string]map[string]interface{}{}
 
 	type testCase struct {
 		name           string
@@ -357,6 +384,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
 			for _, network := range networks {
+				debugID := fmt.Sprintf("[%s/%s]", tc.name, network.Name)
 				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
 				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
@@ -374,12 +402,12 @@ func TestDebugTraceTransaction(t *testing.T) {
 				balance, err := ethereumClient.BalanceAt(ctx, auth.From, nil)
 				require.NoError(t, err)
 
-				log.Debugf("balance of %v: %v", auth.From, balance.String())
+				log.Debugf("%s balance of %v: %v", debugID, auth.From, balance.String())
 
 				err = ethereumClient.SendTransaction(ctx, signedTx)
 				require.NoError(t, err)
 
-				log.Debugf("tx sent: %v", signedTx.Hash().String())
+				log.Debugf("%s tx sent: %v", debugID, signedTx.Hash().String())
 
 				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
 				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
@@ -397,15 +425,14 @@ func TestDebugTraceTransaction(t *testing.T) {
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
+				log.Debugf("%s response:%s", debugID, string(response.Result))
 
-				results[network.Name] = response.Result
-
+				resultForTx := convertJson(t, response.Result, debugID)
+				results[network.Name] = resultForTx
 				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
 			}
 
-			referenceValueMap := map[string]interface{}{}
-			err = json.Unmarshal(results[l1NetworkName], &referenceValueMap)
-			require.NoError(t, err)
+			referenceValueMap := results[l1NetworkName]
 
 			referenceStructLogsMap := referenceValueMap["structLogs"].([]interface{})
 
@@ -414,9 +441,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 					continue
 				}
 
-				resultMap := map[string]interface{}{}
-				err = json.Unmarshal(result, &resultMap)
-				require.NoError(t, err)
+				resultMap := result
 
 				require.Equal(t, referenceValueMap["failed"], resultMap["failed"], fmt.Sprintf("invalid `failed` for network %s", networkName))
 
@@ -480,23 +505,29 @@ func TestDebugTraceBlock(t *testing.T) {
 	const l2ExplorerRPCComponentName = "l2-explorer-json-rpc"
 
 	var err error
-	err = operations.Teardown()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		err = operations.Teardown()
+		require.NoError(t, err)
 
-	defer func() {
-		require.NoError(t, operations.Teardown())
-		require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
-	}()
+		defer func() {
+			require.NoError(t, operations.Teardown())
+			require.NoError(t, operations.StopComponent(l2ExplorerRPCComponentName))
+		}()
+	}
 
 	ctx := context.Background()
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
-	require.NoError(t, err)
-	err = opsMan.Setup()
-	require.NoError(t, err)
+	if !dockersArePreLaunchedForDebugTests {
+		opsMan, err := operations.NewManager(ctx, opsCfg)
+		require.NoError(t, err)
+		err = opsMan.Setup()
+		require.NoError(t, err)
 
-	err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
-	require.NoError(t, err)
+		err = operations.StartComponent(l2ExplorerRPCComponentName, func() (bool, error) { return operations.NodeUpCondition(l2NetworkURL) })
+		require.NoError(t, err)
+	} else {
+		log.Info("Using pre-launched dockers: no reset Database")
+	}
 
 	const l1NetworkName, l2NetworkName = "Local L1", "Local L2"
 
@@ -521,7 +552,7 @@ func TestDebugTraceBlock(t *testing.T) {
 		},
 	}
 
-	results := map[string]json.RawMessage{}
+	results := map[string]map[string]interface{}{}
 
 	type testCase struct {
 		name              string
@@ -558,6 +589,7 @@ func TestDebugTraceBlock(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
 
 			for _, network := range networks {
+				debugID := fmt.Sprintf("TraceBlock[%s/%s]", tc.name, network.Name)
 				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
 				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
@@ -574,7 +606,7 @@ func TestDebugTraceBlock(t *testing.T) {
 				err = ethereumClient.SendTransaction(ctx, signedTx)
 				require.NoError(t, err)
 
-				log.Debugf("tx sent: %v", signedTx.Hash().String())
+				log.Debugf("%s tx sent: %v", debugID, signedTx.Hash().String())
 
 				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
 				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
@@ -601,83 +633,93 @@ func TestDebugTraceBlock(t *testing.T) {
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
 
-				results[network.Name] = response.Result
+				results[network.Name] = getTxInResponseDebugTest(t, response.Result, receipt.TransactionIndex, debugID)
 			}
 
-			referenceTransactions := []interface{}{}
-			err = json.Unmarshal(results[l1NetworkName], &referenceTransactions)
-			require.NoError(t, err)
+			referenceTransactions := results[l1NetworkName]
 
 			for networkName, result := range results {
 				if networkName == l1NetworkName {
 					continue
 				}
 
-				resultTransactions := []interface{}{}
-				err = json.Unmarshal(result, &resultTransactions)
-				require.NoError(t, err)
+				resultTransactions := result
 
-				for transactionIndex := range referenceTransactions {
-					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
-					referenceResultMap := referenceTransactionMap["result"].(map[string]interface{})
-					referenceStructLogsMap := referenceResultMap["structLogs"].([]interface{})
+				referenceTransactionMap := referenceTransactions
+				referenceResultMap := referenceTransactionMap["result"].(map[string]interface{})
+				referenceStructLogsMap := referenceResultMap["structLogs"].([]interface{})
 
-					resultTransactionMap := resultTransactions[transactionIndex].(map[string]interface{})
-					resultResultMap := resultTransactionMap["result"].(map[string]interface{})
-					resultStructLogsMap := resultResultMap["structLogs"].([]interface{})
-					log.Debugf("test[%s] referenceStructLogsMap : L1_len=%d L2_len=%d", tc.name, len(referenceStructLogsMap), len(resultStructLogsMap))
-					if len(referenceStructLogsMap) != len(resultStructLogsMap) {
-						log.Debugf("test[%s] referenceStructLogsMap not equal", tc.name)
-						log.Debug("L1 (referenceTransactions): ", referenceTransactions)
-						log.Debug("L2    (resultTransactions): ", resultTransactions)
+				resultTransactionMap := resultTransactions
+				resultResultMap := resultTransactionMap["result"].(map[string]interface{})
+				resultStructLogsMap := resultResultMap["structLogs"].([]interface{})
+				log.Debugf("test[%s] referenceStructLogsMap : L1_len=%d L2_len=%d", tc.name, len(referenceStructLogsMap), len(resultStructLogsMap))
+				if len(referenceStructLogsMap) != len(resultStructLogsMap) {
+					log.Debugf("test[%s] referenceStructLogsMap not equal", tc.name)
+					log.Debug("L1 (referenceTransactions): ", referenceTransactions)
+					log.Debug("L2    (resultTransactions): ", resultTransactions)
+				}
+				require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
+
+				for structLogIndex := range referenceStructLogsMap {
+					referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
+					resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+
+					require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
+					require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
+
+					pc := referenceStructLogMap["pc"]
+					op := referenceStructLogMap["op"]
+
+					referenceStack, found := referenceStructLogMap["stack"].([]interface{})
+					if found {
+						resultStack := resultStructLogMap["stack"].([]interface{})
+
+						require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
+						for stackIndex := range referenceStack {
+							require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
+						}
 					}
-					require.Equal(t, len(referenceStructLogsMap), len(resultStructLogsMap))
 
-					for structLogIndex := range referenceStructLogsMap {
-						referenceStructLogMap := referenceStructLogsMap[structLogIndex].(map[string]interface{})
-						resultStructLogMap := resultStructLogsMap[structLogIndex].(map[string]interface{})
+					referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
+					if found {
+						resultMemory := resultStructLogMap["memory"].([]interface{})
 
-						require.Equal(t, referenceStructLogMap["pc"], resultStructLogMap["pc"], fmt.Sprintf("invalid struct log pc for network %s", networkName))
-						require.Equal(t, referenceStructLogMap["op"], resultStructLogMap["op"], fmt.Sprintf("invalid struct log op for network %s", networkName))
-						require.Equal(t, referenceStructLogMap["depth"], resultStructLogMap["depth"], fmt.Sprintf("invalid struct log depth for network %s", networkName))
-
-						pc := referenceStructLogMap["pc"]
-						op := referenceStructLogMap["op"]
-
-						referenceStack, found := referenceStructLogMap["stack"].([]interface{})
-						if found {
-							resultStack := resultStructLogMap["stack"].([]interface{})
-
-							require.Equal(t, len(referenceStack), len(resultStack), fmt.Sprintf("stack size doesn't match for pc %v op %v", pc, op))
-							for stackIndex := range referenceStack {
-								require.Equal(t, referenceStack[stackIndex], resultStack[stackIndex], fmt.Sprintf("stack index %v doesn't match for pc %v op %v", stackIndex, pc, op))
-							}
+						require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
+						for memoryIndex := range referenceMemory {
+							require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
 						}
+					}
 
-						referenceMemory, found := referenceStructLogMap["memory"].([]interface{})
-						if found {
-							resultMemory := resultStructLogMap["memory"].([]interface{})
+					referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
+					if found {
+						resultStorage := resultStructLogMap["storage"].(map[string]interface{})
 
-							require.Equal(t, len(referenceMemory), len(resultMemory), fmt.Sprintf("memory size doesn't match for pc %v op %v", pc, op))
-							for memoryIndex := range referenceMemory {
-								require.Equal(t, referenceMemory[memoryIndex], resultMemory[memoryIndex], fmt.Sprintf("memory index %v doesn't match for pc %v op %v", memoryIndex, pc, op))
-							}
-						}
-
-						referenceStorage, found := referenceStructLogMap["storage"].(map[string]interface{})
-						if found {
-							resultStorage := resultStructLogMap["storage"].(map[string]interface{})
-
-							require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
-							for storageKey, referenceStorageValue := range referenceStorage {
-								resultStorageValue, found := resultStorage[storageKey]
-								require.True(t, found, "storage address not found")
-								require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
-							}
+						require.Equal(t, len(referenceStorage), len(resultStorage), fmt.Sprintf("storage size doesn't match for pc %v op %v", pc, op))
+						for storageKey, referenceStorageValue := range referenceStorage {
+							resultStorageValue, found := resultStorage[storageKey]
+							require.True(t, found, "storage address not found")
+							require.Equal(t, referenceStorageValue, resultStorageValue, fmt.Sprintf("storage value doesn't match for address %v for pc %v op %v", storageKey, pc, op))
 						}
 					}
 				}
+
 			}
 		})
 	}
+}
+
+func getTxInResponseDebugTest(t *testing.T, response json.RawMessage, txIndex uint, debugPrefix string) map[string]interface{} {
+	valueMap := []interface{}{}
+	err := json.Unmarshal(response, &valueMap)
+	require.NoError(t, err)
+	log.Infof("%s Reponse Length: %d", debugPrefix, len(valueMap))
+	return valueMap[txIndex].(map[string]interface{})
+}
+
+func convertJson(t *testing.T, response json.RawMessage, debugPrefix string) map[string]interface{} {
+	valueMap := map[string]interface{}{}
+	err := json.Unmarshal(response, &valueMap)
+	require.NoError(t, err)
+	return valueMap
 }

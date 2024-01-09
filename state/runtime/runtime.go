@@ -32,13 +32,13 @@ var (
 	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
 	ErrOutOfCountersBinary = errors.New("not enough binary counters to continue the execution")
 	// ErrOutOfCountersMemory indicates there are not enough memory align counters to continue the execution
-	ErrOutOfCountersMemory = errors.New("not enough memory align counters counters to continue the execution")
+	ErrOutOfCountersMemory = errors.New("not enough memory align counters to continue the execution")
 	// ErrOutOfCountersArith indicates there are not enough arith counters to continue the execution
-	ErrOutOfCountersArith = errors.New("not enough arith counters counters to continue the execution")
+	ErrOutOfCountersArith = errors.New("not enough arith counters to continue the execution")
 	// ErrOutOfCountersPadding indicates there are not enough padding counters to continue the execution
-	ErrOutOfCountersPadding = errors.New("not enough padding counters counters to continue the execution")
+	ErrOutOfCountersPadding = errors.New("not enough padding counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
-	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters counters to continue the execution")
+	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters to continue the execution")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
@@ -69,6 +69,17 @@ var (
 	ErrUnsupportedForkId = errors.New("unsupported fork id")
 	// ErrInvalidRLP indicates that there has been an error while parsing the RLP
 	ErrInvalidRLP = errors.New("invalid RLP")
+
+	// Start of V2 errors
+
+	// ErrInvalidDecodeChangeL2Block indicates that there has been an error while decoding a change l2 block transaction
+	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
+	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
+	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
+	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error during while executing
+	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error during while executing (limit timestamp)")
+	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error during while executing
+	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error during while executing (min timestamp)")
 
 	// EXECUTOR ERRORS
 	// ===============
@@ -232,6 +243,69 @@ var (
 	// ErrExecutorErrorInvalidGetKey indicates that the input parameter key value is invalid
 	ErrExecutorErrorInvalidGetKey = errors.New("key is invalid")
 
+	// Start of V2 errors
+
+	// ErrExecutorSMMainCountersOverflowSha256 indicates that the sha256 counter exceeded the maximum
+	ErrExecutorSMMainCountersOverflowSha256 = errors.New("sha256 counter exceeded the maximum")
+	// ErrExecutorSMMainHashS indicates that a register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashS = errors.New("register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSSizeOutOfRange indicates that a size register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashSSizeOutOfRange = errors.New("size register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSPositionNegative indicates that a position register value is negative while calculating a Sha256 hash
+	ErrExecutorSMMainHashSPositionNegative = errors.New("position register value is negative while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSPositionPlusSizeOutOfRange indicates that a position register value plus a size register value is out of range while calculating a Sha256 hash
+	ErrExecutorSMMainHashSPositionPlusSizeOutOfRange = errors.New("position register value plus a size register value is out of range while calculating a Sha256 hash")
+	// ErrExecutorSMMainHashSDigestAddressNotFound indicates that an address has not been found while calculating a Sha256 hash digest
+	ErrExecutorSMMainHashSDigestAddressNotFound = errors.New("address has not been found while calculating a Sha256 hash digest")
+	// ErrExecutorSMMainHashSDigestNotCompleted indicates that the hash has not been completed while calling a Sha256 hash digest
+	ErrExecutorSMMainHashSDigestNotCompleted = errors.New("hash has not been completed while calling a Sha256 hash digest")
+	// ErrExecutorSMMainHashSValueMismatch indicates that the Sha256 hash instruction value check failed
+	ErrExecutorSMMainHashSValueMismatch = errors.New("sha256 hash instruction value check failed")
+	// ErrExecutorSMMainHashSPaddingMismatch indicates that the Sha256 hash instruction padding check failed
+	ErrExecutorSMMainHashSPaddingMismatch = errors.New("sha256 hash instruction padding check failed")
+	// ErrExecutorSMMainHashSSizeMismatch indicates that the Sha256 hash instruction size check failed
+	ErrExecutorSMMainHashSSizeMismatch = errors.New("sha256 hash instruction size check failed")
+	// ErrExecutorSMMainHashSLenLengthMismatch indicates that the Sha256 hash length instruction length check failed
+	ErrExecutorSMMainHashSLenLengthMismatch = errors.New("sha256 hash length instruction length check failed")
+	// ErrExecutorSMMainHashSLenCalledTwice indicates that the Sha256 hash length instruction called once check failed
+	ErrExecutorSMMainHashSLenCalledTwice = errors.New("sha256 hash length instruction called once check failed")
+	// ErrExecutorSMMainHashSDigestNotFound indicates that the Sha256 hash digest instruction slot not found
+	ErrExecutorSMMainHashSDigestNotFound = errors.New("sha256 hash digest instruction slot not found")
+	// ErrExecutorSMMainHashSDigestDigestMismatch indicates that the Sha256 hash digest instruction digest check failed
+	ErrExecutorSMMainHashSDigestDigestMismatch = errors.New("sha256 hash digest instruction digest check failed")
+	// ErrExecutorSMMainHashSDigestCalledTwice indicates that the Sha256 hash digest instruction called once check failed
+	ErrExecutorSMMainHashSDigestCalledTwice = errors.New("sha256 hash digest instruction called once check failed")
+	// ErrExecutorSMMainHashSReadOutOfRange indicates that the main execution Sha256 check found read out of range
+	ErrExecutorSMMainHashSReadOutOfRange = errors.New("main execution Sha256 check found read out of range")
+	// ErrExecutorErrorInvalidL1InfoRoot indicates that the input parameter l1_info_root is invalid
+	ErrExecutorErrorInvalidL1InfoRoot = errors.New("l1_info_root is invalid")
+	// ErrExecutorErrorInvalidForcedBlockhashL1 indicates that the input parameter forced_blockhash_l1 is invalid
+	ErrExecutorErrorInvalidForcedBlockhashL1 = errors.New("forced_blockhash_l1 is invalid")
+	// ErrExecutorErrorInvalidL1DataV2GlobalExitRoot indicates that the input parameter l1_data_v2.global_exit_root is invalid
+	ErrExecutorErrorInvalidL1DataV2GlobalExitRoot = errors.New("l1_data_v2.global_exit_root is invalid")
+	// ErrExecutorErrorInvalidL1DataV2BlockHashL1 indicates that the input parameter l1_data_v2.block_hash_l1 is invalid
+	ErrExecutorErrorInvalidL1DataV2BlockHashL1 = errors.New("l1_data_v2.block_hash_l1 is invalid")
+	// ErrExecutorErrorInvalidL1SmtProof indicates that the input parameter l1_smt_proof is invalid
+	ErrExecutorErrorInvalidL1SmtProof = errors.New("l1_smt_proof is invalid")
+	// ErrExecutorErrorInvalidBalance indicates that the input parameter balance is invalid
+	ErrExecutorErrorInvalidBalance = errors.New("balance is invalid")
+	// ErrExecutorErrorSMMainBinaryLt4Mismatch indicates that the binary instruction less than four opcode failed
+	ErrExecutorErrorSMMainBinaryLt4Mismatch = errors.New("the binary instruction less than four opcode failed")
+	// ErrExecutorErrorInvalidNewStateRoot indicates that the input parameter new_state_root is invalid
+	ErrExecutorErrorInvalidNewStateRoot = errors.New("new_state_root is invalid")
+	// ErrExecutorErrorInvalidNewAccInputHash indicates that the input parameter new_acc_input_hash is invalid
+	ErrExecutorErrorInvalidNewAccInputHash = errors.New("new_acc_input_hash is invalid")
+	// ErrExecutorErrorInvalidNewLocalExitRoot indicates that the input parameter new_local_exit_root is invalid
+	ErrExecutorErrorInvalidNewLocalExitRoot = errors.New("new_local_exit_root is invalid")
+	// ErrExecutorErrorDBKeyNotFound indicates that the requested key was not found in the database
+	ErrExecutorErrorDBKeyNotFound = errors.New("key not found in the database")
+	// ErrExecutorErrorSMTInvalidDataSize indicates that the SMT data returned from the database does not have a valid size
+	ErrExecutorErrorSMTInvalidDataSize = errors.New("invalid SMT data size")
+	// ErrExecutorErrorHashDBGRPCError indicates that the executor failed calling the HashDB service via GRPC, when configured
+	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
+	// ErrExecutorErrorStateManager indicates an error in the State Manager
+	ErrExecutorErrorStateManager = errors.New("state Manager error")
+
 	// GRPC ERRORS
 	// ===========
 
@@ -242,15 +316,14 @@ var (
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
-	ReturnValue         []byte // Returned data from the runtime (function result or data supplied with revert opcode)
-	GasLeft             uint64 // Total gas left as result of execution
-	GasUsed             uint64 // Total gas used as result of execution
-	Err                 error  // Any error encountered during the execution, listed below
-	CreateAddress       common.Address
-	StateRoot           []byte
-	StructLogs          []instrumentation.StructLog
-	ExecutorTrace       instrumentation.ExecutorTrace
-	ExecutorTraceResult json.RawMessage
+	ReturnValue   []byte // Returned data from the runtime (function result or data supplied with revert opcode)
+	GasLeft       uint64 // Total gas left as result of execution
+	GasUsed       uint64 // Total gas used as result of execution
+	Err           error  // Any error encountered during the execution, listed below
+	CreateAddress common.Address
+	StateRoot     []byte
+	FullTrace     instrumentation.FullTrace
+	TraceResult   json.RawMessage
 }
 
 // Succeeded indicates the execution was successful
@@ -266,4 +339,16 @@ func (r *ExecutionResult) Failed() bool {
 // Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
 	return errors.Is(r.Err, ErrExecutionReverted)
+}
+
+// IsOutOfCounterError checks if the provided error is one
+// of the errors related to out of counters errors
+func IsOutOfCounterError(err error) bool {
+	return errors.Is(err, ErrOutOfCountersArith) ||
+		errors.Is(err, ErrOutOfCountersBinary) ||
+		errors.Is(err, ErrOutOfCountersKeccak) ||
+		errors.Is(err, ErrOutOfCountersMemory) ||
+		errors.Is(err, ErrOutOfCountersPadding) ||
+		errors.Is(err, ErrOutOfCountersPoseidon) ||
+		errors.Is(err, ErrOutOfCountersStep)
 }

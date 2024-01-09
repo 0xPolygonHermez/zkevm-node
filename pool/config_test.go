@@ -16,6 +16,7 @@ func TestIsWithinConstraints(t *testing.T) {
 		MaxArithmetics:       2000,
 		MaxBinaries:          3000,
 		MaxSteps:             4000,
+		MaxSHA256Hashes:      5000,
 	}
 
 	testCases := []struct {
@@ -26,7 +27,7 @@ func TestIsWithinConstraints(t *testing.T) {
 		{
 			desc: "All constraints within limits",
 			counters: state.ZKCounters{
-				CumulativeGasUsed:    300,
+				GasUsed:              300,
 				UsedKeccakHashes:     50,
 				UsedPoseidonHashes:   100,
 				UsedPoseidonPaddings: 75,
@@ -34,13 +35,14 @@ func TestIsWithinConstraints(t *testing.T) {
 				UsedArithmetics:      1000,
 				UsedBinaries:         2000,
 				UsedSteps:            2000,
+				UsedSha256Hashes_V2:  4000,
 			},
 			expected: true,
 		},
 		{
 			desc: "All constraints exceed limits",
 			counters: state.ZKCounters{
-				CumulativeGasUsed:    600,
+				GasUsed:              600,
 				UsedKeccakHashes:     150,
 				UsedPoseidonHashes:   300,
 				UsedPoseidonPaddings: 200,
@@ -48,6 +50,7 @@ func TestIsWithinConstraints(t *testing.T) {
 				UsedArithmetics:      3000,
 				UsedBinaries:         4000,
 				UsedSteps:            5000,
+				UsedSha256Hashes_V2:  6000,
 			},
 			expected: false,
 		},

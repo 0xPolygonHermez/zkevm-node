@@ -312,6 +312,11 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "EffectiveGasPrice is the config for the effective gas price calculation"
+				},
+				"ForkID": {
+					"type": "integer",
+					"description": "ForkID is the current fork ID of the chain",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -470,7 +475,7 @@
 						"parallel"
 					],
 					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
-					"default": "sequential"
+					"default": "parallel"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
@@ -578,46 +583,56 @@
 		},
 		"Sequencer": {
 			"properties": {
-				"WaitPeriodPoolIsEmpty": {
-					"type": "string",
-					"title": "Duration",
-					"description": "WaitPeriodPoolIsEmpty is the time the sequencer waits until\ntrying to add new txs to the state",
-					"default": "1s",
-					"examples": [
-						"1m",
-						"300ms"
-					]
-				},
-				"BlocksAmountForTxsToBeDeleted": {
+				"DeletePoolTxsL1BlockConfirmations": {
 					"type": "integer",
-					"description": "BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool",
+					"description": "DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool",
 					"default": 100
 				},
-				"FrequencyToCheckTxsForDelete": {
+				"DeletePoolTxsCheckInterval": {
 					"type": "string",
 					"title": "Duration",
-					"description": "FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting",
+					"description": "DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting",
 					"default": "12h0m0s",
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"TxLifetimeCheckTimeout": {
+				"TxLifetimeCheckInterval": {
 					"type": "string",
 					"title": "Duration",
-					"description": "TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime",
+					"description": "TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime",
 					"default": "10m0s",
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"MaxTxLifetime": {
+				"TxLifetimeMax": {
 					"type": "string",
 					"title": "Duration",
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
+					"description": "TxLifetimeMax is the time a tx can be in the sequencer/worker memory",
 					"default": "3h0m0s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"LoadPoolTxsCheckInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool",
+					"default": "500ms",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"StateConsistencyCheckInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened",
+					"default": "5s",
 					"examples": [
 						"1m",
 						"300ms"
@@ -625,130 +640,95 @@
 				},
 				"Finalizer": {
 					"properties": {
-						"GERDeadlineTimeout": {
+						"ForcedBatchesTimeout": {
 							"type": "string",
 							"title": "Duration",
-							"description": "GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ForcedBatchDeadlineTimeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches",
+							"description": "ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches",
 							"default": "1m0s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"SleepDuration": {
+						"NewTxsWaitInterval": {
 							"type": "string",
 							"title": "Duration",
-							"description": "SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
+							"description": "NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
 							"default": "100ms",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"ResourcePercentageToCloseBatch": {
+						"ResourceExhaustedMarginPct": {
 							"type": "integer",
-							"description": "ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed",
+							"description": "ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed",
 							"default": 10
 						},
-						"GERFinalityNumberOfBlocks": {
+						"ForcedBatchesL1BlockConfirmations": {
 							"type": "integer",
-							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"description": "ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final",
 							"default": 64
 						},
-						"ClosingSignalsManagerWaitForCheckingL1Timeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ClosingSignalsManagerWaitForCheckingGER": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ClosingSignalsManagerWaitForCheckingForcedBatches": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ForcedBatchesFinalityNumberOfBlocks": {
+						"L1InfoTreeL1BlockConfirmations": {
 							"type": "integer",
-							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"description": "L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final",
 							"default": 64
 						},
-						"TimestampResolution": {
+						"ForcedBatchesCheckInterval": {
 							"type": "string",
 							"title": "Duration",
-							"description": "TimestampResolution is the resolution of the timestamp used to close a batch",
+							"description": "ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation",
 							"default": "10s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"StopSequencerOnBatchNum": {
+						"L1InfoTreeCheckInterval": {
+							"type": "string",
+							"title": "Duration",
+							"description": "L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated",
+							"default": "10s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"BatchMaxDeltaTimestamp": {
+							"type": "string",
+							"title": "Duration",
+							"description": "BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch",
+							"default": "10s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"L2BlockMaxDeltaTimestamp": {
+							"type": "string",
+							"title": "Duration",
+							"description": "L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block",
+							"default": "3s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"HaltOnBatchNumber": {
 							"type": "integer",
-							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
+							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
 						},
-						"SequentialReprocessFullBatch": {
+						"SequentialBatchSanityCheck": {
 							"type": "boolean",
-							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
+							"description": "SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "Finalizer's specific config properties"
-				},
-				"DBManager": {
-					"properties": {
-						"PoolRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "500ms",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"L2ReorgRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "DBManager's specific config properties"
 				},
 				"StreamServer": {
 					"properties": {
@@ -1013,16 +993,25 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 contract"
+							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"maticTokenAddress": {
+						"polygonRollupManagerAddress": {
 							"items": {
 								"type": "integer"
 							},
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 Matic token Contract"
+							"description": "RollupManagerAddr Address of the L1 contract"
+						},
+						"polTokenAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "PolAddr Address of the L1 Pol token Contract"
 						},
 						"polygonZkEVMGlobalExitRootAddress": {
 							"items": {
@@ -1031,45 +1020,18 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 GlobalExitRootManager contract"
-						},
-						"cdkDataCommitteeContract": {
-							"items": {
-								"type": "integer"
-							},
-							"type": "array",
-							"maxItems": 20,
-							"minItems": 20,
-							"description": "Address of the data availability committee contract"
+							"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1: Configuration related to L1"
 				},
-				"L2GlobalExitRootManagerAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
-				},
-				"L2BridgeAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
-				},
 				"Genesis": {
 					"properties": {
-						"GenesisBlockNum": {
+						"BlockNumber": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
+							"description": "BlockNumber is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -1081,7 +1043,7 @@
 							"minItems": 32,
 							"description": "Root hash of the genesis block"
 						},
-						"GenesisActions": {
+						"Actions": {
 							"items": {
 								"properties": {
 									"address": {
@@ -1111,7 +1073,7 @@
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array",
-							"description": "Contracts to be deployed to L2"
+							"description": "Actions is the data to populate into the state trie"
 						}
 					},
 					"additionalProperties": false,
@@ -1511,6 +1473,10 @@
 								"MaxSteps": {
 									"type": "integer",
 									"default": 7570538
+								},
+								"MaxSHA256Hashes": {
+									"type": "integer",
+									"default": 1596
 								}
 							},
 							"additionalProperties": false,

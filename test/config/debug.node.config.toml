@@ -26,6 +26,7 @@ Outputs = ["stderr"]
 		MaxArithmetics = 236585
 		MaxBinaries = 473170
 		MaxSteps = 7570538
+		MaxSHA256Hashes = 1596
 
 [Pool]
 FreeClaimGasLimit = 1500000
@@ -81,26 +82,24 @@ SyncChunkSize = 100
 TrustedSequencerURL = ""
 
 [Sequencer]
-WaitPeriodPoolIsEmpty = "1s"
-BlocksAmountForTxsToBeDeleted = 100
-FrequencyToCheckTxsForDelete = "12h"
-TxLifetimeCheckTimeout = "10m"
-MaxTxLifetime = "3h"
+DeletePoolTxsL1BlockConfirmations = 100
+DeletePoolTxsCheckInterval = "12h"
+TxLifetimeCheckInterval = "10m"
+TxLifetimeMax = "3h"
+LoadPoolTxsCheckInterval = "500ms"
+StateConsistencyCheckInterval = "5s"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeout = "1s"
-		ForcedBatchDeadlineTimeout = "1s"
-		SleepDuration = "100ms"
-		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 0
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
-		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		ForcedBatchesFinalityNumberOfBlocks = 0
-		TimestampResolution = "10s"
-		StopSequencerOnBatchNum = 0
-	[Sequencer.DBManager]
-		PoolRetrievalInterval = "500ms"
-		L2ReorgRetrievalInterval = "5s"
+		NewTxsWaitInterval = "100ms"
+		ForcedBatchesTimeout = "5s"
+		ForcedBatchesL1BlockConfirmations = 0
+		ForcedBatchesCheckInterval = "10s"
+		L1InfoTreeL1BlockConfirmations = 0
+		L1InfoTreeCheckInterval = "10s"
+		BatchMaxDeltaTimestamp = "60s"
+		L2BlockMaxDeltaTimestamp = "3s"		
+		ResourceExhaustedMarginPct = 10
+		HaltOnBatchNumber = 0
+		SequentialBatchSanityCheck = false
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"

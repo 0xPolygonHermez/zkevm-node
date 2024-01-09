@@ -82,7 +82,7 @@ func newMockedServer(t *testing.T, cfg Config) (*mockedServer, *mocksWrapper, *e
 	if _, ok := apis[APIZKEVM]; ok {
 		services = append(services, Service{
 			Name:    APIZKEVM,
-			Service: NewZKEVMEndpoints(cfg, st, etherman),
+			Service: NewZKEVMEndpoints(cfg, pool, st, etherman),
 		})
 	}
 
@@ -228,8 +228,8 @@ func TestBatchRequests(t *testing.T) {
 		SetupMocks           func(m *mocksWrapper, tc testCase)
 	}
 
-	block := ethTypes.NewBlock(
-		&ethTypes.Header{Number: big.NewInt(2), UncleHash: ethTypes.EmptyUncleHash, Root: ethTypes.EmptyRootHash},
+	block := state.NewL2Block(
+		state.NewL2Header(&ethTypes.Header{Number: big.NewInt(2), UncleHash: ethTypes.EmptyUncleHash, Root: ethTypes.EmptyRootHash}),
 		[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 		nil,
 		[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},

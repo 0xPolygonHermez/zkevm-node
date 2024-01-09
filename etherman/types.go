@@ -3,6 +3,7 @@ package etherman
 import (
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -12,31 +13,38 @@ type Block struct {
 	BlockNumber           uint64
 	BlockHash             common.Hash
 	ParentHash            common.Hash
-	GlobalExitRoots       []GlobalExitRoot
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches [][]SequencedForceBatch
 	ForkIDs               []ForkID
 	ReceivedAt            time.Time
+	// GER data
+	GlobalExitRoots, L1InfoTree []GlobalExitRoot
 }
 
 // GlobalExitRoot struct
 type GlobalExitRoot struct {
-	BlockNumber     uint64
-	MainnetExitRoot common.Hash
-	RollupExitRoot  common.Hash
-	GlobalExitRoot  common.Hash
+	BlockNumber       uint64
+	MainnetExitRoot   common.Hash
+	RollupExitRoot    common.Hash
+	GlobalExitRoot    common.Hash
+	Timestamp         time.Time
+	PreviousBlockHash common.Hash
 }
 
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
 	BatchNumber   uint64
+	L1InfoRoot    *common.Hash
 	SequencerAddr common.Address
 	TxHash        common.Hash
 	Nonce         uint64
 	Coinbase      common.Address
-	polygonzkevm.CDKValidiumBatchData
+	// Struct used in preEtrog forks
+	*oldpolygonzkevm.PolygonZkEVMBatchData
+	// Struct used in Etrog
+	*polygonzkevm.PolygonRollupBaseEtrogBatchData
 }
 
 // ForcedBatch represents a ForcedBatch
@@ -65,7 +73,7 @@ type SequencedForceBatch struct {
 	TxHash      common.Hash
 	Timestamp   time.Time
 	Nonce       uint64
-	polygonzkevm.CDKValidiumForcedBatchData
+	polygonzkevm.PolygonRollupBaseEtrogBatchData
 }
 
 // ForkID is a sturct to track the ForkID event.

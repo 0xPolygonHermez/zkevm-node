@@ -24,11 +24,6 @@ import (
 )
 
 const (
-	// DefaultSenderAddress is the address that jRPC will use
-	// to communicate with the state for eth_EstimateGas and eth_Call when
-	// the From field is not specified because it is optional
-	DefaultSenderAddress = "0x1111111111111111111111111111111111111111"
-
 	// maxTopics is the max number of topics a log can have
 	maxTopics = 4
 )
@@ -101,7 +96,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 			arg.Gas = &gas
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -109,15 +104,17 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to execute the unsigned transaction", err, true)
+			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
+			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
 		if result.Reverted() {
 			data := make([]byte, len(result.ReturnValue))
 			copy(data, result.ReturnValue)
-			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), &data)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, result.Err.Error(), data)
 		} else if result.Failed() {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, result.Err.Error(), nil)
+			return nil, types.NewRPCError(types.DefaultErrorCode, result.Err.Error())
 		}
 
 		return types.ArgBytesPtr(result.ReturnValue), nil
@@ -183,7 +180,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			}
 		}
 
-		defaultSenderAddress := common.HexToAddress(DefaultSenderAddress)
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
 		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
@@ -193,9 +190,9 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		if errors.Is(err, runtime.ErrExecutionReverted) {
 			data := make([]byte, len(returnValue))
 			copy(data, returnValue)
-			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), &data)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
 		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, err.Error(), nil, true)
+			return nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -251,7 +248,7 @@ func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.Bloc
 	})
 }
 
-func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*ethTypes.Block, types.Error) {
+func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {
 		block, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -290,14 +287,14 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockN
 // GetBlockByHash returns information about a block by hash
 func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		block, err := e.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
+		l2Block, err := e.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -307,7 +304,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool) (interfac
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, false)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -324,13 +321,14 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := ethTypes.CopyHeader(lastBlock.Header())
-			header.ParentHash = lastBlock.Hash()
-			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
-			header.TxHash = ethTypes.EmptyRootHash
-			header.UncleHash = ethTypes.EmptyUncleHash
-			block := ethTypes.NewBlockWithHeader(header)
-			rpcBlock, err := types.NewBlock(block, nil, fullTx, false)
+			l2Header := state.NewL2Header(&ethTypes.Header{
+				ParentHash: lastBlock.Hash(),
+				Number:     big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1),
+				TxHash:     ethTypes.EmptyRootHash,
+				UncleHash:  ethTypes.EmptyUncleHash,
+			})
+			l2Block := state.NewL2BlockWithHeader(l2Header)
+			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -343,14 +341,14 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			return nil, rpcErr
 		}
 
-		block, err := e.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+		l2Block, err := e.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load block from state by number %v", blockNumber), err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := e.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -360,7 +358,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, false)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -625,7 +623,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		if e.cfg.SequencerNodeURI != "" {
 			return e.getTransactionByHashFromSequencerNode(hash.Hash())
 		}
-		poolTx, err := e.pool.GetTxByHash(ctx, hash.Hash())
+		poolTx, err := e.pool.GetTransactionByHash(ctx, hash.Hash())
 		if errors.Is(err, pool.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
@@ -887,7 +885,7 @@ func (e *EthEndpoints) SendRawTransaction(httpRequest *http.Request, input strin
 
 		// TODO: this is temporary patch remove this log
 		realIp := httpRequest.Header.Get("X-Real-IP")
-		log.Infof("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
+		log.Debugf("X-Forwarded-For: %s, X-Real-IP: %s", ips, realIp)
 
 		if ips != "" {
 			ip = strings.Split(ips, ",")[0]
@@ -946,7 +944,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
 		if errors.Is(err, state.ErrStateNotSynchronized) {
-			return nil, types.NewRPCErrorWithData(types.DefaultErrorCode, state.ErrStateNotSynchronized.Error(), nil)
+			return nil, types.NewRPCError(types.DefaultErrorCode, state.ErrStateNotSynchronized.Error())
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get last block number from state", err, true)
 		}
@@ -1062,7 +1060,7 @@ func (e *EthEndpoints) uninstallFilterByWSConn(wsConn *concurrentWsConn) error {
 
 // onNewL2Block is triggered when the state triggers the event for a new l2 block
 func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
-	log.Infof("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
+	log.Debugf("[onNewL2Block] new l2 block event detected for block %v", event.Block.NumberU64())
 	start := time.Now()
 	wg := sync.WaitGroup{}
 
@@ -1073,14 +1071,14 @@ func (e *EthEndpoints) onNewL2Block(event state.NewL2BlockEvent) {
 	go e.notifyNewLogs(&wg, event)
 
 	wg.Wait()
-	log.Infof("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[onNewL2Block] new l2 block %v took %v to send the messages to all ws connections", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
 	defer wg.Done()
 	start := time.Now()
 
-	b, err := types.NewBlock(&event.Block, nil, false, false)
+	b, err := types.NewBlock(state.Ptr(event.Block.Hash()), &event.Block, nil, false, false)
 	if err != nil {
 		log.Errorf("failed to build block response to subscription: %v", err)
 		return
@@ -1092,7 +1090,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	}
 
 	filters := e.storage.GetAllBlockFiltersWithWSConn()
-	log.Infof("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
+	log.Debugf("[notifyNewHeads] took %v to get block filters with ws connections", time.Since(start))
 
 	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
@@ -1100,11 +1098,11 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 			f := filter
 			start := time.Now()
 			f.EnqueueSubscriptionDataToBeSent(data)
-			log.Infof("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
+			log.Debugf("[notifyNewHeads] took %v to enqueue new l2 block messages", time.Since(start))
 		}
 	})
 
-	log.Infof("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[notifyNewHeads] new l2 block event for block %v took %v to send all the messages for block filters", event.Block.NumberU64(), time.Since(start))
 }
 
 func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockEvent) {
@@ -1112,7 +1110,7 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 	start := time.Now()
 
 	filters := e.storage.GetAllLogFiltersWithWSConn()
-	log.Infof("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
+	log.Debugf("[notifyNewLogs] took %v to get log filters with ws connections", time.Since(start))
 
 	const maxWorkers = 32
 	parallelize(maxWorkers, filters, func(worker int, filters []*Filter) {
@@ -1122,12 +1120,12 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 			if e.shouldSkipLogFilter(event, filter) {
 				return
 			}
-			log.Infof("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to check if should skip log filter", time.Since(start))
 
 			start = time.Now()
 			// get new logs for this specific filter
 			logs := filterLogs(event.Logs, filter)
-			log.Infof("[notifyNewLogs] took %v to filter logs", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to filter logs", time.Since(start))
 
 			start = time.Now()
 			for _, l := range logs {
@@ -1137,11 +1135,11 @@ func (e *EthEndpoints) notifyNewLogs(wg *sync.WaitGroup, event state.NewL2BlockE
 				}
 				f.EnqueueSubscriptionDataToBeSent(data)
 			}
-			log.Infof("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
+			log.Debugf("[notifyNewLogs] took %v to enqueue log messages", time.Since(start))
 		}
 	})
 
-	log.Infof("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
+	log.Debugf("[notifyNewLogs] new l2 block event for block %v took %v to send all the messages for log filters", event.Block.NumberU64(), time.Since(start))
 }
 
 // shouldSkipLogFilter checks if the log filter can be skipped while notifying new logs.

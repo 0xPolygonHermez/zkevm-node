@@ -763,7 +763,7 @@ func TestGasPriceMarginAndLimit(t *testing.T) {
 
 			gasOffset := uint64(1)
 
-			suggestedGasPrice := big.NewInt(int64(tc.suggestedGasPrice))
+			suggestedGasPrice := big.NewInt(tc.suggestedGasPrice)
 			etherman.
 				On("SuggestedGasPrice", ctx).
 				Return(suggestedGasPrice, nil).

@@ -14,9 +14,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -25,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -33,20 +37,25 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress               = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey            = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance               = 400000
-	DefaultMaxCumulativeGasUsed           = 800000
-	DefaultL1ZkEVMSmartContract           = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82"
-	DefaultL1DataCommitteeContract        = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
-	DefaultL1NetworkURL                   = "http://localhost:8545"
-	DefaultL1NetworkWebSocketURL          = "ws://localhost:8546"
-	DefaultL1ChainID               uint64 = 1337
+	DefaultSequencerAddress                    = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey                 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultForcedBatchesAddress                = "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+	DefaultForcedBatchesPrivateKey             = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+	DefaultSequencerBalance                    = 400000
+	DefaultMaxCumulativeGasUsed                = 800000
+	DefaultL1ZkEVMSmartContract                = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
+	DefaultL1RollupManagerSmartContract        = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
+	DefaultL1PolSmartContract                  = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+	DefaultL1DataCommitteeContract             = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+	DefaultL1NetworkURL                        = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL               = "ws://localhost:8546"
+	DefaultL1ChainID                    uint64 = 1337
 
-	DefaultL2NetworkURL                 = "http://localhost:8123"
-	PermissionlessL2NetworkURL          = "http://localhost:8125"
-	DefaultL2NetworkWebSocketURL        = "ws://localhost:8133"
-	DefaultL2ChainID             uint64 = 1001
+	DefaultL2NetworkURL                        = "http://localhost:8123"
+	PermissionlessL2NetworkURL                 = "http://localhost:8125"
+	DefaultL2NetworkWebSocketURL               = "ws://localhost:8133"
+	PermissionlessL2NetworkWebSocketURL        = "ws://localhost:8135"
+	DefaultL2ChainID                    uint64 = 1001
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 
@@ -59,8 +68,9 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 
-	executorURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1:50071")
-	merkleTreeURI    = testutils.GetEnv(constants.ENV_MERKLETREE_URI, "127.0.0.1:50061")
+	zkProverURI      = testutils.GetEnv(constants.ENV_ZKPROVER_URI, "127.0.0.1")
+	executorURI      = fmt.Sprintf("%s:50071", zkProverURI)
+	merkleTreeURI    = fmt.Sprintf("%s:50061", zkProverURI)
 	executorConfig   = executor.Config{URI: executorURI, MaxGRPCMessageSize: 100000000}
 	merkleTreeConfig = merkletree.Config{URI: merkleTreeURI}
 )
@@ -78,6 +88,7 @@ type SequenceSenderConfig struct {
 type Config struct {
 	State          *state.Config
 	SequenceSender *SequenceSenderConfig
+	Genesis        state.Genesis
 }
 
 // Manager controls operations and has knowledge about how to set up and tear
@@ -95,13 +106,16 @@ type Manager struct {
 func NewManager(ctx context.Context, cfg *Config) (*Manager, error) {
 	// Init database instance
 	initOrResetDB()
+	return NewManagerNoInitDB(ctx, cfg)
+}
 
+func NewManagerNoInitDB(ctx context.Context, cfg *Config) (*Manager, error) {
 	opsman := &Manager{
 		cfg:  cfg,
 		ctx:  ctx,
 		wait: NewWait(),
 	}
-	st, err := initState(cfg.State.MaxCumulativeGasUsed)
+	st, err := initState(*cfg.State)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +174,7 @@ func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: genesisActions,
+		Actions: genesisActions,
 	}
 
 	dbTx, err := m.st.BeginStateTransaction(m.ctx)
@@ -168,7 +182,7 @@ func (m *Manager) SetGenesis(genesisBlockNumber uint64, genesisActions []*state.
 		return err
 	}
 
-	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, dbTx)
+	_, err = m.st.SetGenesis(m.ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 
 	errCommit := dbTx.Commit(m.ctx)
 	if errCommit != nil {
@@ -267,10 +281,6 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
-		expectedNonce := initialNonce + uint64(i)
-		if tx.Nonce() != expectedNonce {
-			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
-		}
 		if confirmationLevel == TrustedConfirmationLevel {
 			continue
 		}
@@ -364,8 +374,8 @@ func (m *Manager) Setup() error {
 		return err
 	}
 
-	// Approve matic
-	err = ApproveMatic()
+	// Approve pol
+	err = ApprovePol()
 	if err != nil {
 		return err
 	}
@@ -388,8 +398,8 @@ func (m *Manager) SetupWithPermissionless() error {
 		return err
 	}
 
-	// Approve matic
-	err = ApproveMatic()
+	// Approve Pol
+	err = ApprovePol()
 	if err != nil {
 		return err
 	}
@@ -463,18 +473,20 @@ func TeardownPermissionless() error {
 	return nil
 }
 
-func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
+func initState(cfg state.Config) (*state.State, error) {
 	sqlDB, err := db.NewSQLDB(stateDBCfg)
 	if err != nil {
 		return nil, err
 	}
 
 	stateCfg := state.Config{
-		MaxCumulativeGasUsed: maxCumulativeGasUsed,
+		MaxCumulativeGasUsed: cfg.MaxCumulativeGasUsed,
+		ChainID:              cfg.ChainID,
+		ForkIDIntervals:      cfg.ForkIDIntervals,
 	}
 
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 	executorClient, _, _ := executor.NewExecutorClient(ctx, executorConfig)
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, merkleTreeConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
@@ -485,8 +497,16 @@ func initState(maxCumulativeGasUsed uint64) (*state.State, error) {
 	}
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
+	mt, err := l1infotree.NewL1InfoTree(32, [][32]byte{})
+	if err != nil {
+		panic(err)
+	}
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, mt)
 	return st, nil
+}
+
+func (m *Manager) BeginStateTransaction() (pgx.Tx, error) {
+	return m.st.BeginStateTransaction(m.ctx)
 }
 
 // StartNetwork starts the L1 network container
@@ -527,9 +547,9 @@ func (m *Manager) StartTrustedAndPermissionlessNode() error {
 	return StartComponent("permissionless", nodeUpCondition)
 }
 
-// ApproveMatic runs the approving matic command
-func ApproveMatic() error {
-	return StartComponent("approve-matic")
+// ApprovePol runs the approving Pol command
+func ApprovePol() error {
+	return StartComponent("approve-pol")
 }
 
 func stopNode() error {
@@ -598,7 +618,13 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed},
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001,
+			ForkIDIntervals: []state.ForkIDInterval{{
+				FromBatchNumber: 0,
+				ToBatchNumber:   math.MaxUint64,
+				ForkId:          state.FORKID_ETROG,
+				Version:         "",
+			}}},
 		SequenceSender: &SequenceSenderConfig{
 			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,

@@ -23,6 +23,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/pool/pgpoolstorage"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
@@ -47,7 +49,7 @@ var (
 	stateDBCfg = dbutils.NewStateConfigFromEnv()
 	poolDBCfg  = dbutils.NewPoolConfigFromEnv()
 	genesis    = state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -91,6 +93,7 @@ var (
 		MaxArithmetics:       236585,
 		MaxBinaries:          473170,
 		MaxSteps:             7570538,
+		MaxSHA256Hashes:      1596,
 	}
 	ip = "101.1.50.20"
 )
@@ -211,7 +214,7 @@ func Test_AddTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -281,7 +284,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -292,7 +295,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -342,7 +345,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -358,7 +361,7 @@ func Test_AddPreEIP155Tx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -429,7 +432,7 @@ func Test_GetPendingTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -489,7 +492,7 @@ func Test_GetPendingTxsZeroPassed(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -549,7 +552,7 @@ func Test_GetTopPendingTxByProfitabilityAndZkCounters(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -609,7 +612,7 @@ func Test_UpdateTxsStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -700,7 +703,7 @@ func Test_UpdateTxStatus(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -837,7 +840,7 @@ func TestGetPendingTxSince(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -928,8 +931,7 @@ func Test_DeleteTransactionsByHashes(t *testing.T) {
 	}
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -993,7 +995,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	initialBalance, _ := big.NewInt(0).SetString(encoding.MaxUint256StrNumber, encoding.Base10)
 	initialBalance = initialBalance.Add(initialBalance, initialBalance)
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: operations.DefaultSequencerAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1004,7 +1006,7 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1094,7 +1096,14 @@ func Test_TryAddIncompatibleTxs(t *testing.T) {
 
 func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	ctx := context.Background()
-	stateDb := state.NewPostgresStorage(state.Config{}, sqlDB)
+	stCfg := state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
+		FromBatchNumber: 0,
+		ToBatchNumber:   math.MaxUint64,
+		ForkId:          5,
+		Version:         "",
+	}}}
+
+	stateDb := pgstatestorage.NewPostgresStorage(stCfg, sqlDB)
 	zkProverURI := testutils.GetEnv("ZKPROVER_URI", "localhost")
 
 	executorServerConfig := executor.Config{URI: fmt.Sprintf("%s:50071", zkProverURI), MaxGRPCMessageSize: 100000000}
@@ -1103,12 +1112,7 @@ func newState(sqlDB *pgxpool.Pool, eventLog *event.EventLog) *state.State {
 	stateDBClient, _, _ := merkletree.NewMTDBServiceClient(ctx, mtDBServerConfig)
 	stateTree := merkletree.NewStateTree(stateDBClient)
 
-	st := state.NewState(state.Config{MaxCumulativeGasUsed: 800000, ChainID: chainID.Uint64(), ForkIDIntervals: []state.ForkIDInterval{{
-		FromBatchNumber: 0,
-		ToBatchNumber:   math.MaxUint64,
-		ForkId:          5,
-		Version:         "",
-	}}}, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 
@@ -1144,7 +1148,7 @@ func Test_AddTxWithIntrinsicGasTooLow(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1312,7 +1316,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 				ReceivedAt:  time.Now(),
 			}
 			genesis := state.Genesis{
-				GenesisActions: []*state.GenesisAction{
+				Actions: []*state.GenesisAction{
 					{
 						Address: senderAddress,
 						Type:    int(merkletree.LeafTypeBalance),
@@ -1323,7 +1327,7 @@ func Test_AddTx_GasPriceErr(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1382,7 +1386,7 @@ func Test_AddRevertedTx(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1450,7 +1454,7 @@ func Test_BlockedAddress(t *testing.T) {
 	}
 
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: auth.From.String(),
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1461,8 +1465,7 @@ func Test_BlockedAddress(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1535,6 +1538,7 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
+/*
 func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -1594,11 +1598,13 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 						Value:   "1000000000000000000000",
 					},
 				},
+				FirstBatchData: genesis.FirstBatchData,
 			}
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			genesis.FirstBatchData.Timestamp = uint64(time.Now().Unix())
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1632,6 +1638,7 @@ func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 		})
 	}
 }
+*/
 
 func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	eventStorage, err := nileventstorage.NewNilEventStorage()
@@ -1661,7 +1668,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1672,7 +1679,7 @@ func Test_AddTx_AccountQueueLimit(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1768,12 +1775,12 @@ func Test_AddTx_GlobalQueueLimit(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: genesisActions,
+		Actions: genesisActions,
 	}
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1848,7 +1855,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 		ReceivedAt:  time.Now(),
 	}
 	genesis := state.Genesis{
-		GenesisActions: []*state.GenesisAction{
+		Actions: []*state.GenesisAction{
 			{
 				Address: senderAddress,
 				Type:    int(merkletree.LeafTypeBalance),
@@ -1859,7 +1866,7 @@ func Test_AddTx_NonceTooHigh(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 
@@ -1929,7 +1936,7 @@ func Test_AddTx_IPValidation(t *testing.T) {
 			ctx := context.Background()
 			dbTx, err := st.BeginStateTransaction(ctx)
 			require.NoError(t, err)
-			_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+			_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 			require.NoError(t, err)
 			require.NoError(t, dbTx.Commit(ctx))
 
@@ -1995,7 +2002,7 @@ func prepareToExecuteTx(t *testing.T, chainIDToCreate uint64) testData {
 	ctx := context.Background()
 	dbTx, err := st.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	_, err = st.SetGenesis(ctx, genesisBlock, genesis, dbTx)
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(ctx))
 

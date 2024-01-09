@@ -12,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/urfave/cli/v2"
@@ -138,7 +139,17 @@ func getL2ChainID(cliCtx *cli.Context, c *config.Config) uint64 {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(state.Config{}, sqlDB)
+	stateCfg := state.Config{
+		MaxCumulativeGasUsed:         c.State.Batch.Constraints.MaxCumulativeGasUsed,
+		ChainID:                      l2ChainID,
+		ForkIDIntervals:              forkIDIntervals,
+		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
+		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
+		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
+		ForkUpgradeNewForkId:         c.ForkUpgradeNewForkId,
+	}
+
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 
 	// Executor
 	var executorClient executor.ExecutorServiceClient
@@ -153,17 +164,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		stateTree = merkletree.NewStateTree(stateDBClient)
 	}
 
-	stateCfg := state.Config{
-		MaxCumulativeGasUsed:         c.State.Batch.Constraints.MaxCumulativeGasUsed,
-		ChainID:                      l2ChainID,
-		ForkIDIntervals:              forkIDIntervals,
-		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
-		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
-		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
-		ForkUpgradeNewForkId:         c.ForkUpgradeNewForkId,
-	}
-
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	return st
 }
 

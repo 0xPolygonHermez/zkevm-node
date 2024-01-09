@@ -23,7 +23,7 @@ func (d *Duration) UnmarshalText(data []byte) error {
 
 // NewDuration returns Duration wrapper
 func NewDuration(duration time.Duration) Duration {
-	return Duration{time.Duration(duration)}
+	return Duration{duration}
 }
 
 // JSONSchema returns a custom schema to be used for the JSON Schema generation of this type

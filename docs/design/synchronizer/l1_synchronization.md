@@ -1,6 +1,6 @@
 # L1 parallel synchronization
 This is a refactor of L1 synchronization to improve speed.
-- It ask data in parallel  to L1 meanwhile another goroutine is executing the rollup info.
+- It asks for data in parallel  to L1 while another goroutine is concurrently executing the rollup info.
 - It makes that the executor be occupied 100% of the time.
 
 ## Pending to do  

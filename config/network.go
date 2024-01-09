@@ -19,14 +19,8 @@ import (
 type NetworkConfig struct {
 	// L1: Configuration related to L1
 	L1Config etherman.L1Config `json:"l1Config"`
-	// DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract
-	L2GlobalExitRootManagerAddr common.Address
-	// L2: address of the `PolygonZkEVMBridge proxy` smart contract
-	L2BridgeAddr common.Address
 	// L1: Genesis of the rollup, first block number and root
 	Genesis state.Genesis
-	// Removed beacause is not in use
-	//MaxCumulativeGasUsed uint64
 }
 
 type network string
@@ -119,28 +113,19 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 
 	cfg.L1Config = cfgJSON.L1Config
 	cfg.Genesis = state.Genesis{
-		GenesisBlockNum: cfgJSON.GenesisBlockNum,
-		Root:            common.HexToHash(cfgJSON.Root),
-		GenesisActions:  []*state.GenesisAction{},
+		BlockNumber: cfgJSON.GenesisBlockNum,
+		Root:        common.HexToHash(cfgJSON.Root),
+		Actions:     []*state.GenesisAction{},
 	}
 
-	const l2GlobalExitRootManagerSCName = "PolygonZkEVMGlobalExitRootL2 proxy"
-	const l2BridgeSCName = "PolygonZkEVMBridge proxy"
-
 	for _, account := range cfgJSON.Genesis {
-		if account.ContractName == l2GlobalExitRootManagerSCName {
-			cfg.L2GlobalExitRootManagerAddr = common.HexToAddress(account.Address)
-		}
-		if account.ContractName == l2BridgeSCName {
-			cfg.L2BridgeAddr = common.HexToAddress(account.Address)
-		}
 		if account.Balance != "" && account.Balance != "0" {
 			action := &state.GenesisAction{
 				Address: account.Address,
 				Type:    int(merkletree.LeafTypeBalance),
 				Value:   account.Balance,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if account.Nonce != "" && account.Nonce != "0" {
 			action := &state.GenesisAction{
@@ -148,7 +133,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 				Type:    int(merkletree.LeafTypeNonce),
 				Value:   account.Nonce,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if account.Bytecode != "" {
 			action := &state.GenesisAction{
@@ -156,7 +141,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 				Type:     int(merkletree.LeafTypeCode),
 				Bytecode: account.Bytecode,
 			}
-			cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+			cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 		}
 		if len(account.Storage) > 0 {
 			for storageKey, storageValue := range account.Storage {
@@ -166,7 +151,7 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 					StoragePosition: storageKey,
 					Value:           storageValue,
 				}
-				cfg.Genesis.GenesisActions = append(cfg.Genesis.GenesisActions, action)
+				cfg.Genesis.Actions = append(cfg.Genesis.Actions, action)
 			}
 		}
 	}

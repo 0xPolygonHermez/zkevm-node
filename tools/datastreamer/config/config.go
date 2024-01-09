@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
@@ -28,15 +27,22 @@ type OnlineConfig struct {
 	StreamType datastreamer.StreamType `mapstructure:"StreamType"`
 }
 
+// MTConfig is the configuration for the merkle tree
+type MTConfig struct {
+	URI        string `mapstructure:"URI"`
+	MaxThreads int    `mapstructure:"MaxThreads"`
+	CacheFile  string `mapstructure:"CacheFile"`
+}
+
 // Config is the configuration for the tool
 type Config struct {
-	ChainID   uint64              `mapstructure:"ChainID"`
-	Online    OnlineConfig        `mapstructure:"Online"`
-	Offline   datastreamer.Config `mapstructure:"Offline"`
-	StateDB   db.Config           `mapstructure:"StateDB"`
-	Executor  executor.Config     `mapstructure:"Executor"`
-	MerkeTree merkletree.Config   `mapstructure:"MerkeTree"`
-	Log       log.Config          `mapstructure:"Log"`
+	ChainID    uint64              `mapstructure:"ChainID"`
+	Online     OnlineConfig        `mapstructure:"Online"`
+	Offline    datastreamer.Config `mapstructure:"Offline"`
+	StateDB    db.Config           `mapstructure:"StateDB"`
+	Executor   executor.Config     `mapstructure:"Executor"`
+	MerkleTree MTConfig            `mapstructure:"MerkleTree"`
+	Log        log.Config          `mapstructure:"Log"`
 }
 
 // Default parses the default configuration values.

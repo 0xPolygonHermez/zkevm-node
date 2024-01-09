@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/mocks"
+	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,7 +72,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber LatestBlockNumber",
-			bn:                  ptr(LatestBlockNumber),
+			bn:                  state.Ptr(LatestBlockNumber),
 			expectedBlockNumber: 50,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -83,7 +84,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber PendingBlockNumber",
-			bn:                  ptr(PendingBlockNumber),
+			bn:                  state.Ptr(PendingBlockNumber),
 			expectedBlockNumber: 30,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -95,14 +96,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber EarliestBlockNumber",
-			bn:                  ptr(EarliestBlockNumber),
+			bn:                  state.Ptr(EarliestBlockNumber),
 			expectedBlockNumber: 0,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber SafeBlockNumber",
-			bn:                  ptr(SafeBlockNumber),
+			bn:                  state.Ptr(SafeBlockNumber),
 			expectedBlockNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -120,7 +121,7 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber FinalizedBlockNumber",
-			bn:                  ptr(FinalizedBlockNumber),
+			bn:                  state.Ptr(FinalizedBlockNumber),
 			expectedBlockNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -138,14 +139,14 @@ func TestGetNumericBlockNumber(t *testing.T) {
 		},
 		{
 			name:                "BlockNumber Positive Number",
-			bn:                  ptr(BlockNumber(int64(10))),
+			bn:                  state.Ptr(BlockNumber(int64(10))),
 			expectedBlockNumber: 10,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BlockNumber Negative Number <= -6",
-			bn:                  ptr(BlockNumber(int64(-6))),
+			bn:                  state.Ptr(BlockNumber(int64(-6))),
 			expectedBlockNumber: 0,
 			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid block number: -6"),
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
@@ -194,7 +195,7 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		},
 		{
 			name:                "BatchNumber LatestBatchNumber",
-			bn:                  ptr(LatestBatchNumber),
+			bn:                  state.Ptr(LatestBatchNumber),
 			expectedBatchNumber: 50,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -206,7 +207,7 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		},
 		{
 			name:                "BatchNumber PendingBatchNumber",
-			bn:                  ptr(PendingBatchNumber),
+			bn:                  state.Ptr(PendingBatchNumber),
 			expectedBatchNumber: 90,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -218,14 +219,14 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		},
 		{
 			name:                "BatchNumber EarliestBatchNumber",
-			bn:                  ptr(EarliestBatchNumber),
+			bn:                  state.Ptr(EarliestBatchNumber),
 			expectedBatchNumber: 0,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BatchNumber SafeBatchNumber",
-			bn:                  ptr(SafeBatchNumber),
+			bn:                  state.Ptr(SafeBatchNumber),
 			expectedBatchNumber: 40,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -243,7 +244,7 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		},
 		{
 			name:                "BatchNumber FinalizedBatchNumber",
-			bn:                  ptr(FinalizedBatchNumber),
+			bn:                  state.Ptr(FinalizedBatchNumber),
 			expectedBatchNumber: 60,
 			expectedError:       nil,
 			setupMocks: func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {
@@ -261,14 +262,14 @@ func TestGetNumericBatchNumber(t *testing.T) {
 		},
 		{
 			name:                "BatchNumber Positive Number",
-			bn:                  ptr(BatchNumber(int64(10))),
+			bn:                  state.Ptr(BatchNumber(int64(10))),
 			expectedBatchNumber: 10,
 			expectedError:       nil,
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
 		},
 		{
 			name:                "BatchNumber Negative Number <= -6",
-			bn:                  ptr(BatchNumber(int64(-6))),
+			bn:                  state.Ptr(BatchNumber(int64(-6))),
 			expectedBatchNumber: 0,
 			expectedError:       NewRPCError(InvalidParamsErrorCode, "invalid batch number: -6"),
 			setupMocks:          func(s *mocks.StateMock, d *mocks.DBTxMock, t *testCase) {},
@@ -349,7 +350,7 @@ func TestResponseMarshal(t *testing.T) {
 			res := NewResponse(req, result, testCase.Error)
 			bytes, err := json.Marshal(res)
 			require.NoError(t, err)
-			assert.Equal(t, string(testCase.ExpectedJSON), string(bytes))
+			assert.Equal(t, testCase.ExpectedJSON, string(bytes))
 		})
 	}
 }
@@ -375,7 +376,7 @@ func TestIndexUnmarshalJSON(t *testing.T) {
 	for _, testCase := range testCases {
 		var i Index
 		err := json.Unmarshal(testCase.input, &i)
-		assert.Equal(t, int64(testCase.expectedIndex), int64(i))
+		assert.Equal(t, testCase.expectedIndex, int64(i))
 		assert.IsType(t, testCase.expectedError, err)
 	}
 }
@@ -385,11 +386,11 @@ func TestBlockNumberStringOrHex(t *testing.T) {
 		bn             *BlockNumber
 		expectedResult string
 	}{
-		{bn: ptr(BlockNumber(-3)), expectedResult: "pending"},
-		{bn: ptr(BlockNumber(-2)), expectedResult: "latest"},
-		{bn: ptr(BlockNumber(-1)), expectedResult: "earliest"},
-		{bn: ptr(BlockNumber(0)), expectedResult: "0x0"},
-		{bn: ptr(BlockNumber(100)), expectedResult: "0x64"},
+		{bn: state.Ptr(BlockNumber(-3)), expectedResult: "pending"},
+		{bn: state.Ptr(BlockNumber(-2)), expectedResult: "latest"},
+		{bn: state.Ptr(BlockNumber(-1)), expectedResult: "earliest"},
+		{bn: state.Ptr(BlockNumber(0)), expectedResult: "0x0"},
+		{bn: state.Ptr(BlockNumber(100)), expectedResult: "0x64"},
 	}
 
 	for _, testCase := range testCases {
@@ -407,7 +408,7 @@ func TestBlockNumberOrHashMarshaling(t *testing.T) {
 
 	testCases := []testCase{
 		// success
-		{`{"blockNumber":"1"}`, &BlockNumberOrHash{number: ptr(BlockNumber(uint64(1)))}, nil},
+		{`{"blockNumber":"1"}`, &BlockNumberOrHash{number: state.Ptr(BlockNumber(uint64(1)))}, nil},
 		{`{"blockHash":"0x1"}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1"))}, nil},
 		{`{"blockHash":"0x1", "requireCanonical":true}`, &BlockNumberOrHash{hash: argHashPtr(common.HexToHash("0x1")), requireCanonical: true}, nil},
 		// float wrong value
@@ -439,10 +440,6 @@ func TestBlockNumberOrHashMarshaling(t *testing.T) {
 			assert.Equal(t, testCase.expectedError.Error(), err.Error())
 		}
 	}
-}
-
-func ptr[T any](t T) *T {
-	return &t
 }
 
 func argHashPtr(hash common.Hash) *ArgHash {
