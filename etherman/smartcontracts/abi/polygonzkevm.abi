@@ -1072,9 +1072,9 @@
                         "type": "uint64"
                     },
                     {
-                        "internalType": "uint64",
+                        "internalType": "bytes32",
                         "name": "forcedBlockHashL1",
-                        "type": "uint64"
+                        "type": "bytes32"
                     }
                 ],
                 "internalType": "struct PolygonDataComitteeEtrog.ValidiumBatchData[]",

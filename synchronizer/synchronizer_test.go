@@ -34,7 +34,7 @@ type mocks struct {
 	Pool         *poolMock
 	EthTxManager *ethTxManagerMock
 	DbTx         *syncMocks.DbTxMock
-	ZKEVMClient  zkEVMClientInterface
+	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
 	//EventLog     *eventLogMock
 	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 }
