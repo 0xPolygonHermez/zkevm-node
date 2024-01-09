@@ -125,6 +125,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "",
 		},
 		{
+			path:          "Sequencer.StreamServer.Version",
+			expectedValue: uint8(0),
+		},
+		{
 			path:          "Sequencer.StreamServer.Enabled",
 			expectedValue: false,
 		},
