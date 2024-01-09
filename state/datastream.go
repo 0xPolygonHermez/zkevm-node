@@ -221,6 +221,9 @@ type DSState interface {
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*L2Header, error)
+	GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
@@ -257,7 +260,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			BatchNumber:    genesisL2Block.BatchNumber,
 			L2BlockNumber:  genesisL2Block.L2BlockNumber,
 			Timestamp:      genesisL2Block.Timestamp,
-			L1BlockHash:    genesisL2Block.L1BlockHash,
 			L1InfoRoot:     genesisL2Block.L1InfoRoot,
 			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
 			Coinbase:       genesisL2Block.Coinbase,
@@ -407,25 +409,61 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				return err
 			}
 
-			for _, l2block := range batch.L2Blocks {
+			for blockIndex, l2block := range batch.L2Blocks {
 				if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
 					continue
 				} else {
 					lastAddedL2Block = l2block.L2BlockNumber
 				}
 
-				// Get L1 Info Root
-				batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
-				if err != nil {
-					log.Errorf("Failed to decode batch data, err: %v", err)
-					return nil, err
+				l1BlockHash := common.Hash{}
+
+				// Get L1 block hash
+				if batch.ForkID >= FORKID_ETROG {
+					isForcedBatch := false
+					batchRawData := &BatchRawV2{}
+
+					if batch.BatchNumber == 1 || batch.ForcedBatchNum != nil {
+						isForcedBatch = true
+					} else {
+						batchRawData, err = DecodeBatchV2(batch.BatchL2Data)
+						if err != nil {
+							log.Errorf("Failed to decode batch data, err: %v", err)
+							return err
+						}
+					}
+
+					if !isForcedBatch {
+						// Get current block by index
+						l2blockRaw := batchRawData.Blocks[blockIndex]
+						if l2blockRaw.IndexL1InfoTree != 0 {
+							l1InfoTreeExitRootStorageEntry, err := stateDB.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+							if err != nil {
+								return err
+							}
+							l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
+						}
+					} else {
+						// Initial batch must be handled differently
+						if batch.BatchNumber == 1 {
+							l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
+							if err != nil {
+								return err
+							}
+						} else {
+							l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
+							if err != nil {
+								return err
+							}
+						}
+					}
 				}
 
 				blockStart := DSL2BlockStart{
 					BatchNumber:    l2block.BatchNumber,
 					L2BlockNumber:  l2block.L2BlockNumber,
 					Timestamp:      l2block.Timestamp,
-					L1BlockHash:    l2block.L1BlockHash,
+					L1BlockHash:    l1BlockHash,
 					GlobalExitRoot: l2block.GlobalExitRoot,
 					Coinbase:       l2block.Coinbase,
 					ForkID:         l2block.ForkID,
