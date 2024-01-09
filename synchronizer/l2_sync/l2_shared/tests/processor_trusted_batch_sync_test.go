@@ -80,10 +80,6 @@ type TestDataForProcessorTrustedBatchSync struct {
 	statePreviousBatch *state.Batch
 }
 
-func newProcessBatchResponse() l2_shared.ProcessResponse {
-	return l2_shared.NewProcessResponse()
-}
-
 func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessorTrustedBatchSync {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
@@ -94,7 +90,7 @@ func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessor
 		stateCurrentBatch: &state.Batch{
 			BatchNumber: 123,
 			Coinbase:    common.HexToAddress("0x1230"),
-			StateRoot:   common.HexToHash("0x1230"),
+			StateRoot:   common.HexToHash("0x123410"),
 			WIP:         true,
 		},
 		statePreviousBatch: &state.Batch{

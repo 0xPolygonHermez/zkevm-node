@@ -56,6 +56,7 @@ type ProcessResponse struct {
 	UpdateBatchWithProcessBatchResponse bool
 }
 
+// NewProcessResponse creates a new ProcessResponse
 func NewProcessResponse() ProcessResponse {
 	return ProcessResponse{
 		ProcessBatchResponse:                nil,
@@ -70,12 +71,14 @@ func (p *ProcessResponse) DiscardCache() {
 	p.ClearCache = true
 }
 
+// UpdateCurrentBatch update the current batch for next execution
 func (p *ProcessResponse) UpdateCurrentBatch(UpdateBatch *state.Batch) {
 	p.ClearCache = false
 	p.UpdateBatch = UpdateBatch
 	p.UpdateBatchWithProcessBatchResponse = false
 }
 
+// UpdateCurrentBatchWithExecutionResult update the current batch for next execution with the data in ProcessBatchResponse
 func (p *ProcessResponse) UpdateCurrentBatchWithExecutionResult(UpdateBatch *state.Batch, ProcessBatchResponse *state.ProcessBatchResponse) {
 	p.ClearCache = false
 	p.UpdateBatch = UpdateBatch
@@ -83,6 +86,7 @@ func (p *ProcessResponse) UpdateCurrentBatchWithExecutionResult(UpdateBatch *sta
 	p.ProcessBatchResponse = ProcessBatchResponse
 }
 
+// CheckSanity check the sanity of the response
 func (p *ProcessResponse) CheckSanity() error {
 	if p.UpdateBatchWithProcessBatchResponse {
 		if p.ProcessBatchResponse == nil {

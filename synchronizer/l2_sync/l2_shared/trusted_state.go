@@ -17,6 +17,7 @@ type TrustedState struct {
 	LastTrustedBatches []*state.Batch
 }
 
+// IsEmpty returns true if the trusted state is empty
 func (ts *TrustedState) IsEmpty() bool {
 	if ts == nil || len(ts.LastTrustedBatches) == 0 {
 		return true
