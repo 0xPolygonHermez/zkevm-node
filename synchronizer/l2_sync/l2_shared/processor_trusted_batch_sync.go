@@ -56,6 +56,53 @@ type ProcessResponse struct {
 	UpdateBatchWithProcessBatchResponse bool
 }
 
+func NewProcessResponse() ProcessResponse {
+	return ProcessResponse{
+		ProcessBatchResponse:                nil,
+		ClearCache:                          false,
+		UpdateBatch:                         nil,
+		UpdateBatchWithProcessBatchResponse: false,
+	}
+}
+
+// DiscardCache set to discard cache for next execution
+func (p *ProcessResponse) DiscardCache() {
+	p.ClearCache = true
+}
+
+func (p *ProcessResponse) UpdateCurrentBatch(UpdateBatch *state.Batch) {
+	p.ClearCache = false
+	p.UpdateBatch = UpdateBatch
+	p.UpdateBatchWithProcessBatchResponse = false
+}
+
+func (p *ProcessResponse) UpdateCurrentBatchWithExecutionResult(UpdateBatch *state.Batch, ProcessBatchResponse *state.ProcessBatchResponse) {
+	p.ClearCache = false
+	p.UpdateBatch = UpdateBatch
+	p.UpdateBatchWithProcessBatchResponse = true
+	p.ProcessBatchResponse = ProcessBatchResponse
+}
+
+func (p *ProcessResponse) CheckSanity() error {
+	if p.UpdateBatchWithProcessBatchResponse {
+		if p.ProcessBatchResponse == nil {
+			return fmt.Errorf("UpdateBatchWithProcessBatchResponse is true but ProcessBatchResponse is nil")
+		}
+		if p.UpdateBatch == nil {
+			return fmt.Errorf("UpdateBatchWithProcessBatchResponse is true but UpdateBatch is nil")
+		}
+		if p.ClearCache {
+			return fmt.Errorf("UpdateBatchWithProcessBatchResponse is true but ClearCache is true")
+		}
+	}
+	if p.UpdateBatch != nil {
+		if p.ClearCache {
+			return fmt.Errorf("UpdateBatch is not nil but ClearCache is true")
+		}
+	}
+	return nil
+}
+
 // SyncTrustedBatchExecutor is the interface that known how to process a batch
 type SyncTrustedBatchExecutor interface {
 	// FullProcess process a batch that is not on database, so is the first time we process it
@@ -103,7 +150,7 @@ func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, tru
 		log.Errorf("%s error processing trusted batch. Error: %s", processMode.DebugPrefix, err)
 		return nil, err
 	}
-	return s.GetNextCache(&processMode, processBatchResp, status)
+	return s.GetNextStatus(status, processBatchResp, processMode.BatchMustBeClosed, processMode.DebugPrefix)
 }
 
 // GetCurrentAndPreviousBatchFromCache returns the current and previous batch from cache
@@ -125,15 +172,22 @@ func (s *ProcessorTrustedBatchSync) GetCurrentAndPreviousBatchFromCache(status *
 	return stateCurrentBatch, statePreviousBatch
 }
 
-// GetNextCache returns the next cache for use in the next run
+// GetNextStatus returns the next cache for use in the next run
 // it could be nil, that means discard current cache
-func (s *ProcessorTrustedBatchSync) GetNextCache(processMode *ProcessData, processBatchResp *ProcessResponse, status TrustedState) (*TrustedState, error) {
+func (s *ProcessorTrustedBatchSync) GetNextStatus(status TrustedState, processBatchResp *ProcessResponse, closedBatch bool, debugPrefix string) (*TrustedState, error) {
+	if processBatchResp != nil {
+		err := processBatchResp.CheckSanity()
+		if err != nil {
+			// We dont stop the process but we log the warning to be fixed
+			log.Warnf("%s error checking sanity of processBatchResp. Error: ", debugPrefix, err)
+		}
+	}
 	if processBatchResp != nil && !processBatchResp.ClearCache {
-		newStatus := updateCache(status, processBatchResp, processMode.BatchMustBeClosed)
-		log.Debugf("%s Batch synchronized, updated cache for next run", processMode.DebugPrefix)
+		newStatus := updateStatus(status, processBatchResp, closedBatch)
+		log.Debugf("%s Batch synchronized, updated cache for next run", debugPrefix)
 		return &newStatus, nil
 	} else {
-		log.Debugf("%s Batch synchronized -> clear cache", processMode.DebugPrefix)
+		log.Debugf("%s Batch synchronized -> clear cache", debugPrefix)
 		return nil, nil
 	}
 }
@@ -167,7 +221,7 @@ func (s *ProcessorTrustedBatchSync) ExecuteProcessBatch(ctx context.Context, pro
 	return processBatchResp, err
 }
 
-func updateCache(status TrustedState, response *ProcessResponse, closedBatch bool) TrustedState {
+func updateStatus(status TrustedState, response *ProcessResponse, closedBatch bool) TrustedState {
 	res := TrustedState{
 		LastTrustedBatches: []*state.Batch{nil, nil},
 	}
@@ -178,9 +232,9 @@ func updateCache(status TrustedState, response *ProcessResponse, closedBatch boo
 		res.LastTrustedBatches[0] = response.UpdateBatch
 	}
 	if response.ProcessBatchResponse != nil && response.UpdateBatchWithProcessBatchResponse && res.LastTrustedBatches[0] != nil {
-		//if res.LastTrustedBatches[0].BatchNumber != uint64(response.ProcessBatchResponse.NewBatchNumber) {
-		//	panic(fmt.Sprintf("BatchNumber mismatch. Expected %v, got %v", res.LastTrustedBatches[0].BatchNumber, response.ProcessBatchResponse.NewBatchNumber))
-		//}
+		// We copy the batch to avoid to modify the original object
+		tmp := *response.UpdateBatch
+		res.LastTrustedBatches[0] = &tmp
 		res.LastTrustedBatches[0].StateRoot = response.ProcessBatchResponse.NewStateRoot
 		res.LastTrustedBatches[0].LocalExitRoot = response.ProcessBatchResponse.NewLocalExitRoot
 		res.LastTrustedBatches[0].AccInputHash = response.ProcessBatchResponse.NewAccInputHash

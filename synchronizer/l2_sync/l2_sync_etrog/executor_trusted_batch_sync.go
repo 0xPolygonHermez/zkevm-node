@@ -84,12 +84,9 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 		}
 	}
 	data.StateBatch.WIP = !data.BatchMustBeClosed
-	return &l2_shared.ProcessResponse{
-		ProcessBatchResponse:                nil,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: false,
-		UpdateBatch:                         data.StateBatch,
-	}, nil
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatch(data.StateBatch)
+	return &res, nil
 }
 
 // FullProcess process a batch that is not on database, so is the first time we process it
@@ -145,13 +142,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Error("%s error getting batch. Error: ", data.DebugPrefix, err)
 		return nil, err
 	}
-
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatch:                         resultBatch,
-		UpdateBatchWithProcessBatchResponse: true,
-	}
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(resultBatch, processBatchResp)
 	return &res, nil
 }
 
@@ -219,12 +211,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	updatedBatch := *data.StateBatch
 	updatedBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	updatedBatch.WIP = !data.BatchMustBeClosed
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: true,
-		UpdateBatch:                         &updatedBatch,
-	}
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(&updatedBatch, processBatchResp)
 	return &res, nil
 }
 

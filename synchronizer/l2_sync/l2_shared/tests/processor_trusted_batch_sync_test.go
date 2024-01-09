@@ -1,4 +1,4 @@
-package l2_shared
+package test_l2_shared
 
 import (
 	"testing"
@@ -80,6 +80,10 @@ type TestDataForProcessorTrustedBatchSync struct {
 	statePreviousBatch *state.Batch
 }
 
+func newProcessBatchResponse() l2_shared.ProcessResponse {
+	return l2_shared.NewProcessResponse()
+}
+
 func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessorTrustedBatchSync {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
@@ -89,24 +93,23 @@ func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessor
 		sut:          l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer),
 		stateCurrentBatch: &state.Batch{
 			BatchNumber: 123,
-			Coinbase:    common.HexToAddress("0x123"),
-			StateRoot:   common.HexToHash("0x123"),
+			Coinbase:    common.HexToAddress("0x1230"),
+			StateRoot:   common.HexToHash("0x1230"),
 			WIP:         true,
 		},
 		statePreviousBatch: &state.Batch{
 			BatchNumber: 122,
-			Coinbase:    common.HexToAddress("0x123"),
-			StateRoot:   common.HexToHash("0x122"),
+			Coinbase:    common.HexToAddress("0x1230"),
+			StateRoot:   common.HexToHash("0x1220"),
 			WIP:         false,
 		},
 		trustedNodeBatch: &types.Batch{
 			Number:    123,
-			Coinbase:  common.HexToAddress("0x123"),
-			StateRoot: common.HexToHash("0x123-1"),
+			Coinbase:  common.HexToAddress("0x1230"),
+			StateRoot: common.HexToHash("0x123410"),
 			Closed:    true,
 		},
 	}
-
 }
 
 func TestGetModeForProcessBatchIncremental(t *testing.T) {
@@ -166,4 +169,75 @@ func TestGetModeForProcessBatchNothing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
 	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
+}
+
+func TestGetNextStatusClear(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{testData.statePreviousBatch, testData.statePreviousBatch},
+	}
+	processResponse := l2_shared.NewProcessResponse()
+
+	processResponse.ClearCache = true
+	res, err := testData.sut.GetNextStatus(previousStatus, &processResponse, false, "test")
+	require.NoError(t, err)
+	require.True(t, res.IsEmpty())
+
+	processResponse.ClearCache = false
+	res, err = testData.sut.GetNextStatus(l2_shared.TrustedState{}, &processResponse, false, "test")
+	require.NoError(t, err)
+	require.True(t, res.IsEmpty())
+
+	processResponse.ClearCache = false
+	res, err = testData.sut.GetNextStatus(l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, nil},
+	}, &processResponse, false, "test")
+	require.NoError(t, err)
+	require.True(t, res.IsEmpty())
+
+	processResponse.ClearCache = false
+	processResponse.UpdateBatchWithProcessBatchResponse = true
+	res, err = testData.sut.GetNextStatus(l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, nil},
+	}, &processResponse, false, "test")
+	require.NoError(t, err)
+	require.True(t, res.IsEmpty())
+}
+
+func TestGetNextStatusUpdate(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{testData.statePreviousBatch, testData.statePreviousBatch},
+	}
+	processBatchResp := l2_shared.NewProcessResponse()
+	newBatch := state.Batch{
+		BatchNumber: 123,
+		Coinbase:    common.HexToAddress("0x123467"),
+		StateRoot:   common.HexToHash("0x123456"),
+		WIP:         true,
+	}
+	processBatchResp.UpdateCurrentBatch(&newBatch)
+	res, err := testData.sut.GetNextStatus(previousStatus, &processBatchResp, false, "test")
+	require.NoError(t, err)
+	require.False(t, res.IsEmpty())
+	require.Equal(t, *res.LastTrustedBatches[0], newBatch)
+
+	res, err = testData.sut.GetNextStatus(previousStatus, &processBatchResp, true, "test")
+	require.NoError(t, err)
+	require.False(t, res.IsEmpty())
+	require.Nil(t, res.LastTrustedBatches[0])
+	require.Equal(t, newBatch, *res.LastTrustedBatches[1])
+
+	ProcessBatchResponse := &state.ProcessBatchResponse{
+		NewStateRoot:     common.HexToHash("0x123-2"),
+		NewAccInputHash:  common.HexToHash("0x123-3"),
+		NewLocalExitRoot: common.HexToHash("0x123-4"),
+		NewBatchNumber:   123,
+	}
+	processBatchResp.UpdateCurrentBatchWithExecutionResult(&newBatch, ProcessBatchResponse)
+	res, err = testData.sut.GetNextStatus(previousStatus, &processBatchResp, true, "test")
+	require.NoError(t, err)
+	require.False(t, res.IsEmpty())
+	require.Nil(t, res.LastTrustedBatches[0])
+	require.Equal(t, processBatchResp.ProcessBatchResponse.NewStateRoot, res.LastTrustedBatches[1].StateRoot)
 }
