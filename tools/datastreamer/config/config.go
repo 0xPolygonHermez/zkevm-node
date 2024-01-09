@@ -34,6 +34,7 @@ type MTConfig struct {
 	CacheFile  string `mapstructure:"CacheFile"`
 }
 
+// StreamServerCfg is the configuration for the offline data streamer
 type StreamServerCfg struct {
 	// Port to listen on
 	Port uint16 `mapstructure:"Port"`
