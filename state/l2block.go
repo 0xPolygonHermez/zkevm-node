@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -102,8 +101,6 @@ type L2Block struct {
 	header *L2Header
 	uncles []*L2Header
 
-	hash atomic.Value
-
 	ReceivedAt   time.Time
 	ReceivedFrom interface{}
 }
@@ -123,25 +120,9 @@ func (b *L2Block) Header() *L2Header {
 	return CopyHeader(b.header)
 }
 
-// Hash returns the keccak256 hash of b's header.
-// The hash is computed on the first call and cached thereafter.
-func (b *L2Block) Hash() common.Hash {
-	if hash := b.hash.Load(); hash != nil {
-		return hash.(common.Hash)
-	}
-	v := b.header.Hash()
-	b.hash.Store(v)
-	return v
-}
-
 // Number returns the block header number.
 func (b *L2Block) Number() *big.Int {
 	return b.header.Number
-}
-
-// ForceHash allows the block hash to be overwritten
-func (b *L2Block) ForceHash(h common.Hash) {
-	b.hash.Store(h)
 }
 
 // NewL2Block creates a new block. The input data is copied, changes to header and to the
