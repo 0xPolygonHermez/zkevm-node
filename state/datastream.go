@@ -419,7 +419,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				l1BlockHash := common.Hash{}
 
 				// Get L1 block hash
-				if batch.ForkID >= FORKID_ETROG {
+				if l2block.ForkID >= FORKID_ETROG {
 					isForcedBatch := false
 					batchRawData := &BatchRawV2{}
 
