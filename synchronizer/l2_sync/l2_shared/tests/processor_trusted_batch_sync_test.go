@@ -109,7 +109,7 @@ func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessor
 
 }
 
-func TestGetModeForProcessBatch(t *testing.T) {
+func TestGetModeForProcessBatchIncremental(t *testing.T) {
 	testData := newTestDataForProcessorTrustedBatchSync(t)
 	testData.trustedNodeBatch.Closed = true
 	testData.trustedNodeBatch.BatchL2Data = []byte("test")
@@ -141,4 +141,29 @@ func TestGetModeForProcessBatchReprocessMode(t *testing.T) {
 	require.Equal(t, l2_shared.ReprocessProcessMode, processData.Mode, "local batch doesnt have stateRoot but exists, so  so it needs to be reprocess")
 	require.Equal(t, true, processData.BatchMustBeClosed, "the trustedNode batch is closed")
 	require.Equal(t, testData.statePreviousBatch.StateRoot, processData.OldStateRoot, "the old state root is the previous batch SR")
+}
+
+func TestGetModeForProcessBatchNothing(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	testData.stateCurrentBatch.WIP = true
+	testData.trustedNodeBatch.Closed = true
+	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	require.Equal(t, true, processData.BatchMustBeClosed, "the trustedNode batch is closed")
+	require.Equal(t, state.ZeroHash, processData.OldStateRoot, "no OldStateRoot, because you dont need to process anything")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = true
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	require.Equal(t, false, processData.BatchMustBeClosed, "the trustedNode batch is closed but the state batch is also closed, so nothing to do")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = false
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
 }

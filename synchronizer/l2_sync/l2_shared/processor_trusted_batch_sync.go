@@ -203,34 +203,38 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	var result ProcessData
 	if stateBatch == nil {
 		result = ProcessData{
-			Mode:         FullProcessMode,
-			OldStateRoot: statePreviousBatch.StateRoot,
-			Description:  "Batch is not on database, so is the first time we process it",
+			Mode:              FullProcessMode,
+			OldStateRoot:      statePreviousBatch.StateRoot,
+			BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch),
+			Description:       "Batch is not on database, so is the first time we process it",
 		}
 	} else {
 		batchSynced, strSync := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP|CMP_BATCH_IGNORE_WIP)
 		if batchSynced {
 			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
-				Mode:         NothingProcessMode,
-				OldStateRoot: common.Hash{},
-				Description:  "no new data on batch",
+				Mode:              NothingProcessMode,
+				OldStateRoot:      common.Hash{},
+				BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch) && stateBatch.WIP,
+				Description:       "no new data on batch",
 			}
 		} else {
 			// We have a previous batch, but in node something change
 			// We have processed this batch before, and we have the intermediate state root, so is going to be process only new Tx.
 			if stateBatch.StateRoot != state.ZeroHash {
 				result = ProcessData{
-					Mode:         IncrementalProcessMode,
-					OldStateRoot: stateBatch.StateRoot,
-					Description:  "batch exists + intermediateStateRoot " + strSync,
+					Mode:              IncrementalProcessMode,
+					OldStateRoot:      stateBatch.StateRoot,
+					BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch),
+					Description:       "batch exists + intermediateStateRoot " + strSync,
 				}
 			} else {
 				// We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess all txs.
 				result = ProcessData{
-					Mode:         ReprocessProcessMode,
-					OldStateRoot: statePreviousBatch.StateRoot,
-					Description:  "batch exists + StateRoot==Zero" + strSync,
+					Mode:              ReprocessProcessMode,
+					OldStateRoot:      statePreviousBatch.StateRoot,
+					BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch),
+					Description:       "batch exists + StateRoot==Zero" + strSync,
 				}
 			}
 		}
@@ -239,7 +243,6 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 		return result, fmt.Errorf("failed to get mode for process batch %v", trustedNodeBatch.Number)
 	}
 	result.BatchNumber = uint64(trustedNodeBatch.Number)
-	result.BatchMustBeClosed = result.Mode != NothingProcessMode && isTrustedBatchClosed(trustedNodeBatch)
 	result.StateBatch = stateBatch
 	result.TrustedBatch = trustedNodeBatch
 	result.OldAccInputHash = statePreviousBatch.AccInputHash
