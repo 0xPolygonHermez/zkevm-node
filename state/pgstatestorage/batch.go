@@ -506,10 +506,10 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *sta
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
-		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog) VALUES ($1, $2, $3, $4, $5, $6)"
+		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog, l1_info_root) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.TimestampBatchEtrog.UTC())
+			virtualBatch.TimestampBatchEtrog.UTC(), virtualBatch.L1InfoRoot.String())
 		return err
 	}
 }
@@ -521,15 +521,16 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 		txHash        string
 		coinbase      string
 		sequencerAddr string
+		l1InfoRoot    *string
 	)
 
 	const getVirtualBatchSQL = `
-    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog
+    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog, l1_info_root
       FROM state.virtual_batch
      WHERE batch_num = $1`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog, &l1InfoRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
@@ -538,6 +539,10 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	virtualBatch.Coinbase = common.HexToAddress(coinbase)
 	virtualBatch.SequencerAddr = common.HexToAddress(sequencerAddr)
 	virtualBatch.TxHash = common.HexToHash(txHash)
+	if l1InfoRoot != nil {
+		l1InfoR := common.HexToHash(*l1InfoRoot)
+		virtualBatch.L1InfoRoot = &l1InfoR
+	}
 	return &virtualBatch, nil
 }
 
@@ -614,8 +619,8 @@ func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state
 // CloseBatchInStorage closes a batch in the state storage
 func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	const closeBatchSQL = `UPDATE state.batch 
-		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE, global_exit_root = $7
-		  WHERE batch_num = $8`
+		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE
+		  WHERE batch_num = $7`
 
 	e := p.getExecQuerier(dbTx)
 	batchResourcesJsonBytes, err := json.Marshal(receipt.BatchResources)
@@ -623,7 +628,7 @@ func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state
 		return err
 	}
 	_, err = e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(),
-		receipt.AccInputHash.String(), receipt.BatchL2Data, string(batchResourcesJsonBytes), receipt.ClosingReason, receipt.GlobalExitRoot.String(), receipt.BatchNumber)
+		receipt.AccInputHash.String(), receipt.BatchL2Data, string(batchResourcesJsonBytes), receipt.ClosingReason, receipt.BatchNumber)
 
 	return err
 }
@@ -973,22 +978,21 @@ func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNu
 	return common.HexToHash(parentHash), nil
 }
 
-// GetForcedBatchParentHashAndGER returns the parent hash of the forced batch with the given number and the globalExitRoot.
-func (p *PostgresStorage) GetForcedBatchParentHashAndGER(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, common.Hash, error) {
+// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number and the globalExitRoot.
+func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
 	var (
 		parentHash string
-		ger        string
 	)
 
-	const sql = `SELECT b.parent_hash, f.global_exit_root FROM state.forced_batch f, state.block b
+	const sql = `SELECT b.parent_hash FROM state.forced_batch f, state.block b
      WHERE f.forced_batch_num = $1 and b.block_num = f.block_num`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, sql, forcedBatchNumber).Scan(&parentHash, &ger)
+	err := e.QueryRow(ctx, sql, forcedBatchNumber).Scan(&parentHash)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return common.Hash{}, common.Hash{}, state.ErrNotFound
+		return common.Hash{}, state.ErrNotFound
 	} else if err != nil {
-		return common.Hash{}, common.Hash{}, err
+		return common.Hash{}, err
 	}
-	return common.HexToHash(parentHash), common.HexToHash(ger), nil
+	return common.HexToHash(parentHash), nil
 }
