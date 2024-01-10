@@ -106,7 +106,7 @@ func WithFields(keyValuePairs ...interface{}) *Logger {
 	l := getDefaultLog().WithFields(keyValuePairs...)
 
 	// since we are returning a new instance, remove one caller from the
-	// stack, because we'll be calling the retruned Logger methods
+	// stack, because we'll be calling the returned Logger methods
 	// directly, not the package functions.
 	x := l.x.WithOptions(zap.AddCallerSkip(-1))
 	l.x = x
