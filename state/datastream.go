@@ -27,6 +27,8 @@ const (
 	EntryTypeUpdateGER datastreamer.EntryType = 4
 	// BookMarkTypeL2Block represents a L2 block bookmark
 	BookMarkTypeL2Block byte = 0
+	// BookMarkTypeBatch represents a batch
+	BookMarkTypeBatch byte = 1
 	// SystemSC is the system smart contract address
 	SystemSC = "0x000000000000000000000000000000005ca1ab1e"
 	// posConstant is the constant used to compute the position of the intermediate state root
@@ -153,22 +155,22 @@ func (b DSL2BlockEnd) Decode(data []byte) DSL2BlockEnd {
 
 // DSBookMark represents a data stream bookmark
 type DSBookMark struct {
-	Type          byte
-	L2BlockNumber uint64
+	Type  byte
+	Value uint64
 }
 
 // Encode returns the encoded DSBookMark as a byte slice
 func (b DSBookMark) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, b.Type)
-	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
+	bytes = binary.LittleEndian.AppendUint64(bytes, b.Value)
 	return bytes
 }
 
 // Decode decodes the DSBookMark from a byte slice
 func (b DSBookMark) Decode(data []byte) DSBookMark {
 	b.Type = data[0]
-	b.L2BlockNumber = binary.LittleEndian.Uint64(data[1:9])
+	b.Value = binary.LittleEndian.Uint64(data[1:9])
 	return b
 }
 
@@ -236,8 +238,8 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		}
 
 		bookMark := DSBookMark{
-			Type:          BookMarkTypeL2Block,
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
+			Type:  BookMarkTypeL2Block,
+			Value: genesisL2Block.L2BlockNumber,
 		}
 
 		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
@@ -293,8 +295,8 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
 
 			bookMark := DSBookMark{
-				Type:          BookMarkTypeL2Block,
-				L2BlockNumber: currentL2Block,
+				Type:  BookMarkTypeL2Block,
+				Value: currentL2Block,
 			}
 
 			firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -414,8 +416,8 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				}
 
 				bookMark := DSBookMark{
-					Type:          BookMarkTypeL2Block,
-					L2BlockNumber: blockStart.L2BlockNumber,
+					Type:  BookMarkTypeL2Block,
+					Value: blockStart.L2BlockNumber,
 				}
 
 				_, err = streamServer.AddStreamBookmark(bookMark.Encode())

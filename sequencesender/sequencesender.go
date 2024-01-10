@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -37,7 +36,6 @@ type SequenceSender struct {
 	ethTxManager ethTxManager
 	etherman     etherman
 	eventLog     *event.EventLog
-	streamClient *datastreamer.StreamClient
 }
 
 // New inits sequence sender
@@ -53,41 +51,6 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	// Get latest virtual state batch
-	latestSequencedBatchNumber, err := s.etherman.GetLatestBatchNumber()
-	if err != nil {
-		log.Fatalf("error getting latest sequenced batch, error: %v", err)
-	} else {
-		log.Debugf("[SequenceSender] latest batch number %d", latestSequencedBatchNumber)
-	}
-
-	// Create datastream client
-	s.streamClient, err = datastreamer.NewClient(s.cfg.StreamClient.Server, state.StreamTypeSequencer)
-	if err != nil {
-		log.Fatalf("failed to create stream client, error: %v", err)
-	} else {
-		log.Debugf("[SequenceSender] new stream client")
-	}
-
-	// Start datastream client
-	err = s.streamClient.Start()
-	if err != nil {
-		log.Fatalf("failed to start stream client, error: %v", err)
-	}
-
-	// Set starting point of the streaming
-	// TODO: Stream allows starting from an entry number or L2 block number (via bookmark), from batch?
-	s.streamClient.FromEntry = latestSequencedBatchNumber
-
-	// Start receiving the streaming
-	err = s.streamClient.ExecCommand(datastreamer.CmdStart)
-	if err != nil {
-		log.Fatalf("failed to connect to the streaming")
-	}
-
-	// TODO: What to do every time stream data is received
-
-	// Sequence
 	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	for {
 		s.tryToSendSequence(ctx, ticker)
@@ -299,6 +262,30 @@ func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 		sequences = sequences[:len(sequences)-1]
 		return sequences, nil
 	}
+
+	// while estimating gas a new block is not created and the POE SC may return
+	// an error regarding timestamp verification, this must be handled
+	// if errors.Is(err, ethman.ErrTimestampMustBeInsideRange) {
+	// 	// query the sc about the value of its lastTimestamp variable
+	// 	lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	// check POE SC lastTimestamp against sequences' one
+	// 	for _, seq := range sequences {
+	// 		if seq.Timestamp < int64(lastTimestamp) {
+	// 			// TODO: gracefully handle this situation by creating an L2 reorg
+	// 			log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
+	// 		}
+	// 		lastTimestamp = uint64(seq.Timestamp)
+	// 	}
+	// 	blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+	// 	if err != nil {
+	// 		log.Error("error getting block timestamp: ", err)
+	// 	}
+	// 	log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
+	// 	return nil, nil
+	// }
 
 	// Unknown error
 	if len(sequences) == 1 {
