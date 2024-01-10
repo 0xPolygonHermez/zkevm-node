@@ -33,11 +33,10 @@ var (
 )
 
 type testDataForBathExecutor struct {
-	ctx        context.Context
-	stateMock  *mock_l2_sync_etrog.StateInterface
-	syncMock   *mock_syncinterfaces.SynchronizerFlushIDManager
-	halterMock *mock_syncinterfaces.CriticalErrorHandler
-	sut        *SyncTrustedBatchExecutorForEtrog
+	ctx       context.Context
+	stateMock *mock_l2_sync_etrog.StateInterface
+	syncMock  *mock_syncinterfaces.SynchronizerFlushIDManager
+	sut       *SyncTrustedBatchExecutorForEtrog
 }
 
 func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
@@ -93,19 +92,16 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 func newTestData(t *testing.T) testDataForBathExecutor {
 	stateMock := mock_l2_sync_etrog.NewStateInterface(t)
 	syncMock := mock_syncinterfaces.NewSynchronizerFlushIDManager(t)
-	halterMock := mock_syncinterfaces.NewCriticalErrorHandler(t)
 
 	sut := SyncTrustedBatchExecutorForEtrog{
-		state:  stateMock,
-		sync:   syncMock,
-		halter: halterMock,
+		state: stateMock,
+		sync:  syncMock,
 	}
 	return testDataForBathExecutor{
-		ctx:        context.Background(),
-		stateMock:  stateMock,
-		syncMock:   syncMock,
-		halterMock: halterMock,
-		sut:        &sut,
+		ctx:       context.Background(),
+		stateMock: stateMock,
+		syncMock:  syncMock,
+		sut:       &sut,
 	}
 }
 
@@ -170,10 +166,8 @@ func TestCloseBatchGivenAlreadyCloseAndTheBatchDataDoesntMatchExpectedThenHalt(t
 
 	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(state.ErrBatchAlreadyClosed).Once()
 	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(&state.Batch{}, nil).Once()
-
-	testData.halterMock.EXPECT().CriticalError(testData.ctx, mock.Anything).Once()
 	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
-	require.Error(t, res)
+	require.ErrorIs(t, res, ErrCriticalClosedBatchDontContainExpectedData)
 }
 
 func TestCloseBatchGivenAlreadyClosedAndTheDataAreRightThenNoError(t *testing.T) {

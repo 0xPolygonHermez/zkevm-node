@@ -26,6 +26,8 @@ var (
 	ErrFailExecuteBatch = errors.New("fail execute batch")
 	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
 	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
+	// ErrClosingBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
+	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 )
 
 // StateInterface contains the methods required to interact with the state.
@@ -53,19 +55,16 @@ type SyncTrustedBatchExecutorForEtrog struct {
 	state         StateInterface
 	sync          syncinterfaces.SynchronizerFlushIDManager
 	l1SyncChecker L1SyncChecker
-	halter        syncinterfaces.CriticalErrorHandler
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker,
-	halter syncinterfaces.CriticalErrorHandler) *l2_shared.TrustedBatchesRetrieve {
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state:         stateBatchExecutor,
 		sync:          sync,
 		l1SyncChecker: l1SyncChecker,
-		halter:        halter,
 	}
 
 	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider)
@@ -304,9 +303,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trust
 			equals, str := l2_shared.AreEqualStateBatchAndTrustedBatch(dbBatch, trustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP)
 			if !equals {
 				// This is a situation impossible to reach!, if it happens we halt sync and we need to develop a recovery process
-				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) HALTING", debugStr, str)
+				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) error:%w", debugStr, str, ErrCriticalClosedBatchDontContainExpectedData)
 				log.Warnf(err.Error())
-				b.halter.CriticalError(ctx, err)
 				return err
 			}
 		}

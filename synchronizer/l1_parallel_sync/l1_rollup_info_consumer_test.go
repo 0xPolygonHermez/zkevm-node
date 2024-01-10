@@ -196,6 +196,15 @@ func TestGivenProducerDesyncrhonizedOnHeadL1(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGivenConsumerWhenNextBlockNumberIsNoSetDontReceiveAnyBlockButAFullSyncEvent(t *testing.T) {
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Millisecond*100)
+	data := setupConsumerTest(t)
+	defer cancel()
+	data.ch <- *newL1SyncMessageControlWProducerIsFullySynced(200)
+	err := data.sut.Start(ctxTimeout, nil)
+	require.NoError(t, err)
+}
+
 func setupConsumerTest(t *testing.T) consumerTestData {
 	syncMock := newSynchronizerProcessBlockRangeInterfaceMock(t)
 	ch := make(chan L1SyncMessage, 10)

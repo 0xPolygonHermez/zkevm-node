@@ -110,9 +110,8 @@ func NewSynchronizer(
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
-	halterSlowDown := syncCommon.NewCriticalErrorSlowDown(5 * time.Second) //nolint:gomnd
 	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-		syncCommon.DefaultTimeProvider{}, L1SyncChecker, halterSlowDown)
+		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
