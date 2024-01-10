@@ -331,9 +331,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	showNotFoundTxLog := true // used to log debug only the first message when there is no txs to process
 	for {
 		start := now()
-		if f.batch.batchNumber == f.cfg.StopSequencerOnBatchNum {
-			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer batch number: %v", f.cfg.StopSequencerOnBatchNum))
-		}
 
 		tx := f.worker.GetBestFittingTx(f.batch.remainingResources)
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -551,12 +548,17 @@ func (f *finalizer) newWIPBatch(ctx context.Context) (*WipBatch, error) {
 		}
 	}
 
+	if f.batch.batchNumber+1 == f.cfg.StopSequencerOnBatchNum {
+		f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.StopSequencerOnBatchNum))
+	}
+
 	// Metadata for the next batch
 	stateRoot := f.batch.stateRoot
 	lastBatchNumber := f.batch.batchNumber
 
 	// Process Forced Batches
-	if len(f.nextForcedBatches) > 0 {
+	// But only if StopSequencerOnBatchNum is not enabled, in this case we process only regular batches to simplify the management of this situation
+	if (len(f.nextForcedBatches) > 0) && (f.cfg.StopSequencerOnBatchNum == 0) {
 		lastBatchNumber, stateRoot, err = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
 		if err != nil {
 			log.Warnf("failed to process forced batch, err: %s", err)
@@ -1047,6 +1049,11 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 		return fmt.Errorf("failed to check if batch is closed, err: %w", err)
 	}
 	log.Infof("Batch %d isClosed: %v", batchNum, isClosed)
+
+	if batchNum+1 == f.cfg.StopSequencerOnBatchNum {
+		f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.StopSequencerOnBatchNum))
+	}
+
 	if isClosed {
 		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
