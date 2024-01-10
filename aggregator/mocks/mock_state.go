@@ -207,17 +207,18 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	return r0, r1
 }
 
-// GetForcedBatchParentHash provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
-func (_m *StateMock) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+// GetForcedBatchParentHashAndGER provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
+func (_m *StateMock) GetForcedBatchParentHashAndGER(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, common.Hash, error) {
 	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetForcedBatchParentHash")
+		panic("no return value specified for GetForcedBatchParentHashAndGER")
 	}
 
 	var r0 common.Hash
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, error)); ok {
+	var r1 common.Hash
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, common.Hash, error)); ok {
 		return rf(ctx, forcedBatchNumber, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) common.Hash); ok {
@@ -228,13 +229,21 @@ func (_m *StateMock) GetForcedBatchParentHash(ctx context.Context, forcedBatchNu
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) common.Hash); ok {
 		r1 = rf(ctx, forcedBatchNumber, dbTx)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(common.Hash)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r2 = rf(ctx, forcedBatchNumber, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetL1InfoRootLeafByIndex provides a mock function with given fields: ctx, l1InfoTreeIndex, dbTx

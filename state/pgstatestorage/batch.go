@@ -614,8 +614,8 @@ func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state
 // CloseBatchInStorage closes a batch in the state storage
 func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	const closeBatchSQL = `UPDATE state.batch 
-		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE
-		  WHERE batch_num = $7`
+		SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE, global_exit_root = $7
+		  WHERE batch_num = $8`
 
 	e := p.getExecQuerier(dbTx)
 	batchResourcesJsonBytes, err := json.Marshal(receipt.BatchResources)
@@ -623,7 +623,7 @@ func (p *PostgresStorage) CloseBatchInStorage(ctx context.Context, receipt state
 		return err
 	}
 	_, err = e.Exec(ctx, closeBatchSQL, receipt.StateRoot.String(), receipt.LocalExitRoot.String(),
-		receipt.AccInputHash.String(), receipt.BatchL2Data, string(batchResourcesJsonBytes), receipt.ClosingReason, receipt.BatchNumber)
+		receipt.AccInputHash.String(), receipt.BatchL2Data, string(batchResourcesJsonBytes), receipt.ClosingReason, receipt.GlobalExitRoot.String(), receipt.BatchNumber)
 
 	return err
 }
@@ -973,19 +973,22 @@ func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNu
 	return common.HexToHash(parentHash), nil
 }
 
-// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number.
-func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
-	var parentHash string
+// GetForcedBatchParentHashAndGER returns the parent hash of the forced batch with the given number and the globalExitRoot.
+func (p *PostgresStorage) GetForcedBatchParentHashAndGER(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, common.Hash, error) {
+	var (
+		parentHash string
+		ger        string
+	)
 
-	const sql = `SELECT b.parent_hash FROM state.forced_batch f, state.block b
+	const sql = `SELECT b.parent_hash, f.global_exit_root FROM state.forced_batch f, state.block b
      WHERE f.forced_batch_num = $1 and b.block_num = f.block_num`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, sql, forcedBatchNumber).Scan(&parentHash)
+	err := e.QueryRow(ctx, sql, forcedBatchNumber).Scan(&parentHash, &ger)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return common.Hash{}, state.ErrNotFound
+		return common.Hash{}, common.Hash{}, state.ErrNotFound
 	} else if err != nil {
-		return common.Hash{}, err
+		return common.Hash{}, common.Hash{}, err
 	}
-	return common.HexToHash(parentHash), nil
+	return common.HexToHash(parentHash), common.HexToHash(ger), nil
 }

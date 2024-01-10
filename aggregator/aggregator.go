@@ -1039,15 +1039,15 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			}
 		}
 	} else {
-		l1InfoRoot = batchToVerify.GlobalExitRoot
 		// Initial batch must be handled differently
 		if batchToVerify.BatchNumber == 1 {
+			l1InfoRoot = batchToVerify.GlobalExitRoot
 			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			forcedBlockhashL1, err = a.State.GetForcedBatchParentHash(ctx, *batchToVerify.ForcedBatchNum, nil)
+			forcedBlockhashL1, l1InfoRoot, err = a.State.GetForcedBatchParentHashAndGER(ctx, *batchToVerify.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
 			}

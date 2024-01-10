@@ -222,7 +222,7 @@ type DSState interface {
 	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
 	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*L2Header, error)
 	GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
-	GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetForcedBatchParentHashAndGER(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, common.Hash, error)
 	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
 }
 
@@ -446,15 +446,15 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 							l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
 						}
 					} else {
-						l1InfoRoot = batch.GlobalExitRoot
 						// Initial batch must be handled differently
 						if batch.BatchNumber == 1 {
+							l1InfoRoot = batch.GlobalExitRoot
 							l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
 							if err != nil {
 								return err
 							}
 						} else {
-							l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
+							l1BlockHash, l1InfoRoot, err = stateDB.GetForcedBatchParentHashAndGER(ctx, *batch.ForcedBatchNum, nil)
 							if err != nil {
 								return err
 							}
