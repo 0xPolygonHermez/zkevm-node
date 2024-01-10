@@ -159,7 +159,7 @@ func main() {
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Create a stream server
-	streamServer, err := datastreamer.NewServer(c.Offline.Port, state.StreamTypeSequencer, c.Offline.Filename, &c.Log)
+	streamServer, err := datastreamer.NewServer(c.Offline.Port, 1, 137, state.StreamTypeSequencer, c.Offline.Filename, &c.Log) // nolint:gomnd
 	if err != nil {
 		return nil, err
 	}

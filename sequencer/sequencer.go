@@ -78,7 +78,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 	// Start stream server if enabled
 	if s.cfg.StreamServer.Enabled {
-		s.streamServer, err = datastreamer.NewServer(s.cfg.StreamServer.Port, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log)
+		s.streamServer, err = datastreamer.NewServer(s.cfg.StreamServer.Port, 1, 137, state.StreamTypeSequencer, s.cfg.StreamServer.Filename, &s.cfg.StreamServer.Log) // nolint:gomnd
 		if err != nil {
 			log.Fatalf("failed to create stream server, error: %v", err)
 		}
