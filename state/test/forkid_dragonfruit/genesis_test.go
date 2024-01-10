@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	test "github.com/0xPolygonHermez/zkevm-node/state/test/forkid_common"
@@ -53,6 +54,7 @@ func init() {
 	// This is important because we have relative paths to files containing test vectors
 	_, filename, _, _ := runtime.Caller(0)
 	dir := path.Join(path.Dir(filename), "../")
+	log.Infof("Changing working directory to: %s", dir)
 	err := os.Chdir(dir)
 	if err != nil {
 		panic(err)
@@ -70,9 +72,17 @@ func TestGenesisVectors(t *testing.T) {
 		var tv []genesisTestVectorReader
 		var data []byte
 		var err error
-		data, err = os.ReadFile(f)
-		if err != nil {
-			data, err = os.ReadFile("../" + f)
+		for _, prefix := range []string{"", "../", "../../", "../../../"} {
+			composedFile := prefix + f
+			data, err = os.ReadFile(composedFile)
+			if err == nil {
+				continue
+			}
+			cwd, errCwd := os.Getwd()
+			if errCwd != nil {
+				cwd = "??"
+			}
+			log.Infof("Error reading file %s: cwd: %s", composedFile, cwd)
 		}
 		require.NoError(t, err)
 		err = json.Unmarshal(data, &tv)
