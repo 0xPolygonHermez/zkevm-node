@@ -16,7 +16,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -81,9 +80,6 @@ type ClientSynchronizer struct {
 	l1SyncOrchestration      *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors        *processor_manager.L1EventProcessors
 	syncTrustedStateExecutor syncinterfaces.SyncTrustedStateExecutor
-	committeeMembers           []etherman.DataCommitteeMember
-	selectedCommitteeMember    int
-	dataCommitteeClientFactory client.ClientFactoryInterface
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -99,7 +95,6 @@ func NewSynchronizer(
 	genesis state.Genesis,
 	cfg Config,
 	runInDevelopmentMode bool,
-	clientFactory client.ClientFactoryInterface,
 ) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
@@ -121,7 +116,6 @@ func NewSynchronizer(
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
 		l1EventProcessors:       nil,
-		dataCommitteeClientFactory: clientFactory,
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
@@ -141,8 +135,7 @@ func NewSynchronizer(
 		log.Fatalf("L1SynchronizationMode is not valid. Valid values are: %s, %s", ParallelMode, SequentialMode)
 	}
 
-	err := res.loadCommittee()
-	return res, err
+	return res, nil
 }
 
 var waitDuration = time.Duration(0)

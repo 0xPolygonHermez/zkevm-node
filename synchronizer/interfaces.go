@@ -24,7 +24,6 @@ type EthermanInterface interface {
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
 	GetLatestVerifiedBatchNum() (uint64, error)
-	GetCurrentDataCommittee() (*etherman.DataCommittee, error)
 }
 
 // L1EventProcessor is the interface that wraps the Execute method for the incomming events from L1 SMC

@@ -12,11 +12,11 @@ import (
 	"runtime"
 	"time"
 
-	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -282,7 +282,15 @@ func runMigrations(c db.Config, name string) {
 }
 
 func newEtherman(c config.Config) (*etherman.Client, error) {
-	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
+	dacman, err := newDacman(c)
+	if err != nil {
+		return nil, err
+	}
+	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, dacman)
+}
+
+func newDacman(c config.Config) (*datacommittee.DataCommitteeMan, error) {
+	return nil, nil
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *ethtxmanager.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
@@ -317,7 +325,6 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, etm,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
-		&dataCommitteeClient.ClientFactory{},
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -405,7 +412,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 		log.Fatal(err)
 	}
 
-	auth, pk, err := etherman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
+	auth, _, err := etherman.LoadAuthFromKeyStore(cfg.SequenceSender.PrivateKey.Path, cfg.SequenceSender.PrivateKey.Password)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -415,7 +422,12 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, pk)
+	dacman, err := newDacman(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, dacman)
 	if err != nil {
 		log.Fatal(err)
 	}

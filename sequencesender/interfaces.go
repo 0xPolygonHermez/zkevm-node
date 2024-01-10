@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"time"
 
-	theEtherman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -22,7 +21,6 @@ type etherman interface {
 	EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
 	GetLatestBatchNumber() (uint64, error)
-	GetCurrentDataCommittee() (*theEtherman.DataCommittee, error)
 }
 
 // stateInterface gathers the methods required to interact with the state.
@@ -39,4 +37,8 @@ type stateInterface interface {
 type ethTxManager interface {
 	Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64, dbTx pgx.Tx) error
 	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx)
+}
+
+type dacmanInterface interface {
+	GetSignaturesAndAddrsFromDataCommittee(ctx context.Context, sequences []ethmanTypes.Sequence) ([]byte, error)
 }

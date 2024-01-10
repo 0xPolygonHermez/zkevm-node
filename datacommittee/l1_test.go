@@ -1,4 +1,4 @@
-package etherman
+package datacommittee
 
 import (
 	"math/big"
@@ -12,7 +12,7 @@ import (
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, _, da := newTestingEnv()
+	dacman, ethBackend, auth, da := newTestingEnv()
 
 	// Update the committee
 	requiredAmountOfSignatures := big.NewInt(2)
@@ -31,7 +31,7 @@ func TestUpdateDataCommitteeEvent(t *testing.T) {
 	ethBackend.Commit()
 
 	// Assert the committee update
-	actualSetup, err := etherman.GetCurrentDataCommittee()
+	actualSetup, err := dacman.GetCurrentDataCommittee()
 	require.NoError(t, err)
 	expectedMembers := []DataCommitteeMember{}
 	expectedSetup := DataCommittee{

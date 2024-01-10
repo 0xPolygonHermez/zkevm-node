@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -45,7 +44,6 @@ func newTestingEnv() (
 	auth *bind.TransactOpts,
 	polAddr common.Address,
 	br *polygonzkevmbridge.Polygonzkevmbridge,
-	da *cdkdatacommittee.Cdkdatacommittee,
 ) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -55,7 +53,7 @@ func newTestingEnv() (
 	if err != nil {
 		log.Fatal(err)
 	}
-	ethman, ethBackend, polAddr, br, da, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
+	ethman, ethBackend, polAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,12 +61,12 @@ func newTestingEnv() (
 	if err != nil {
 		log.Fatal(err)
 	}
-	return ethman, ethBackend, auth, polAddr, br, da
+	return ethman, ethBackend, auth, polAddr, br
 }
 
 func TestGEREvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, br, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -97,7 +95,7 @@ func TestGEREvent(t *testing.T) {
 
 func TestForcedBatchEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -133,7 +131,7 @@ func TestForcedBatchEvent(t *testing.T) {
 
 func TestSequencedBatchesEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, br, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -182,31 +180,31 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	// t.Log("Blocks: ", blocks)
-	// assert.Equal(t, 4, len(blocks))
-	// assert.Equal(t, 1, len(blocks[3].SequencedBatches))
-	// assert.Equal(t, crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)), common.Hash(blocks[3].SequencedBatches[0][1].TransactionsHash))
-	// assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].Timestamp)
-	// assert.Equal(t, ger, blocks[3].SequencedBatches[0][0].GlobalExitRoot)
-	// assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].Coinbase)
-	// assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].SequencerAddr)
-	// assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].MinForcedTimestamp)
-	// assert.Equal(t, 0, order[blocks[3].BlockHash][0].Pos)
-	t.Logf("Blocks: %+v", blocks)
-	assert.Equal(t, 3, len(blocks))
-	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
-	assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].PolygonRollupBaseEtrogBatchData.Transactions)
-	assert.Equal(t, uint64(0), blocks[2].SequencedBatches[0][0].ForcedTimestamp)
-	assert.Equal(t, [32]byte{}, blocks[2].SequencedBatches[0][0].ForcedGlobalExitRoot)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
-	assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
-	assert.NotEqual(t, common.Hash{}, blocks[2].SequencedBatches[0][0].ForcedBlockHashL1)
-	assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
+	t.Log("Blocks: ", blocks)
+	assert.Equal(t, 4, len(blocks))
+	assert.Equal(t, 1, len(blocks[3].SequencedBatches))
+	assert.Equal(t, crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)), common.Hash(blocks[3].SequencedBatches[0][1].TransactionsHash))
+	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].Timestamp)
+	assert.Equal(t, [32]byte{}, blocks[3].SequencedBatches[0][0].ForcedGlobalExitRoot)
+	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].Coinbase)
+	assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].SequencerAddr)
+	assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].MinForcedTimestamp)
+	assert.Equal(t, 0, order[blocks[3].BlockHash][0].Pos)
+	// t.Logf("Blocks: %+v", blocks)
+	// assert.Equal(t, 3, len(blocks))
+	// assert.Equal(t, 1, len(blocks[2].SequencedBatches))
+	// assert.Equal(t, common.Hex2Bytes(rawTxs), blocks[2].SequencedBatches[0][1].PolygonRollupBaseEtrogBatchData.Transactions)
+	// assert.Equal(t, uint64(0), blocks[2].SequencedBatches[0][0].ForcedTimestamp)
+	// assert.Equal(t, [32]byte{}, blocks[2].SequencedBatches[0][0].ForcedGlobalExitRoot)
+	// assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].Coinbase)
+	// assert.Equal(t, auth.From, blocks[2].SequencedBatches[0][0].SequencerAddr)
+	// assert.NotEqual(t, common.Hash{}, blocks[2].SequencedBatches[0][0].ForcedBlockHashL1)
+	// assert.Equal(t, 0, order[blocks[2].BlockHash][0].Pos)
 }
 
 func TestVerifyBatchEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -249,7 +247,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 
 func TestSequenceForceBatchesEvent(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, _, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, _ := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -309,7 +307,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 
 func TestSendSequences(t *testing.T) {
 	// Set up testing environment
-	etherman, ethBackend, auth, _, br, _ := newTestingEnv()
+	etherman, ethBackend, auth, _, br := newTestingEnv()
 
 	// Read currentBlock
 	ctx := context.Background()
@@ -353,7 +351,7 @@ func TestSendSequences(t *testing.T) {
 
 func TestGasPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
@@ -372,7 +370,7 @@ func TestGasPrice(t *testing.T) {
 
 func TestErrorEthGasStationPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	ethGasStationM := new(ethGasStationMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, ethGasStationM}
 	ctx := context.Background()
@@ -391,7 +389,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 
 func TestErrorEtherScanPrice(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	etherscanM := new(etherscanMock)
 	ethGasStationM := new(ethGasStationMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
@@ -405,7 +403,7 @@ func TestErrorEtherScanPrice(t *testing.T) {
 
 func TestGetForks(t *testing.T) {
 	// Set up testing environment
-	etherman, _, _, _, _, _ := newTestingEnv()
+	etherman, _, _, _, _ := newTestingEnv()
 	ctx := context.Background()
 	forks, err := etherman.GetForks(ctx, 0, 132)
 	require.NoError(t, err)

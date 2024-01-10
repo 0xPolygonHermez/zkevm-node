@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
@@ -180,7 +180,6 @@ type Client struct {
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
 	Pol                      *pol.Pol
-	DataCommittee            *cdkdatacommittee.Cdkdatacommittee
 	SCAddresses              []common.Address
 
 	RollupID uint32
@@ -190,10 +189,12 @@ type Client struct {
 	l1Cfg L1Config
 	cfg   Config
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
+
+	dacman *datacommittee.DataCommitteeMan
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
+func NewClient(cfg Config, l1Config L1Config, dacman *datacommittee.DataCommitteeMan) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -218,10 +219,6 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
-	dataCommittee, err := cdkdatacommittee.NewCdkdatacommittee(l1Config.DataCommitteeAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
@@ -253,16 +250,16 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		RollupManager:         rollupManager,
 		Pol:                   pol,
 		GlobalExitRootManager: globalExitRoot,
-		DataCommittee:         dataCommittee,
 		SCAddresses:           scAddresses,
 		RollupID:              rollupID,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		l1Cfg: l1Config,
-		cfg:   cfg,
-		auth:  map[common.Address]bind.TransactOpts{},
+		l1Cfg:  l1Config,
+		cfg:    cfg,
+		auth:   map[common.Address]bind.TransactOpts{},
+		dacman: dacman,
 	}, nil
 }
 
@@ -1134,7 +1131,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 
 	var sequences []SequencedBatch
 	if sb.NumBatch != 1 {
-		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
+		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.dacman)
 		if err != nil {
 			return fmt.Errorf("error decoding the sequences: %v", err)
 		}
@@ -1217,7 +1214,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, dacman *datacommittee.DataCommitteeMan) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
@@ -1236,32 +1233,69 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	if err != nil {
 		return nil, err
 	}
-	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
 	bytedata, err := json.Marshal(data[0])
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(bytedata, &sequences)
-	if err != nil {
-		return nil, err
-	}
-	coinbase := (data[1]).(common.Address)
-	sequencedBatches := make([]SequencedBatch, len(sequences))
-	for i, seq := range sequences {
-		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
-		s := seq
-		sequencedBatches[i] = SequencedBatch{
-			BatchNumber:                     bn,
-			L1InfoRoot:                      &l1InfoRoot,
-			SequencerAddr:                   sequencer,
-			TxHash:                          txHash,
-			Nonce:                           nonce,
-			Coinbase:                        coinbase,
-			PolygonRollupBaseEtrogBatchData: &s,
+	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
+	switch method.Name {
+	case "rollup":
+		err = json.Unmarshal(bytedata, &sequences)
+		if err != nil {
+			return nil, err
 		}
-	}
+		coinbase := (data[1]).(common.Address)
+		sequencedBatches := make([]SequencedBatch, len(sequences))
+		for i, seq := range sequences {
+			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+			s := seq
+			sequencedBatches[i] = SequencedBatch{
+				BatchNumber:                     bn,
+				L1InfoRoot:                      &l1InfoRoot,
+				SequencerAddr:                   sequencer,
+				TxHash:                          txHash,
+				Nonce:                           nonce,
+				Coinbase:                        coinbase,
+				PolygonRollupBaseEtrogBatchData: &s,
+			}
+		}
 
-	return sequencedBatches, nil
+		return sequencedBatches, nil
+	case "Validium":
+		var sequencesValidium []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
+		err = json.Unmarshal(bytedata, &sequencesValidium)
+		if err != nil {
+			return nil, err
+		}
+		coinbase := (data[1]).(common.Address)
+		sequencedBatches := make([]SequencedBatch, len(sequences))
+		for i, seq := range sequencesValidium {
+			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+			batchL2Data, err := dacman.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
+			if err != nil {
+				return nil, err
+			}
+			s := polygonzkevm.PolygonRollupBaseEtrogBatchData{
+				Transactions:         batchL2Data, // TODO: get data from DA
+				ForcedGlobalExitRoot: seq.ForcedGlobalExitRoot,
+				ForcedTimestamp:      seq.ForcedTimestamp,
+				ForcedBlockHashL1:    seq.ForcedBlockHashL1,
+			}
+			sequencedBatches[i] = SequencedBatch{
+				BatchNumber:                     bn,
+				L1InfoRoot:                      &l1InfoRoot,
+				SequencerAddr:                   sequencer,
+				TxHash:                          txHash,
+				Nonce:                           nonce,
+				Coinbase:                        coinbase,
+				PolygonRollupBaseEtrogBatchData: &s,
+			}
+		}
+
+		return sequencedBatches, nil
+	default:
+		return nil, fmt.Errorf("unexpected method called in sequence batches transaction: %s", method.RawName)
+	}
 }
 
 func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {

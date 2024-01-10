@@ -31,7 +31,7 @@ func TestExploratoryWorker(t *testing.T) {
 		GlobalExitRootManagerAddr: common.HexToAddress("0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"),
 	}
 
-	ethermanClient, err := etherman.NewClient(cfg, l1Config)
+	ethermanClient, err := etherman.NewClient(cfg, l1Config, nil)
 	require.NoError(t, err)
 	worker := newWorker(ethermanClient)
 	ch := make(chan responseRollupInfoByBlockRange)
