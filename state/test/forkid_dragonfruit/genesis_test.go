@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	test "github.com/0xPolygonHermez/zkevm-node/state/test/forkid_common"
@@ -53,8 +52,7 @@ func init() {
 	// Change dir to project root
 	// This is important because we have relative paths to files containing test vectors
 	_, filename, _, _ := runtime.Caller(0)
-	dir := path.Join(path.Dir(filename), "../../../")
-	log.Infof("Changing working directory to: %s", dir)
+	dir := path.Join(path.Dir(filename), "../")
 	err := os.Chdir(dir)
 	if err != nil {
 		panic(err)
@@ -65,22 +63,12 @@ func TestGenesisVectors(t *testing.T) {
 	// Load test vectors
 	var testVectors []genesisTestVectorReader
 	files := []string{
-		"test/vectors/src/merkle-tree/smt-full-genesis.json",
-		"test/vectors/src/merkle-tree/smt-genesis.json",
+		"../../test/vectors/src/merkle-tree/smt-full-genesis.json",
+		"../../test/vectors/src/merkle-tree/smt-genesis.json",
 	}
 	for _, f := range files {
 		var tv []genesisTestVectorReader
-		var data []byte
-		var err error
-
-		data, err = os.ReadFile(f)
-		if err != nil {
-			cwd, errCwd := os.Getwd()
-			if errCwd != nil {
-				cwd = "??"
-			}
-			log.Infof("Error reading file %s: cwd: %s", f, cwd)
-		}
+		data, err := os.ReadFile(f)
 		require.NoError(t, err)
 		err = json.Unmarshal(data, &tv)
 		require.NoError(t, err)
