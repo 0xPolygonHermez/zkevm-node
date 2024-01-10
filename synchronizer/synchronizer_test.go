@@ -36,7 +36,6 @@ type mocks struct {
 	DbTx         *syncMocks.DbTxMock
 	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
 	//EventLog     *eventLogMock
-	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 }
 
 // Feature #2220 and  #2239: Optimize Trusted state synchronization
@@ -74,10 +73,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	m.Etherman.
-		On("GetCurrentDataCommittee").
-		Return(&etherman.DataCommittee{}, nil)
-	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false, nil)
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -116,10 +112,7 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	m.Etherman.
-		On("GetCurrentDataCommittee").
-		Return(&etherman.DataCommittee{}, nil)
-	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false, nil)
+	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
 	// state preparation
@@ -190,7 +183,6 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			t := time.Now()
-			txs := []byte{}
 			sequencedBatch := etherman.SequencedBatch{
 				BatchNumber:   uint64(2),
 				Coinbase:      common.HexToAddress("0x222"),
@@ -262,10 +254,6 @@ func TestForcedBatch(t *testing.T) {
 			m.State.
 				On("AddBlock", ctx, stateBlock, m.DbTx).
 				Return(nil).
-				Once()
-			m.State.
-				On("GetBatchL2DataByNumber", ctx, uint64(2), nil).
-				Return(txs, nil).
 				Once()
 
 			fb := []state.ForcedBatch{{
@@ -377,10 +365,7 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	m.Etherman.
-		On("GetCurrentDataCommittee").
-		Return(&etherman.DataCommittee{}, nil)
-	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false, nil)
+	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
 	// state preparation

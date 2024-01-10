@@ -306,7 +306,7 @@ func (s *State) monitorNewL2Blocks() {
 
 func (s *State) handleEvents() {
 	for newL2BlockEvent := range s.newL2BlockEvents {
-		log.Infof("[handleEvents] new l2 block event detected for block: %v", newL2BlockEvent.Block.NumberU64())
+		log.Debugf("[handleEvents] new l2 block event detected for block: %v", newL2BlockEvent.Block.NumberU64())
 		if len(s.newL2BlockEventHandlers) == 0 {
 			continue
 		}
@@ -321,7 +321,7 @@ func (s *State) handleEvents() {
 						log.Errorf("failed and recovered in NewL2BlockEventHandler: %v", r)
 					}
 				}()
-				log.Infof("[handleEvents] triggering new l2 block event handler for block: %v", e.Block.NumberU64())
+				log.Debugf("[handleEvents] triggering new l2 block event handler for block: %v", e.Block.NumberU64())
 				start := time.Now()
 				h(e)
 				log.Debugf("[handleEvents] new l2 block event handler for block %v took %v to be executed", e.Block.NumberU64(), time.Since(start))

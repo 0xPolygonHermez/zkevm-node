@@ -94,8 +94,7 @@ func NewSynchronizer(
 	eventLog syncinterfaces.EventLogInterface,
 	genesis state.Genesis,
 	cfg Config,
-	runInDevelopmentMode bool,
-) (Synchronizer, error) {
+	runInDevelopmentMode bool) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 

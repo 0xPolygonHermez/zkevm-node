@@ -40,7 +40,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
 
 	// DAC Setup
-	dataCommitteeAddr, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
+	_, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -191,7 +191,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
 		RollupID:              rollupID,
-		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr, dataCommitteeAddr},
+		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
 		cfg:                   cfg,
 	}
