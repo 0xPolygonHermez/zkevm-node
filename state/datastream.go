@@ -446,6 +446,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 							l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
 						}
 					} else {
+						l1InfoRoot = batch.GlobalExitRoot
 						// Initial batch must be handled differently
 						if batch.BatchNumber == 1 {
 							l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
@@ -453,7 +454,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 								return err
 							}
 						} else {
-							l1InfoRoot = batch.GlobalExitRoot
 							l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
 							if err != nil {
 								return err
