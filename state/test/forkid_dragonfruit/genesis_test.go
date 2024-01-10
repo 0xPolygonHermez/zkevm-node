@@ -68,7 +68,12 @@ func TestGenesisVectors(t *testing.T) {
 	}
 	for _, f := range files {
 		var tv []genesisTestVectorReader
-		data, err := os.ReadFile(f)
+		var data []byte
+		var err error
+		data, err = os.ReadFile(f)
+		if err != nil {
+			data, err = os.ReadFile("../" + f)
+		}
 		require.NoError(t, err)
 		err = json.Unmarshal(data, &tv)
 		require.NoError(t, err)
