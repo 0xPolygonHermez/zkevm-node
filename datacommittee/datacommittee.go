@@ -27,30 +27,52 @@ type DataCommittee struct {
 }
 
 type DataCommitteeMan struct {
-	DataCommitteeContract      *cdkdatacommittee.Cdkdatacommittee
-	isTrustedSequencer         bool
-	zkEVMClient                syncinterfaces.ZKEVMClientInterface
-	committeeMembers           []DataCommitteeMember
-	state                      stateInterface
-	selectedCommitteeMember    int
-	dataCommitteeClientFactory client.ClientFactoryInterface
-	ctx                        context.Context
-	l2Coinbase                 common.Address
+	DataCommitteeContract *cdkdatacommittee.Cdkdatacommittee
+	isTrustedSequencer    bool
+	l2Coinbase            common.Address
+
 	privKey                    *ecdsa.PrivateKey
+	state                      stateInterface
+	zkEVMClient                syncinterfaces.ZKEVMClientInterface
+	dataCommitteeClientFactory client.ClientFactoryInterface
+
+	ctx                     context.Context
+	committeeMembers        []DataCommitteeMember
+	selectedCommitteeMember int
 }
 
-func NewDataCommitteeMan(dataCommitteeAddr common.Address, l1RPCURL string) (*DataCommitteeMan, error) {
-	ethClient, err := ethclient.Dial(l1RPCURL)
+type Config struct {
+	L1RPCURL           string
+	DataCommitteeAddr  common.Address
+	IsTrustedSequencer bool
+	L2Coinbase         common.Address
+}
+
+func NewDataCommitteeMan(
+	c Config,
+	privKey *ecdsa.PrivateKey,
+	state stateInterface,
+	zkEVMClient syncinterfaces.ZKEVMClientInterface,
+	dataCommitteeClientFactory client.ClientFactoryInterface,
+) (*DataCommitteeMan, error) {
+	ethClient, err := ethclient.Dial(c.L1RPCURL)
 	if err != nil {
-		log.Errorf("error connecting to %s: %+v", l1RPCURL, err)
+		log.Errorf("error connecting to %s: %+v", c.L1RPCURL, err)
 		return nil, err
 	}
-	dataCommittee, err := cdkdatacommittee.NewCdkdatacommittee(dataCommitteeAddr, ethClient)
+	dataCommittee, err := cdkdatacommittee.NewCdkdatacommittee(c.DataCommitteeAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}
 	dacman := &DataCommitteeMan{
-		DataCommitteeContract: dataCommittee,
+		DataCommitteeContract:      dataCommittee,
+		isTrustedSequencer:         c.IsTrustedSequencer,
+		l2Coinbase:                 c.L2Coinbase,
+		privKey:                    privKey,
+		state:                      state,
+		zkEVMClient:                zkEVMClient,
+		dataCommitteeClientFactory: dataCommitteeClientFactory,
+		ctx:                        context.Background(),
 	}
 	err = dacman.loadCommittee()
 	return dacman, err

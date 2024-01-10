@@ -290,7 +290,10 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 }
 
 func newDacman(c config.Config) (*datacommittee.DataCommitteeMan, error) {
-	return nil, nil
+	return datacommittee.NewDataCommitteeMan(
+		c.NetworkConfig.L1Config.DataCommitteeAddr,
+		c.Etherman.URL,
+	)
 }
 
 func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *ethtxmanager.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
