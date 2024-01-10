@@ -1152,6 +1152,7 @@ func TestGetLatestIndex(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
 	idx, err := testState.GetLatestIndex(ctx, dbTx)
 	require.Error(t, err)
 	t.Log("Initial index retrieved: ", idx)
@@ -1205,7 +1206,6 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 	timeData, err = testState.GetBatchTimestamp(ctx, batchNumber, &forcedForkId, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, timestampBatch, *timeData)
-
 }
 
 func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
@@ -1243,5 +1243,4 @@ func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, (*time.Time)(nil), read.TimestampBatchEtrog)
-
 }
