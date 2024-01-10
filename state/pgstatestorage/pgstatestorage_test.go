@@ -1152,6 +1152,7 @@ func TestGetLatestIndex(t *testing.T) {
 	ctx := context.Background()
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
 	idx, err := testState.GetLatestIndex(ctx, dbTx)
 	require.Error(t, err)
 	t.Log("Initial index retrieved: ", idx)
