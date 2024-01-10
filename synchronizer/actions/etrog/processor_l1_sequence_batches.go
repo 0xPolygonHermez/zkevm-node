@@ -85,7 +85,7 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 // Process process event
 func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
-		return syncCommon.ErrInvalidParams
+		return actions.ErrInvalidParams
 	}
 	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
 	return err

@@ -26,7 +26,7 @@ var (
 	ErrFailExecuteBatch = errors.New("fail execute batch")
 	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
 	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
-	// ErrClosingBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
+	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 )
 

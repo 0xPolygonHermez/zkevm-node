@@ -2,9 +2,15 @@ package actions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/jackc/pgx/v4"
+)
+
+var (
+	// ErrInvalidParams is used when the object is not found
+	ErrInvalidParams = errors.New("invalid params")
 )
 
 // ForkIdType is the type of the forkId
