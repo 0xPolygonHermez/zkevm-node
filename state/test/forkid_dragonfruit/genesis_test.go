@@ -53,7 +53,7 @@ func init() {
 	// Change dir to project root
 	// This is important because we have relative paths to files containing test vectors
 	_, filename, _, _ := runtime.Caller(0)
-	dir := path.Join(path.Dir(filename), "../")
+	dir := path.Join(path.Dir(filename), "../../../")
 	log.Infof("Changing working directory to: %s", dir)
 	err := os.Chdir(dir)
 	if err != nil {
@@ -72,17 +72,14 @@ func TestGenesisVectors(t *testing.T) {
 		var tv []genesisTestVectorReader
 		var data []byte
 		var err error
-		for _, prefix := range []string{"", "../", "../../", "../../../"} {
-			composedFile := prefix + f
-			data, err = os.ReadFile(composedFile)
-			if err == nil {
-				continue
-			}
+
+		data, err = os.ReadFile(f)
+		if err != nil {
 			cwd, errCwd := os.Getwd()
 			if errCwd != nil {
 				cwd = "??"
 			}
-			log.Infof("Error reading file %s: cwd: %s", composedFile, cwd)
+			log.Infof("Error reading file %s: cwd: %s", f, cwd)
 		}
 		require.NoError(t, err)
 		err = json.Unmarshal(data, &tv)
