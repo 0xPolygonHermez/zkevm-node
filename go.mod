@@ -182,4 +182,6 @@ require (
 
 replace github.com/0xPolygon/cdk-data-availability => github.com/okx/x1-data-availability v0.0.0-20231113064732-3afebde141fc
 
+replace github.com/0xPolygonHermez/zkevm-data-streamer => github.com/okx/x1-data-streamer v0.1.15-0.20240104015724-fe3720937c53
+
 replace github.com/0xPolygonHermez/zkevm-node => ./
