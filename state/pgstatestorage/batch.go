@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -482,15 +483,21 @@ func scanForcedBatch(row pgx.Row) (state.ForcedBatch, error) {
 	var (
 		gerStr      string
 		coinbaseStr string
+		rawTxsStr   string
+		err         error
 	)
 	if err := row.Scan(
 		&forcedBatch.ForcedBatchNumber,
 		&gerStr,
 		&forcedBatch.ForcedAt,
-		&forcedBatch.RawTxsData,
+		&rawTxsStr,
 		&coinbaseStr,
 		&forcedBatch.BlockNumber,
 	); err != nil {
+		return forcedBatch, err
+	}
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxsStr)
+	if err != nil {
 		return forcedBatch, err
 	}
 	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
