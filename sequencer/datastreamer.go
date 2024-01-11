@@ -50,7 +50,7 @@ func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.Proce
 	return nil
 }
 
-func (f *finalizer) DSSendBatchBookmark(batchNumber uint64) error {
+func (f *finalizer) DSSendBatchBookmark(batchNumber uint64) {
 	// Check if stream server enabled
 	if f.streamServer != nil {
 		// Send batch bookmark to the streamer
@@ -59,6 +59,4 @@ func (f *finalizer) DSSendBatchBookmark(batchNumber uint64) error {
 			Value: batchNumber,
 		}
 	}
-
-	return nil
 }
