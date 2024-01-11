@@ -23,6 +23,7 @@ var (
 	errConsumerStopped                      = errors.New("consumer:stopped by request")
 	errConsumerStoppedBecauseIsSynchronized = errors.New("consumer:stopped because is synchronized")
 	errL1Reorg                              = errors.New("consumer: L1 reorg detected")
+	errConsumerAndProducerDesynchronized    = errors.New("consumer: consumer and producer are desynchronized")
 )
 
 // ConfigConsumer configuration for L1 sync parallel consumer
@@ -131,7 +132,12 @@ func (l *l1RollupInfoConsumer) processIncommingRollupControlData(control l1Consu
 	if control.event == eventProducerIsFullySynced {
 		itemsInChannel := len(l.chIncommingRollupInfo)
 		if itemsInChannel == 0 {
-			log.Infof("consumer: received a fullSync and nothing pending in channel to process, so stopping consumer")
+			consumerHigherBlockReceived := control.parameter
+			log.Infof("consumer: received a fullSync and nothing pending in channel to process, so stopping consumer. lastBlock: %d", consumerHigherBlockReceived)
+			if (l.highestBlockProcessed != invalidBlockNumber) && (l.highestBlockProcessed != consumerHigherBlockReceived) {
+				log.Warnf("consumer: received a fullSync but highestBlockProcessed (%d) is not the same as consumerHigherBlockRequested (%d)", l.highestBlockProcessed, consumerHigherBlockReceived)
+				return errConsumerAndProducerDesynchronized
+			}
 			return errConsumerStoppedBecauseIsSynchronized
 		} else {
 			log.Infof("consumer: received a fullSync but still have %d items in channel to process, so not stopping consumer", itemsInChannel)
@@ -174,7 +180,7 @@ func (l *l1RollupInfoConsumer) processIncommingRollupInfoData(rollupInfo rollupI
 	// Uncommented that line to produce a infinite loop of errors, and resets! (just for develop)
 	//return errors.New("forcing an continuous error!")
 	statisticsMsg := l.statistics.onStartProcessIncommingRollupInfoData(rollupInfo)
-	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), statisticsMsg)
+	log.Infof("consumer: processing rollupInfo #%000d: range:%s num_blocks [%d] highest_block [%d] statistics:%s", l.statistics.numProcessedRollupInfo, rollupInfo.blockRange.String(), len(rollupInfo.blocks), l.highestBlockProcessed, statisticsMsg)
 	timeProcessingStart := time.Now()
 
 	if l.lastEthBlockReceived != nil {

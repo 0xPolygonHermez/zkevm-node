@@ -75,6 +75,8 @@ type syncStatusInterface interface {
 	// BlockNumberIsInsideUnsafeArea returns if this block is beyond Finalized (so it could be reorg)
 	// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
 	BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool
+	// GetHighestBlockReceived returns the highest block requested
+	GetHighestBlockReceived() uint64
 }
 
 type workersInterface interface {
@@ -264,8 +266,9 @@ func (l *L1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
 	if previousStatus != newStatus {
 		log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
 		if newStatus == producerSynchronized {
-			log.Infof("producer: send a message to consumer to indicate that we are synchronized")
-			l.sendPackages([]L1SyncMessage{*newL1SyncMessageControl(eventProducerIsFullySynced)})
+			highestBlock := l.syncStatus.GetHighestBlockReceived()
+			log.Infof("producer: send a message to consumer to indicate that we are synchronized. highestBlockRequested:%d", highestBlock)
+			l.sendPackages([]L1SyncMessage{*newL1SyncMessageControlWProducerIsFullySynced(highestBlock)})
 		}
 	}
 }

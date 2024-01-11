@@ -330,3 +330,9 @@ func (s *syncStatus) BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool {
 	distanceInBlockToLatest := s.lastBlockOnL1 - blockNumber
 	return distanceInBlockToLatest < maximumBlockDistanceFromLatestToFinalized
 }
+
+func (s *syncStatus) GetHighestBlockReceived() uint64 {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+	return s.lastBlockStoreOnStateDB
+}

@@ -1,14 +1,5 @@
 package synchronizer
 
-// All this function must be deleted becaue have been move to a l1_executor:
-// - pendingFlushID
-// - halt
-// - reorgPool
-// - processSequenceForceBatch
-// - processSequenceBatches
-// - processForkID
-// - checkTrustedState
-
 import (
 	"context"
 	"errors"
@@ -80,6 +71,7 @@ type ClientSynchronizer struct {
 	l1SyncOrchestration      *l1_parallel_sync.L1SyncOrchestration
 	l1EventProcessors        *processor_manager.L1EventProcessors
 	syncTrustedStateExecutor syncinterfaces.SyncTrustedStateExecutor
+	halter                   syncinterfaces.CriticalErrorHandler
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -97,7 +89,6 @@ func NewSynchronizer(
 	runInDevelopmentMode bool) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
-
 	res := &ClientSynchronizer{
 		isTrustedSequencer:      isTrustedSequencer,
 		state:                   st,
@@ -115,10 +106,12 @@ func NewSynchronizer(
 		previousExecutorFlushID: 0,
 		l1SyncOrchestration:     nil,
 		l1EventProcessors:       nil,
+		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
 	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
-	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res, syncCommon.DefaultTimeProvider{}, L1SyncChecker)
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
