@@ -238,6 +238,16 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		}
 
 		bookMark := DSBookMark{
+			Type:  BookMarkTypeBatch,
+			Value: genesisL2Block.BatchNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+		if err != nil {
+			return err
+		}
+
+		bookMark = DSBookMark{
 			Type:  BookMarkTypeL2Block,
 			Value: genesisL2Block.L2BlockNumber,
 		}
@@ -363,6 +373,26 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		for _, batch := range fullBatches {
 			if len(batch.L2Blocks) == 0 {
 				// Empty batch
+				err = streamServer.StartAtomicOp()
+				if err != nil {
+					return err
+				}
+
+				bookMark := DSBookMark{
+					Type:  BookMarkTypeBatch,
+					Value: batch.BatchNumber,
+				}
+
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					return err
+				}
+
+				err = streamServer.CommitAtomicOp()
+				if err != nil {
+					return err
+				}
+
 				// Check if there is a GER update
 				if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
 					updateGer := DSUpdateGER{
@@ -399,6 +429,16 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				return err
 			}
 
+			bookMark := DSBookMark{
+				Type:  BookMarkTypeBatch,
+				Value: batch.BatchNumber,
+			}
+
+			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				return err
+			}
+
 			for _, l2block := range batch.L2Blocks {
 				if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
 					continue
@@ -415,7 +455,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					ForkID:        l2block.ForkID,
 				}
 
-				bookMark := DSBookMark{
+				bookMark = DSBookMark{
 					Type:  BookMarkTypeL2Block,
 					Value: blockStart.L2BlockNumber,
 				}
