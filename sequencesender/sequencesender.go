@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
@@ -32,12 +33,13 @@ var (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg          Config
-	state        stateInterface
-	ethTxManager ethTxManager
-	etherman     etherman
-	eventLog     *event.EventLog
-	streamClient *datastreamer.StreamClient
+	cfg                Config
+	state              stateInterface
+	ethTxManager       ethTxManager
+	etherman           etherman
+	eventLog           *event.EventLog
+	latestVirtualBatch uint64
+	streamClient       *datastreamer.StreamClient
 }
 
 // New inits sequence sender
@@ -53,13 +55,7 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	// Get latest virtual state batch
-	latestSequencedBatchNumber, err := s.etherman.GetLatestBatchNumber()
-	if err != nil {
-		log.Fatalf("error getting latest sequenced batch, error: %v", err)
-	} else {
-		log.Debugf("[SequenceSender] latest batch number %d", latestSequencedBatchNumber)
-	}
+	var err error
 
 	// Create datastream client
 	s.streamClient, err = datastreamer.NewClient(s.cfg.StreamClient.Server, state.StreamTypeSequencer)
@@ -75,17 +71,27 @@ func (s *SequenceSender) Start(ctx context.Context) {
 		log.Fatalf("failed to start stream client, error: %v", err)
 	}
 
+	// Handle the streaming
+	s.streamClient.SetProcessEntryFunc(s.handleReceivedDataStream)
+
+	// Get latest virtual state batch from L1
+	s.latestVirtualBatch, err = s.etherman.GetLatestBatchNumber()
+	if err != nil {
+		log.Fatalf("error getting latest sequenced batch, error: %v", err)
+	} else {
+		log.Debugf("[SequenceSender] latest batch number %d", s.latestVirtualBatch)
+	}
+
 	// Set starting point of the streaming
-	// TODO: Stream allows starting from an entry number or L2 block number (via bookmark), from batch?
-	s.streamClient.FromEntry = latestSequencedBatchNumber
+	bookmark := []byte{state.BookMarkTypeBatch}
+	bookmark = binary.LittleEndian.AppendUint64(bookmark, s.latestVirtualBatch+1)
+	s.streamClient.FromBookmark = bookmark
 
 	// Start receiving the streaming
 	err = s.streamClient.ExecCommand(datastreamer.CmdStart)
 	if err != nil {
 		log.Fatalf("failed to connect to the streaming")
 	}
-
-	// TODO: What to do every time stream data is received
 
 	// Sequence
 	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
@@ -358,4 +364,24 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 	}
 
 	return true
+}
+
+func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *datastreamer.StreamClient, ss *datastreamer.StreamServer) error {
+	switch e.Type {
+	case state.EntryTypeBookMark:
+		bookmarkType := e.Data[0]
+		bookmarkValue := binary.LittleEndian.Uint64(e.Data[1:9])
+		log.Infof("bookmark type %d value %d at entry %d", bookmarkType, bookmarkValue, e.Number)
+
+	case state.EntryTypeL2BlockStart:
+		log.Infof("block start at entry %d", e.Number)
+
+	case state.EntryTypeL2Tx:
+
+	case state.EntryTypeL2BlockEnd:
+
+	case state.EntryTypeUpdateGER:
+	}
+
+	return nil
 }

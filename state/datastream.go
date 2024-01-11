@@ -27,6 +27,8 @@ const (
 	EntryTypeUpdateGER datastreamer.EntryType = 4
 	// BookMarkTypeL2Block represents a L2 block bookmark
 	BookMarkTypeL2Block byte = 0
+	// BookMarkTypeBatch represents a batch
+	BookMarkTypeBatch byte = 1
 	// SystemSC is the system smart contract address
 	SystemSC = "0x000000000000000000000000000000005ca1ab1e"
 	// posConstant is the constant used to compute the position of the intermediate state root
