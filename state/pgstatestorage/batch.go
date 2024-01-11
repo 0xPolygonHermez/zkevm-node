@@ -760,7 +760,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.local_exit_root,
 			b.acc_input_hash,
 			b.state_root,
-			b.timestamp,
+			v.timestamp_batch_etrog,
 			b.coinbase,
 			b.raw_txs_data,
 			b.forced_batch_num,
