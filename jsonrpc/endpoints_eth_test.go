@@ -49,7 +49,7 @@ func TestBlockNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	type testCase struct {
 		Name           string
@@ -108,7 +108,7 @@ func TestBlockNumber(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m)
 
-			result, err := c.BlockNumber(context.Background())
+			result, err := zkEVMClient.BlockNumber(context.Background())
 			assert.Equal(t, testCase.ExpectedResult, result)
 
 			if err != nil || testCase.ExpectedError != nil {
@@ -1251,8 +1251,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
-		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		BlockInfoRoot:   l2Block.BlockInfoRoot(),
+		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
+		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
 	}
@@ -1408,6 +1408,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
+				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
 				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
 				tc.ExpectedResult.Nonce = rpcBlockNonce
 
@@ -1454,14 +1456,14 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(m, &tc)
 
-			result, err := c.BlockByNumber(context.Background(), tc.Number)
+			result, err := zkEVMClient.BlockByNumber(context.Background(), tc.Number)
 
 			if result != nil || tc.ExpectedResult != nil {
 				assert.Equal(t, tc.ExpectedResult.ParentHash.String(), result.ParentHash.String())

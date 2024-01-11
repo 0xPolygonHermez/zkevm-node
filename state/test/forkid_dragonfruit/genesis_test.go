@@ -63,8 +63,8 @@ func TestGenesisVectors(t *testing.T) {
 	// Load test vectors
 	var testVectors []genesisTestVectorReader
 	files := []string{
-		"test/vectors/src/merkle-tree/smt-full-genesis.json",
-		"test/vectors/src/merkle-tree/smt-genesis.json",
+		"../../test/vectors/src/merkle-tree/smt-full-genesis.json",
+		"../../test/vectors/src/merkle-tree/smt-genesis.json",
 	}
 	for _, f := range files {
 		var tv []genesisTestVectorReader

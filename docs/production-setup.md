@@ -85,7 +85,7 @@ There are some fundamental changes that can be done towards the basic setup, in 
 
 ### DB
 
-In the basic setup, there are Postgres being instanciated as Docker containers. For better performance is recommended to:
+In the basic setup, there are Postgres being instantiated as Docker containers. For better performance is recommended to:
 
 - Run dedicated instances for Postgres. To achieve this you will need to:
   - Remove the Postgres services (`zkevm-pool-db` and `zkevm-state-db`) from the `docker-compose.yml`

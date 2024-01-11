@@ -26,6 +26,8 @@ var (
 	ErrFailExecuteBatch = errors.New("fail execute batch")
 	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
 	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
+	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
+	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 )
 
 // StateInterface contains the methods required to interact with the state.
@@ -74,24 +76,21 @@ func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientT
 func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err := b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
 	}
 	data.StateBatch.WIP = !data.BatchMustBeClosed
-	return &l2_shared.ProcessResponse{
-		ProcessBatchResponse:                nil,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: false,
-		UpdateBatch:                         data.StateBatch,
-	}, nil
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatch(data.StateBatch)
+	return &res, nil
 }
 
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
-	log.Debugf("%s FullProcess", data.DebugPrefix, uint64(data.TrustedBatch.Number))
+	log.Debugf("%s FullProcess", data.DebugPrefix)
 	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
 	if err != nil {
 		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
@@ -123,7 +122,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -142,13 +141,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Error("%s error getting batch. Error: ", data.DebugPrefix, err)
 		return nil, err
 	}
-
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatch:                         resultBatch,
-		UpdateBatchWithProcessBatchResponse: true,
-	}
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(resultBatch, processBatchResp)
 	return &res, nil
 }
 
@@ -199,7 +193,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Errorf("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -216,12 +210,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	updatedBatch := *data.StateBatch
 	updatedBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	updatedBatch.WIP = !data.BatchMustBeClosed
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: true,
-		UpdateBatch:                         &updatedBatch,
-	}
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(&updatedBatch, processBatchResp)
 	return &res, nil
 }
 
@@ -287,7 +277,7 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 }
 
 // CloseBatch close a batch
-func (b *SyncTrustedBatchExecutorForEtrog) closeBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx, debugStr string) error {
+func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx, debugStr string) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:   uint64(trustedBatch.Number),
 		StateRoot:     trustedBatch.StateRoot,
@@ -296,6 +286,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) closeBatch(ctx context.Context, trust
 		AccInputHash:  trustedBatch.AccInputHash,
 	}
 	log.Debugf("%s closing batch %v", debugStr, trustedBatch.Number)
+	// This update SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE
 	if err := b.state.CloseBatch(ctx, receipt, dbTx); err != nil {
 		// This is a workaround to avoid closing a batch that was already closed
 		if err.Error() != state.ErrBatchAlreadyClosed.Error() {
@@ -303,6 +294,19 @@ func (b *SyncTrustedBatchExecutorForEtrog) closeBatch(ctx context.Context, trust
 			return err
 		} else {
 			log.Warnf("%s CASE 02: the batch [%d] looks like were not close but in STATE was closed", debugStr, trustedBatch.Number)
+			// Check that the fields have the right values
+			dbBatch, err := b.state.GetBatchByNumber(ctx, uint64(trustedBatch.Number), dbTx)
+			if err != nil {
+				log.Errorf("%s error getting local batch %d", debugStr, trustedBatch.Number)
+				return err
+			}
+			equals, str := l2_shared.AreEqualStateBatchAndTrustedBatch(dbBatch, trustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP)
+			if !equals {
+				// This is a situation impossible to reach!, if it happens we halt sync and we need to develop a recovery process
+				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) error:%w", debugStr, str, ErrCriticalClosedBatchDontContainExpectedData)
+				log.Warnf(err.Error())
+				return err
+			}
 		}
 	}
 	return nil

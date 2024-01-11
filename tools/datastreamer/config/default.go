@@ -2,8 +2,6 @@ package config
 
 // DefaultValues is the default configuration
 const DefaultValues = `
-ChainID = 1440
-
 [Online]
 URI = "zkevm-sequencer:6900"
 StreamType = 1
@@ -11,6 +9,8 @@ StreamType = 1
 [Offline]
 Port = 6901
 Filename = "datastreamer.bin"
+Version = 1
+ChainID = 1440
 
 [StateDB]
 User = "state_user"

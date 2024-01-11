@@ -17,5 +17,6 @@ type SyncTrustedStateExecutor interface {
 	// SyncTrustedState syncs the trusted state with the permissionless state
 	// if returns error ErrMissingSyncFromL1 then must force a L1 sync
 	SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error
+	// CleanTrustedState clean cache of Batches and StateRoot
 	CleanTrustedState()
 }
