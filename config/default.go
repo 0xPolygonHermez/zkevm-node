@@ -191,4 +191,7 @@ Host = "zkevm-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200
+
+[DataAvailability]
+Backend = "DataAvailabilityCommittee"
 `
