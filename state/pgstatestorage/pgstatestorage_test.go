@@ -535,29 +535,57 @@ func TestVirtualBatch(t *testing.T) {
 	}
 	err = testState.AddBlock(ctx, block, dbTx)
 	assert.NoError(t, err)
-	//require.NoError(t, tx.Commit(ctx))
 
 	lastBlock, err := testState.GetLastBlock(ctx, dbTx)
 	assert.NoError(t, err)
 	assert.Equal(t, uint64(1), lastBlock.BlockNumber)
 
 	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (1, FALSE)")
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, wip) VALUES (2, FALSE)")
 
 	require.NoError(t, err)
 	addr := common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266")
+	ti := time.Now()
+	l1InfoR := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	virtualBatch := state.VirtualBatch{
 		BlockNumber:   1,
 		BatchNumber:   1,
 		Coinbase:      addr,
 		SequencerAddr: addr,
 		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		TimestampBatchEtrog: &ti,
+		L1InfoRoot:    &l1InfoR,
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
 
 	actualVirtualBatch, err := testState.GetVirtualBatch(ctx, 1, dbTx)
 	require.NoError(t, err)
-	require.Equal(t, virtualBatch, *actualVirtualBatch)
+	require.Equal(t, virtualBatch.BatchNumber, actualVirtualBatch.BatchNumber)
+	require.Equal(t, virtualBatch.BlockNumber, actualVirtualBatch.BlockNumber)
+	require.Equal(t, virtualBatch.Coinbase, actualVirtualBatch.Coinbase)
+	require.Equal(t, virtualBatch.L1InfoRoot, actualVirtualBatch.L1InfoRoot)
+	require.Equal(t, virtualBatch.SequencerAddr, actualVirtualBatch.SequencerAddr)
+	require.Equal(t, virtualBatch.TimestampBatchEtrog.Unix(), actualVirtualBatch.TimestampBatchEtrog.Unix())
+	require.Equal(t, virtualBatch.TxHash, actualVirtualBatch.TxHash)
+	virtualBatch2 := state.VirtualBatch{
+		BlockNumber:   1,
+		BatchNumber:   2,
+		Coinbase:      addr,
+		SequencerAddr: addr,
+		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch2, dbTx)
+	require.NoError(t, err)
+	actualVirtualBatch2, err := testState.GetVirtualBatch(ctx, 2, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch2.BatchNumber, actualVirtualBatch2.BatchNumber)
+	require.Equal(t, virtualBatch2.BlockNumber, actualVirtualBatch2.BlockNumber)
+	require.Equal(t, virtualBatch2.Coinbase, actualVirtualBatch2.Coinbase)
+	require.Equal(t, virtualBatch2.L1InfoRoot, actualVirtualBatch2.L1InfoRoot)
+	require.Equal(t, virtualBatch2.SequencerAddr, actualVirtualBatch2.SequencerAddr)
+	require.Equal(t, virtualBatch2.TimestampBatchEtrog, actualVirtualBatch2.TimestampBatchEtrog)
+	require.Equal(t, virtualBatch2.TxHash, actualVirtualBatch2.TxHash)
 	require.NoError(t, dbTx.Commit(ctx))
 }
 

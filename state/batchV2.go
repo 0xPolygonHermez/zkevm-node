@@ -417,16 +417,11 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 			}
 		}
 	}
-	var ger common.Hash
-	if processingCtx.BatchNumber == 1 {
-		ger = processingCtx.L1InfoRoot
-	}
 	return common.BytesToHash(processed.NewStateRoot), processed.FlushId, processed.ProverId, s.CloseBatchInStorage(ctx, ProcessingReceipt{
-		BatchNumber:    processingCtx.BatchNumber,
-		StateRoot:      processedBatch.NewStateRoot,
-		LocalExitRoot:  processedBatch.NewLocalExitRoot,
-		AccInputHash:   processedBatch.NewAccInputHash,
-		BatchL2Data:    *BatchL2Data,
-		GlobalExitRoot: ger,
+		BatchNumber:   processingCtx.BatchNumber,
+		StateRoot:     processedBatch.NewStateRoot,
+		LocalExitRoot: processedBatch.NewLocalExitRoot,
+		AccInputHash:  processedBatch.NewAccInputHash,
+		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
 }

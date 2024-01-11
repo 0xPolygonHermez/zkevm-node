@@ -193,7 +193,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				SkipVerifyL1InfoRoot: 1,
 			}
 		} else {
-			leaves, l1InfoRoot, err = g.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, dbTx)
+			leaves, _, err = g.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, dbTx)
 			if err != nil {
 				log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
 				rollbackErr := dbTx.Rollback(ctx)
@@ -207,14 +207,14 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				BatchNumber:          batch.BatchNumber,
 				Coinbase:             batch.Coinbase,
 				Timestamp:            &batch.Timestamp,
-				L1InfoRoot:           l1InfoRoot,
+				L1InfoRoot:           *sbatch.L1InfoRoot,
 				L1InfoTreeData:       leaves,
 				ForcedBatchNum:       batch.ForcedBatchNum,
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 1,
 			}
 		}
-
+		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
 		var newRoot common.Hash
 
 		// First get trusted batch from db

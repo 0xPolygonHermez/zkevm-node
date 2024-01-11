@@ -992,7 +992,12 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	}
 
 	l1InfoTreeData := map[uint32]*prover.L1Data{}
-	l1InfoRoot := common.Hash{}
+	vb, err := a.State.GetVirtualBatch(ctx, batchToVerify.BatchNumber, nil)
+	if err != nil {
+		log.Errorf("Failed getting virtualBatch %d, err: %v", batchToVerify.BatchNumber, err)
+		return nil, err
+	}
+	l1InfoRoot := vb.L1InfoRoot
 	forcedBlockhashL1 := common.Hash{}
 
 	if !isForcedBatch {
@@ -1041,13 +1046,12 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 	} else {
 		// Initial batch must be handled differently
 		if batchToVerify.BatchNumber == 1 {
-			l1InfoRoot = batchToVerify.GlobalExitRoot
 			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			forcedBlockhashL1, l1InfoRoot, err = a.State.GetForcedBatchParentHashAndGER(ctx, *batchToVerify.ForcedBatchNum, nil)
+			forcedBlockhashL1, err = a.State.GetForcedBatchParentHash(ctx, *batchToVerify.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
 			}
