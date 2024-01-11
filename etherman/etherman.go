@@ -1245,7 +1245,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		}
 
 		return sequencedBatches, nil
-	case "Validium": // TODO: put correct value
+	case "sequenceBatchesDataCommittee": // TODO: put correct value
 		var sequencesValidium []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
 		err = json.Unmarshal(bytedata, &sequencesValidium)
 		if err != nil {

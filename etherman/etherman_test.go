@@ -47,6 +47,7 @@ func newTestingEnv() (ethman *Client, ethBackend *backends.SimulatedBackend, aut
 	if err != nil {
 		log.Fatal(err)
 	}
+	// TODO: need mock for the DataAvailability
 	ethman, ethBackend, polAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth)
 	if err != nil {
 		log.Fatal(err)
@@ -162,7 +163,12 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	}, polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
 		TransactionsHash: crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	})
+
 	_, err = etherman.ZkEVM.SequenceBatchesDataCommittee(auth, sequences, auth.From, []byte{})
+	if err != nil {
+		_, err := etherman.ZkEVM.SequenceBatchesDataCommittee(&bind.TransactOpts{NoSend: true}, sequences, auth.From, []byte{})
+		fmt.Printf("msg: %s, err: %s", err, err)
+	}
 	require.NoError(t, err)
 
 	// Mine the tx in a block

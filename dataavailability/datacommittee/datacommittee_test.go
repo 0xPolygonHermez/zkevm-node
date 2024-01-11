@@ -108,15 +108,15 @@ func newSimulatedDacman(auth *bind.TransactOpts) (
 	// DAC Setup
 	_, _, da, err = cdkdatacommittee.DeployCdkdatacommittee(auth, client)
 	if err != nil {
-		return &DataCommitteeBackend{}, nil, nil, nil
+		return &DataCommitteeBackend{}, nil, nil, err
 	}
 	_, err = da.Initialize(auth)
 	if err != nil {
-		return &DataCommitteeBackend{}, nil, nil, nil
+		return &DataCommitteeBackend{}, nil, nil, err
 	}
 	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
 	if err != nil {
-		return &DataCommitteeBackend{}, nil, nil, nil
+		return &DataCommitteeBackend{}, nil, nil, err
 	}
 	client.Commit()
 

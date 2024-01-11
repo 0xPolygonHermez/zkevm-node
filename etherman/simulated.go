@@ -40,7 +40,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
 
 	// DAC Setup
-	_, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
+	daAddr, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
@@ -174,6 +174,11 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 	}
 
 	_, err = trueZkevm.ActivateForceBatches(auth)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = trueZkevm.SetDataCommittee(auth, daAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
