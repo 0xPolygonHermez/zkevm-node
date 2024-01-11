@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"net"
@@ -292,14 +293,14 @@ func newEtherman(c config.Config, st *state.State) (*etherman.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	da, err := newDataAvailability(c, st, ethman)
+	da, err := newDataAvailability(c, st, ethman, false)
 	if err != nil {
 		return nil, err
 	}
 	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, da)
 }
 
-func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
+func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client, isSequenceSender bool) (*dataavailability.DataAvailability, error) {
 	// Base DA config
 	if err := c.DataAvailability.Validate(); err != nil {
 		return nil, err
@@ -324,10 +325,13 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 	var daBackend dataavailability.DABackender
 	switch c.DataAvailability.Backend {
 	case dataavailability.DataAvailabilityCommittee:
-		// TODO: only use private key if the sequencesender is running
-		_, pk, err := etherman.LoadAuthFromKeyStore(c.SequenceSender.PrivateKey.Path, c.SequenceSender.PrivateKey.Password)
-		if err != nil {
-			log.Fatal(err)
+		var pk *ecdsa.PrivateKey
+		var err error
+		if isSequenceSender {
+			_, pk, err = etherman.LoadAuthFromKeyStore(c.SequenceSender.PrivateKey.Path, c.SequenceSender.PrivateKey.Password)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		daBackend, err = datacommittee.New(
 			c.Etherman.URL,
@@ -479,7 +483,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	da, err := newDataAvailability(cfg, st, etherman)
+	da, err := newDataAvailability(cfg, st, etherman, true)
 	if err != nil {
 		log.Fatal(err)
 	}
