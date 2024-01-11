@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+// DataAvailability implements an abstract data avaiolability integration
 type DataAvailability struct {
 	isTrustedSequencer bool
 
@@ -23,6 +24,7 @@ type DataAvailability struct {
 	ctx context.Context
 }
 
+// New creates a DataAvailability instance
 func New(
 	IsTrustedSequencer bool,
 	backend DABackender,
@@ -46,6 +48,10 @@ func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.S
 	return d.backend.PostSequence(ctx, sequences)
 }
 
+// GetBatchL2Data tries to return the data from a batch, in the following priorities
+// 1. From local DB
+// 2. From Sequencer
+// 3. From DA backend
 func (d *DataAvailability) GetBatchL2Data(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
 	found := true
 	transactionsData, err := d.state.GetBatchL2DataByNumber(d.ctx, batchNum, nil)

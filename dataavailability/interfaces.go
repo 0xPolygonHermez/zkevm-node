@@ -14,6 +14,7 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
 
+// DABackender is the interface for a DA backend
 type DABackender interface {
 	Init() error
 	GetData(batchNum uint64, hash common.Hash) ([]byte, error)

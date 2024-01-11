@@ -35,6 +35,7 @@ type DataCommittee struct {
 	RequiredSignatures uint64
 }
 
+// DataCommitteeBackend implements the DAC integration
 type DataCommitteeBackend struct {
 	dataCommitteeContract      *cdkdatacommittee.Cdkdatacommittee
 	l2Coinbase                 common.Address
@@ -47,6 +48,7 @@ type DataCommitteeBackend struct {
 	ctx                     context.Context
 }
 
+// New creates an instance of DataCommitteeBackend
 func New(
 	l1RPCURL string,
 	dataCommitteeAddr common.Address,
@@ -74,6 +76,7 @@ func New(
 	}, nil
 }
 
+// Init loads the DAC to be cached when needed
 func (d *DataCommitteeBackend) Init() error {
 	committee, err := d.getCurrentDataCommittee()
 	if err != nil {
@@ -92,6 +95,7 @@ func (d *DataCommitteeBackend) Init() error {
 
 const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
 
+// GetData returns the data from the DAC. It checks that it matches with the expected hash
 func (d *DataCommitteeBackend) GetData(batchNum uint64, hash common.Hash) ([]byte, error) {
 	intialMember := d.selectedCommitteeMember
 	found := false

@@ -2,7 +2,7 @@ package dataavailability
 
 import "fmt"
 
-// DABackendType is the data availabilty protocol for the CDK
+// DABackendType is the data availability protocol for the CDK
 type DABackendType string
 
 const (
@@ -12,10 +12,11 @@ const (
 
 // Config represents the configuration of the data availability
 type Config struct {
-	// Backend is the data availabilty protocol for the CDK
+	// Backend is the data availability protocol for the CDK
 	Backend DABackendType `mapstructure:"Backend"`
 }
 
+// Validate validates that the configuration is fine
 func (c *Config) Validate() error {
 	switch c.Backend {
 	case DataAvailabilityCommittee:
