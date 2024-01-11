@@ -29,7 +29,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					"chainId": 420,
 					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 					"polTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
+					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 					"dataAvailabilityContract": "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
 				},
 				"genesis": [
