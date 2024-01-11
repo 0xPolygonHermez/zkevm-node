@@ -103,6 +103,7 @@ type VirtualBatch struct {
 	Coinbase      common.Address
 	SequencerAddr common.Address
 	BlockNumber   uint64
+	L1InfoRoot    *common.Hash
 	// TimestampBatchEtrog etrog: Batch timestamp comes from L1 block timestamp
 	//  for previous batches is NULL because the batch timestamp is in batch table
 	TimestampBatchEtrog *time.Time
@@ -564,8 +565,12 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 	}
 
 	l1InfoTreeData := map[uint32]L1DataV2{}
-	lastL1InfoRoot := ZeroHash
-
+	maxIndex := findMax(batchRaw.Blocks)
+	l1InfoTreeExitRoot, err := s.GetL1InfoRootLeafByIndex(ctx, maxIndex, dbTx)
+	if err != nil {
+		return nil, ZeroHash, err
+	}
+	l1InfoRoot := l1InfoTreeExitRoot.L1InfoTreeRoot
 	for _, l2blockRaw := range batchRaw.Blocks {
 		// Index 0 is a special case, it means that the block is not changing GlobalExitRoot.
 		// it must not be included in l1InfoTreeData. If all index are 0 L1InfoRoot == ZeroHash
@@ -584,11 +589,19 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 				}
 
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
-
-				lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 			}
 		}
 	}
 
-	return l1InfoTreeData, lastL1InfoRoot, nil
+	return l1InfoTreeData, l1InfoRoot, nil
+}
+
+func findMax(blocks []L2BlockRaw) uint32 {
+	maxIndex := blocks[0].IndexL1InfoTree
+	for _, b := range blocks {
+		if b.IndexL1InfoTree > maxIndex {
+			maxIndex = b.IndexL1InfoTree
+		}
+	}
+	return maxIndex
 }

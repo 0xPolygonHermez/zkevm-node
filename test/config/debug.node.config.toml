@@ -103,6 +103,7 @@ StateConsistencyCheckInterval = "5s"
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"
+		Version = 1
 		Enabled = true
 
 [SequenceSender]

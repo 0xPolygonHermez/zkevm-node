@@ -682,7 +682,7 @@ func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.L
 	log.Info("initial transaction sequence...")
 	sequences = append(sequences, SequencedBatch{
 		BatchNumber:   1,
-		SequencerAddr: msg.From,
+		SequencerAddr: initialSequenceBatches.Sequencer,
 		TxHash:        vLog.TxHash,
 		Nonce:         msg.Nonce,
 		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{

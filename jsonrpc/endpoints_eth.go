@@ -285,7 +285,7 @@ func (e *EthEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockN
 }
 
 // GetBlockByHash returns information about a block by hash
-func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool, includeExtraInfo *bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		l2Block, err := e.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
@@ -304,7 +304,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool) (interfac
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -314,7 +314,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool) (interfac
 }
 
 // GetBlockByNumber returns information about a block by block number
-func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (interface{}, types.Error) {
+func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, includeExtraInfo *bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		if number == types.PendingBlockNumber {
 			lastBlock, err := e.state.GetLastL2Block(ctx, dbTx)
@@ -328,7 +328,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 				UncleHash:  ethTypes.EmptyUncleHash,
 			})
 			l2Block := state.NewL2BlockWithHeader(l2Header)
-			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false)
+			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false, includeExtraInfo)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -358,7 +358,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool) (
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -537,7 +537,7 @@ func (e *EthEndpoints) GetStorageAt(address types.ArgAddress, storageKeyStr stri
 
 // GetTransactionByBlockHashAndIndex returns information about a transaction by
 // block hash and transaction index position.
-func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, index types.Index) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, index types.Index, includeExtraInfo *bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		tx, err := e.state.GetTransactionByL2BlockHashAndIndex(ctx, hash.Hash(), uint64(index), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
@@ -553,7 +553,7 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, ind
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false)
+		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -564,7 +564,7 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, ind
 
 // GetTransactionByBlockNumberAndIndex returns information about a transaction by
 // block number and transaction index position.
-func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNumber, index types.Index) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNumber, index types.Index, includeExtraInfo *bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		var err error
 		blockNumber, rpcErr := number.GetNumericBlockNumber(ctx, e.state, e.etherman, dbTx)
@@ -586,7 +586,7 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNu
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false)
+		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -596,7 +596,7 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNu
 }
 
 // GetTransactionByHash returns a transaction by his hash
-func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, types.Error) {
+func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo *bool) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		// try to get tx from state
 		tx, err := e.state.GetTransactionByHash(ctx, hash.Hash(), dbTx)
@@ -611,7 +611,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
 			}
 
-			res, err := types.NewTransaction(*tx, receipt, false)
+			res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -621,7 +621,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 
 		// if the tx does not exist in the state, look for it in the pool
 		if e.cfg.SequencerNodeURI != "" {
-			return e.getTransactionByHashFromSequencerNode(hash.Hash())
+			return e.getTransactionByHashFromSequencerNode(hash.Hash(), includeExtraInfo)
 		}
 		poolTx, err := e.pool.GetTransactionByHash(ctx, hash.Hash())
 		if errors.Is(err, pool.ErrNotFound) {
@@ -631,7 +631,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 		}
 		if poolTx.Status == pool.TxStatusPending {
 			tx = &poolTx.Transaction
-			res, err := types.NewTransaction(*tx, nil, false)
+			res, err := types.NewTransaction(*tx, nil, false, includeExtraInfo)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -641,8 +641,12 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash) (interface{}, ty
 	})
 }
 
-func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash) (interface{}, types.Error) {
-	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionByHash", hash.String())
+func (e *EthEndpoints) getTransactionByHashFromSequencerNode(hash common.Hash, includeExtraInfo *bool) (interface{}, types.Error) {
+	extraInfo := false
+	if includeExtraInfo != nil {
+		extraInfo = *includeExtraInfo
+	}
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_getTransactionByHash", hash.String(), extraInfo)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from sequencer node", err, true)
 	}
@@ -1075,7 +1079,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	defer wg.Done()
 	start := time.Now()
 
-	b, err := types.NewBlock(state.Ptr(event.Block.Hash()), &event.Block, nil, false, false)
+	b, err := types.NewBlock(state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false))
 	if err != nil {
 		log.Errorf("failed to build block response to subscription: %v", err)
 		return

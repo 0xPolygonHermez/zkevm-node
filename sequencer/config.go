@@ -38,6 +38,10 @@ type StreamServerCfg struct {
 	Port uint16 `mapstructure:"Port"`
 	// Filename of the binary data file
 	Filename string `mapstructure:"Filename"`
+	// Version of the binary data file
+	Version uint8 `mapstructure:"Version"`
+	// ChainID is the chain ID
+	ChainID uint64 `mapstructure:"ChainID"`
 	// Enabled is a flag to enable/disable the data streamer
 	Enabled bool `mapstructure:"Enabled"`
 	// Log is the log configuration

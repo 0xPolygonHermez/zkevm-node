@@ -16,7 +16,7 @@ It have some flags to allow:
 it override state_db
 - `--fist_batch`: first batch to process (default: 1)
 - `--last_batch`: last batch to process (default: the highest batch on batch table)
-- `--l2_chain_id`:  Intead of asking to SMC you can set it 
+- `--l2_chain_id`:  Instead of asking to SMC you can set it 
 - `--dont_stop_on_error`: If a batch have an error the process doesn't stop
 - `--prefer_execution_state_root`: The oldStateRoot used to process a batch is usually is the stateRoot of the previous batch on database but, with this flag, you could use the calculated stateRoot from the execution result from previous batch instead
 
@@ -31,7 +31,7 @@ go run ./tools/state/. reprocess
 ```
 KEVM_NODE_MTCLIENT_URI="127.0.0.1:50061" ZKEVM_NODE_STATE_DB_HOST="127.0.0.1" ZKEVM_NODE_EXECUTOR_URI="127.0.0.1:50071" go run ./tools/state/. reprocess -cfg test/config/test.node.config.toml   -l2_chain_id 1440 --last_batch_number 5000
 ```
-- We are setting the `chain_id` direclty so we don't need the genesis data.
+- We are setting the `chain_id` directly so we don't need the genesis data.
 - All this examples redirect the log info to `/dev/null` for that reason if the command returns an error (`$? -ne 1`) relaunch without the redirection part (`2> /dev/null`) to see the full output
 
 ### Rebuild hashdb entries for first 5000 batches

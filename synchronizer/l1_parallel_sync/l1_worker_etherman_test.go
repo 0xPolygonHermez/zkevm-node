@@ -235,6 +235,77 @@ func TestIfRollupInfoFailPreviousBlockContainBlockRange(t *testing.T) {
 	require.Equal(t, result.result.blockRange, blockRange)
 }
 
+func TestGetRealHighestBlockNumberInResponseEmptyToLatest(t *testing.T) {
+	rollupInfoByBlockRangeResult := rollupInfoByBlockRangeResult{
+		blockRange: blockRange{
+			fromBlock: 100,
+			toBlock:   latestBlockNumber,
+		},
+	}
+	res := rollupInfoByBlockRangeResult.getHighestBlockNumberInResponse()
+	require.Equal(t, uint64(99), res)
+}
+
+func TestGetRealHighestBlockNumberInResponseEmptyToNumber(t *testing.T) {
+	rollupInfoByBlockRangeResult := rollupInfoByBlockRangeResult{
+		blockRange: blockRange{
+			fromBlock: 100,
+			toBlock:   200,
+		},
+	}
+	res := rollupInfoByBlockRangeResult.getHighestBlockNumberInResponse()
+	require.Equal(t, uint64(200), res)
+}
+
+func TestGetRealHighestBlockNumberInResponseWithBlock(t *testing.T) {
+	rollupInfoByBlockRangeResult := rollupInfoByBlockRangeResult{
+		blockRange: blockRange{
+			fromBlock: 100,
+			toBlock:   200,
+		},
+		blocks: []etherman.Block{
+			{
+				BlockNumber: 150,
+			},
+		},
+	}
+	res := rollupInfoByBlockRangeResult.getHighestBlockNumberInResponse()
+	require.Equal(t, uint64(200), res)
+}
+
+func TestGetRealHighestBlockNumberInResponseToLatestWithBlock(t *testing.T) {
+	rollupInfoByBlockRangeResult := rollupInfoByBlockRangeResult{
+		blockRange: blockRange{
+			fromBlock: 100,
+			toBlock:   latestBlockNumber,
+		},
+		blocks: []etherman.Block{
+			{
+				BlockNumber: 150,
+			},
+		},
+	}
+	res := rollupInfoByBlockRangeResult.getHighestBlockNumberInResponse()
+	require.Equal(t, uint64(150), res)
+}
+
+func TestGetRealHighestBlockNumberInResponseWithLastBlockOfRange(t *testing.T) {
+	rollupInfoByBlockRangeResult := rollupInfoByBlockRangeResult{
+		blockRange: blockRange{
+			fromBlock: 100,
+			toBlock:   latestBlockNumber,
+		},
+		blocks: []etherman.Block{
+			{
+				BlockNumber: 150,
+			},
+		},
+		lastBlockOfRange: ethTypes.NewBlock(&ethTypes.Header{Number: big.NewInt(200)}, nil, nil, nil, nil),
+	}
+	res := rollupInfoByBlockRangeResult.getHighestBlockNumberInResponse()
+	require.Equal(t, uint64(200), res)
+}
+
 func expectedCallsForEmptyRollupInfo(mockEtherman *L1ParallelEthermanInterfaceMock, blockRange blockRange, getRollupError error, ethBlockError error) {
 	mockEtherman.
 		On("GetRollupInfoByBlockRange", mock.Anything, blockRange.fromBlock, mock.Anything).

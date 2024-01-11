@@ -41,7 +41,7 @@ func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Blo
 		bn = types.BlockNumber(number.Int64())
 	}
 
-	response, err := JSONRPCCall(c.url, "eth_getBlockByNumber", bn.StringOrHex(), true)
+	response, err := JSONRPCCall(c.url, "eth_getBlockByNumber", bn.StringOrHex(), true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (c *Client) BlockByNumber(ctx context.Context, number *big.Int) (*types.Blo
 
 // BlockByHash returns a block from the current canonical chain.
 func (c *Client) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	response, err := JSONRPCCall(c.url, "eth_getBlockByHash", hash.String(), true)
+	response, err := JSONRPCCall(c.url, "eth_getBlockByHash", hash.String(), true, true)
 	if err != nil {
 		return nil, err
 	}

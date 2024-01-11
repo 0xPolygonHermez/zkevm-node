@@ -76,15 +76,12 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 	); err != nil {
 		return &l2Block, err
 	}
-	l2Block.GERorInfoRoot = common.HexToHash(gerStr)
+	l2Block.GlobalExitRoot = common.HexToHash(gerStr)
+	l2Block.L1InfoRoot = common.HexToHash(infoRootStr)
 	l2Block.Coinbase = common.HexToAddress(coinbaseStr)
 	l2Block.Timestamp = timestamp.Unix()
 	l2Block.BlockHash = common.HexToHash(blockHashStr)
 	l2Block.StateRoot = common.HexToHash(stateRootStr)
-
-	if infoRootStr != "" {
-		l2Block.GERorInfoRoot = common.HexToHash(infoRootStr)
-	}
 
 	return &l2Block, nil
 }

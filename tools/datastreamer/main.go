@@ -159,7 +159,7 @@ func main() {
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Create a stream server
-	streamServer, err := datastreamer.NewServer(c.Offline.Port, 1, 137, state.StreamTypeSequencer, c.Offline.Filename, &c.Log) // nolint:gomnd
+	streamServer, err := datastreamer.NewServer(c.Offline.Port, c.Offline.Version, c.Offline.ChainID, state.StreamTypeSequencer, c.Offline.Filename, &c.Log)
 	if err != nil {
 		return nil, err
 	}
@@ -428,7 +428,7 @@ func reprocess(cliCtx *cli.Context) error {
 				OldAccInputHash:  []byte{},
 				EthTimestamp:     binary.LittleEndian.Uint64(currentEntry.Data[8:16]),
 				UpdateMerkleTree: uint32(1),
-				ChainId:          c.ChainID,
+				ChainId:          c.Offline.ChainID,
 				ForkId:           uint64(binary.LittleEndian.Uint16(currentEntry.Data[68:70])),
 			}
 
@@ -479,7 +479,7 @@ func reprocess(cliCtx *cli.Context) error {
 				OldAccInputHash:  []byte{},
 				EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
 				UpdateMerkleTree: uint32(1),
-				ChainId:          c.ChainID,
+				ChainId:          c.Offline.ChainID,
 				ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
 			}
 
@@ -757,8 +757,12 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.L2BlockNumber))
 		printColored(color.FgGreen, "Timestamp.......: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(blockStart.Timestamp, 0), blockStart.Timestamp))
-		printColored(color.FgGreen, "GER or Info Root: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.GERorInfoRoot))
+		printColored(color.FgGreen, "L1 Block Hash...: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.L1BlockHash))
+		printColored(color.FgGreen, "Global Exit Root: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.GlobalExitRoot))
+		printColored(color.FgGreen, "L1 Info Root....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.L1InfoRoot))
 		printColored(color.FgGreen, "Coinbase........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.Coinbase))
 		printColored(color.FgGreen, "Fork ID.........: ")

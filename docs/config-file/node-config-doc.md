@@ -1947,6 +1947,8 @@ SequentialBatchSanityCheck=false
 | ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
 | - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
 | - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
+| - [Version](#Sequencer_StreamServer_Version )   | No      | integer | No         | -          | Version of the binary data file                       |
+| - [ChainID](#Sequencer_StreamServer_ChainID )   | No      | integer | No         | -          | ChainID is the chain ID                               |
 | - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
 | - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
 
@@ -1978,7 +1980,35 @@ Port=0
 Filename=""
 ```
 
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.3. `Sequencer.StreamServer.Enabled`
+#### <a name="Sequencer_StreamServer_Version"></a>10.8.3. `Sequencer.StreamServer.Version`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Version of the binary data file
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+Version=0
+```
+
+#### <a name="Sequencer_StreamServer_ChainID"></a>10.8.4. `Sequencer.StreamServer.ChainID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ChainID is the chain ID
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+ChainID=0
+```
+
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.5. `Sequencer.StreamServer.Enabled`
 
 **Type:** : `boolean`
 
@@ -1992,7 +2022,7 @@ Filename=""
 Enabled=false
 ```
 
-#### <a name="Sequencer_StreamServer_Log"></a>10.8.4. `[Sequencer.StreamServer.Log]`
+#### <a name="Sequencer_StreamServer_Log"></a>10.8.6. `[Sequencer.StreamServer.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2003,7 +2033,7 @@ Enabled=false
 | - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
 | - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
 
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.4.1. `Sequencer.StreamServer.Log.Environment`
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.6.1. `Sequencer.StreamServer.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2019,7 +2049,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.4.2. `Sequencer.StreamServer.Log.Level`
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.6.2. `Sequencer.StreamServer.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2040,7 +2070,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.4.3. `Sequencer.StreamServer.Log.Outputs`
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.6.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
 

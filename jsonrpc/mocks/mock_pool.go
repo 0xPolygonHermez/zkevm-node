@@ -4,6 +4,7 @@ package mocks
 
 import (
 	context "context"
+	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
 
@@ -39,6 +40,36 @@ func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) 
 	return r0
 }
 
+// CalculateEffectiveGasPrice provides a mock function with given fields: rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice
+func (_m *PoolMock) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	ret := _m.Called(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CalculateEffectiveGasPrice")
+	}
+
+	var r0 *big.Int
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]byte, *big.Int, uint64, uint64, uint64) (*big.Int, error)); ok {
+		return rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	}
+	if rf, ok := ret.Get(0).(func([]byte, *big.Int, uint64, uint64, uint64) *big.Int); ok {
+		r0 = rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]byte, *big.Int, uint64, uint64, uint64) error); ok {
+		r1 = rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // CountPendingTransactions provides a mock function with given fields: ctx
 func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error) {
 	ret := _m.Called(ctx)
@@ -65,6 +96,24 @@ func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error
 	}
 
 	return r0, r1
+}
+
+// EffectiveGasPriceEnabled provides a mock function with given fields:
+func (_m *PoolMock) EffectiveGasPriceEnabled() bool {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for EffectiveGasPriceEnabled")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
 }
 
 // GetGasPrices provides a mock function with given fields: ctx
