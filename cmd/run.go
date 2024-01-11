@@ -12,11 +12,13 @@ import (
 	"runtime"
 	"time"
 
+	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/dataavailability"
+	"github.com/0xPolygonHermez/zkevm-node/dataavailability/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -298,6 +300,7 @@ func newEtherman(c config.Config, st *state.State) (*etherman.Client, error) {
 }
 
 func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
+	// Base DA config
 	if err := c.DataAvailability.Validate(); err != nil {
 		return nil, err
 	}
@@ -316,7 +319,23 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 		log.Debug("trustedSequencerURL ", trustedSequencerURL)
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
+
+	// Backend specific config
 	var daBackend dataavailability.DABackender
+	switch c.DataAvailability.Backend {
+	case dataavailability.DataAvailabilityCommittee:
+		daBackend, err = datacommittee.New(
+			c.Etherman.URL,
+			c.NetworkConfig.L1Config.DataCommitteeAddr, // TODO: rename to DataAvailabilityContract
+			c.SequenceSender.L2Coinbase,
+			nil, // TODO
+			st,
+			&dataCommitteeClient.ClientFactory{},
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	return dataavailability.New(
 		c.IsTrustedSequencer,
