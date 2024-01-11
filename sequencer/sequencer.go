@@ -329,6 +329,11 @@ func (s *Sequencer) sendDataToStreamer() {
 				if err != nil {
 					log.Errorf("failed to commit atomic op for bookmark type %d, value %d, error: %v", bookmark.Type, bookmark.Value, err)
 				}
+
+			// Invalid stream message type
+			default:
+				log.Errorf("invalid stream message type received")
+
 			}
 		}
 	}
