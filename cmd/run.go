@@ -324,11 +324,16 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 	var daBackend dataavailability.DABackender
 	switch c.DataAvailability.Backend {
 	case dataavailability.DataAvailabilityCommittee:
+		// TODO: only use private key if the sequencesender is running
+		_, pk, err := etherman.LoadAuthFromKeyStore(c.SequenceSender.PrivateKey.Path, c.SequenceSender.PrivateKey.Password)
+		if err != nil {
+			log.Fatal(err)
+		}
 		daBackend, err = datacommittee.New(
 			c.Etherman.URL,
-			c.NetworkConfig.L1Config.DataCommitteeAddr, // TODO: rename to DataAvailabilityContract
+			c.NetworkConfig.L1Config.DataAvailabilityAddr,
 			c.SequenceSender.L2Coinbase,
-			nil, // TODO
+			pk,
 			st,
 			&dataCommitteeClient.ClientFactory{},
 		)

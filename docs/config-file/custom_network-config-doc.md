@@ -120,7 +120,7 @@
 **Type:** : `array of integer`
 **Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 
-### <a name="L1Config_cdkDataCommitteeContract"></a>4.5. `L1Config.cdkDataCommitteeContract`
+### <a name="L1Config_dataAvailabilityContract"></a>4.5. `L1Config.dataAvailabilityContract`
 
 **Type:** : `array of integer`
 **Description:** Address of the data availability committee contract

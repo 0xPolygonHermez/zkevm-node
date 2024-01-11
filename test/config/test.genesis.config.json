@@ -5,7 +5,7 @@
         "polygonRollupManagerAddress": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
         "polTokenAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "polygonZkEVMGlobalExitRootAddress": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
-        "cdkDataCommitteeContract": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1"
+        "dataAvailabilityContract": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1"
     },
     "genesisBlockNumber": 90,
     "root": "0x501ec6883c8ab0b0083a6bdbc6da030251b0a3a6841af9a6a88fd682d63a20d0",
