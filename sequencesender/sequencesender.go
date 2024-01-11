@@ -107,12 +107,12 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	signaturesAndAddrs, err := s.da.PostSequence(ctx, sequences)
+	dataAvailabilityMessage, err := s.da.PostSequence(ctx, sequences)
 	if err != nil {
-		log.Error("error getting signatures and addresses from the data committee: ", err)
+		log.Error("error posting sequences to the data availability protocol: ", err)
 		return
 	}
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, signaturesAndAddrs)
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return

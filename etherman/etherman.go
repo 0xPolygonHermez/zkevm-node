@@ -851,19 +851,14 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 }
 
 // EstimateGasSequenceBatches estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatches(
-	sender common.Address,
-	sequences []ethmanTypes.Sequence,
-	l2Coinbase common.Address,
-	committeeSignaturesAndAddrs []byte,
-) (*types.Transaction, error) {
+func (etherMan *Client) EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
 	}
 	opts.NoSend = true
 
-	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, committeeSignaturesAndAddrs)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -872,12 +867,7 @@ func (etherMan *Client) EstimateGasSequenceBatches(
 }
 
 // BuildSequenceBatchesTxData builds a []bytes to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTxData(
-	sender common.Address,
-	sequences []ethmanTypes.Sequence,
-	l2Coinbase common.Address,
-	committeeSignaturesAndAddrs []byte,
-) (to *common.Address, data []byte, err error) {
+func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
 	opts, err := etherMan.getAuthByAddress(sender)
 	if err == ErrNotFound {
 		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
@@ -888,7 +878,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, committeeSignaturesAndAddrs)
+	tx, err := etherMan.sequenceBatches(opts, sequences, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -896,12 +886,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(
 	return tx.To(), tx.Data(), nil
 }
 
-func (etherMan *Client) sequenceBatches(
-	opts bind.TransactOpts,
-	sequences []ethmanTypes.Sequence,
-	l2Coinbase common.Address,
-	committeeSignaturesAndAddrs []byte,
-) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
 	for _, seq := range sequences {
 		batch := polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
@@ -914,7 +899,7 @@ func (etherMan *Client) sequenceBatches(
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatchesDataCommittee(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
+	tx, err := etherMan.ZkEVM.SequenceBatchesDataCommittee(&opts, batches, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
@@ -1238,7 +1223,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	}
 	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
 	switch method.Name {
-	case "rollup":
+	case "rollup": // TODO: put correct value
 		err = json.Unmarshal(bytedata, &sequences)
 		if err != nil {
 			return nil, err
@@ -1260,7 +1245,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		}
 
 		return sequencedBatches, nil
-	case "Validium":
+	case "Validium": // TODO: put correct value
 		var sequencesValidium []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
 		err = json.Unmarshal(bytedata, &sequencesValidium)
 		if err != nil {
