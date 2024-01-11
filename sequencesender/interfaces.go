@@ -39,6 +39,6 @@ type ethTxManager interface {
 	ProcessPendingMonitoredTxs(ctx context.Context, owner string, failedResultHandler ethtxmanager.ResultHandler, dbTx pgx.Tx)
 }
 
-type dacmanInterface interface {
-	GetSignaturesAndAddrsFromDataCommittee(ctx context.Context, sequences []ethmanTypes.Sequence) ([]byte, error)
+type dataAbilitier interface {
+	PostSequence(ctx context.Context, sequences []ethmanTypes.Sequence) ([]byte, error)
 }

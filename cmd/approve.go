@@ -51,7 +51,7 @@ func approveTokens(ctx *cli.Context) error {
 	setupLog(c.Log)
 
 	// Check if it is already registered
-	etherman, err := newEtherman(*c)
+	etherman, err := newEtherman(*c, nil)
 	if err != nil {
 		log.Fatal(err)
 		return err

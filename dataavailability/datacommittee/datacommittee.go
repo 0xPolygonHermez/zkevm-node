@@ -1,74 +1,105 @@
 package datacommittee
 
 import (
-	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"sort"
 	"strings"
 
 	"github.com/0xPolygon/cdk-data-availability/client"
 	jTypes "github.com/0xPolygon/cdk-data-availability/rpc"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"golang.org/x/net/context"
 )
+
+// DataCommitteeMember represents a member of the Data Committee
+type DataCommitteeMember struct {
+	Addr common.Address
+	URL  string
+}
+
+// DataCommittee represents a specific committee
+type DataCommittee struct {
+	AddressesHash      common.Hash
+	Members            []DataCommitteeMember
+	RequiredSignatures uint64
+}
+
+type DataCommitteeBackend struct {
+	dataCommitteeContract      *cdkdatacommittee.Cdkdatacommittee
+	l2Coinbase                 common.Address
+	privKey                    *ecdsa.PrivateKey
+	state                      stateInterface
+	dataCommitteeClientFactory client.ClientFactoryInterface
+
+	committeeMembers        []DataCommitteeMember
+	selectedCommitteeMember int
+	ctx                     context.Context
+}
+
+func New(
+	l1RPCURL string,
+	dataCommitteeAddr common.Address,
+	l2Coinbase common.Address,
+	privKey *ecdsa.PrivateKey,
+	state stateInterface,
+	dataCommitteeClientFactory client.ClientFactoryInterface,
+) (*DataCommitteeBackend, error) {
+	ethClient, err := ethclient.Dial(l1RPCURL)
+	if err != nil {
+		log.Errorf("error connecting to %s: %+v", l1RPCURL, err)
+		return nil, err
+	}
+	dataCommittee, err := cdkdatacommittee.NewCdkdatacommittee(dataCommitteeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+	return &DataCommitteeBackend{
+		dataCommitteeContract:      dataCommittee,
+		l2Coinbase:                 l2Coinbase,
+		privKey:                    privKey,
+		state:                      state,
+		dataCommitteeClientFactory: dataCommitteeClientFactory,
+		ctx:                        context.Background(),
+	}, nil
+}
+
+func (d *DataCommitteeBackend) Init() error {
+	committee, err := d.getCurrentDataCommittee()
+	if err != nil {
+		return err
+	}
+	selectedCommitteeMember := -1
+	if committee != nil {
+		d.committeeMembers = committee.Members
+		if len(committee.Members) > 0 {
+			selectedCommitteeMember = rand.Intn(len(committee.Members)) //nolint:gosec
+		}
+	}
+	d.selectedCommitteeMember = selectedCommitteeMember
+	return nil
+}
 
 const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
 
-func (d *DataCommitteeMan) GetBatchL2Data(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
-	found := true
-	transactionsData, err := d.state.GetBatchL2DataByNumber(d.ctx, batchNum, nil)
-	if err != nil {
-		if err == state.ErrNotFound {
-			found = false
-		} else {
-			return nil, fmt.Errorf("failed to get batch data from state for batch num %d: %w", batchNum, err)
-		}
-	}
-	actualTransactionsHash := crypto.Keccak256Hash(transactionsData)
-	if !found || expectedTransactionsHash != actualTransactionsHash {
-		if found {
-			log.Warnf(unexpectedHashTemplate, batchNum, expectedTransactionsHash, actualTransactionsHash)
-		}
-
-		if !d.isTrustedSequencer {
-			log.Info("trying to get data from trusted sequencer")
-			data, err := d.getDataFromTrustedSequencer(batchNum, expectedTransactionsHash)
-			if err != nil {
-				log.Error(err)
-			} else {
-				return data, nil
-			}
-		}
-
-		log.Info("trying to get data from data committee node")
-		data, err := d.getDataFromCommittee(batchNum, expectedTransactionsHash)
-		if err != nil {
-			log.Error(err)
-			if d.isTrustedSequencer {
-				return nil, fmt.Errorf("data not found on the local DB nor on any data committee member")
-			} else {
-				return nil, fmt.Errorf("data not found on the local DB, nor from the trusted sequencer nor on any data committee member")
-			}
-		}
-		return data, nil
-	}
-	return transactionsData, nil
-}
-
-func (d *DataCommitteeMan) getDataFromCommittee(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
+func (d *DataCommitteeBackend) GetData(batchNum uint64, hash common.Hash) ([]byte, error) {
 	intialMember := d.selectedCommitteeMember
 	found := false
 	for !found && intialMember != -1 {
 		member := d.committeeMembers[d.selectedCommitteeMember]
 		log.Infof("trying to get data from %s at %s", member.Addr.Hex(), member.URL)
 		c := d.dataCommitteeClientFactory.New(member.URL)
-		data, err := c.GetOffChainData(d.ctx, expectedTransactionsHash)
+		data, err := c.GetOffChainData(d.ctx, hash)
 		if err != nil {
 			log.Warnf(
 				"error getting data from DAC node %s at %s: %s",
@@ -81,9 +112,9 @@ func (d *DataCommitteeMan) getDataFromCommittee(batchNum uint64, expectedTransac
 			continue
 		}
 		actualTransactionsHash := crypto.Keccak256Hash(data)
-		if actualTransactionsHash != expectedTransactionsHash {
+		if actualTransactionsHash != hash {
 			unexpectedHash := fmt.Errorf(
-				unexpectedHashTemplate, batchNum, expectedTransactionsHash, actualTransactionsHash,
+				unexpectedHashTemplate, batchNum, hash, actualTransactionsHash,
 			)
 			log.Warnf(
 				"error getting data from DAC node %s at %s: %s",
@@ -97,24 +128,10 @@ func (d *DataCommitteeMan) getDataFromCommittee(batchNum uint64, expectedTransac
 		}
 		return data, nil
 	}
-	if err := d.loadCommittee(); err != nil {
+	if err := d.Init(); err != nil {
 		return nil, fmt.Errorf("error loading data committee: %s", err)
 	}
 	return nil, fmt.Errorf("couldn't get the data from any committee member")
-}
-
-func (d *DataCommitteeMan) getDataFromTrustedSequencer(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
-	b, err := d.zkEVMClient.BatchByNumber(d.ctx, big.NewInt(int64(batchNum)))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get batch num %d from trusted sequencer: %w", batchNum, err)
-	}
-	actualTransactionsHash := crypto.Keccak256Hash(b.BatchL2Data)
-	if expectedTransactionsHash != actualTransactionsHash {
-		return nil, fmt.Errorf(
-			unexpectedHashTemplate, batchNum, expectedTransactionsHash, actualTransactionsHash,
-		)
-	}
-	return b.BatchL2Data, nil
 }
 
 type signatureMsg struct {
@@ -123,9 +140,11 @@ type signatureMsg struct {
 	err       error
 }
 
-func (s *DataCommitteeMan) GetSignaturesAndAddrsFromDataCommittee(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
+// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
+// as expected by the contract
+func (s *DataCommitteeBackend) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
 	// Get current committee
-	committee, err := s.GetCurrentDataCommittee()
+	committee, err := s.getCurrentDataCommittee()
 	if err != nil {
 		return nil, err
 	}
@@ -249,3 +268,45 @@ func (s signatureMsgs) Less(i, j int) bool {
 	return strings.ToUpper(s[i].addr.Hex()) < strings.ToUpper(s[j].addr.Hex())
 }
 func (s signatureMsgs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// getCurrentDataCommittee return the currently registered data committee
+func (d *DataCommitteeBackend) getCurrentDataCommittee() (*DataCommittee, error) {
+	addrsHash, err := d.dataCommitteeContract.CommitteeHash(&bind.CallOpts{Pending: false})
+	if err != nil {
+		return nil, fmt.Errorf("error getting CommitteeHash from L1 SC: %w", err)
+	}
+	reqSign, err := d.dataCommitteeContract.RequiredAmountOfSignatures(&bind.CallOpts{Pending: false})
+	if err != nil {
+		return nil, fmt.Errorf("error getting RequiredAmountOfSignatures from L1 SC: %w", err)
+	}
+	members, err := d.getCurrentDataCommitteeMembers()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DataCommittee{
+		AddressesHash:      common.Hash(addrsHash),
+		RequiredSignatures: reqSign.Uint64(),
+		Members:            members,
+	}, nil
+}
+
+// getCurrentDataCommitteeMembers return the currently registered data committee members
+func (d *DataCommitteeBackend) getCurrentDataCommitteeMembers() ([]DataCommitteeMember, error) {
+	members := []DataCommitteeMember{}
+	nMembers, err := d.dataCommitteeContract.GetAmountOfMembers(&bind.CallOpts{Pending: false})
+	if err != nil {
+		return nil, fmt.Errorf("error getting GetAmountOfMembers from L1 SC: %w", err)
+	}
+	for i := int64(0); i < nMembers.Int64(); i++ {
+		member, err := d.dataCommitteeContract.Members(&bind.CallOpts{Pending: false}, big.NewInt(i))
+		if err != nil {
+			return nil, fmt.Errorf("error getting Members %d from L1 SC: %w", i, err)
+		}
+		members = append(members, DataCommitteeMember{
+			Addr: member.Addr,
+			URL:  member.Url,
+		})
+	}
+	return members, nil
+}

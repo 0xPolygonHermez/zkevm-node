@@ -34,18 +34,18 @@ type SequenceSender struct {
 	ethTxManager ethTxManager
 	etherman     etherman
 	eventLog     *event.EventLog
-	dacman       dacmanInterface
+	da           dataAbilitier
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, dacman dacmanInterface) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, da dataAbilitier) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:          cfg,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		eventLog:     eventLog,
-		dacman:       dacman,
+		da:           da,
 	}, nil
 }
 
@@ -107,7 +107,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// add sequence to be monitored
-	signaturesAndAddrs, err := s.dacman.GetSignaturesAndAddrsFromDataCommittee(ctx, sequences)
+	signaturesAndAddrs, err := s.da.PostSequence(ctx, sequences)
 	if err != nil {
 		log.Error("error getting signatures and addresses from the data committee: ", err)
 		return

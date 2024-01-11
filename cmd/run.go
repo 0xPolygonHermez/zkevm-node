@@ -16,7 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
-	"github.com/0xPolygonHermez/zkevm-node/datacommittee"
+	"github.com/0xPolygonHermez/zkevm-node/dataavailability"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -107,18 +107,22 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	etherman, err := newEtherman(*c)
+	// READ CHAIN ID FROM POE SC
+	tmpEthMan, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// READ CHAIN ID FROM POE SC
-	l2ChainID, err := etherman.GetL2ChainID()
+	l2ChainID, err := tmpEthMan.GetL2ChainID()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
+
+	etherman, err := newEtherman(*c, st)
+	if err != nil {
+		log.Fatal(err)
+	}
 	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
 	if err != nil {
 		log.Fatal("error getting forkIDs. Error: ", err)
@@ -281,18 +285,44 @@ func runMigrations(c db.Config, name string) {
 	}
 }
 
-func newEtherman(c config.Config) (*etherman.Client, error) {
-	dacman, err := newDacman(c)
+func newEtherman(c config.Config, st *state.State) (*etherman.Client, error) {
+	ethman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, nil)
 	if err != nil {
 		return nil, err
 	}
-	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, dacman)
+	da, err := newDataAvailability(c, st, ethman)
+	if err != nil {
+		return nil, err
+	}
+	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, da)
 }
 
-func newDacman(c config.Config) (*datacommittee.DataCommitteeMan, error) {
-	return datacommittee.NewDataCommitteeMan(
-		c.NetworkConfig.L1Config.DataCommitteeAddr,
-		c.Etherman.URL,
+func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client) (*dataavailability.DataAvailability, error) {
+	if err := c.DataAvailability.Validate(); err != nil {
+		return nil, err
+	}
+	var trustedSequencerURL string
+	var err error
+	if !c.IsTrustedSequencer {
+		if c.Synchronizer.TrustedSequencerURL != "" {
+			trustedSequencerURL = c.Synchronizer.TrustedSequencerURL
+		} else {
+			log.Debug("getting trusted sequencer URL from smc")
+			trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
+			if err != nil {
+				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+			}
+		}
+		log.Debug("trustedSequencerURL ", trustedSequencerURL)
+	}
+	zkEVMClient := client.NewClient(trustedSequencerURL)
+	var daBackend dataavailability.DABackender
+
+	return dataavailability.New(
+		c.IsTrustedSequencer,
+		daBackend,
+		st,
+		zkEVMClient,
 	)
 }
 
@@ -317,7 +347,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 	// If synchronizer are using sequential mode, we only need one etherman client
 	if cfg.Synchronizer.L1SynchronizationMode == synchronizer.ParallelMode {
 		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.MaxClients+1); i++ {
-			eth, err := newEtherman(cfg)
+			eth, err := newEtherman(cfg, st)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -410,7 +440,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, etherm
 }
 
 func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
-	etherman, err := newEtherman(cfg)
+	etherman, err := newEtherman(cfg, st)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -425,12 +455,12 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	dacman, err := newDacman(cfg)
+	da, err := newDataAvailability(cfg, st, etherman)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, dacman)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, da)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -529,7 +559,7 @@ func createPool(cfgPool pool.Config, constraintsCfg state.BatchConstraintsCfg, l
 }
 
 func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStorage, st *state.State) *ethtxmanager.Client {
-	etherman, err := newEtherman(cfg)
+	etherman, err := newEtherman(cfg, st)
 	if err != nil {
 		log.Fatal(err)
 	}

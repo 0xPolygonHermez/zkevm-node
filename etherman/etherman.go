@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
@@ -190,11 +189,11 @@ type Client struct {
 	cfg   Config
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
 
-	dacman *datacommittee.DataCommitteeMan
+	da dataAvailabilitier
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, l1Config L1Config, dacman *datacommittee.DataCommitteeMan) (*Client, error) {
+func NewClient(cfg Config, l1Config L1Config, da dataAvailabilitier) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -256,10 +255,10 @@ func NewClient(cfg Config, l1Config L1Config, dacman *datacommittee.DataCommitte
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
 		},
-		l1Cfg:  l1Config,
-		cfg:    cfg,
-		auth:   map[common.Address]bind.TransactOpts{},
-		dacman: dacman,
+		l1Cfg: l1Config,
+		cfg:   cfg,
+		auth:  map[common.Address]bind.TransactOpts{},
+		da:    da,
 	}, nil
 }
 
@@ -1131,7 +1130,7 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 
 	var sequences []SequencedBatch
 	if sb.NumBatch != 1 {
-		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.dacman)
+		sequences, err = decodeSequences(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
 		if err != nil {
 			return fmt.Errorf("error decoding the sequences: %v", err)
 		}
@@ -1214,7 +1213,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, dacman *datacommittee.DataCommitteeMan) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataAvailabilitier) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
@@ -1271,7 +1270,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		sequencedBatches := make([]SequencedBatch, len(sequences))
 		for i, seq := range sequencesValidium {
 			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
-			batchL2Data, err := dacman.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
+			batchL2Data, err := da.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
 			if err != nil {
 				return nil, err
 			}
