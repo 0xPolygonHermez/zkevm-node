@@ -23,6 +23,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 )
 
 const (
@@ -74,6 +75,8 @@ type syncStatusInterface interface {
 	// BlockNumberIsInsideUnsafeArea returns if this block is beyond Finalized (so it could be reorg)
 	// If blockNumber == invalidBlockNumber then it uses the highestBlockRequested (the last block requested)
 	BlockNumberIsInsideUnsafeArea(blockNumber uint64) bool
+	// GetHighestBlockReceived returns the highest block requested
+	GetHighestBlockReceived() uint64
 }
 
 type workersInterface interface {
@@ -209,7 +212,7 @@ func NewL1DataRetriever(cfg ConfigProducer, ethermans []L1ParallelEthermanInterf
 		workers:                              newWorkerDecoratorLimitRetriesByTime(newWorkers(ethermans, workersConfig), cfg.MinTimeBetweenRetriesForRollupInfo),
 		filterToSendOrdererResultsToConsumer: newFilterToSendOrdererResultsToConsumer(invalidBlockNumber),
 		outgoingChannel:                      outgoingChannel,
-		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber, DefaultTimeProvider{}),
+		statistics:                           newRollupInfoProducerStatistics(invalidBlockNumber, common.DefaultTimeProvider{}),
 		status:                               producerNoRunning,
 		cfg:                                  cfg,
 		channelCmds:                          make(chan producerCmd, lenCommandsChannels),
@@ -263,8 +266,9 @@ func (l *L1RollupInfoProducer) setStatus(newStatus producerStatusEnum) {
 	if previousStatus != newStatus {
 		log.Infof("producer: Status changed from [%s] to [%s]", previousStatus.String(), newStatus.String())
 		if newStatus == producerSynchronized {
-			log.Infof("producer: send a message to consumer to indicate that we are synchronized")
-			l.sendPackages([]L1SyncMessage{*newL1SyncMessageControl(eventProducerIsFullySynced)})
+			highestBlock := l.syncStatus.GetHighestBlockReceived()
+			log.Infof("producer: send a message to consumer to indicate that we are synchronized. highestBlockRequested:%d", highestBlock)
+			l.sendPackages([]L1SyncMessage{*newL1SyncMessageControlWProducerIsFullySynced(highestBlock)})
 		}
 	}
 }

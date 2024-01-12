@@ -2,14 +2,20 @@ package jsonrpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
@@ -17,15 +23,17 @@ import (
 // ZKEVMEndpoints contains implementations for the "zkevm" RPC endpoints
 type ZKEVMEndpoints struct {
 	cfg      Config
+	pool     types.PoolInterface
 	state    types.StateInterface
 	etherman types.EthermanInterface
 	txMan    DBTxManager
 }
 
 // NewZKEVMEndpoints returns ZKEVMEndpoints
-func NewZKEVMEndpoints(cfg Config, state types.StateInterface, etherman types.EthermanInterface) *ZKEVMEndpoints {
+func NewZKEVMEndpoints(cfg Config, pool types.PoolInterface, state types.StateInterface, etherman types.EthermanInterface) *ZKEVMEndpoints {
 	return &ZKEVMEndpoints{
 		cfg:      cfg,
+		pool:     pool,
 		state:    state,
 		etherman: etherman,
 	}
@@ -139,6 +147,16 @@ func (z *ZKEVMEndpoints) GetBatchByNumber(batchNumber types.BatchNumber, fullTx 
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch from state by number %v", batchNumber), err, true)
 		}
+		batchTimestamp, err := z.state.GetBatchTimestamp(ctx, batchNumber, nil, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load batch timestamp from state by number %v", batchNumber), err, true)
+		}
+
+		if batchTimestamp == nil {
+			batch.Timestamp = time.Time{}
+		} else {
+			batch.Timestamp = *batchTimestamp
+		}
 
 		txs, _, err := z.state.GetTransactionsByBatchNumber(ctx, batchNumber, dbTx)
 		if !errors.Is(err, state.ErrNotFound) && err != nil {
@@ -193,13 +211,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't load last block from state to compute the pending block", err, true)
 			}
-			header := lastBlock.Header()
-			header.ParentHash = lastBlock.Hash()
-			header.Number = big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1)
-			header.TxHash = ethTypes.EmptyRootHash
-			header.UncleHash = ethTypes.EmptyUncleHash
-			block := state.NewL2BlockWithHeader(header)
-			rpcBlock, err := types.NewBlock(block, nil, fullTx, true)
+			l2Header := state.NewL2Header(&ethTypes.Header{
+				ParentHash: lastBlock.Hash(),
+				Number:     big.NewInt(0).SetUint64(lastBlock.Number().Uint64() + 1),
+				TxHash:     ethTypes.EmptyRootHash,
+				UncleHash:  ethTypes.EmptyUncleHash,
+			})
+			l2Block := state.NewL2BlockWithHeader(l2Header)
+			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false, state.Ptr(true))
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -212,14 +231,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			return nil, rpcErr
 		}
 
-		block, err := z.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
+		l2Block, err := z.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't load block from state by number %v", blockNumber), err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -229,7 +248,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -241,14 +260,14 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 // GetFullBlockByHash returns information about a block by hash
 func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		block, err := z.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
+		l2Block, err := z.state.GetL2BlockByHash(ctx, hash.Hash(), dbTx)
 		if errors.Is(err, state.ErrNotFound) {
 			return nil, nil
 		} else if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get block by hash from state", err, true)
 		}
 
-		txs := block.Transactions()
+		txs := l2Block.Transactions()
 		receipts := make([]ethTypes.Receipt, 0, len(txs))
 		for _, tx := range txs {
 			receipt, err := z.state.GetTransactionReceipt(ctx, tx.Hash(), dbTx)
@@ -258,7 +277,7 @@ func (z *ZKEVMEndpoints) GetFullBlockByHash(hash types.ArgHash, fullTx bool) (in
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(block, receipts, fullTx, true)
+		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, true, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -287,4 +306,223 @@ func (z *ZKEVMEndpoints) GetNativeBlockHashesInRange(filter NativeBlockHashBlock
 
 		return nativeBlockHashes, nil
 	})
+}
+
+// GetTransactionByL2Hash returns a transaction by his l2 hash
+func (z *ZKEVMEndpoints) GetTransactionByL2Hash(hash types.ArgHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		// try to get tx from state
+		tx, err := z.state.GetTransactionByL2Hash(ctx, hash.Hash(), dbTx)
+		if err != nil && !errors.Is(err, state.ErrNotFound) {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by l2 hash from state", err, true)
+		}
+		if tx != nil {
+			receipt, err := z.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return RPCErrorResponse(types.DefaultErrorCode, "transaction receipt not found", err, false)
+			} else if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
+			}
+
+			res, err := types.NewTransaction(*tx, receipt, false, state.Ptr(true))
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			}
+
+			return res, nil
+		}
+
+		// if the tx does not exist in the state, look for it in the pool
+		if z.cfg.SequencerNodeURI != "" {
+			return z.getTransactionByL2HashFromSequencerNode(hash.Hash())
+		}
+		poolTx, err := z.pool.GetTransactionByL2Hash(ctx, hash.Hash())
+		if errors.Is(err, pool.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction by l2 hash from pool", err, true)
+		}
+		if poolTx.Status == pool.TxStatusPending {
+			tx = &poolTx.Transaction
+			res, err := types.NewTransaction(*tx, nil, false, state.Ptr(true))
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
+			}
+			return res, nil
+		}
+		return nil, nil
+	})
+}
+
+// GetTransactionReceiptByL2Hash returns a transaction receipt by his hash
+func (z *ZKEVMEndpoints) GetTransactionReceiptByL2Hash(hash types.ArgHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		tx, err := z.state.GetTransactionByL2Hash(ctx, hash.Hash(), dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from state", err, true)
+		}
+
+		r, err := z.state.GetTransactionReceipt(ctx, hash.Hash(), dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
+		}
+
+		receipt, err := types.NewReceipt(*tx, r)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
+		}
+
+		return receipt, nil
+	})
+}
+
+func (z *ZKEVMEndpoints) getTransactionByL2HashFromSequencerNode(hash common.Hash) (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(z.cfg.SequencerNodeURI, "zkevm_getTransactionByL2Hash", hash.String())
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx from sequencer node by l2 hash", err, true)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
+	}
+
+	var tx *types.Transaction
+	err = json.Unmarshal(res.Result, &tx)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read tx loaded by l2 hash from sequencer node", err, true)
+	}
+	return tx, nil
+}
+
+// GetExitRootsByGER returns the exit roots accordingly to the provided Global Exit Root
+func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		exitRoots, err := z.state.GetExitRootByGlobalExitRoot(ctx, globalExitRoot, dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get exit roots by global exit root from state", err, true)
+		}
+
+		return types.ExitRoots{
+			BlockNumber:     types.ArgUint64(exitRoots.BlockNumber),
+			Timestamp:       types.ArgUint64(exitRoots.Timestamp.Unix()),
+			MainnetExitRoot: exitRoots.MainnetExitRoot,
+			RollupExitRoot:  exitRoots.RollupExitRoot,
+		}, nil
+	})
+}
+
+// EstimateFee returns an estimate fee for the transaction.
+func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return RPCErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil, false)
+		}
+
+		block, respErr := z.getBlockByArg(ctx, blockArg, dbTx)
+		if respErr != nil {
+			return nil, respErr
+		}
+
+		var blockToProcess *uint64
+		if blockArg != nil {
+			blockNumArg := blockArg.Number()
+			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
+				blockToProcess = nil
+			} else {
+				n := block.NumberU64()
+				blockToProcess = &n
+			}
+		}
+
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
+		sender, tx, err := arg.ToTransaction(ctx, z.state, z.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
+		}
+
+		gasEstimation, returnValue, err := z.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+		if errors.Is(err, runtime.ErrExecutionReverted) {
+			data := make([]byte, len(returnValue))
+			copy(data, returnValue)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
+		} else if err != nil {
+			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
+			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+		}
+
+		gasPrices, err := z.pool.GetGasPrices(ctx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get L2 gas price", err, false)
+		}
+
+		txGasPrice := new(big.Int).SetUint64(gasPrices.L2GasPrice) // by default we assume the tx gas price is the current L2 gas price
+		egpEnabled := z.pool.EffectiveGasPriceEnabled()
+
+		if egpEnabled {
+			rawTx, err := state.EncodeTransactionWithoutEffectivePercentage(*tx)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to encode tx", err, false)
+			}
+
+			txEGP, err := z.pool.CalculateEffectiveGasPrice(rawTx, txGasPrice, gasEstimation, gasPrices.L1GasPrice, gasPrices.L2GasPrice)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to calculate effective gas price", err, false)
+			}
+
+			if txEGP.Cmp(txGasPrice) == -1 { // txEGP < txGasPrice
+				txGasPrice = txEGP
+			}
+
+			log.Infof("[EstimateFee] gasPrice: %d, effectiveGasPrice: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
+				txGasPrice, txEGP, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
+		}
+
+		fee := new(big.Int).Mul(txGasPrice, new(big.Int).SetUint64(gasEstimation))
+
+		log.Infof("[EstimateFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
+
+		return hex.EncodeBig(fee), nil
+	})
+}
+
+func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
+	// If no block argument is provided, return the latest block
+	if blockArg == nil {
+		block, err := z.state.GetLastL2Block(ctx, dbTx)
+		if err != nil {
+			return nil, types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
+		}
+		return block, nil
+	}
+
+	// If we have a block hash, try to get the block by hash
+	if blockArg.IsHash() {
+		block, err := z.state.GetL2BlockByHash(ctx, blockArg.Hash().Hash(), dbTx)
+		if errors.Is(err, state.ErrNotFound) {
+			return nil, types.NewRPCError(types.DefaultErrorCode, "header for hash not found")
+		} else if err != nil {
+			return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("failed to get block by hash %v", blockArg.Hash().Hash()))
+		}
+		return block, nil
+	}
+
+	// Otherwise, try to get the block by number
+	blockNum, rpcErr := blockArg.Number().GetNumericBlockNumber(ctx, z.state, z.etherman, dbTx)
+	if rpcErr != nil {
+		return nil, rpcErr
+	}
+	block, err := z.state.GetL2BlockByNumber(context.Background(), blockNum, dbTx)
+	if errors.Is(err, state.ErrNotFound) || block == nil {
+		return nil, types.NewRPCError(types.DefaultErrorCode, "header not found")
+	} else if err != nil {
+		return nil, types.NewRPCError(types.DefaultErrorCode, fmt.Sprintf("failed to get block by number %v", blockNum))
+	}
+
+	return block, nil
 }

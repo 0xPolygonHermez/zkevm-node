@@ -53,92 +53,68 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(25),
 		},
 		{
-			path:          "Sequencer.WaitPeriodPoolIsEmpty",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
+			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "Sequencer.FrequencyToCheckTxsForDelete",
+			path:          "Sequencer.DeletePoolTxsCheckInterval",
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencer.TxLifetimeCheckTimeout",
+			path:          "Sequencer.TxLifetimeCheckInterval",
 			expectedValue: types.NewDuration(10 * time.Minute),
 		},
 		{
-			path:          "Sequencer.MaxTxLifetime",
+			path:          "Sequencer.TxLifetimeMax",
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
-			expectedValue: types.NewDuration(60 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.SleepDuration",
-			expectedValue: types.NewDuration(100 * time.Millisecond),
-		},
-		{
-			path:          "Sequencer.Finalizer.ResourcePercentageToCloseBatch",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "Sequencer.Finalizer.GERFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.L1InfoRootFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.WaitForCheckingL1InfoTree",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.L2BlockTime",
-			expectedValue: types.NewDuration(3 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
-			expectedValue: uint64(0),
-		},
-		{
-			path:          "Sequencer.Finalizer.TimestampResolution",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.L2BlockTime",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.DBManager.PoolRetrievalInterval",
+			path:          "Sequencer.LoadPoolTxsCheckInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
-			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
+			path:          "Sequencer.StateConsistencyCheckInterval",
 			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.NewTxsWaitInterval",
+			expectedValue: types.NewDuration(100 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.Finalizer.ResourceExhaustedMarginPct",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesL1BlockConfirmations",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.L1InfoTreeL1BlockConfirmations",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesCheckInterval",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L1InfoTreeCheckInterval",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L2BlockMaxDeltaTimestamp",
+			expectedValue: types.NewDuration(3 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.HaltOnBatchNumber",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Sequencer.Finalizer.BatchMaxDeltaTimestamp",
+			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",
@@ -147,6 +123,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.StreamServer.Filename",
 			expectedValue: "",
+		},
+		{
+			path:          "Sequencer.StreamServer.Version",
+			expectedValue: uint8(0),
 		},
 		{
 			path:          "Sequencer.StreamServer.Enabled",

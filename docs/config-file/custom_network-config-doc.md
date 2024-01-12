@@ -9,7 +9,6 @@
 | - [genesisBlockNumber](#genesisBlockNumber ) | No      | integer         | No         | -          | L1: block number of the genesis block                                       |
 | - [genesis](#genesis )                       | No      | array of object | No         | -          | L2:  List of states contracts used to populate merkle tree at initial state |
 | - [L1Config](#L1Config )                     | No      | object          | No         | -          | L1: configuration of the network                                            |
-| - [firstBatchData](#firstBatchData )         | No      | object          | No         | -          | Data of the first batch after the genesis(Batch 1)                          |
 
 ## <a name="root"></a>1. `root`
 
@@ -120,34 +119,6 @@
 
 **Type:** : `array of integer`
 **Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
-
-## <a name="firstBatchData"></a>5. `[firstBatchData]`
-
-**Type:** : `object`
-**Description:** Data of the first batch after the genesis(Batch 1)
-
-| Property                                            | Pattern | Type             | Deprecated | Definition | Title/Description |
-| --------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
-| - [transactions](#firstBatchData_transactions )     | No      | string           | No         | -          | -                 |
-| - [globalExitRoot](#firstBatchData_globalExitRoot ) | No      | array of integer | No         | -          | -                 |
-| - [timestamp](#firstBatchData_timestamp )           | No      | integer          | No         | -          | -                 |
-| - [sequencer](#firstBatchData_sequencer )           | No      | array of integer | No         | -          | -                 |
-
-### <a name="firstBatchData_transactions"></a>5.1. `firstBatchData.transactions`
-
-**Type:** : `string`
-
-### <a name="firstBatchData_globalExitRoot"></a>5.2. `firstBatchData.globalExitRoot`
-
-**Type:** : `array of integer`
-
-### <a name="firstBatchData_timestamp"></a>5.3. `firstBatchData.timestamp`
-
-**Type:** : `integer`
-
-### <a name="firstBatchData_sequencer"></a>5.4. `firstBatchData.sequencer`
-
-**Type:** : `array of integer`
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)

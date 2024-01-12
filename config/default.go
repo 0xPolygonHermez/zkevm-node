@@ -32,6 +32,7 @@ Outputs = ["stderr"]
 		MaxArithmetics = 236585
 		MaxBinaries = 473170
 		MaxSteps = 7570538
+		MaxSHA256Hashes = 1596
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
@@ -115,33 +116,28 @@ L1SynchronizationMode = "parallel"
 			ApplyAfterNumRollupReceived = 10
 
 [Sequencer]
-WaitPeriodPoolIsEmpty = "1s"
-BlocksAmountForTxsToBeDeleted = 100
-FrequencyToCheckTxsForDelete = "12h"
-TxLifetimeCheckTimeout = "10m"
-MaxTxLifetime = "3h"
+DeletePoolTxsL1BlockConfirmations = 100
+DeletePoolTxsCheckInterval = "12h"
+TxLifetimeCheckInterval = "10m"
+TxLifetimeMax = "3h"
+LoadPoolTxsCheckInterval = "500ms"
+StateConsistencyCheckInterval = "5s"
 	[Sequencer.Finalizer]
-		GERDeadlineTimeout = "5s"
-		ForcedBatchDeadlineTimeout = "60s"
-		SleepDuration = "100ms"
-		ResourcePercentageToCloseBatch = 10
-		GERFinalityNumberOfBlocks = 64
-		ForcedBatchesFinalityNumberOfBlocks = 64
-		L1InfoRootFinalityNumberOfBlocks = 64
-		ClosingSignalsManagerWaitForCheckingL1Timeout = "10s"
-		ClosingSignalsManagerWaitForCheckingGER = "10s"
-		ClosingSignalsManagerWaitForCheckingForcedBatches = "10s"
-		WaitForCheckingL1InfoTree = "10s"
-		TimestampResolution = "10s"
-		L2BlockTime = "3s"
-		StopSequencerOnBatchNum = 0
-		SequentialReprocessFullBatch = false
-	[Sequencer.DBManager]
-		PoolRetrievalInterval = "500ms"
-		L2ReorgRetrievalInterval = "5s"
+		NewTxsWaitInterval = "100ms"
+		ForcedBatchesTimeout = "60s"
+		ForcedBatchesL1BlockConfirmations = 64
+		ForcedBatchesCheckInterval = "10s"
+		L1InfoTreeL1BlockConfirmations = 64
+		L1InfoTreeCheckInterval = "10s"
+		BatchMaxDeltaTimestamp = "10s"
+		L2BlockMaxDeltaTimestamp = "3s"
+		ResourceExhaustedMarginPct = 10
+		HaltOnBatchNumber = 0
+		SequentialBatchSanityCheck = false
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
+		Version = 0
 		Enabled = false
 
 [SequenceSender]

@@ -19,16 +19,27 @@ type ProcessRequest struct {
 	BatchNumber               uint64
 	GlobalExitRoot_V1         common.Hash
 	L1InfoRoot_V2             common.Hash
+	L1InfoTreeData_V2         map[uint32]L1DataV2
 	OldStateRoot              common.Hash
 	OldAccInputHash           common.Hash
 	Transactions              []byte
 	Coinbase                  common.Address
+	ForcedBlockHashL1         common.Hash
 	Timestamp_V1              time.Time
 	TimestampLimit_V2         uint64
 	Caller                    metrics.CallerLabel
 	SkipFirstChangeL2Block_V2 bool
 	SkipWriteBlockInfoRoot_V2 bool
+	SkipVerifyL1InfoRoot_V2   bool
 	ForkID                    uint64
+}
+
+// L1DataV2 represents the L1InfoTree data used in ProcessRequest.L1InfoTreeData_V2 parameter
+type L1DataV2 struct {
+	GlobalExitRoot common.Hash
+	BlockHashL1    common.Hash
+	MinTimestamp   uint64
+	SmtProof       [][]byte
 }
 
 // ProcessBatchResponse represents the response of a batch process.
@@ -52,6 +63,8 @@ type ProcessBatchResponse struct {
 	SMTKeys_V2           []merkletree.Key
 	ProgramKeys_V2       []merkletree.Key
 	ForkID               uint64
+	InvalidBatch_V2      bool
+	RomError_V2          error
 }
 
 // ProcessBlockResponse represents the response of a block
@@ -68,6 +81,7 @@ type ProcessBlockResponse struct {
 	BlockHash            common.Hash
 	TransactionResponses []*ProcessTransactionResponse
 	Logs                 []*types.Log
+	RomError_V2          error
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
@@ -160,6 +174,7 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.UsedArithmetics += other.UsedArithmetics
 	z.UsedBinaries += other.UsedBinaries
 	z.UsedSteps += other.UsedSteps
+	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
 }
 
 // Sub subtract zk counters with passed zk counters (not safe)
@@ -229,6 +244,12 @@ func (r *BatchResources) Sub(other BatchResources) error {
 	return err
 }
 
+// SumUp sum ups the batch resources from other
+func (r *BatchResources) SumUp(other BatchResources) {
+	r.Bytes += other.Bytes
+	r.ZKCounters.SumUp(other.ZKCounters)
+}
+
 // InfoReadWrite has information about modified addresses during the execution
 type InfoReadWrite struct {
 	Address common.Address
@@ -291,15 +312,5 @@ func HexToAddressPtr(hex string) *common.Address {
 // HexToHashPtr create a hash from a hex and returns its pointer
 func HexToHashPtr(hex string) *common.Hash {
 	h := common.HexToHash(hex)
-	return &h
-}
-
-// AddressPtr returns a pointer to the provided address
-func AddressPtr(i common.Address) *common.Address {
-	return &i
-}
-
-// HashPtr returns a pointer to the provided hash
-func HashPtr(h common.Hash) *common.Hash {
 	return &h
 }

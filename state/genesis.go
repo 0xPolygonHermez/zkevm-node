@@ -25,8 +25,6 @@ type Genesis struct {
 	Root common.Hash
 	// Actions is the data to populate into the state trie
 	Actions []*GenesisAction
-	// Data of the first batch after the genesis(Batch 1)
-	FirstBatchData *BatchData
 }
 
 // GenesisAction represents one of the values set on the SMT during genesis.
@@ -38,14 +36,6 @@ type GenesisAction struct {
 	Key             string `json:"key"`
 	Value           string `json:"value"`
 	Root            string `json:"root"`
-}
-
-// BatchData represents the data of the first batch that contains initial transaction
-type BatchData struct {
-	Transactions   string         `json:"transactions"`
-	GlobalExitRoot common.Hash    `json:"globalExitRoot"`
-	Timestamp      uint64         `json:"timestamp"`
-	Sequencer      common.Address `json:"sequencer"`
 }
 
 // SetGenesis populates state with genesis information
@@ -63,6 +53,12 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	}
 
 	uuid := uuid.New().String()
+
+	err = s.tree.StartBlock(ctx, root, uuid)
+	if err != nil {
+		log.Errorf("error starting block before genesis: %v", err)
+		return common.Hash{}, err
+	}
 
 	for _, action := range genesis.Actions {
 		address := common.HexToAddress(action.Address)
@@ -118,8 +114,14 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 
 	root.SetBytes(genesisStateRoot)
 
+	err = s.tree.FinishBlock(ctx, root, uuid)
+	if err != nil {
+		log.Errorf("error finishing block after genesis: %v", err)
+		return common.Hash{}, err
+	}
+
 	// flush state db
-	err = s.tree.Flush(ctx, uuid)
+	err = s.tree.Flush(ctx, root, uuid)
 	if err != nil {
 		log.Errorf("error flushing state tree after genesis: %v", err)
 		return common.Hash{}, err

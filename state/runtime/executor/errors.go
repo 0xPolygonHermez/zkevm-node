@@ -90,8 +90,10 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrInvalidDecodeChangeL2Block
 	case RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK:
 		return runtime.ErrInvalidNotFirstTxChangeL2Block
-	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK:
-		return runtime.ErrInvalidTxChangeL2Block
+	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP:
+		return runtime.ErrInvalidTxChangeL2BlockLimitTimestamp
+	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP:
+		return runtime.ErrInvalidTxChangeL2BlockMinTimestamp
 	}
 	return ErrROMUnknown
 }
@@ -162,8 +164,10 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK
 	case runtime.ErrInvalidNotFirstTxChangeL2Block:
 		return RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK
-	case runtime.ErrInvalidTxChangeL2Block:
-		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK
+	case runtime.ErrInvalidTxChangeL2BlockLimitTimestamp:
+		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP
+	case runtime.ErrInvalidTxChangeL2BlockMinTimestamp:
+		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP
 	}
 	return ErrCodeROMUnknown
 }
@@ -201,6 +205,11 @@ func IsInvalidNonceError(error RomError) bool {
 // IsInvalidBalanceError indicates if the error is due to a invalid balance
 func IsInvalidBalanceError(error RomError) bool {
 	return error == RomError_ROM_ERROR_INTRINSIC_INVALID_BALANCE
+}
+
+// IsInvalidL2Block indicates if the error is related to L2Block and invalidate all the batch
+func IsInvalidL2Block(error RomError) bool {
+	return error >= RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK && error <= RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP
 }
 
 // ExecutorErr returns an instance of error related to the ExecutorError
@@ -415,6 +424,20 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidBalance
 	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH:
 		return runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT:
+		return runtime.ErrExecutorErrorInvalidNewStateRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH:
+		return runtime.ErrExecutorErrorInvalidNewAccInputHash
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT:
+		return runtime.ErrExecutorErrorInvalidNewLocalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND:
+		return runtime.ErrExecutorErrorDBKeyNotFound
+	case ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE:
+		return runtime.ErrExecutorErrorSMTInvalidDataSize
+	case ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR:
+		return runtime.ErrExecutorErrorHashDBGRPCError
+	case ExecutorError_EXECUTOR_ERROR_STATE_MANAGER:
+		return runtime.ErrExecutorErrorStateManager
 	}
 	return ErrExecutorUnknown
 }
@@ -629,6 +652,20 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE
 	case runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch:
 		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH
+	case runtime.ErrExecutorErrorInvalidNewStateRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT
+	case runtime.ErrExecutorErrorInvalidNewAccInputHash:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH
+	case runtime.ErrExecutorErrorInvalidNewLocalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorDBKeyNotFound:
+		return ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND
+	case runtime.ErrExecutorErrorSMTInvalidDataSize:
+		return ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE
+	case runtime.ErrExecutorErrorHashDBGRPCError:
+		return ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR
+	case runtime.ErrExecutorErrorStateManager:
+		return ExecutorError_EXECUTOR_ERROR_STATE_MANAGER
 	}
 	return ErrCodeExecutorUnknown
 }

@@ -185,7 +185,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 			log.Debugf("error num < c0 : %d, %d", num, c0)
 			return []types.Transaction{}, txsData, []uint8{}, ErrInvalidData
 		}
-		length := uint64(num - c0)
+		length := num - c0
 		if length > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 			if (pos + 1 + num - f7) > txDataLength {
@@ -237,7 +237,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 
 		if forkID >= FORKID_DRAGONFRUIT {
 			efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
-			efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
+			efficiencyPercentages = append(efficiencyPercentages, efficiencyPercentage[0])
 		}
 
 		pos = endPos
@@ -277,7 +277,7 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // GenerateReceipt generates a receipt from a processed transaction
-func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),
@@ -285,7 +285,7 @@ func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
 		TxHash:            processedTx.Tx.Hash(),
-		TransactionIndex:  0,
+		TransactionIndex:  txIndex,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
 	}
@@ -340,4 +340,9 @@ func CheckLogOrder(logs []*types.Log) bool {
 		}
 	}
 	return true
+}
+
+// Ptr returns a pointer for any instance
+func Ptr[T any](v T) *T {
+	return &v
 }

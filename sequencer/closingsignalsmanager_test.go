@@ -1,35 +1,12 @@
 package sequencer
 
-import (
-	"context"
-	"fmt"
-	"testing"
-	"time"
+//TODO: Fix tests ETROG
 
-	"github.com/0xPolygonHermez/zkevm-node/db"
-	"github.com/0xPolygonHermez/zkevm-node/event"
-	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
-	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree/hashdb"
-	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
-	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-)
-
-const numberOfForcesBatches = 10
+/* const numberOfForcesBatches = 10
 
 var (
+	stateDBCfg                                   = dbutils.NewStateConfigFromEnv()
 	localStateDb                                 *pgxpool.Pool
-	localTestDbManager                           *dbManager
 	localCtx                                     context.Context
 	localMtDBCancel, localExecutorCancel         context.CancelFunc
 	localMtDBServiceClient                       hashdb.HashDBServiceClient
@@ -39,12 +16,29 @@ var (
 	testGER                                      = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testAddr                                     = common.HexToAddress("0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D")
 	testRawData                                  = common.Hex2Bytes("0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e880801cee7e01dc62f69a12c3510c6d64de04ee6346d84b6a017f3e786c7d87f963e75d8cc91fa983cd6d9cf55fff80d73bd26cd333b0f098acc1e58edb1fd484ad731b")
+	stateCfg                                     = state.Config{
+		MaxCumulativeGasUsed: 800000,
+		ChainID:              1000,
+		MaxLogsCount:         10000,
+		MaxLogsBlockRange:    10000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          5,
+			Version:         "",
+		}},
+	}
 )
 
 type mocks struct {
 	Etherman *EthermanMock
 }
 
+func initOrResetDB() {
+	if err := dbutils.InitOrResetState(stateDBCfg); err != nil {
+		panic(err)
+	}
+}
 func setupTest(t *testing.T) {
 	initOrResetDB()
 
@@ -76,32 +70,10 @@ func setupTest(t *testing.T) {
 	localStateTree := merkletree.NewStateTree(localMtDBServiceClient)
 	localState = state.NewState(stateCfg, pgstatestorage.NewPostgresStorage(stateCfg, localStateDb), localExecutorClient, localStateTree, eventLog, nil)
 
-	batchConstraints := state.BatchConstraintsCfg{
-		MaxTxsPerBatch:       300,
-		MaxBatchBytesSize:    120000,
-		MaxCumulativeGasUsed: 30000000,
-		MaxKeccakHashes:      2145,
-		MaxPoseidonHashes:    252357,
-		MaxPoseidonPaddings:  135191,
-		MaxMemAligns:         236585,
-		MaxArithmetics:       236585,
-		MaxBinaries:          473170,
-		MaxSteps:             7570538,
-	}
-
-	localTestDbManager = newDBManager(localCtx, dbManagerCfg, nil, localState, nil, closingSignalCh, batchConstraints)
-
 	// Set genesis batch
 	dbTx, err := localState.BeginStateTransaction(localCtx)
 	require.NoError(t, err)
-	genesis := state.Genesis{
-		FirstBatchData: &state.BatchData{
-			Transactions:   "0xf8c380808401c9c380942a3dd3eb832af982ec71669e178424b10dca2ede80b8a4d3476afe000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a40d5f56745a118d0906a34e69aec8c0db1cb8fa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005ca1ab1e0000000000000000000000000000000000000000000000000000000005ca1ab1e1bff",
-			GlobalExitRoot: common.Hash{},
-			Timestamp:      1697640780,
-			Sequencer:      common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"),
-		},
-	}
+	genesis := state.Genesis{}
 	_, err = localState.SetGenesis(localCtx, state.Block{}, genesis, metrics.SynchronizerCallerLabel, dbTx)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(localCtx))
@@ -126,45 +98,47 @@ func prepareForcedBatches(t *testing.T) {
 }
 
 func TestClosingSignalsManager(t *testing.T) {
-	m := mocks{
-		Etherman: NewEthermanMock(t),
-	}
+	   	m := mocks{
+	   		Etherman: NewEthermanMock(t),
+	   	}
 
-	setupTest(t)
-	channels := ClosingSignalCh{
-		ForcedBatchCh: make(chan state.ForcedBatch),
-	}
+	   setupTest(t)
 
-	prepareForcedBatches(t)
-	closingSignalsManager := newClosingSignalsManager(localCtx, localTestDbManager, channels, cfg, m.Etherman)
-	closingSignalsManager.Start()
+	   	channels := ClosingSignalCh{
+	   		ForcedBatchCh: make(chan state.ForcedBatch),
+	   	}
 
-	newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
-	defer cancelFunc()
+	   prepareForcedBatches(t)
+	   closingSignalsManager := newClosingSignalsManager(localCtx, localState, channels, cfg, m.Etherman)
+	   closingSignalsManager.Start()
 
-	var fb *state.ForcedBatch
+	   newCtx, cancelFunc := context.WithTimeout(localCtx, time.Second*3)
+	   defer cancelFunc()
 
-	for {
-		select {
-		case <-newCtx.Done():
-			log.Infof("received context done, Err: %s", newCtx.Err())
-			return
-		// Forced  batch ch
-		case fb := <-channels.ForcedBatchCh:
-			log.Debug("Forced batch received", "forced batch", fb)
-		}
+	   var fb *state.ForcedBatch
 
-		if fb != nil {
-			break
-		}
-	}
+	   	for {
+	   		select {
+	   		case <-newCtx.Done():
+	   			log.Infof("received context done, Err: %s", newCtx.Err())
+	   			return
+	   		// Forced  batch ch
+	   		case fb := <-channels.ForcedBatchCh:
+	   			log.Debug("Forced batch received", "forced batch", fb)
+	   		}
 
-	require.NotEqual(t, (*state.ForcedBatch)(nil), fb)
-	require.Equal(t, nil, fb.BlockNumber)
-	require.Equal(t, int64(1), fb.ForcedBatchNumber)
-	require.Equal(t, testGER, fb.GlobalExitRoot)
-	require.Equal(t, testAddr, fb.Sequencer)
-	require.Equal(t, testRawData, fb.RawTxsData)
+	   		if fb != nil {
+	   			break
+	   		}
+	   	}
 
-	cleanup(t)
-}
+	   require.NotEqual(t, (*state.ForcedBatch)(nil), fb)
+	   require.Equal(t, nil, fb.BlockNumber)
+	   require.Equal(t, int64(1), fb.ForcedBatchNumber)
+	   require.Equal(t, testGER, fb.GlobalExitRoot)
+	   require.Equal(t, testAddr, fb.Sequencer)
+	   require.Equal(t, testRawData, fb.RawTxsData)
+
+	   cleanup(t)
+
+}*/

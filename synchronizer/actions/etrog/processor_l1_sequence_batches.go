@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
+	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -24,14 +25,15 @@ import (
 type stateProcessSequenceBatches interface {
 	GetNextForcedBatches(ctx context.Context, nextForcedBatches int, dbTx pgx.Tx) ([]state.ForcedBatch, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
-	ProcessAndStoreClosedBatch(ctx context.Context, processingCtx state.ProcessingContext, encodedTxs []byte, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
-	ExecuteBatch(ctx context.Context, batch state.Batch, updateMerkleTree bool, dbTx pgx.Tx) (*executor.ProcessBatchResponse, error)
+	ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx state.ProcessingContextV2, dbTx pgx.Tx, caller metrics.CallerLabel) (common.Hash, uint64, string, error)
+	ExecuteBatchV2(ctx context.Context, batch state.Batch, L1InfoTreeRoot common.Hash, l1InfoTreeData map[uint32]state.L1DataV2, timestampLimit time.Time, updateMerkleTree bool, skipVerifyL1InfoRoot uint32, forcedBlockHashL1 *common.Hash, dbTx pgx.Tx) (*executor.ProcessBatchResponseV2, error)
 	AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	AddSequence(ctx context.Context, sequence state.Sequence, dbTx pgx.Tx) error
 	AddVirtualBatch(ctx context.Context, virtualBatch *state.VirtualBatch, dbTx pgx.Tx) error
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
 }
 
 type ethermanProcessSequenceBatches interface {
@@ -52,25 +54,31 @@ type syncProcessSequenceBatchesInterface interface {
 // ProcessorL1SequenceBatchesEtrog implements L1EventProcessor
 type ProcessorL1SequenceBatchesEtrog struct {
 	actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]
-	state    stateProcessSequenceBatches
-	etherMan ethermanProcessSequenceBatches
-	pool     poolProcessSequenceBatchesInterface
-	eventLog *event.EventLog
-	sync     syncProcessSequenceBatchesInterface
+	state        stateProcessSequenceBatches
+	etherMan     ethermanProcessSequenceBatches
+	pool         poolProcessSequenceBatchesInterface
+	sync         syncProcessSequenceBatchesInterface
+	timeProvider syncCommon.TimeProvider
+	halter       syncinterfaces.CriticalErrorHandler
 }
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
-	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog *event.EventLog, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatchesEtrog {
+	etherMan ethermanProcessSequenceBatches,
+	pool poolProcessSequenceBatchesInterface,
+	sync syncProcessSequenceBatchesInterface,
+	timeProvider syncCommon.TimeProvider,
+	halter syncinterfaces.CriticalErrorHandler) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
 			SupportedForkdIds: &ForksIdOnlyEtrog},
-		state:    state,
-		etherMan: etherMan,
-		pool:     pool,
-		eventLog: eventLog,
-		sync:     sync,
+		state:        state,
+		etherMan:     etherMan,
+		pool:         pool,
+		sync:         sync,
+		timeProvider: timeProvider,
+		halter:       halter,
 	}
 }
 
@@ -83,28 +91,41 @@ func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order eth
 	return err
 }
 
-func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, timestamp time.Time, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
 	}
+	now := g.timeProvider.Now()
 	for _, sbatch := range sequencedBatches {
 		virtualBatch := state.VirtualBatch{
-			BatchNumber:   sbatch.BatchNumber,
-			TxHash:        sbatch.TxHash,
-			Coinbase:      sbatch.Coinbase,
-			BlockNumber:   blockNumber,
-			SequencerAddr: sbatch.SequencerAddr,
+			BatchNumber:         sbatch.BatchNumber,
+			TxHash:              sbatch.TxHash,
+			Coinbase:            sbatch.Coinbase,
+			BlockNumber:         blockNumber,
+			SequencerAddr:       sbatch.SequencerAddr,
+			TimestampBatchEtrog: &l1BlockTimestamp,
 		}
 		batch := state.Batch{
 			BatchNumber:    sbatch.BatchNumber,
 			GlobalExitRoot: sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
-			Timestamp:      timestamp,
-			Coinbase:       sbatch.Coinbase,
-			BatchL2Data:    sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
+			// This timestamp now is the timeLimit. It can't be the one virtual.BatchTimestamp
+			//   because when sync from trusted we don't now the real BatchTimestamp and
+			//   will fails the comparation of batch time >= than previous one.
+			Timestamp:   now,
+			Coinbase:    sbatch.Coinbase,
+			BatchL2Data: sbatch.PolygonRollupBaseEtrogBatchData.Transactions,
 		}
+		var (
+			processCtx        state.ProcessingContextV2
+			forcedBlockHashL1 *common.Hash
+			l1InfoRoot        common.Hash
+			err               error
+		)
+		leaves := make(map[uint32]state.L1DataV2)
+
 		// ForcedBatch must be processed
-		if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 { // If this is true means that the batch is forced
+		if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber != 1 { // If this is true means that the batch is forced
 			log.Debug("FORCED BATCH SEQUENCED!")
 			// Read forcedBatches from db
 			forcedBatches, err := g.state.GetNextForcedBatches(ctx, 1, dbTx)
@@ -141,18 +162,58 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			}
 			log.Debug("Setting forcedBatchNum: ", forcedBatches[0].ForcedBatchNumber)
 			batch.ForcedBatchNum = &forcedBatches[0].ForcedBatchNumber
+			l1InfoRoot = sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot
+			tstampLimit := forcedBatches[0].ForcedAt
+			txs := forcedBatches[0].RawTxsData
+			// The leaves are no needed for forced batches
+			processCtx = state.ProcessingContextV2{
+				BatchNumber:          sbatch.BatchNumber,
+				Coinbase:             sbatch.SequencerAddr,
+				Timestamp:            &tstampLimit,
+				L1InfoRoot:           sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				BatchL2Data:          &txs,
+				ForcedBlockHashL1:    forcedBlockHashL1,
+				SkipVerifyL1InfoRoot: 1,
+			}
+		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {
+			log.Debug("Processing initial batch")
+			var fBHL1 common.Hash = sbatch.PolygonRollupBaseEtrogBatchData.ForcedBlockHashL1
+			forcedBlockHashL1 = &fBHL1
+			txs := sbatch.PolygonRollupBaseEtrogBatchData.Transactions
+			tstampLimit := time.Unix(int64(sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
+			l1InfoRoot = sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot
+			processCtx = state.ProcessingContextV2{
+				BatchNumber:          1,
+				Coinbase:             sbatch.SequencerAddr,
+				Timestamp:            &tstampLimit,
+				L1InfoRoot:           sbatch.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+				BatchL2Data:          &txs,
+				ForcedBlockHashL1:    forcedBlockHashL1,
+				SkipVerifyL1InfoRoot: 1,
+			}
+		} else {
+			leaves, _, err = g.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, dbTx)
+			if err != nil {
+				log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
+				rollbackErr := dbTx.Rollback(ctx)
+				if rollbackErr != nil {
+					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+					return rollbackErr
+				}
+				return err
+			}
+			processCtx = state.ProcessingContextV2{
+				BatchNumber:          batch.BatchNumber,
+				Coinbase:             batch.Coinbase,
+				Timestamp:            &batch.Timestamp,
+				L1InfoRoot:           *sbatch.L1InfoRoot,
+				L1InfoTreeData:       leaves,
+				ForcedBatchNum:       batch.ForcedBatchNum,
+				BatchL2Data:          &batch.BatchL2Data,
+				SkipVerifyL1InfoRoot: 1,
+			}
 		}
-
-		// Now we need to check the batch. ForcedBatches should be already stored in the batch table because this is done by the sequencer
-		processCtx := state.ProcessingContext{
-			BatchNumber:    batch.BatchNumber,
-			Coinbase:       batch.Coinbase,
-			Timestamp:      batch.Timestamp,
-			GlobalExitRoot: batch.GlobalExitRoot,
-			ForcedBatchNum: batch.ForcedBatchNum,
-			BatchL2Data:    &batch.BatchL2Data,
-		}
-
+		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
 		var newRoot common.Hash
 
 		// First get trusted batch from db
@@ -162,7 +223,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
 				log.Infof("processSequenceBatches: (not found batch) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", processCtx.BatchNumber, blockNumber)
-				newStateRoot, flushID, proverID, err := g.state.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+				newStateRoot, flushID, proverID, err := g.state.ProcessAndStoreClosedBatchV2(ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 					rollbackErr := dbTx.Rollback(ctx)
@@ -189,7 +250,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			}
 		} else {
 			// Reprocess batch to compare the stateRoot with tBatch.StateRoot and get accInputHash
-			p, err := g.state.ExecuteBatch(ctx, batch, false, dbTx)
+			p, err := g.state.ExecuteBatchV2(ctx, batch, l1InfoRoot, leaves, *processCtx.Timestamp, false, processCtx.SkipVerifyL1InfoRoot, processCtx.ForcedBlockHashL1, dbTx)
 			if err != nil {
 				log.Errorf("error executing L1 batch: %+v, error: %v", batch, err)
 				rollbackErr := dbTx.Rollback(ctx)
@@ -254,7 +315,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				return err
 			}
 			log.Infof("processSequenceBatches: (deleted previous) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", processCtx.BatchNumber, blockNumber)
-			_, flushID, proverID, err := g.state.ProcessAndStoreClosedBatch(ctx, processCtx, batch.BatchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
+			_, flushID, proverID, err := g.state.ProcessAndStoreClosedBatchV2(ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 			if err != nil {
 				log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
 				rollbackErr := dbTx.Rollback(ctx)
@@ -353,9 +414,9 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 		log.Warnf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String())
 		reorgReasons.WriteString(fmt.Sprintf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String()))
 	}
-	if batch.Timestamp.Unix() != tBatch.Timestamp.Unix() {
-		log.Warnf("Different field Timestamp. Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
-		reorgReasons.WriteString(fmt.Sprintf("Different field Timestamp. Virtual: %d, Trusted: %d\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
+	if batch.Timestamp.Unix() < tBatch.Timestamp.Unix() { // TODO: this timestamp will be different in permissionless nodes and the trusted node
+		log.Warnf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
+		reorgReasons.WriteString(fmt.Sprintf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
 	}
 	if batch.Coinbase.String() != tBatch.Coinbase.String() {
 		log.Warnf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String())
@@ -365,22 +426,23 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 	if reorgReasons.Len() > 0 {
 		reason := reorgReasons.String()
 
-		if tBatch.StateRoot == (common.Hash{}) {
-			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
-		} else {
-			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
-		}
 		if g.sync.IsTrustedSequencer() {
+			log.Errorf("TRUSTED REORG DETECTED! Batch: %d reson:%s", batch.BatchNumber, reason)
 			g.halt(ctx, fmt.Errorf("TRUSTED REORG DETECTED! Batch: %d", batch.BatchNumber))
 		}
-		// Store trusted reorg register
-		tr := state.TrustedReorg{
-			BatchNumber: tBatch.BatchNumber,
-			Reason:      reason,
-		}
-		err := g.state.AddTrustedReorg(ctx, &tr, dbTx)
-		if err != nil {
-			log.Error("error storing tursted reorg register into the db. Error: ", err)
+		if !tBatch.WIP {
+			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
+			// Store trusted reorg register
+			tr := state.TrustedReorg{
+				BatchNumber: tBatch.BatchNumber,
+				Reason:      reason,
+			}
+			err := g.state.AddTrustedReorg(ctx, &tr, dbTx)
+			if err != nil {
+				log.Error("error storing trusted reorg register into the db. Error: ", err)
+			}
+		} else {
+			log.Warnf("incomplete trusted batch %d detected. Syncing full batch from L1", tBatch.BatchNumber)
 		}
 		return true
 	}
@@ -389,23 +451,5 @@ func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 
 // halt halts the Synchronizer
 func (g *ProcessorL1SequenceBatchesEtrog) halt(ctx context.Context, err error) {
-	event := &event.Event{
-		ReceivedAt:  time.Now(),
-		Source:      event.Source_Node,
-		Component:   event.Component_Synchronizer,
-		Level:       event.Level_Critical,
-		EventID:     event.EventID_SynchronizerHalt,
-		Description: fmt.Sprintf("Synchronizer halted due to error: %s", err),
-	}
-
-	eventErr := g.eventLog.LogEvent(ctx, event)
-	if eventErr != nil {
-		log.Errorf("error storing Synchronizer halt event: %v", eventErr)
-	}
-
-	for {
-		log.Errorf("fatal error: %s", err)
-		log.Error("halting the Synchronizer")
-		time.Sleep(5 * time.Second) //nolint:gomnd
-	}
+	g.halter.CriticalError(ctx, err)
 }

@@ -78,6 +78,18 @@ var (
 	ErrInvalidRLP = errors.New("invalid rlp codification")
 )
 
+func (b *BatchRawV2) String() string {
+	res := ""
+	nTxs := 0
+	for i, block := range b.Blocks {
+		res += fmt.Sprintf("Block[%d/%d]: deltaTimestamp: %d, indexL1InfoTree: %d nTxs: %d\n", i, len(b.Blocks),
+			block.DeltaTimestamp, block.IndexL1InfoTree, len(block.Transactions))
+		nTxs += len(block.Transactions)
+	}
+	res = fmt.Sprintf("BATCHv2, nBlocks: %d nTxs:%d \n", len(b.Blocks), nTxs) + res
+	return res
+}
+
 // EncodeBatchV2 encodes a batch of transactions into a byte slice.
 func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	var err error
@@ -90,7 +102,7 @@ func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 		return nil, fmt.Errorf("a batch need minimum a L2Block: %w", ErrInvalidBatchV2)
 	}
 	for _, block := range blocks {
-		batchData, err = encodeBlockHeader(batchData, block)
+		batchData, err = EncodeBlockHeaderV2(batchData, block)
 		if err != nil {
 			return nil, fmt.Errorf("can't encode block header: %w", err)
 		}
@@ -104,7 +116,8 @@ func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
 	return batchData, nil
 }
 
-func encodeBlockHeader(batchData []byte, block L2BlockRaw) ([]byte, error) {
+// EncodeBlockHeaderV2 encodes a batch of l2blocks header into a byte slice.
+func EncodeBlockHeaderV2(batchData []byte, block L2BlockRaw) ([]byte, error) {
 	batchData = append(batchData, changeL2Block)
 	batchData = append(batchData, serializeUint32(block.DeltaTimestamp)...)
 	batchData = append(batchData, serializeUint32(block.IndexL1InfoTree)...)
@@ -138,10 +151,8 @@ func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 	var currentBlock *L2BlockRaw
 	pos := int(0)
 	for pos < len(txsData) {
-		log.Debugf("pos: %d, data[]=%d pendingbytes:%d", pos, txsData[pos], len(txsData)-pos)
 		switch txsData[pos] {
 		case changeL2Block:
-			log.Debugf("pos: %d, changeL2Block", pos)
 			if currentBlock != nil {
 				blocks = append(blocks, *currentBlock)
 			}
@@ -152,7 +163,6 @@ func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 		// by RLP definition a tx never starts with a 0x0b. So, if is not a changeL2Block
 		// is a tx
 		default:
-			log.Debugf("pos: %d, Transaction", pos)
 			if currentBlock == nil {
 				_, _, err := decodeTxRLP(txsData, pos)
 				if err == nil {
@@ -223,7 +233,6 @@ func decodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	if err != nil {
 		return 0, nil, fmt.Errorf("can't get RLP length (offset=%d): %w", offset, err)
 	}
-	log.Debugf("length: %d (offset=%d)", length, offset)
 	endPos := uint64(offset) + length + rLength + sLength + vLength + EfficiencyPercentageByteLength
 	if endPos > uint64(len(txsData)) {
 		return 0, nil, fmt.Errorf("can't get tx because not enough data (endPos=%d lenData=%d): %w",
@@ -273,7 +282,7 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 		log.Debugf("error num < c0 : %d, %d", num, c0)
 		return 0, fmt.Errorf("first byte of tx (%x) is < 0xc0: %w", num, ErrInvalidRLP)
 	}
-	length := uint64(num - c0)
+	length := num - c0
 	if length > shortRlp { // If rlp is bigger than length 55
 		// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 		pos64 := uint64(offset)

@@ -36,7 +36,7 @@ func (r *reprocessAction) start() error {
 	oldStateRoot := batch.StateRoot
 	oldAccInputHash := batch.AccInputHash
 
-	for i := uint64(firstBatchNumber); i < lastBatch; i++ {
+	for i := firstBatchNumber; i < lastBatch; i++ {
 		r.output.startProcessingBatch(i)
 		batchOnDB, response, err := r.stepWithFlushId(i, oldStateRoot, oldAccInputHash)
 		if response != nil {

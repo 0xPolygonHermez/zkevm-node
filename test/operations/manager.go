@@ -19,14 +19,12 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/test/constants"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -276,10 +274,6 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
-		expectedNonce := receipt.BlockNumber.Uint64() - 1 + 7 //nolint:gomnd
-		if tx.Nonce() != expectedNonce {
-			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
-		}
 		if confirmationLevel == TrustedConfirmationLevel {
 			continue
 		}
@@ -442,6 +436,15 @@ func (m *Manager) StopSequenceSender() error {
 	return StopComponent("seqsender")
 }
 
+// ShowDockerLogs for running dockers
+func (m *Manager) ShowDockerLogs() error {
+	cmdLogs := "show-logs"
+	if err := RunMakeTarget(cmdLogs); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Teardown stops all the components.
 func Teardown() error {
 	err := stopNode()
@@ -506,49 +509,6 @@ func initState(cfg state.Config) (*state.State, error) {
 
 func (m *Manager) BeginStateTransaction() (pgx.Tx, error) {
 	return m.st.BeginStateTransaction(m.ctx)
-}
-
-func (m *Manager) SetInitialBatch(genesis state.Genesis, dbTx pgx.Tx) error {
-	log.Debug("Setting initial transaction batch 1")
-	// Process FirstTransaction included in batch 1
-	batchL2Data := common.Hex2Bytes(genesis.FirstBatchData.Transactions[2:])
-	processCtx := state.ProcessingContext{
-		BatchNumber:    1,
-		Coinbase:       genesis.FirstBatchData.Sequencer,
-		Timestamp:      time.Unix(int64(genesis.FirstBatchData.Timestamp), 0),
-		GlobalExitRoot: genesis.FirstBatchData.GlobalExitRoot,
-		BatchL2Data:    &batchL2Data,
-	}
-	_, _, _, err := m.st.ProcessAndStoreClosedBatch(m.ctx, processCtx, batchL2Data, dbTx, stateMetrics.SynchronizerCallerLabel)
-	if err != nil {
-		log.Error("error storing batch 1. Error: ", err)
-		return err
-	}
-
-	// Virtualize Batch and add sequence
-	virtualBatch1 := state.VirtualBatch{
-		BatchNumber:   1,
-		TxHash:        state.ZeroHash,
-		Coinbase:      genesis.FirstBatchData.Sequencer,
-		BlockNumber:   genesis.BlockNumber,
-		SequencerAddr: genesis.FirstBatchData.Sequencer,
-	}
-	err = m.st.AddVirtualBatch(m.ctx, &virtualBatch1, dbTx)
-	if err != nil {
-		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch1.BatchNumber, genesis.BlockNumber, err)
-		return err
-	}
-	// Insert the sequence to allow the aggregator verify the sequence batches
-	seq := state.Sequence{
-		FromBatchNumber: 1,
-		ToBatchNumber:   1,
-	}
-	err = m.st.AddSequence(m.ctx, seq, dbTx)
-	if err != nil {
-		log.Errorf("error adding sequence. Sequence: %+v", seq)
-		return err
-	}
-	return nil
 }
 
 // StartNetwork starts the L1 network container

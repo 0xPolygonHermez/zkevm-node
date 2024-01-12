@@ -54,13 +54,6 @@ func (e *EffectiveGasPrice) GetTxAndL2GasPrice(txGasPrice *big.Int, l1GasPrice u
 
 // CalculateBreakEvenGasPrice calculates the break even gas price for a transaction
 func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64) (*big.Int, error) {
-	const (
-		// constants used in calculation of BreakEvenGasPrice
-		signatureBytesLength           = 65
-		effectivePercentageBytesLength = 1
-		constBytesTx                   = signatureBytesLength + effectivePercentageBytesLength
-	)
-
 	if l1GasPrice == 0 {
 		return nil, ErrZeroL1GasPrice
 	}
@@ -77,11 +70,11 @@ func (e *EffectiveGasPrice) CalculateBreakEvenGasPrice(rawTx []byte, txGasPrice 
 	}
 
 	txZeroBytes := uint64(bytes.Count(rawTx, []byte{0}))
-	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes
+	txNonZeroBytes := uint64(len(rawTx)) - txZeroBytes + state.EfficiencyPercentageByteLength
 
 	// Calculate BreakEvenGasPrice
 	totalTxPrice := (txGasUsed * l2MinGasPrice) +
-		((constBytesTx+txNonZeroBytes)*e.cfg.ByteGasCost+txZeroBytes*e.cfg.ZeroByteGasCost)*l1GasPrice
+		((txNonZeroBytes*e.cfg.ByteGasCost)+(txZeroBytes*e.cfg.ZeroByteGasCost))*l1GasPrice
 	breakEvenGasPrice := new(big.Int).SetUint64(uint64(float64(totalTxPrice/txGasUsed) * e.cfg.NetProfit))
 
 	return breakEvenGasPrice, nil

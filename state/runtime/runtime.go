@@ -32,13 +32,13 @@ var (
 	// ErrOutOfCountersBinary indicates there are not enough binary counters to continue the execution
 	ErrOutOfCountersBinary = errors.New("not enough binary counters to continue the execution")
 	// ErrOutOfCountersMemory indicates there are not enough memory align counters to continue the execution
-	ErrOutOfCountersMemory = errors.New("not enough memory align counters counters to continue the execution")
+	ErrOutOfCountersMemory = errors.New("not enough memory align counters to continue the execution")
 	// ErrOutOfCountersArith indicates there are not enough arith counters to continue the execution
-	ErrOutOfCountersArith = errors.New("not enough arith counters counters to continue the execution")
+	ErrOutOfCountersArith = errors.New("not enough arith counters to continue the execution")
 	// ErrOutOfCountersPadding indicates there are not enough padding counters to continue the execution
-	ErrOutOfCountersPadding = errors.New("not enough padding counters counters to continue the execution")
+	ErrOutOfCountersPadding = errors.New("not enough padding counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
-	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters counters to continue the execution")
+	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters to continue the execution")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
@@ -76,8 +76,10 @@ var (
 	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
 	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
 	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
-	// ErrInvalidTxChangeL2Block indicates that the change l2 block transaction has triggered an error during while executing
-	ErrInvalidTxChangeL2Block = errors.New("error while executing a change l2 block transaction")
+	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error during while executing
+	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error during while executing (limit timestamp)")
+	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error during while executing
+	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error during while executing (min timestamp)")
 
 	// EXECUTOR ERRORS
 	// ===============
@@ -289,6 +291,20 @@ var (
 	ErrExecutorErrorInvalidBalance = errors.New("balance is invalid")
 	// ErrExecutorErrorSMMainBinaryLt4Mismatch indicates that the binary instruction less than four opcode failed
 	ErrExecutorErrorSMMainBinaryLt4Mismatch = errors.New("the binary instruction less than four opcode failed")
+	// ErrExecutorErrorInvalidNewStateRoot indicates that the input parameter new_state_root is invalid
+	ErrExecutorErrorInvalidNewStateRoot = errors.New("new_state_root is invalid")
+	// ErrExecutorErrorInvalidNewAccInputHash indicates that the input parameter new_acc_input_hash is invalid
+	ErrExecutorErrorInvalidNewAccInputHash = errors.New("new_acc_input_hash is invalid")
+	// ErrExecutorErrorInvalidNewLocalExitRoot indicates that the input parameter new_local_exit_root is invalid
+	ErrExecutorErrorInvalidNewLocalExitRoot = errors.New("new_local_exit_root is invalid")
+	// ErrExecutorErrorDBKeyNotFound indicates that the requested key was not found in the database
+	ErrExecutorErrorDBKeyNotFound = errors.New("key not found in the database")
+	// ErrExecutorErrorSMTInvalidDataSize indicates that the SMT data returned from the database does not have a valid size
+	ErrExecutorErrorSMTInvalidDataSize = errors.New("invalid SMT data size")
+	// ErrExecutorErrorHashDBGRPCError indicates that the executor failed calling the HashDB service via GRPC, when configured
+	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
+	// ErrExecutorErrorStateManager indicates an error in the State Manager
+	ErrExecutorErrorStateManager = errors.New("state Manager error")
 
 	// GRPC ERRORS
 	// ===========
