@@ -310,7 +310,7 @@ func TestForcedBatchEtrog(t *testing.T) {
 				Coinbase:            sequencedBatch.Coinbase,
 				BlockNumber:         ethermanBlock.BlockNumber,
 				TimestampBatchEtrog: &t,
-				L1InfoRoot:          &state.EmptyL1InfoRoot,
+				L1InfoRoot:          &state.ZeroL1InfoRoot,
 			}
 
 			m.State.
