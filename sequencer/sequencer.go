@@ -264,7 +264,6 @@ func (s *Sequencer) sendDataToStreamer() {
 					Timestamp:      l2Block.Timestamp,
 					L1BlockHash:    l2Block.L1BlockHash,
 					GlobalExitRoot: l2Block.GlobalExitRoot,
-					L1InfoRoot:     l2Block.L1InfoRoot,
 					Coinbase:       l2Block.Coinbase,
 					ForkID:         l2Block.ForkID,
 				}

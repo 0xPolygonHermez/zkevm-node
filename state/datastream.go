@@ -60,7 +60,6 @@ type DSL2Block struct {
 	Timestamp      int64          // 8 bytes
 	L1BlockHash    common.Hash    // 32 bytes
 	GlobalExitRoot common.Hash    // 32 bytes
-	L1InfoRoot     common.Hash    // 32 bytes
 	Coinbase       common.Address // 20 bytes
 	ForkID         uint16         // 2 bytes
 	BlockHash      common.Hash    // 32 bytes
@@ -74,7 +73,6 @@ type DSL2BlockStart struct {
 	Timestamp      int64          // 8 bytes
 	L1BlockHash    common.Hash    // 32 bytes
 	GlobalExitRoot common.Hash    // 32 bytes
-	L1InfoRoot     common.Hash    // 32 bytes
 	Coinbase       common.Address // 20 bytes
 	ForkID         uint16         // 2 bytes
 }
@@ -87,7 +85,6 @@ func (b DSL2BlockStart) Encode() []byte {
 	bytes = binary.LittleEndian.AppendUint64(bytes, uint64(b.Timestamp))
 	bytes = append(bytes, b.L1BlockHash.Bytes()...)
 	bytes = append(bytes, b.GlobalExitRoot.Bytes()...)
-	bytes = append(bytes, b.L1InfoRoot.Bytes()...)
 	bytes = append(bytes, b.Coinbase.Bytes()...)
 	bytes = binary.LittleEndian.AppendUint16(bytes, b.ForkID)
 	return bytes
@@ -100,9 +97,8 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 	b.Timestamp = int64(binary.LittleEndian.Uint64(data[16:24]))
 	b.L1BlockHash = common.BytesToHash(data[24:56])
 	b.GlobalExitRoot = common.BytesToHash(data[56:88])
-	b.L1InfoRoot = common.BytesToHash(data[88:120])
-	b.Coinbase = common.BytesToAddress(data[120:140])
-	b.ForkID = binary.LittleEndian.Uint16(data[140:142])
+	b.Coinbase = common.BytesToAddress(data[88:108])
+	b.ForkID = binary.LittleEndian.Uint16(data[108:110])
 	return b
 }
 
@@ -273,7 +269,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			BatchNumber:    genesisL2Block.BatchNumber,
 			L2BlockNumber:  genesisL2Block.L2BlockNumber,
 			Timestamp:      genesisL2Block.Timestamp,
-			L1InfoRoot:     genesisL2Block.L1InfoRoot,
 			GlobalExitRoot: genesisL2Block.GlobalExitRoot,
 			Coinbase:       genesisL2Block.Coinbase,
 			ForkID:         genesisL2Block.ForkID,
@@ -384,28 +379,23 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		currentBatchNumber += limit
 
 		for _, batch := range fullBatches {
+			err = streamServer.StartAtomicOp()
+			if err != nil {
+				return err
+			}
+
+			bookMark := DSBookMark{
+				Type:  BookMarkTypeBatch,
+				Value: batch.BatchNumber,
+			}
+
+			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+			if err != nil {
+				return err
+			}
+
 			if len(batch.L2Blocks) == 0 {
 				// Empty batch
-				err = streamServer.StartAtomicOp()
-				if err != nil {
-					return err
-				}
-
-				bookMark := DSBookMark{
-					Type:  BookMarkTypeBatch,
-					Value: batch.BatchNumber,
-				}
-
-				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-				if err != nil {
-					return err
-				}
-
-				err = streamServer.CommitAtomicOp()
-				if err != nil {
-					return err
-				}
-
 				// Check if there is a GER update
 				if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
 					updateGer := DSUpdateGER{
@@ -426,150 +416,115 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					if err != nil {
 						return err
 					}
-
-					err = streamServer.CommitAtomicOp()
-					if err != nil {
-						return err
-					}
-
 					currentGER = batch.GlobalExitRoot
 				}
-				continue
-			}
-
-			err = streamServer.StartAtomicOp()
-			if err != nil {
-				return err
-			}
-
-			bookMark := DSBookMark{
-				Type:  BookMarkTypeBatch,
-				Value: batch.BatchNumber,
-			}
-
-			_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-			if err != nil {
-				return err
-			}
-
-			for blockIndex, l2block := range batch.L2Blocks {
-				if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
-					continue
-				} else {
-					lastAddedL2Block = l2block.L2BlockNumber
-				}
-
-				l1BlockHash := common.Hash{}
-
-				vb, err := stateDB.GetVirtualBatch(ctx, batch.BatchNumber, nil)
-				if err != nil {
-					log.Errorf("Failed getting virtualBatch %d, err: %v", batch.BatchNumber, err)
-					return err
-				}
-				l1InfoRoot := vb.L1InfoRoot
-
-				// Get L1 block hash
-				if l2block.ForkID >= FORKID_ETROG {
-					isForcedBatch := false
-					batchRawData := &BatchRawV2{}
-
-					if batch.BatchNumber == 1 || batch.ForcedBatchNum != nil {
-						isForcedBatch = true
+			} else {
+				for blockIndex, l2block := range batch.L2Blocks {
+					if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
+						continue
 					} else {
-						batchRawData, err = DecodeBatchV2(batch.BatchL2Data)
-						if err != nil {
-							log.Errorf("Failed to decode batch data, err: %v", err)
-							return err
-						}
+						lastAddedL2Block = l2block.L2BlockNumber
 					}
 
-					if !isForcedBatch {
-						// Get current block by index
-						l2blockRaw := batchRawData.Blocks[blockIndex]
-						if l2blockRaw.IndexL1InfoTree != 0 {
-							l1InfoTreeExitRootStorageEntry, err := stateDB.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+					l1BlockHash := common.Hash{}
+
+					// Get L1 block hash
+					if l2block.ForkID >= FORKID_ETROG {
+						isForcedBatch := false
+						batchRawData := &BatchRawV2{}
+
+						if batch.BatchNumber == 1 || batch.ForcedBatchNum != nil {
+							isForcedBatch = true
+						} else {
+							batchRawData, err = DecodeBatchV2(batch.BatchL2Data)
 							if err != nil {
+								log.Errorf("Failed to decode batch data, err: %v", err)
 								return err
 							}
-							l1InfoRoot = &l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
-							l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
 						}
-					} else {
-						// Initial batch must be handled differently
-						if batch.BatchNumber == 1 {
-							l1Aux := batch.GlobalExitRoot
-							l1InfoRoot = &l1Aux
-							l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
-							if err != nil {
-								return err
+
+						if !isForcedBatch {
+							// Get current block by index
+							l2blockRaw := batchRawData.Blocks[blockIndex]
+							if l2blockRaw.IndexL1InfoTree != 0 {
+								l1InfoTreeExitRootStorageEntry, err := stateDB.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+								if err != nil {
+									return err
+								}
+								l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
 							}
 						} else {
-							l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
-							if err != nil {
-								return err
+							// Initial batch must be handled differently
+							if batch.BatchNumber == 1 {
+								l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
+								if err != nil {
+									return err
+								}
+							} else {
+								l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
+								if err != nil {
+									return err
+								}
 							}
 						}
 					}
-				}
 
-				blockStart := DSL2BlockStart{
-					BatchNumber:    l2block.BatchNumber,
-					L2BlockNumber:  l2block.L2BlockNumber,
-					Timestamp:      l2block.Timestamp,
-					L1BlockHash:    l1BlockHash,
-					GlobalExitRoot: l2block.GlobalExitRoot,
-					Coinbase:       l2block.Coinbase,
-					ForkID:         l2block.ForkID,
-				}
-				if l1InfoRoot != nil {
-					blockStart.L1InfoRoot = *l1InfoRoot
-				}
-
-				bookMark = DSBookMark{
-					Type:  BookMarkTypeL2Block,
-					Value: blockStart.L2BlockNumber,
-				}
-
-				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-				if err != nil {
-					return err
-				}
-
-				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
-				if err != nil {
-					return err
-				}
-
-				for _, tx := range l2block.Txs {
-					// Populate intermediate state root
-					if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
-						position := GetSystemSCPosition(l2block.L2BlockNumber)
-						imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
-						if err != nil {
-							return err
-						}
-						tx.StateRoot = common.BigToHash(imStateRoot)
-					} else {
-						tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
+					blockStart := DSL2BlockStart{
+						BatchNumber:    l2block.BatchNumber,
+						L2BlockNumber:  l2block.L2BlockNumber,
+						Timestamp:      l2block.Timestamp,
+						L1BlockHash:    l1BlockHash,
+						GlobalExitRoot: l2block.GlobalExitRoot,
+						Coinbase:       l2block.Coinbase,
+						ForkID:         l2block.ForkID,
 					}
 
-					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
+					bookMark = DSBookMark{
+						Type:  BookMarkTypeL2Block,
+						Value: blockStart.L2BlockNumber,
+					}
+
+					_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 					if err != nil {
 						return err
 					}
-				}
 
-				blockEnd := DSL2BlockEnd{
-					L2BlockNumber: l2block.L2BlockNumber,
-					BlockHash:     l2block.BlockHash,
-					StateRoot:     l2block.StateRoot,
-				}
+					_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
+					if err != nil {
+						return err
+					}
 
-				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
-				if err != nil {
-					return err
+					for _, tx := range l2block.Txs {
+						// Populate intermediate state root
+						if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
+							position := GetSystemSCPosition(l2block.L2BlockNumber)
+							imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
+							if err != nil {
+								return err
+							}
+							tx.StateRoot = common.BigToHash(imStateRoot)
+						} else {
+							tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
+						}
+
+						entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
+						if err != nil {
+							return err
+						}
+					}
+
+					blockEnd := DSL2BlockEnd{
+						L2BlockNumber: l2block.L2BlockNumber,
+						BlockHash:     l2block.BlockHash,
+						StateRoot:     l2block.StateRoot,
+					}
+
+					_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
+					if err != nil {
+						return err
+					}
+					currentGER = l2block.GlobalExitRoot
 				}
-				currentGER = l2block.GlobalExitRoot
 			}
 			// Commit at the end of each batch group
 			err = streamServer.CommitAtomicOp()
