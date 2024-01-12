@@ -8,6 +8,15 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
+type SettlementBackend string
+
+const (
+	// To define the beethoven service for settlement
+	Beethoven SettlementBackend = "beethoven"
+	// To define the direct settlement to L1
+	L1 SettlementBackend = "l1"
+)
+
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
 type TokenAmountWithDecimals struct {
 	*big.Int `validate:"required"`
@@ -85,4 +94,13 @@ type Config struct {
 	// gas offset: 100
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
+
+	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the Beethoven service.
+	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend"`
+
+	// BeethovenTxTimeout is the interval time to wait for a tx to be mined from the beethoven
+	BeethovenTxTimeout types.Duration `mapstructure:"BeethovenTxTimeout"`
+
+	// BeethovenURL url of the beethoven service
+	BeethovenURL string `mapstructure:"BeethovenURL"`
 }
