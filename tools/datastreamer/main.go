@@ -351,8 +351,8 @@ func reprocess(cliCtx *cli.Context) error {
 
 		// Get Genesis block from the file and validate the state root
 		bookMark := state.DSBookMark{
-			Type:          state.BookMarkTypeL2Block,
-			L2BlockNumber: 0,
+			Type:  state.BookMarkTypeL2Block,
+			Value: 0,
 		}
 
 		firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -386,8 +386,8 @@ func reprocess(cliCtx *cli.Context) error {
 	}()
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: currentL2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: currentL2BlockNumber,
 	}
 
 	startEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -586,8 +586,8 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	l2BlockNumber := cliCtx.Uint64("l2block")
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: l2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: l2BlockNumber,
 	}
 
 	client.FromBookmark = bookMark.Encode()
@@ -670,8 +670,8 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 	l2BlockNumber := cliCtx.Uint64("l2block")
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: l2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: l2BlockNumber,
 	}
 
 	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -729,6 +729,11 @@ func truncate(cliCtx *cli.Context) error {
 }
 
 func printEntry(entry datastreamer.FileEntry) {
+	var bookmarkTypeDesc = map[byte]string{
+		state.BookMarkTypeL2Block: "L2 Block Number",
+		state.BookMarkTypeBatch:   "Batch Number",
+	}
+
 	switch entry.Type {
 	case state.EntryTypeBookMark:
 		bookmark := state.DSBookMark{}.Decode(entry.Data)
@@ -736,8 +741,10 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiYellow, "BookMark\n")
 		printColored(color.FgGreen, "Entry Number....: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
-		printColored(color.FgGreen, "L2 Block Number.: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", bookmark.L2BlockNumber))
+		printColored(color.FgGreen, "Bookmark Type...: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d (%s)\n", bookmark.Type, bookmarkTypeDesc[bookmark.Type]))
+		printColored(color.FgGreen, "Bookmark Value..: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", bookmark.Value))
 	case state.EntryTypeL2BlockStart:
 		blockStart := state.DSL2BlockStart{}.Decode(entry.Data)
 		printColored(color.FgGreen, "Entry Type......: ")
