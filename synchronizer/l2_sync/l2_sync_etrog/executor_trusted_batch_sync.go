@@ -421,7 +421,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *st
 	}
 	debugStr += fmt.Sprintf("previousBatch.blocks: %v (%v) ", len(rawPreviousBatch.Blocks), len(previousBatch.BatchL2Data))
 	if len(previousBatch.BatchL2Data) >= len(newBatch.BatchL2Data) {
-		return nil, fmt.Errorf("previousBatch.BatchL2Data>=newBatch.BatchL2Data")
+		return nil, fmt.Errorf("previousBatch.BatchL2Data (%d)>=newBatch.BatchL2Data (%d)", len(previousBatch.BatchL2Data), len(newBatch.BatchL2Data))
 	}
 	newData := newBatch.BatchL2Data[len(previousBatch.BatchL2Data):]
 	rawPartialBatch, err := state.DecodeBatchV2(newData)
