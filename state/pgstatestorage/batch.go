@@ -513,10 +513,15 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *sta
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
+		var l1InfoRoot *string
+		if virtualBatch.L1InfoRoot != nil {
+			l1IR := virtualBatch.L1InfoRoot.String()
+			l1InfoRoot = &l1IR
+		}
 		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog, l1_info_root) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.TimestampBatchEtrog.UTC(), virtualBatch.L1InfoRoot.String())
+			virtualBatch.TimestampBatchEtrog.UTC(), l1InfoRoot)
 		return err
 	}
 }
