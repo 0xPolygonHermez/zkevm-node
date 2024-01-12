@@ -211,6 +211,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				ForcedBatchNum:       batch.ForcedBatchNum,
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 1,
+				GlobalExitRoot:       batch.GlobalExitRoot,
 			}
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot

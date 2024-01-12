@@ -32,6 +32,7 @@ type ProcessingContextV2 struct {
 	BatchL2Data          *[]byte
 	ForcedBlockHashL1    *common.Hash
 	SkipVerifyL1InfoRoot uint32
+	GlobalExitRoot       common.Hash // GlobalExitRoot is not use for execute but use to OpenBatch (data on  DB)
 }
 
 // ProcessBatchV2 processes a batch for forkID >= ETROG
