@@ -411,7 +411,7 @@ func (s *State) internalProcessUnsignedTransactionV1(ctx context.Context, tx *ty
 		timestamp = uint64(time.Now().Unix())
 	}
 
-	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, batch.StateRoot.Bytes())
+	loadedNonce, err := s.tree.GetNonce(ctx, senderAddress, l2Block.Root().Bytes())
 	if err != nil {
 		return nil, err
 	}

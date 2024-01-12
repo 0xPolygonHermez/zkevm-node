@@ -138,7 +138,11 @@ func (r *rollupInfoByBlockRangeResult) getHighestBlockNumberInResponse() uint64 
 	if r.blockRange.toBlock != latestBlockNumber {
 		return r.blockRange.toBlock
 	} else {
-		return r.getRealHighestBlockNumberInResponse()
+		highestBlock := r.getRealHighestBlockNumberInResponse()
+		if highestBlock == invalidBlockNumber {
+			return r.blockRange.fromBlock - 1
+		}
+		return highestBlock
 	}
 }
 

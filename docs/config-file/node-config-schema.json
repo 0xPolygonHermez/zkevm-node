@@ -752,6 +752,16 @@
 							"description": "Filename of the binary data file",
 							"default": ""
 						},
+						"Version": {
+							"type": "integer",
+							"description": "Version of the binary data file",
+							"default": 0
+						},
+						"ChainID": {
+							"type": "integer",
+							"description": "ChainID is the chain ID",
+							"default": 0
+						},
 						"Enabled": {
 							"type": "boolean",
 							"description": "Enabled is a flag to enable/disable the data streamer",
@@ -873,6 +883,55 @@
 					"type": "integer",
 					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
 					"default": 80000
+				},
+				"StreamClient": {
+					"properties": {
+						"Server": {
+							"type": "string",
+							"description": "Datastream server to connect",
+							"default": ""
+						},
+						"Log": {
+							"properties": {
+								"Environment": {
+									"type": "string",
+									"enum": [
+										"production",
+										"development"
+									],
+									"description": "Environment defining the log format (\"production\" or \"development\").\nIn development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.\nCheck [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)",
+									"default": ""
+								},
+								"Level": {
+									"type": "string",
+									"enum": [
+										"debug",
+										"info",
+										"warn",
+										"error",
+										"dpanic",
+										"panic",
+										"fatal"
+									],
+									"description": "Level of log. As lower value more logs are going to be generated",
+									"default": ""
+								},
+								"Outputs": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array",
+									"description": "Outputs"
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Log is the log configuration"
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "StreamClientCfg is the config for the stream client"
 				}
 			},
 			"additionalProperties": false,

@@ -159,7 +159,7 @@ func main() {
 
 func initializeStreamServer(c *config.Config) (*datastreamer.StreamServer, error) {
 	// Create a stream server
-	streamServer, err := datastreamer.NewServer(c.Offline.Port, state.StreamTypeSequencer, c.Offline.Filename, &c.Log)
+	streamServer, err := datastreamer.NewServer(c.Offline.Port, c.Offline.Version, c.Offline.ChainID, state.StreamTypeSequencer, c.Offline.Filename, &c.Log)
 	if err != nil {
 		return nil, err
 	}
@@ -351,8 +351,8 @@ func reprocess(cliCtx *cli.Context) error {
 
 		// Get Genesis block from the file and validate the state root
 		bookMark := state.DSBookMark{
-			Type:          state.BookMarkTypeL2Block,
-			L2BlockNumber: 0,
+			Type:  state.BookMarkTypeL2Block,
+			Value: 0,
 		}
 
 		firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -386,8 +386,8 @@ func reprocess(cliCtx *cli.Context) error {
 	}()
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: currentL2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: currentL2BlockNumber,
 	}
 
 	startEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -428,7 +428,7 @@ func reprocess(cliCtx *cli.Context) error {
 				OldAccInputHash:  []byte{},
 				EthTimestamp:     binary.LittleEndian.Uint64(currentEntry.Data[8:16]),
 				UpdateMerkleTree: uint32(1),
-				ChainId:          c.ChainID,
+				ChainId:          c.Offline.ChainID,
 				ForkId:           uint64(binary.LittleEndian.Uint16(currentEntry.Data[68:70])),
 			}
 
@@ -479,7 +479,7 @@ func reprocess(cliCtx *cli.Context) error {
 				OldAccInputHash:  []byte{},
 				EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
 				UpdateMerkleTree: uint32(1),
-				ChainId:          c.ChainID,
+				ChainId:          c.Offline.ChainID,
 				ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
 			}
 
@@ -586,8 +586,8 @@ func decodeL2Block(cliCtx *cli.Context) error {
 	l2BlockNumber := cliCtx.Uint64("l2block")
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: l2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: l2BlockNumber,
 	}
 
 	client.FromBookmark = bookMark.Encode()
@@ -670,8 +670,8 @@ func decodeL2BlockOffline(cliCtx *cli.Context) error {
 	l2BlockNumber := cliCtx.Uint64("l2block")
 
 	bookMark := state.DSBookMark{
-		Type:          state.BookMarkTypeL2Block,
-		L2BlockNumber: l2BlockNumber,
+		Type:  state.BookMarkTypeL2Block,
+		Value: l2BlockNumber,
 	}
 
 	firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -729,6 +729,11 @@ func truncate(cliCtx *cli.Context) error {
 }
 
 func printEntry(entry datastreamer.FileEntry) {
+	var bookmarkTypeDesc = map[byte]string{
+		state.BookMarkTypeL2Block: "L2 Block Number",
+		state.BookMarkTypeBatch:   "Batch Number",
+	}
+
 	switch entry.Type {
 	case state.EntryTypeBookMark:
 		bookmark := state.DSBookMark{}.Decode(entry.Data)
@@ -736,8 +741,10 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiYellow, "BookMark\n")
 		printColored(color.FgGreen, "Entry Number....: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", entry.Number))
-		printColored(color.FgGreen, "L2 Block Number.: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", bookmark.L2BlockNumber))
+		printColored(color.FgGreen, "Bookmark Type...: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d (%s)\n", bookmark.Type, bookmarkTypeDesc[bookmark.Type]))
+		printColored(color.FgGreen, "Bookmark Value..: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", bookmark.Value))
 	case state.EntryTypeL2BlockStart:
 		blockStart := state.DSL2BlockStart{}.Decode(entry.Data)
 		printColored(color.FgGreen, "Entry Type......: ")
@@ -750,8 +757,12 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.L2BlockNumber))
 		printColored(color.FgGreen, "Timestamp.......: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(blockStart.Timestamp, 0), blockStart.Timestamp))
-		printColored(color.FgGreen, "GER or Info Root: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.GERorInfoRoot))
+		printColored(color.FgGreen, "L1 Block Hash...: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.L1BlockHash))
+		printColored(color.FgGreen, "Global Exit Root: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.GlobalExitRoot))
+		printColored(color.FgGreen, "L1 Info Root....: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.L1InfoRoot))
 		printColored(color.FgGreen, "Coinbase........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.Coinbase))
 		printColored(color.FgGreen, "Fork ID.........: ")

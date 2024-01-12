@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -482,15 +483,21 @@ func scanForcedBatch(row pgx.Row) (state.ForcedBatch, error) {
 	var (
 		gerStr      string
 		coinbaseStr string
+		rawTxsStr   string
+		err         error
 	)
 	if err := row.Scan(
 		&forcedBatch.ForcedBatchNumber,
 		&gerStr,
 		&forcedBatch.ForcedAt,
-		&forcedBatch.RawTxsData,
+		&rawTxsStr,
 		&coinbaseStr,
 		&forcedBatch.BlockNumber,
 	); err != nil {
+		return forcedBatch, err
+	}
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxsStr)
+	if err != nil {
 		return forcedBatch, err
 	}
 	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
@@ -506,10 +513,10 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *sta
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
-		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog) VALUES ($1, $2, $3, $4, $5, $6)"
+		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog, l1_info_root) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.TimestampBatchEtrog.UTC())
+			virtualBatch.TimestampBatchEtrog.UTC(), virtualBatch.L1InfoRoot.String())
 		return err
 	}
 }
@@ -521,15 +528,16 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 		txHash        string
 		coinbase      string
 		sequencerAddr string
+		l1InfoRoot    *string
 	)
 
 	const getVirtualBatchSQL = `
-    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog
+    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog, l1_info_root
       FROM state.virtual_batch
      WHERE batch_num = $1`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog, &l1InfoRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
@@ -538,6 +546,10 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	virtualBatch.Coinbase = common.HexToAddress(coinbase)
 	virtualBatch.SequencerAddr = common.HexToAddress(sequencerAddr)
 	virtualBatch.TxHash = common.HexToHash(txHash)
+	if l1InfoRoot != nil {
+		l1InfoR := common.HexToHash(*l1InfoRoot)
+		virtualBatch.L1InfoRoot = &l1InfoR
+	}
 	return &virtualBatch, nil
 }
 
@@ -755,7 +767,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.local_exit_root,
 			b.acc_input_hash,
 			b.state_root,
-			b.timestamp,
+			v.timestamp_batch_etrog,
 			b.coinbase,
 			b.raw_txs_data,
 			b.forced_batch_num,
@@ -973,9 +985,11 @@ func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNu
 	return common.HexToHash(parentHash), nil
 }
 
-// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number.
+// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number and the globalExitRoot.
 func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
-	var parentHash string
+	var (
+		parentHash string
+	)
 
 	const sql = `SELECT b.parent_hash FROM state.forced_batch f, state.block b
      WHERE f.forced_batch_num = $1 and b.block_num = f.block_num`

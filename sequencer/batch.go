@@ -250,6 +250,9 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, ger
 		return nil, fmt.Errorf("failed to commit database transaction for opening a wip batch, error: %v", err)
 	}
 
+	// Send batch bookmark to the datastream
+	f.DSSendBatchBookmark(batchNumber)
+
 	// Check if synchronizer is up-to-date
 	for !f.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
