@@ -1212,19 +1212,38 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 	// add batch
 	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, timestamp, wip) VALUES ($1,$2, false)", batchNumber, timestampBatch)
 	require.NoError(t, err)
-
-	virtualBatch := state.VirtualBatch{BlockNumber: blockNumber,
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, timestamp, wip) VALUES ($1,$2, false)", batchNumber+1, timestampBatch)
+	require.NoError(t, err)
+	l1InfoRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	virtualBatch := state.VirtualBatch{
+		BlockNumber:         blockNumber,
 		BatchNumber:         batchNumber,
 		Coinbase:            addr,
 		SequencerAddr:       addr,
 		TxHash:              hash,
-		TimestampBatchEtrog: &virtualTimestampBatch}
+		TimestampBatchEtrog: &virtualTimestampBatch,
+		L1InfoRoot:          &l1InfoRoot,
+	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
 
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, virtualBatch, *read)
+	virtualBatch2 := state.VirtualBatch{
+		BlockNumber:         blockNumber,
+		BatchNumber:         batchNumber+1,
+		Coinbase:            addr,
+		SequencerAddr:       addr,
+		TxHash:              hash,
+		TimestampBatchEtrog: &virtualTimestampBatch,
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch2, dbTx)
+	require.NoError(t, err)
+
+	read, err = testState.GetVirtualBatch(ctx, batchNumber+1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch2, *read)
 	forcedForkId := uint64(state.FORKID_ETROG)
 	timeData, err := testState.GetBatchTimestamp(ctx, batchNumber, &forcedForkId, dbTx)
 	require.NoError(t, err)
