@@ -1753,3 +1753,7 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 
 	return *auth, nil
 }
+
+func (etherMan *Client) GetRollupId() uint32 {
+	return etherMan.RollupID
+}

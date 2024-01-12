@@ -365,7 +365,7 @@ func (a *Aggregator) settleWithBeethoven(
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
 			Proof:            beethovenTypes.ArgBytes(proofBytes),
 		},
-		RollupID: a.Ethman.RollupID,
+		RollupID: a.Ethman.GetRollupId(),
 	}
 	signedTx, err := tx.Sign(a.sequencerPrivateKey) // No other way to sign? Dont want to use the PK at too many places...
 
