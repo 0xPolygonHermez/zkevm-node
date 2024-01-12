@@ -225,11 +225,12 @@ func (b *SyncTrustedBatchExecutorForEtrog) checkIfWeAreSyncedFromL1ToProcessGlob
 
 func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, processBatchResp *state.ProcessBatchResponse, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
-		BatchNumber:   data.BatchNumber,
-		StateRoot:     processBatchResp.NewStateRoot,
-		LocalExitRoot: data.TrustedBatch.RollupExitRoot,
-		BatchL2Data:   data.TrustedBatch.BatchL2Data,
-		AccInputHash:  data.TrustedBatch.AccInputHash,
+		BatchNumber:    data.BatchNumber,
+		StateRoot:      processBatchResp.NewStateRoot,
+		LocalExitRoot:  data.TrustedBatch.RollupExitRoot,
+		BatchL2Data:    data.TrustedBatch.BatchL2Data,
+		AccInputHash:   data.TrustedBatch.AccInputHash,
+		GlobalExitRoot: data.TrustedBatch.GlobalExitRoot,
 	}
 
 	err := b.state.UpdateWIPBatch(ctx, receipt, dbTx)
