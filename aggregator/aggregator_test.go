@@ -789,13 +789,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				t := time.Now()
 				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-				vb := state.VirtualBatch {
-					BatchNumber: lastVerifiedBatchNum+1,
-					TxHash: common.Hash{},
-					Coinbase: common.Address{},
-					SequencerAddr: common.Address{},
-					BlockNumber: 0,
-					L1InfoRoot: &l1InfoRoot,
+				vb := state.VirtualBatch{
+					BatchNumber:         lastVerifiedBatchNum + 1,
+					TxHash:              common.Hash{},
+					Coinbase:            common.Address{},
+					SequencerAddr:       common.Address{},
+					BlockNumber:         0,
+					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
@@ -830,13 +830,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				t := time.Now()
 				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-				vb := state.VirtualBatch {
-					BatchNumber: lastVerifiedBatchNum+1,
-					TxHash: common.Hash{},
-					Coinbase: common.Address{},
-					SequencerAddr: common.Address{},
-					BlockNumber: 0,
-					L1InfoRoot: &l1InfoRoot,
+				vb := state.VirtualBatch{
+					BatchNumber:         lastVerifiedBatchNum + 1,
+					TxHash:              common.Hash{},
+					Coinbase:            common.Address{},
+					SequencerAddr:       common.Address{},
+					BlockNumber:         0,
+					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
@@ -872,13 +872,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				t := time.Now()
 				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-				vb := state.VirtualBatch {
-					BatchNumber: lastVerifiedBatchNum+1,
-					TxHash: common.Hash{},
-					Coinbase: common.Address{},
-					SequencerAddr: common.Address{},
-					BlockNumber: 0,
-					L1InfoRoot: &l1InfoRoot,
+				vb := state.VirtualBatch{
+					BatchNumber:         lastVerifiedBatchNum + 1,
+					TxHash:              common.Hash{},
+					Coinbase:            common.Address{},
+					SequencerAddr:       common.Address{},
+					BlockNumber:         0,
+					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
@@ -914,13 +914,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				t := time.Now()
 				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-				vb := state.VirtualBatch {
-					BatchNumber: lastVerifiedBatchNum+1,
-					TxHash: common.Hash{},
-					Coinbase: common.Address{},
-					SequencerAddr: common.Address{},
-					BlockNumber: 0,
-					L1InfoRoot: &l1InfoRoot,
+				vb := state.VirtualBatch{
+					BatchNumber:         lastVerifiedBatchNum + 1,
+					TxHash:              common.Hash{},
+					Coinbase:            common.Address{},
+					SequencerAddr:       common.Address{},
+					BlockNumber:         0,
+					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
@@ -970,13 +970,13 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
 				t := time.Now()
 				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
-				vb := state.VirtualBatch {
-					BatchNumber: lastVerifiedBatchNum+1,
-					TxHash: common.Hash{},
-					Coinbase: common.Address{},
-					SequencerAddr: common.Address{},
-					BlockNumber: 0,
-					L1InfoRoot: &l1InfoRoot,
+				vb := state.VirtualBatch{
+					BatchNumber:         lastVerifiedBatchNum + 1,
+					TxHash:              common.Hash{},
+					Coinbase:            common.Address{},
+					SequencerAddr:       common.Address{},
+					BlockNumber:         0,
+					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
