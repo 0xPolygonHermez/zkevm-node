@@ -888,6 +888,32 @@ func (_m *StateMock) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uin
 	return r0, r1
 }
 
+// GetTxsOlderThanNL1BlocksUntilTxHash provides a mock function with given fields: ctx, nL1Blocks, earliestTxHash, dbTx
+func (_m *StateMock) GetTxsOlderThanNL1BlocksUntilTxHash(ctx context.Context, nL1Blocks uint64, earliestTxHash common.Hash, dbTx pgx.Tx) ([]common.Hash, error) {
+	ret := _m.Called(ctx, nL1Blocks, earliestTxHash, dbTx)
+
+	var r0 []common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) ([]common.Hash, error)); ok {
+		return rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) []common.Hash); ok {
+		r0 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IsBatchClosed provides a mock function with given fields: ctx, batchNum, dbTx
 func (_m *StateMock) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNum, dbTx)
