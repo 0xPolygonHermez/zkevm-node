@@ -20,14 +20,14 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_model v0.5.0
 	github.com/prometheus/common v0.45.0
-	github.com/rubenv/sql-migrate v1.5.2
+	github.com/rubenv/sql-migrate v1.6.0
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.8.4
 	github.com/umbracle/ethgo v0.1.3
 	github.com/urfave/cli/v2 v2.26.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/crypto v0.16.0
+	golang.org/x/crypto v0.17.0
 	golang.org/x/net v0.19.0
 	golang.org/x/sync v0.5.0
 	google.golang.org/grpc v1.60.0
