@@ -17,8 +17,7 @@ func TestL2BlockStartEncode(t *testing.T) {
 		Timestamp:      3,                           // 8 bytes
 		L1BlockHash:    common.HexToHash("0x04"),    // 32 bytes
 		GlobalExitRoot: common.HexToHash("0x05"),    // 32 bytes
-		L1InfoRoot:     common.HexToHash("0x06"),    // 32 bytes
-		Coinbase:       common.HexToAddress("0x07"), // 20 bytes
+		Coinbase:       common.HexToAddress("0x06"), // 20 bytes
 		ForkID:         5,
 	}
 
@@ -28,8 +27,7 @@ func TestL2BlockStartEncode(t *testing.T) {
 		3, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
 		5, 0}
 
 	assert.Equal(t, expected, encoded)
