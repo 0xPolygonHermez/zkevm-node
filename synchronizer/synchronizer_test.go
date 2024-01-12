@@ -305,12 +305,14 @@ func TestForcedBatchEtrog(t *testing.T) {
 				Return(trustedBatch, nil).
 				Once()
 
+			var forcedGER common.Hash = sequencedBatch.ForcedGlobalExitRoot
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber:         sequencedBatch.BatchNumber,
 				TxHash:              sequencedBatch.TxHash,
 				Coinbase:            sequencedBatch.Coinbase,
 				BlockNumber:         ethermanBlock.BlockNumber,
 				TimestampBatchEtrog: &t,
+				L1InfoRoot:          &forcedGER,
 			}
 
 			m.State.
