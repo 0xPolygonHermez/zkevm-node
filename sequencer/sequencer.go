@@ -333,7 +333,6 @@ func (s *Sequencer) sendDataToStreamer() {
 			// Invalid stream message type
 			default:
 				log.Errorf("invalid stream message type received")
-
 			}
 		}
 	}
