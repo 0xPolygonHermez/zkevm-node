@@ -548,13 +548,13 @@ func TestVirtualBatch(t *testing.T) {
 	ti := time.Now()
 	l1InfoR := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	virtualBatch := state.VirtualBatch{
-		BlockNumber:   1,
-		BatchNumber:   1,
-		Coinbase:      addr,
-		SequencerAddr: addr,
-		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		BlockNumber:         1,
+		BatchNumber:         1,
+		Coinbase:            addr,
+		SequencerAddr:       addr,
+		TxHash:              common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		TimestampBatchEtrog: &ti,
-		L1InfoRoot:    &l1InfoR,
+		L1InfoRoot:          &l1InfoR,
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
@@ -1271,4 +1271,30 @@ func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, (*time.Time)(nil), read.TimestampBatchEtrog)
+}
+
+func TestGetForcedBatch(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block1 := *block
+	block1.BlockNumber = 2002
+	err = testState.AddBlock(ctx, &block1, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	require.NoError(t, err)
+	_, err = testState.Exec(ctx, "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root,timestamp, raw_txs_data,coinbase, block_num) "+
+		"VALUES (1,'0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761','2024-01-11 12:01:01.000 +0100','0b','010203',2002)")
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), fb.ForcedBatchNumber)
+	require.Equal(t, uint64(2002), fb.BlockNumber)
+	require.Equal(t, "0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761", fb.GlobalExitRoot.String())
+	require.Equal(t, []byte{0xb}, fb.RawTxsData)
 }

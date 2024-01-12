@@ -33,7 +33,7 @@ type Sequencer struct {
 	finalizer *finalizer
 
 	streamServer *datastreamer.StreamServer
-	dataToStream chan state.DSL2FullBlock
+	dataToStream chan interface{}
 
 	address common.Address
 
@@ -58,7 +58,7 @@ func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txP
 		eventLog:  eventLog,
 	}
 
-	sequencer.dataToStream = make(chan state.DSL2FullBlock, batchCfg.Constraints.MaxTxsPerBatch*datastreamChannelMultiplier)
+	sequencer.dataToStream = make(chan interface{}, batchCfg.Constraints.MaxTxsPerBatch*datastreamChannelMultiplier)
 
 	return sequencer, nil
 }
@@ -232,78 +232,107 @@ func (s *Sequencer) sendDataToStreamer() {
 		}
 
 		// Read data from channel
-		fullL2Block := <-s.dataToStream
-
-		l2Block := fullL2Block
-		l2Transactions := fullL2Block.Txs
+		dataStream := <-s.dataToStream
 
 		if s.streamServer != nil {
-			err = s.streamServer.StartAtomicOp()
-			if err != nil {
-				log.Errorf("failed to start atomic op for l2block %d, error: %v ", l2Block.L2BlockNumber, err)
-				continue
-			}
+			switch t := dataStream.(type) {
+			// Stream a complete L2 block with its transactions
+			case state.DSL2FullBlock:
+				l2Block := t
+				l2Transactions := t.Txs
 
-			bookMark := state.DSBookMark{
-				Type:          state.BookMarkTypeL2Block,
-				L2BlockNumber: l2Block.L2BlockNumber,
-			}
-
-			_, err = s.streamServer.AddStreamBookmark(bookMark.Encode())
-			if err != nil {
-				log.Errorf("failed to add stream bookmark for l2block %d, error: %v", l2Block.L2BlockNumber, err)
-				continue
-			}
-
-			blockStart := state.DSL2BlockStart{
-				BatchNumber:    l2Block.BatchNumber,
-				L2BlockNumber:  l2Block.L2BlockNumber,
-				Timestamp:      l2Block.Timestamp,
-				L1BlockHash:    l2Block.L1BlockHash,
-				GlobalExitRoot: l2Block.GlobalExitRoot,
-				L1InfoRoot:     l2Block.L1InfoRoot,
-				Coinbase:       l2Block.Coinbase,
-				ForkID:         l2Block.ForkID,
-			}
-
-			_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
-			if err != nil {
-				log.Errorf("failed to add stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
-				continue
-			}
-
-			for _, l2Transaction := range l2Transactions {
-				// Populate intermediate state root
-				position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
-				imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+				err = s.streamServer.StartAtomicOp()
 				if err != nil {
-					log.Errorf("failed to get storage at for l2block %d, error: %v", l2Block.L2BlockNumber, err)
-				}
-				l2Transaction.StateRoot = common.BigToHash(imStateRoot)
-
-				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
-				if err != nil {
-					log.Errorf("failed to add l2tx stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+					log.Errorf("failed to start atomic op for l2block %d, error: %v ", l2Block.L2BlockNumber, err)
 					continue
 				}
-			}
 
-			blockEnd := state.DSL2BlockEnd{
-				L2BlockNumber: l2Block.L2BlockNumber,
-				BlockHash:     l2Block.BlockHash,
-				StateRoot:     l2Block.StateRoot,
-			}
+				bookMark := state.DSBookMark{
+					Type:  state.BookMarkTypeL2Block,
+					Value: l2Block.L2BlockNumber,
+				}
 
-			_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
-			if err != nil {
-				log.Errorf("failed to add stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
-				continue
-			}
+				_, err = s.streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					log.Errorf("failed to add stream bookmark for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+					continue
+				}
 
-			err = s.streamServer.CommitAtomicOp()
-			if err != nil {
-				log.Errorf("failed to commit atomic op for l2block %d, error: %v ", l2Block.L2BlockNumber, err)
-				continue
+				blockStart := state.DSL2BlockStart{
+					BatchNumber:    l2Block.BatchNumber,
+					L2BlockNumber:  l2Block.L2BlockNumber,
+					Timestamp:      l2Block.Timestamp,
+					L1BlockHash:    l2Block.L1BlockHash,
+					GlobalExitRoot: l2Block.GlobalExitRoot,
+					L1InfoRoot:     l2Block.L1InfoRoot,
+					Coinbase:       l2Block.Coinbase,
+					ForkID:         l2Block.ForkID,
+				}
+
+				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
+				if err != nil {
+					log.Errorf("failed to add stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+					continue
+				}
+
+				for _, l2Transaction := range l2Transactions {
+					// Populate intermediate state root
+					position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
+					imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+					if err != nil {
+						log.Errorf("failed to get storage at for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+					}
+					l2Transaction.StateRoot = common.BigToHash(imStateRoot)
+
+					_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
+					if err != nil {
+						log.Errorf("failed to add l2tx stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+						continue
+					}
+				}
+
+				blockEnd := state.DSL2BlockEnd{
+					L2BlockNumber: l2Block.L2BlockNumber,
+					BlockHash:     l2Block.BlockHash,
+					StateRoot:     l2Block.StateRoot,
+				}
+
+				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockEnd, blockEnd.Encode())
+				if err != nil {
+					log.Errorf("failed to add stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)
+					continue
+				}
+
+				err = s.streamServer.CommitAtomicOp()
+				if err != nil {
+					log.Errorf("failed to commit atomic op for l2block %d, error: %v ", l2Block.L2BlockNumber, err)
+					continue
+				}
+
+			// Stream a bookmark
+			case state.DSBookMark:
+				bookmark := t
+
+				err = s.streamServer.StartAtomicOp()
+				if err != nil {
+					log.Errorf("failed to start atomic op for bookmark type %d, value %d, error: %v", bookmark.Type, bookmark.Value, err)
+					continue
+				}
+
+				_, err = s.streamServer.AddStreamBookmark(bookmark.Encode())
+				if err != nil {
+					log.Errorf("failed to add stream bookmark type %d, value %d, error: %v", bookmark.Type, bookmark.Value, err)
+					continue
+				}
+
+				err = s.streamServer.CommitAtomicOp()
+				if err != nil {
+					log.Errorf("failed to commit atomic op for bookmark type %d, value %d, error: %v", bookmark.Type, bookmark.Value, err)
+				}
+
+			// Invalid stream message type
+			default:
+				log.Errorf("invalid stream message type received")
 			}
 		}
 	}

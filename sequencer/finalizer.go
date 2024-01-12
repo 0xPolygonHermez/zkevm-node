@@ -85,7 +85,7 @@ type finalizer struct {
 	pendingFlushIDCond *sync.Cond
 	// stream server
 	streamServer *datastreamer.StreamServer
-	dataToStream chan state.DSL2FullBlock
+	dataToStream chan interface{}
 }
 
 // newFinalizer returns a new instance of Finalizer.
@@ -101,7 +101,7 @@ func newFinalizer(
 	batchConstraints state.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 	streamServer *datastreamer.StreamServer,
-	dataToStream chan state.DSL2FullBlock,
+	dataToStream chan interface{},
 ) *finalizer {
 	f := finalizer{
 		cfg:              cfg,
