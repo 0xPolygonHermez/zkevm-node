@@ -1252,7 +1252,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			return nil, err
 		}
 		coinbase := (data[1]).(common.Address)
-		sequencedBatches := make([]SequencedBatch, len(sequences))
+		sequencedBatches := make([]SequencedBatch, len(sequencesValidium))
 		for i, seq := range sequencesValidium {
 			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 			batchL2Data, err := da.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
