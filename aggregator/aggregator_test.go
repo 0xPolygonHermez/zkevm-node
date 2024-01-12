@@ -787,6 +787,18 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					},
 				).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				t := time.Now()
+				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+				vb := state.VirtualBatch {
+					BatchNumber: lastVerifiedBatchNum+1,
+					TxHash: common.Hash{},
+					Coinbase: common.Address{},
+					SequencerAddr: common.Address{},
+					BlockNumber: 0,
+					L1InfoRoot: &l1InfoRoot,
+					TimestampBatchEtrog: &t,
+				}
+				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errBanana).Once()
@@ -816,6 +828,18 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					},
 				).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				t := time.Now()
+				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+				vb := state.VirtualBatch {
+					BatchNumber: lastVerifiedBatchNum+1,
+					TxHash: common.Hash{},
+					Coinbase: common.Address{},
+					SequencerAddr: common.Address{},
+					BlockNumber: 0,
+					L1InfoRoot: &l1InfoRoot,
+					TimestampBatchEtrog: &t,
+				}
+				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -846,6 +870,18 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					},
 				).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				t := time.Now()
+				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+				vb := state.VirtualBatch {
+					BatchNumber: lastVerifiedBatchNum+1,
+					TxHash: common.Hash{},
+					Coinbase: common.Address{},
+					SequencerAddr: common.Address{},
+					BlockNumber: 0,
+					L1InfoRoot: &l1InfoRoot,
+					TimestampBatchEtrog: &t,
+				}
+				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -876,6 +912,18 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					},
 				).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				t := time.Now()
+				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+				vb := state.VirtualBatch {
+					BatchNumber: lastVerifiedBatchNum+1,
+					TxHash: common.Hash{},
+					Coinbase: common.Address{},
+					SequencerAddr: common.Address{},
+					BlockNumber: 0,
+					L1InfoRoot: &l1InfoRoot,
+					TimestampBatchEtrog: &t,
+				}
+				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -920,6 +968,18 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					},
 				).Return(nil).Once()
 				m.stateMock.On("GetBatchByNumber", mock.Anything, lastVerifiedBatchNum, nil).Return(&latestBatch, nil).Twice()
+				t := time.Now()
+				l1InfoRoot := common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757")
+				vb := state.VirtualBatch {
+					BatchNumber: lastVerifiedBatchNum+1,
+					TxHash: common.Hash{},
+					Coinbase: common.Address{},
+					SequencerAddr: common.Address{},
+					BlockNumber: 0,
+					L1InfoRoot: &l1InfoRoot,
+					TimestampBatchEtrog: &t,
+				}
+				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
