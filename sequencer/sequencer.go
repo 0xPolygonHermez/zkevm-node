@@ -207,7 +207,13 @@ func (s *Sequencer) purgeOldPoolTxs(ctx context.Context) {
 	for {
 		waitTick(ctx, ticker)
 		log.Infof("trying to get txs to delete from the pool...")
-		txHashes, err := s.state.GetTxsOlderThanNL1Blocks(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, nil)
+		earliestTxHash, err := s.pool.GetEarliestProcessedTx(ctx)
+		if err != nil {
+			log.Errorf("failed to get earliest tx hash to delete, err: %v", err)
+			continue
+		}
+
+		txHashes, err := s.state.GetTxsOlderThanNL1BlocksUntilTxHash(ctx, s.cfg.BlocksAmountForTxsToBeDeleted, earliestTxHash, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, err: %v", err)
 			continue
