@@ -757,7 +757,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr).Once()
 			} else {
 				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
-				dbManagerMock.On("GetBatchByNumber", ctx, *tc.prevBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
+				dbManagerMock.On("GetBatchByNumber", ctx, *tc.prevBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr)
 			}
 			if tc.getLastBatchByNumberErr == nil {
 				if tc.getLastBatchErr == nil {
