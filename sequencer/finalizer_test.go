@@ -604,6 +604,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		now = time.Now
 	}()
 	one := uint64(1)
+	zero := uint64(0)
 	batches := []*state.Batch{
 		{
 			BatchNumber:    1,
@@ -615,6 +616,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		name                    string
 		batches                 []*state.Batch
 		lastBatchNum            *uint64
+		prevBatchNum            *uint64
 		isBatchClosed           bool
 		ger                     common.Hash
 		getWIPBatchErr          error
@@ -630,6 +632,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:          "Success Closed Batch",
 			lastBatchNum:  &one,
+			prevBatchNum:  &zero,
 			isBatchClosed: true,
 			ger:           oldHash,
 			batches:       batches,
@@ -653,6 +656,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:          "Success Open Batch",
 			lastBatchNum:  &one,
+			prevBatchNum:  &zero,
 			isBatchClosed: false,
 			batches:       batches,
 			ger:           common.Hash{},
@@ -675,6 +679,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:            "Error Failed to get last batch",
 			lastBatchNum:    nil,
+			prevBatchNum:    nil,
 			batches:         batches,
 			isBatchClosed:   true,
 			ger:             oldHash,
@@ -684,6 +689,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:             "Error Failed to check if batch is closed",
 			lastBatchNum:     &one,
+			prevBatchNum:     &zero,
 			batches:          batches,
 			isBatchClosed:    true,
 			ger:              oldHash,
@@ -693,6 +699,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:           "Error Failed to get work-in-progress batch",
 			lastBatchNum:   &one,
+			prevBatchNum:   &zero,
 			batches:        batches,
 			isBatchClosed:  false,
 			ger:            common.Hash{},
@@ -702,6 +709,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:          "Error Failed to open new batch",
 			lastBatchNum:  &one,
+			prevBatchNum:  &zero,
 			batches:       batches,
 			isBatchClosed: true,
 			ger:           oldHash,
@@ -717,6 +725,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:          "Error Failed to get batch by number",
 			lastBatchNum:  &one,
+			prevBatchNum:  &zero,
 			batches:       batches,
 			isBatchClosed: true,
 			ger:           oldHash,
@@ -732,6 +741,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 		{
 			name:            "Error Failed to get latest GER",
 			lastBatchNum:    &one,
+			prevBatchNum:    &zero,
 			batches:         batches,
 			isBatchClosed:   true,
 			ger:             oldHash,
@@ -747,6 +757,7 @@ func TestFinalizer_syncWithState(t *testing.T) {
 				dbManagerMock.Mock.On("GetLastBatch", ctx).Return(tc.batches[0], tc.getLastBatchErr).Once()
 			} else {
 				dbManagerMock.On("GetBatchByNumber", ctx, *tc.lastBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
+				dbManagerMock.On("GetBatchByNumber", ctx, *tc.prevBatchNum, nil).Return(tc.batches[0], tc.getLastBatchByNumberErr).Once()
 			}
 			if tc.getLastBatchByNumberErr == nil {
 				if tc.getLastBatchErr == nil {
