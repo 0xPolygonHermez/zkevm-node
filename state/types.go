@@ -15,9 +15,7 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber uint64
-	// PreviousGER is used during finalizer start
-	PreviousGER     common.Hash
+	BatchNumber     uint64
 	GlobalExitRoot  common.Hash
 	OldStateRoot    common.Hash
 	OldAccInputHash common.Hash
