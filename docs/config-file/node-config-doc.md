@@ -917,6 +917,7 @@ ForkID=0
 | - [NacosWs](#RPC_NacosWs )                                                   | No      | object           | No         | -          | NacosWs configuration                                                                                                                                                                                                                                                                                                                              |
 | - [GasLimitFactor](#RPC_GasLimitFactor )                                     | No      | number           | No         | -          | GasLimitFactor is used to multiply the suggested gas provided by the network<br />in order to allow a enough gas to be set for all the transactions default value is 1.<br /><br />ex:<br />suggested gas limit: 100<br />GasLimitFactor: 1<br />gas limit = 100<br /><br />suggested gas limit: 100<br />GasLimitFactor: 1.1<br />gas limit = 110 |
 | - [DisableAPIs](#RPC_DisableAPIs )                                           | No      | array of string  | No         | -          | DisableAPIs disable some API                                                                                                                                                                                                                                                                                                                       |
+| - [RateLimit](#RPC_RateLimit )                                               | No      | object           | No         | -          | RateLimit enable rate limit                                                                                                                                                                                                                                                                                                                        |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -1406,6 +1407,127 @@ GasLimitFactor=1
 [RPC]
 DisableAPIs=[]
 ```
+
+### <a name="RPC_RateLimit"></a>8.22. `[RPC.RateLimit]`
+
+**Type:** : `object`
+**Description:** RateLimit enable rate limit
+
+| Property                                                 | Pattern | Type            | Deprecated | Definition | Title/Description                                                                 |
+| -------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------------- |
+| - [Enabled](#RPC_RateLimit_Enabled )                     | No      | boolean         | No         | -          | Enabled defines if the rate limit is enabled or disabled                          |
+| - [RateLimitApis](#RPC_RateLimit_RateLimitApis )         | No      | array of string | No         | -          | RateLimitApis defines the apis that need to be rate limited                       |
+| - [RateLimitCount](#RPC_RateLimit_RateLimitCount )       | No      | integer         | No         | -          | RateLimitBurst defines the maximum burst size of requests                         |
+| - [RateLimitDuration](#RPC_RateLimit_RateLimitDuration ) | No      | integer         | No         | -          | RateLimitDuration defines the time window for the rate limit                      |
+| - [SpecialApis](#RPC_RateLimit_SpecialApis )             | No      | array of object | No         | -          | SpecialApis defines the apis that need to be rate limited with special rate limit |
+
+#### <a name="RPC_RateLimit_Enabled"></a>8.22.1. `RPC.RateLimit.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled defines if the rate limit is enabled or disabled
+
+**Example setting the default value** (false):
+```
+[RPC.RateLimit]
+Enabled=false
+```
+
+#### <a name="RPC_RateLimit_RateLimitApis"></a>8.22.2. `RPC.RateLimit.RateLimitApis`
+
+**Type:** : `array of string`
+
+**Default:** `[]`
+
+**Description:** RateLimitApis defines the apis that need to be rate limited
+
+**Example setting the default value** ([]):
+```
+[RPC.RateLimit]
+RateLimitApis=[]
+```
+
+#### <a name="RPC_RateLimit_RateLimitCount"></a>8.22.3. `RPC.RateLimit.RateLimitCount`
+
+**Type:** : `integer`
+
+**Default:** `100`
+
+**Description:** RateLimitBurst defines the maximum burst size of requests
+
+**Example setting the default value** (100):
+```
+[RPC.RateLimit]
+RateLimitCount=100
+```
+
+#### <a name="RPC_RateLimit_RateLimitDuration"></a>8.22.4. `RPC.RateLimit.RateLimitDuration`
+
+**Type:** : `integer`
+
+**Default:** `1`
+
+**Description:** RateLimitDuration defines the time window for the rate limit
+
+**Example setting the default value** (1):
+```
+[RPC.RateLimit]
+RateLimitDuration=1
+```
+
+#### <a name="RPC_RateLimit_SpecialApis"></a>8.22.5. `RPC.RateLimit.SpecialApis`
+
+**Type:** : `array of object`
+
+**Default:** `[]`
+
+**Description:** SpecialApis defines the apis that need to be rate limited with special rate limit
+
+**Example setting the default value** ([]):
+```
+[RPC.RateLimit]
+SpecialApis=[]
+```
+
+|                      | Array restrictions |
+| -------------------- | ------------------ |
+| **Min items**        | N/A                |
+| **Max items**        | N/A                |
+| **Items unicity**    | False              |
+| **Additional items** | False              |
+| **Tuple validation** | See below          |
+
+| Each item of this array must be                       | Description                                                |
+| ----------------------------------------------------- | ---------------------------------------------------------- |
+| [SpecialApis items](#RPC_RateLimit_SpecialApis_items) | RateLimitItem defines the special rate limit for some apis |
+
+##### <a name="autogenerated_heading_3"></a>8.22.5.1. [RPC.RateLimit.SpecialApis.SpecialApis items]
+
+**Type:** : `object`
+**Description:** RateLimitItem defines the special rate limit for some apis
+
+| Property                                                 | Pattern | Type    | Deprecated | Definition | Title/Description                                   |
+| -------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------- |
+| - [Api](#RPC_RateLimit_SpecialApis_items_Api )           | No      | string  | No         | -          | Api defines the api that need to be rate limited    |
+| - [Count](#RPC_RateLimit_SpecialApis_items_Count )       | No      | integer | No         | -          | Count defines the maximum burst size of requests    |
+| - [Duration](#RPC_RateLimit_SpecialApis_items_Duration ) | No      | integer | No         | -          | Duration defines the time window for the rate limit |
+
+##### <a name="RPC_RateLimit_SpecialApis_items_Api"></a>8.22.5.1.1. `RPC.RateLimit.SpecialApis.SpecialApis items.Api`
+
+**Type:** : `string`
+**Description:** Api defines the api that need to be rate limited
+
+##### <a name="RPC_RateLimit_SpecialApis_items_Count"></a>8.22.5.1.2. `RPC.RateLimit.SpecialApis.SpecialApis items.Count`
+
+**Type:** : `integer`
+**Description:** Count defines the maximum burst size of requests
+
+##### <a name="RPC_RateLimit_SpecialApis_items_Duration"></a>8.22.5.1.3. `RPC.RateLimit.SpecialApis.SpecialApis items.Duration`
+
+**Type:** : `integer`
+**Description:** Duration defines the time window for the rate limit
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
 
@@ -2967,7 +3089,7 @@ GenesisBlockNum=0
 | ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_3"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_4"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
@@ -3844,7 +3966,7 @@ ChainID=0
 | ----------------------------------------------------- | ------------------------------------ |
 | [ForkIDIntervals items](#State_ForkIDIntervals_items) | ForkIDInterval is a fork id interval |
 
-#### <a name="autogenerated_heading_4"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
+#### <a name="autogenerated_heading_5"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
 
 **Type:** : `object`
 **Description:** ForkIDInterval is a fork id interval

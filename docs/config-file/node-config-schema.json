@@ -522,6 +522,60 @@
 					"type": "array",
 					"description": "DisableAPIs disable some API",
 					"default": []
+				},
+				"RateLimit": {
+					"properties": {
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled defines if the rate limit is enabled or disabled",
+							"default": false
+						},
+						"RateLimitApis": {
+							"items": {
+								"type": "string"
+							},
+							"type": "array",
+							"description": "RateLimitApis defines the apis that need to be rate limited",
+							"default": []
+						},
+						"RateLimitCount": {
+							"type": "integer",
+							"description": "RateLimitBurst defines the maximum burst size of requests",
+							"default": 100
+						},
+						"RateLimitDuration": {
+							"type": "integer",
+							"description": "RateLimitDuration defines the time window for the rate limit",
+							"default": 1
+						},
+						"SpecialApis": {
+							"items": {
+								"properties": {
+									"Api": {
+										"type": "string",
+										"description": "Api defines the api that need to be rate limited"
+									},
+									"Count": {
+										"type": "integer",
+										"description": "Count defines the maximum burst size of requests"
+									},
+									"Duration": {
+										"type": "integer",
+										"description": "Duration defines the time window for the rate limit"
+									}
+								},
+								"additionalProperties": false,
+								"type": "object",
+								"description": "RateLimitItem defines the special rate limit for some apis"
+							},
+							"type": "array",
+							"description": "SpecialApis defines the apis that need to be rate limited with special rate limit",
+							"default": []
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "RateLimit enable rate limit"
 				}
 			},
 			"additionalProperties": false,

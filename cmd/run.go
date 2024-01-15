@@ -396,7 +396,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 			Service: &jsonrpc.Web3Endpoints{},
 		})
 	}
-
+	jsonrpc.InitRateLimit(c.RPC.RateLimit)
 	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, services).Start(); err != nil {
 		log.Fatal(err)
 	}

@@ -8,11 +8,12 @@ import (
 
 // ApolloConfig is the apollo RPC dynamic config
 type ApolloConfig struct {
-	EnableApollo         bool     `json:"enable"`
-	BatchRequestsEnabled bool     `json:"batchRequestsEnabled"`
-	BatchRequestsLimit   uint     `json:"batchRequestsLimit"`
-	GasLimitFactor       float64  `json:"gasLimitFactor"`
-	DisableAPIs          []string `json:"disableAPIs"`
+	EnableApollo         bool            `json:"enable"`
+	BatchRequestsEnabled bool            `json:"batchRequestsEnabled"`
+	BatchRequestsLimit   uint            `json:"batchRequestsLimit"`
+	GasLimitFactor       float64         `json:"gasLimitFactor"`
+	DisableAPIs          []string        `json:"disableAPIs"`
+	RateLimit            RateLimitConfig `json:"rateLimit"`
 
 	sync.RWMutex
 }
@@ -50,6 +51,7 @@ func UpdateConfig(apolloConfig Config) {
 	getApolloConfig().BatchRequestsLimit = apolloConfig.BatchRequestsLimit
 	getApolloConfig().GasLimitFactor = apolloConfig.GasLimitFactor
 	getApolloConfig().setDisableAPIs(apolloConfig.DisableAPIs)
+	setRateLimit(apolloConfig.RateLimit)
 	getApolloConfig().Unlock()
 }
 
