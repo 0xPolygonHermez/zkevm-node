@@ -1097,7 +1097,7 @@ func TestGetBatchL2DataByNumber(t *testing.T) {
 
 	// empty case
 	var batchNum uint64 = 4
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, raw_txs_data) VALUES ($1, $2)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, raw_txs_data, wip) VALUES ($1, $2, false)"
 	_, err = tx.Exec(ctx, openBatchSQL, batchNum, nil)
 	require.NoError(t, err)
 	data, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
