@@ -123,7 +123,7 @@ func newFinalizer(
 		// event log
 		eventLog: eventLog,
 		// effective gas price calculation instance
-		effectiveGasPrice: pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice: pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice),
 		// pending L2 blocks to be processed (executor)
 		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToProcessWG: new(sync.WaitGroup),
