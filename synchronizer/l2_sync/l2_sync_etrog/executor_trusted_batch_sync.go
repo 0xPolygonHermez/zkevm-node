@@ -227,7 +227,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, d
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    data.BatchNumber,
 		StateRoot:      processBatchResp.NewStateRoot,
-		LocalExitRoot:  data.TrustedBatch.RollupExitRoot,
+		LocalExitRoot:  data.TrustedBatch.LocalExitRoot,
 		BatchL2Data:    data.TrustedBatch.BatchL2Data,
 		AccInputHash:   data.TrustedBatch.AccInputHash,
 		GlobalExitRoot: data.TrustedBatch.GlobalExitRoot,
