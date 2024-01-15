@@ -10,11 +10,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-var (
-	// ZeroL1InfoRoot is the root hash of a zero L1InfoTree
-	ZeroL1InfoRoot = common.HexToHash("0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20")
-)
-
 // L1InfoTreeLeaf leaf of the L1InfoTree
 type L1InfoTreeLeaf struct {
 	GlobalExitRoot
