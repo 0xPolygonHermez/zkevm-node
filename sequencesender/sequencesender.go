@@ -38,6 +38,7 @@ type SequenceSender struct {
 	ethTxManager       ethTxManager
 	etherman           etherman
 	eventLog           *event.EventLog
+	fromVirtualBatch   uint64 // Initial value to connect to the streaming
 	latestVirtualBatch uint64
 	streamClient       *datastreamer.StreamClient
 }
@@ -83,8 +84,9 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	}
 
 	// Set starting point of the streaming
+	s.fromVirtualBatch = s.latestVirtualBatch
 	bookmark := []byte{state.BookMarkTypeBatch}
-	bookmark = binary.LittleEndian.AppendUint64(bookmark, s.latestVirtualBatch+1)
+	bookmark = binary.LittleEndian.AppendUint64(bookmark, s.fromVirtualBatch)
 	s.streamClient.FromBookmark = bookmark
 
 	// Start receiving the streaming
@@ -398,7 +400,9 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		log.Infof("bookmark type %d value %d at entry %d", bookmarkType, bookmarkValue, e.Number)
 
 	case state.EntryTypeL2BlockStart:
-		log.Infof("block start at entry %d", e.Number)
+		l2BlockStart := state.DSL2BlockStart{}
+		l2BlockStart = l2BlockStart.Decode(e.Data)
+		log.Infof("L2 block start batch %d", l2BlockStart.BatchNumber)
 
 	case state.EntryTypeL2Tx:
 
