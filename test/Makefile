@@ -556,6 +556,10 @@ run-approve-pol: ## Runs approve in node container
 run-approve-pol-v1tov2: ## Runs approve in node container
 	$(RUNV1TOV2APPROVE)
 
+.PHONY: stop-approve-pol
+stop-approve-pol: ## Stops approve in node container
+	$(STOPAPPROVE)
+
 .PHONY: stop-approve-pol-v1tov2
 stop-approve-pol-v1tov2: ## Stops approve in node container
 	$(STOPV1TOV2APPROVE)
