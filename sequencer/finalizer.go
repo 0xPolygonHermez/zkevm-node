@@ -180,6 +180,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 	} else {
 		f.processRequest = *processingReq
 		f.currentGERHash = processingReq.GlobalExitRoot
+		f.previousGERHash = processingReq.PreviousGER
 	}
 
 	// Closing signals receiver
@@ -1079,9 +1080,21 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	log.Infof("Initial Batch.InitialStateRoot: %s", f.batch.initialStateRoot.String())
 	log.Infof("Initial Batch.localExitRoot: %s", f.batch.localExitRoot.String())
 
+	var previousGER = state.ZeroHash
+
+	if batchNum >= 1 {
+		previousBatchNumber := batchNum - 1
+		previousBatch, err := f.dbManager.GetBatchByNumber(ctx, previousBatchNumber, nil)
+		if err != nil {
+			return fmt.Errorf("failed to get previous batch, err: %w", err)
+		}
+		previousGER = previousBatch.GlobalExitRoot
+	}
+
 	f.processRequest = state.ProcessRequest{
 		BatchNumber:    *lastBatchNum,
 		OldStateRoot:   f.batch.stateRoot,
+		PreviousGER:    previousGER,
 		GlobalExitRoot: f.batch.globalExitRoot,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      f.batch.timestamp,
