@@ -24,12 +24,13 @@ type Batch struct {
 	finalStateRoot     common.Hash // final stateroot of the batch when a L2 block is processed
 	localExitRoot      common.Hash
 	countOfTxs         int
+	countOfL2Blocks    int
 	remainingResources state.BatchResources
 	closingReason      state.ClosingReason
 }
 
 func (w *Batch) isEmpty() bool {
-	return w.countOfTxs == 0
+	return w.countOfL2Blocks == 0
 }
 
 // setWIPBatch sets finalizer wip batch to the state batch passed as parameter

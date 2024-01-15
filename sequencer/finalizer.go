@@ -35,7 +35,7 @@ var (
 	l2BlockUsedResources = state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
-			UsedArithmetics:    1,   // nolint:gomnd //TODO: config param
+			UsedArithmetics:    0,   // nolint:gomnd //TODO: config param
 			UsedBinaries:       20,  // nolint:gomnd //TODO: config param
 			UsedSteps:          284, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   4,   // nolint:gomnd //TODO: config param

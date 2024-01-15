@@ -141,6 +141,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "SequenceSender.L1BlockTimestampMargin",
+			expectedValue: types.NewDuration(30 * time.Second),
+		},
+		{
 			path:          "SequenceSender.MaxTxSizeForL1",
 			expectedValue: uint64(131072),
 		},

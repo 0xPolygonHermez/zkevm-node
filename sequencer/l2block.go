@@ -395,6 +395,8 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		}
 	}
 
+	f.wipBatch.countOfL2Blocks++
+
 	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 }
 
