@@ -833,6 +833,16 @@
 						"300ms"
 					]
 				},
+				"L1BlockTimestampMargin": {
+					"type": "string",
+					"title": "Duration",
+					"description": "L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before\nto send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater",
+					"default": "30s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
 				"MaxTxSizeForL1": {
 					"type": "integer",
 					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not.",
