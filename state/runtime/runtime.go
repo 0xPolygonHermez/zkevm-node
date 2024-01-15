@@ -305,9 +305,9 @@ var (
 	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
 	// ErrExecutorErrorStateManager indicates an error in the State Manager
 	ErrExecutorErrorStateManager = errors.New("state Manager error")
-	// EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX indicates that the ROM asked for an L1InfoTree index that was not present in the input
+	// ErrExecutorErrorInvalidL1InfoTreeIndex indicates that the ROM asked for an L1InfoTree index that was not present in the input
 	ErrExecutorErrorInvalidL1InfoTreeIndex = errors.New("invalid l1_info_tree_index")
-	// EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
+	// ErrExecutorErrorInvalidL1InfoTreeSmtProofValue indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
 	ErrExecutorErrorInvalidL1InfoTreeSmtProofValue = errors.New("invalid l1_info_tree_smt_proof_value")
 
 	// GRPC ERRORS
