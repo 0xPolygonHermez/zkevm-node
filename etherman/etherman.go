@@ -883,9 +883,13 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonRollupBaseEtrogBatchData
 	for _, seq := range sequences {
+		var ger common.Hash
+		if seq.ForcedBatchTimestamp > 0 {
+			ger = seq.GlobalExitRoot
+		}
 		batch := polygonzkevm.PolygonRollupBaseEtrogBatchData{
 			Transactions:         seq.BatchL2Data,
-			ForcedGlobalExitRoot: seq.GlobalExitRoot,
+			ForcedGlobalExitRoot: ger,
 			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
 			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
@@ -1572,7 +1576,7 @@ func (etherMan *Client) GetL2ChainID() (uint64, error) {
 	if err != nil || chainID == 0 {
 		log.Debug("error from oldZkevm: ", err)
 		rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
-		log.Debug("chainID read from rollupManager: ", rollupData.ChainID)
+		log.Debugf("ChainID read from rollupManager: %d using rollupID: %d", rollupData.ChainID, etherMan.RollupID)
 		if err != nil {
 			log.Debug("error from rollupManager: ", err)
 			return 0, err
