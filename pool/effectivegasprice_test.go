@@ -179,6 +179,14 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			l1GasPrice:    100,
 			expectedValue: new(big.Int).SetUint64(83),
 		},
+		{
+			name:          "Test breakEvenGasPrice = 0 must return 1",
+			rawTx:         []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
+			txGasPrice:    new(big.Int).SetUint64(1000),
+			txGasUsed:     200000,
+			l1GasPrice:    1,
+			expectedValue: new(big.Int).SetUint64(1),
+		},
 	}
 
 	for _, tc := range testCases {
