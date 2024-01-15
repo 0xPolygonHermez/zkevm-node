@@ -124,7 +124,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	lastL2Block := lastBatchL2Blocks[len(lastBatchL2Blocks)-1]
 	lastL2BlockTimestamp := uint64(lastL2Block.ReceivedAt.Unix())
 
-	timeMargin := uint64(s.cfg.L1BlockTimestampMargin.Seconds())
+	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
 
 	// Wait until L1 block timestamp is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
 	for {
@@ -136,22 +136,28 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		}
 
 		// Check the time difference between L2 and L1 block
-		var timeDiff uint64
+		var timeDiff int64
 		if lastL2BlockTimestamp >= lastL1BlockTimestamp {
-			timeDiff = 0
+			//L2 block timestamp is above L1 block timestamp, negative timeDiff. We do in this way to avoid uint64 overflow
+			timeDiff = int64(-(lastL2BlockTimestamp - lastL1BlockTimestamp))
 		} else {
-			timeDiff = lastL1BlockTimestamp - lastL2BlockTimestamp
+			timeDiff = int64(lastL1BlockTimestamp - lastL2BlockTimestamp)
 		}
 
 		// Wait if the time difference is less than timeMargin (L1BlockTimestampMargin)
 		if timeDiff < timeMargin {
-			waitTime := timeMargin - timeDiff
-			log.Infof("waiting at least %d seconds to send sequences, time difference between last L2 block %d (ts: %d) in the sequence and last L1 block (ts: %d) is lower than %d seconds",
-				lastL2Block.Number(), lastL2BlockTimestamp, lastL1BlockTimestamp, timeMargin, waitTime)
+			var waitTime int64
+			if timeDiff < 0 { //L2 block timestamp is above L1 block timestamp
+				waitTime = timeMargin + (-timeDiff)
+			} else {
+				waitTime = timeMargin - timeDiff
+			}
+			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			log.Infof("sending sequences now, time difference between last L2 block %d (ts: %d) in the sequence and last L1 block (ts: %d) is greater than %d seconds",
-				lastL2Block.Number(), lastL2BlockTimestamp, lastL1BlockTimestamp, timeMargin)
+			log.Infof("sending sequences now, time difference between last L1 block (ts: %d) amd last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
+				lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
 			break
 		}
 	}
