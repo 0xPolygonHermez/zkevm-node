@@ -1,0 +1,23 @@
+# gas cost of 1 byte
+ByteGasCost = 16
+
+# gas cost of 1 byte zero
+ZeroGasCost = 4
+
+# L2 network profit factor
+NetProfitFactor = 1.2
+
+# L1 gas price factor
+L1GasPriceFactor = 0.04
+
+# L2 gas price suggester factor
+L2GasPriceSugFactor = 0.30
+
+# Max final deviation percentage
+FinalDeviationPct = 10
+
+# Min gas price allowed
+MinGasPriceAllowed = 1000000000
+
+# L2 gas price suggester factor pre EGP
+L2GasPriceSugFactorPreEGP = 0.1

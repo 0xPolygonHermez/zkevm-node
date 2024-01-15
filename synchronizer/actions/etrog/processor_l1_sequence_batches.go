@@ -205,12 +205,13 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			processCtx = state.ProcessingContextV2{
 				BatchNumber:          batch.BatchNumber,
 				Coinbase:             batch.Coinbase,
-				Timestamp:            &batch.Timestamp,
+				Timestamp:            &l1BlockTimestamp,
 				L1InfoRoot:           *sbatch.L1InfoRoot,
 				L1InfoTreeData:       leaves,
 				ForcedBatchNum:       batch.ForcedBatchNum,
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 1,
+				GlobalExitRoot:       batch.GlobalExitRoot,
 			}
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
