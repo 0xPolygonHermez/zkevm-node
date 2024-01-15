@@ -179,6 +179,7 @@ func (f *finalizer) Start(ctx context.Context, batch *WipBatch, processingReq *s
 		log.Fatal("processingReq should not be nil")
 	} else {
 		f.processRequest = *processingReq
+		f.currentGERHash = processingReq.GlobalExitRoot
 	}
 
 	// Closing signals receiver
