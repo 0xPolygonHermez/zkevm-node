@@ -29,8 +29,6 @@ var (
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
 	// with a different one without the required price bump.
 	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
-	// FreeClaimAddress is the default free gas address
-	FreeClaimAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
 	// ErrEffectiveGasPriceGasPriceTooLow the tx gas price is lower than breakEvenGasPrice and lower than L2GasPrice
 	ErrEffectiveGasPriceGasPriceTooLow = errors.New("effective gas price: gas price too low")
@@ -94,7 +92,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		l2BridgeAddr:            l2BridgeAddr,
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
-	FreeClaimAddress = cfg.FreeGasAddress
+
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
@@ -506,7 +504,7 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions with a gas price lower than the minimum gas price
-	if from != common.HexToAddress(FreeClaimAddress) || !poolTx.IsClaims {
+	if !contains(p.cfg.FreeGasAddress, from) || !poolTx.IsClaims {
 		p.minSuggestedGasPriceMux.RLock()
 		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
 		p.minSuggestedGasPriceMux.RUnlock()
@@ -573,6 +571,15 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	return nil
+}
+
+func contains(s []string, ele common.Address) bool {
+	for _, e := range s {
+		if common.HexToAddress(e) == ele {
+			return true
+		}
+	}
+	return false
 }
 
 // pollMinSuggestedGasPrice polls the minimum L2 gas price since the previous

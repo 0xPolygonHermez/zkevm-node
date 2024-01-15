@@ -44,7 +44,7 @@ MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
-FreeGasAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+FreeGasAddress = ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
     [Pool.EffectiveGasPrice]
 	Enabled = false
 	L1GasPriceFactor = 0.25

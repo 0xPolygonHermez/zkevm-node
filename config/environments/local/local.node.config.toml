@@ -37,7 +37,7 @@ MaxTxDataBytesSize=100000
 DefaultMinGasPriceAllowed = 1000000000
 MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
-FreeGasAddress = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+FreeGasAddress = ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
 AccountQueue = 64
 GlobalQueue = 1024
 	[Pool.EffectiveGasPrice]

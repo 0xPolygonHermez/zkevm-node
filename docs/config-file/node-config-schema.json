@@ -272,9 +272,14 @@
 					"default": 1024
 				},
 				"FreeGasAddress": {
-					"type": "string",
+					"items": {
+						"type": "string"
+					},
+					"type": "array",
 					"description": "FreeGasAddress is the default free gas address",
-					"default": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+					"default": [
+						"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+					]
 				},
 				"EffectiveGasPrice": {
 					"properties": {

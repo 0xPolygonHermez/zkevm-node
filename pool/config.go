@@ -41,7 +41,7 @@ type Config struct {
 	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 
 	// FreeGasAddress is the default free gas address
-	FreeGasAddress string `mapstructure:"FreeGasAddress"`
+	FreeGasAddress []string `mapstructure:"FreeGasAddress"`
 	// EffectiveGasPrice is the config for the effective gas price calculation
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 

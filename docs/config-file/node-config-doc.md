@@ -413,22 +413,22 @@ MaxGasPriceLimit=0
 **Type:** : `object`
 **Description:** Pool service configuration
 
-| Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                    |
-| ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
-| - [FreeClaimGasLimit](#Pool_FreeClaimGasLimit )                                 | No      | integer | No         | -          | FreeClaimGasLimit is the max gas allowed use to do a free claim                                      |
-| - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string  | No         | -          | Duration                                                                                             |
-| - [IntervalToRefreshGasPrices](#Pool_IntervalToRefreshGasPrices )               | No      | string  | No         | -          | Duration                                                                                             |
-| - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                                             |
-| - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes                       |
-| - [DB](#Pool_DB )                                                               | No      | object  | No         | -          | DB is the database configuration                                                                     |
-| - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
-| - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                                             |
-| - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                                             |
-| - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
-| - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
-| - [FreeGasAddress](#Pool_FreeGasAddress )                                       | No      | string  | No         | -          | FreeGasAddress is the default free gas address                                                       |
-| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
-| - [ForkID](#Pool_ForkID )                                                       | No      | integer | No         | -          | ForkID is the current fork ID of the chain                                                           |
+| Property                                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                    |
+| ------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| - [FreeClaimGasLimit](#Pool_FreeClaimGasLimit )                                 | No      | integer         | No         | -          | FreeClaimGasLimit is the max gas allowed use to do a free claim                                      |
+| - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string          | No         | -          | Duration                                                                                             |
+| - [IntervalToRefreshGasPrices](#Pool_IntervalToRefreshGasPrices )               | No      | string          | No         | -          | Duration                                                                                             |
+| - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer         | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                                             |
+| - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer         | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes                       |
+| - [DB](#Pool_DB )                                                               | No      | object          | No         | -          | DB is the database configuration                                                                     |
+| - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer         | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
+| - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string          | No         | -          | Duration                                                                                             |
+| - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string          | No         | -          | Duration                                                                                             |
+| - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer         | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
+| - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer         | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
+| - [FreeGasAddress](#Pool_FreeGasAddress )                                       | No      | array of string | No         | -          | FreeGasAddress is the default free gas address                                                       |
+| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object          | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
+| - [ForkID](#Pool_ForkID )                                                       | No      | integer         | No         | -          | ForkID is the current fork ID of the chain                                                           |
 
 ### <a name="Pool_FreeClaimGasLimit"></a>7.1. `Pool.FreeClaimGasLimit`
 
@@ -734,16 +734,16 @@ GlobalQueue=1024
 
 ### <a name="Pool_FreeGasAddress"></a>7.12. `Pool.FreeGasAddress`
 
-**Type:** : `string`
+**Type:** : `array of string`
 
-**Default:** `"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"`
+**Default:** `["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]`
 
 **Description:** FreeGasAddress is the default free gas address
 
-**Example setting the default value** ("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"):
+**Example setting the default value** (["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]):
 ```
 [Pool]
-FreeGasAddress="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+FreeGasAddress=["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
 ```
 
 ### <a name="Pool_EffectiveGasPrice"></a>7.13. `[Pool.EffectiveGasPrice]`
