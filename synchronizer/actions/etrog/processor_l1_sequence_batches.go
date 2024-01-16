@@ -222,24 +222,25 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 
 					processCtx.GlobalExitRoot = globalExitRoot
 					batch.GlobalExitRoot = globalExitRoot
-				}
-			} else {
-				log.Infof("Empty leaves array detected for batch: %d getting GER from leaf 0", batch.BatchNumber)
-				leaf0, err := g.state.GetL1InfoRootLeafByIndex(ctx, 0, dbTx)
-				if err != nil {
-					log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
-					rollbackErr := dbTx.Rollback(ctx)
-					if rollbackErr != nil {
-						log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
-						return rollbackErr
+				} else {
+					log.Infof("Empty leaves array detected for batch: %d getting GER from leaf 0", batch.BatchNumber)
+					leaf0, err := g.state.GetL1InfoRootLeafByIndex(ctx, 0, dbTx)
+					if err != nil {
+						log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
+						rollbackErr := dbTx.Rollback(ctx)
+						if rollbackErr != nil {
+							log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+							return rollbackErr
+						}
+						return err
 					}
-					return err
+					processCtx.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
+					batch.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
 				}
-				processCtx.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
-				batch.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
+				log.Infof("Using GlobalExitRoot: %s for batch: %d", processCtx.GlobalExitRoot.String(), batch.BatchNumber)
 			}
-			log.Infof("Using GlobalExitRoot: %s for batch: %d", processCtx.GlobalExitRoot.String(), batch.BatchNumber)
 		}
+
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
 		var newRoot common.Hash
 
