@@ -38,20 +38,33 @@ type SequenceSender struct {
 	ethTxManager       ethTxManager
 	etherman           etherman
 	eventLog           *event.EventLog
-	fromVirtualBatch   uint64 // Initial value to connect to the streaming
-	latestVirtualBatch uint64
+	fromVirtualBatch   uint64                   // Initial value to connect to the streaming
+	latestVirtualBatch uint64                   // Latest virtualized batch
+	wipBatch           uint64                   // Work in progress batch
+	sequenceList       []*types.Sequence        // Sequence of batches to be send to L1
+	sequenceData       map[uint64]*sequenceData // All the batch info with L2 blocks and tx data
+	validStream        bool
 	streamClient       *datastreamer.StreamClient
+}
+
+type sequenceData struct {
+	batchClosed bool
+	batchRaw    *state.BatchRawV2
 }
 
 // New inits sequence sender
 func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
-	return &SequenceSender{
+	s := SequenceSender{
 		cfg:          cfg,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		eventLog:     eventLog,
-	}, nil
+		sequenceData: make(map[uint64]*sequenceData),
+		validStream:  false,
+	}
+
+	return &s, nil
 }
 
 // Start starts the sequence sender
@@ -89,6 +102,9 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	bookmark = binary.LittleEndian.AppendUint64(bookmark, s.fromVirtualBatch)
 	s.streamClient.FromBookmark = bookmark
 
+	// Current batch to sequence
+	s.wipBatch = s.latestVirtualBatch + 1
+
 	// Start receiving the streaming
 	err = s.streamClient.ExecCommand(datastreamer.CmdStart)
 	if err != nil {
@@ -103,6 +119,8 @@ func (s *SequenceSender) Start(ctx context.Context) {
 }
 
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	return
+
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -308,30 +326,6 @@ func (s *SequenceSender) handleEstimateGasSendSequenceErr(
 		return sequences, nil
 	}
 
-	// while estimating gas a new block is not created and the POE SC may return
-	// an error regarding timestamp verification, this must be handled
-	// if errors.Is(err, ethman.ErrTimestampMustBeInsideRange) {
-	// 	// query the sc about the value of its lastTimestamp variable
-	// 	lastTimestamp, err := s.etherman.GetLastBatchTimestamp()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	// check POE SC lastTimestamp against sequences' one
-	// 	for _, seq := range sequences {
-	// 		if seq.Timestamp < int64(lastTimestamp) {
-	// 			// TODO: gracefully handle this situation by creating an L2 reorg
-	// 			log.Fatalf("sequence timestamp %d is < POE SC lastTimestamp %d", seq.Timestamp, lastTimestamp)
-	// 		}
-	// 		lastTimestamp = uint64(seq.Timestamp)
-	// 	}
-	// 	blockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
-	// 	if err != nil {
-	// 		log.Error("error getting block timestamp: ", err)
-	// 	}
-	// 	log.Debugf("block.timestamp: %d is smaller than seq.Timestamp: %d. A new block must be mined in L1 before the gas can be estimated.", blockTimestamp, sequences[0].Timestamp)
-	// 	return nil, nil
-	// }
-
 	// Unknown error
 	if len(sequences) == 1 {
 		// TODO: gracefully handle this situation by creating an L2 reorg
@@ -394,22 +388,142 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 
 func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *datastreamer.StreamClient, ss *datastreamer.StreamServer) error {
 	switch e.Type {
-	case state.EntryTypeBookMark:
-		bookmarkType := e.Data[0]
-		bookmarkValue := binary.LittleEndian.Uint64(e.Data[1:9])
-		log.Infof("bookmark type %d value %d at entry %d", bookmarkType, bookmarkValue, e.Number)
-
 	case state.EntryTypeL2BlockStart:
+		// Handle stream entry: Start L2 Block
 		l2BlockStart := state.DSL2BlockStart{}
 		l2BlockStart = l2BlockStart.Decode(e.Data)
-		log.Infof("L2 block start batch %d", l2BlockStart.BatchNumber)
+
+		// Already virtualized
+		if l2BlockStart.BatchNumber <= s.fromVirtualBatch {
+			return nil
+		} else {
+			s.validStream = true
+		}
+
+		if l2BlockStart.BatchNumber == s.wipBatch {
+			// New block in the current batch
+			if s.wipBatch == s.fromVirtualBatch+1 {
+				// Initial case after startup
+				s.addNewSequenceBatch(l2BlockStart)
+			}
+		} else if l2BlockStart.BatchNumber > s.wipBatch {
+			// New batch in the sequence
+			// Close current batch
+			s.sequenceData[s.wipBatch].batchClosed = true
+
+			// Create new sequential batch
+			s.addNewSequenceBatch(l2BlockStart)
+		}
+
+		// Add L2 block data
+		s.addNewBatchL2Block(l2BlockStart)
 
 	case state.EntryTypeL2Tx:
+		// Handle stream entry: L2 Tx
+		if !s.validStream {
+			return nil
+		}
+
+		l2Tx := state.DSL2Transaction{}
+		l2Tx = l2Tx.Decode(e.Data)
+
+		// Add tx data
+		s.addNewBlockTx(l2Tx)
 
 	case state.EntryTypeL2BlockEnd:
+		// Handle stream entry: End L2 Block
+		if !s.validStream {
+			return nil
+		}
+
+		// TODO: Add end block data
 
 	case state.EntryTypeUpdateGER:
+		// Handle stream entry: Update GER
+		// TODO: What should I do
 	}
 
 	return nil
+}
+
+func (s *SequenceSender) addNewSequenceBatch(l2BlockStart state.DSL2BlockStart) {
+	if s.sequenceData[l2BlockStart.BatchNumber] == nil {
+		log.Infof("..new batch, number %d", l2BlockStart.BatchNumber)
+
+		// Create sequence
+		sequence := types.Sequence{
+			GlobalExitRoot: l2BlockStart.GlobalExitRoot,
+			Timestamp:      l2BlockStart.Timestamp,
+			BatchNumber:    l2BlockStart.BatchNumber,
+		}
+
+		// Add to the list
+		s.sequenceList = append(s.sequenceList, &sequence)
+
+		// Create initial data
+		batchRaw := state.BatchRawV2{}
+		data := sequenceData{
+			batchClosed: false,
+			batchRaw:    &batchRaw,
+		}
+		s.sequenceData[l2BlockStart.BatchNumber] = &data
+
+		// Update wip batch
+		s.wipBatch = l2BlockStart.BatchNumber
+
+		// Add first block
+		s.addNewBatchL2Block(l2BlockStart)
+	}
+}
+
+func (s *SequenceSender) addNewBatchL2Block(l2BlockStart state.DSL2BlockStart) {
+	log.Infof("....new L2 block, number %d (batch %d)", l2BlockStart.L2BlockNumber, l2BlockStart.BatchNumber)
+
+	// Current batch
+	wipBatchRaw := s.sequenceData[s.wipBatch].batchRaw
+
+	// New L2 block raw
+	newBlockRaw := state.L2BlockRaw{}
+
+	// Add L2 block
+	wipBatchRaw.Blocks = append(wipBatchRaw.Blocks, newBlockRaw)
+
+	// Get current L2 block
+	blockIndex, blockRaw := s.getWipL2Block()
+
+	// Fill in data
+	if blockIndex > 0 {
+		blockRaw.DeltaTimestamp = uint32(time.Now().Unix()) - wipBatchRaw.Blocks[0].DeltaTimestamp
+	} else {
+		blockRaw.DeltaTimestamp = uint32(time.Now().Unix())
+	}
+}
+
+func (s *SequenceSender) addNewBlockTx(l2Tx state.DSL2Transaction) {
+	log.Infof("......new tx, length %d", l2Tx.EncodedLength)
+
+	// Current L2 block
+	_, blockRaw := s.getWipL2Block()
+
+	// New Tx raw
+	l2TxRaw := state.L2TxRaw{
+		EfficiencyPercentage: l2Tx.EffectiveGasPricePercentage,
+	}
+
+	// Add Tx
+	blockRaw.Transactions = append(blockRaw.Transactions, l2TxRaw)
+}
+
+func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
+	// Current batch
+	wipBatchRaw := s.sequenceData[s.wipBatch].batchRaw
+
+	// Current block
+	if len(wipBatchRaw.Blocks) > 0 {
+		blockIndex := uint64(len(wipBatchRaw.Blocks)) - 1
+		blockRaw := wipBatchRaw.Blocks[blockIndex]
+		return blockIndex, &blockRaw
+	} else {
+		return 0, nil
+	}
 }
