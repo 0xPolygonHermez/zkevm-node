@@ -453,6 +453,31 @@
         "anonymous": false,
         "inputs": [
             {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "transactions",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "lastGlobalExitRoot",
+                "type": "bytes32"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sequencer",
+                "type": "address"
+            }
+        ],
+        "name": "UpdateEtrogSequence",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
                 "indexed": true,
                 "internalType": "uint64",
                 "name": "numBatch",
@@ -586,6 +611,19 @@
                 "internalType": "bytes1",
                 "name": "",
                 "type": "bytes1"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "SET_UP_ETROG_TX",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
             }
         ],
         "stateMutability": "view",
@@ -859,6 +897,44 @@
             }
         ],
         "name": "initialize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_admin",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_trustedSequencer",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_trustedSequencerURL",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_networkName",
+                "type": "string"
+            },
+            {
+                "internalType": "bytes32",
+                "name": "_lastAccInputHash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "uint64",
+                "name": "",
+                "type": "uint64"
+            }
+        ],
+        "name": "initializeUpgrade",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
