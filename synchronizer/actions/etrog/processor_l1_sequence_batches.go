@@ -34,6 +34,8 @@ type stateProcessSequenceBatches interface {
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
+	// TODO: GER-0:check if need that
+	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 }
 
 type ethermanProcessSequenceBatches interface {
@@ -202,6 +204,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				}
 				return err
 			}
+
 			processCtx = state.ProcessingContextV2{
 				BatchNumber:          batch.BatchNumber,
 				Coinbase:             batch.Coinbase,
@@ -212,6 +215,25 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 1,
 				GlobalExitRoot:       batch.GlobalExitRoot,
+			}
+			if len(leaves) > 0 {
+				globalExitRoot := leaves[uint32(len(leaves)-1)].GlobalExitRoot
+				if batch.GlobalExitRoot == (common.Hash{}) {
+					processCtx.GlobalExitRoot = globalExitRoot
+				}
+			} else {
+				log.Warnf("Empty leaves array detected for batch: %d usign GER:%s", batch.BatchNumber, processCtx.GlobalExitRoot.String())
+				leaf0, err := g.state.GetL1InfoRootLeafByIndex(ctx, 0, dbTx)
+				if err != nil {
+					log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
+					rollbackErr := dbTx.Rollback(ctx)
+					if rollbackErr != nil {
+						log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
+						return rollbackErr
+					}
+					return err
+				}
+				processCtx.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
 			}
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
@@ -403,25 +425,31 @@ func (g *ProcessorL1SequenceBatchesEtrog) reorgPool(ctx context.Context, dbTx pg
 func (g *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
 	//Compare virtual state with trusted state
 	var reorgReasons strings.Builder
+	batchNumStr := fmt.Sprintf("Batch: %d.", batch.BatchNumber)
 	if newRoot != tBatch.StateRoot {
-		log.Warnf("Different field StateRoot. Virtual: %s, Trusted: %s\n", newRoot.String(), tBatch.StateRoot.String())
-		reorgReasons.WriteString(fmt.Sprintf("Different field StateRoot. Virtual: %s, Trusted: %s\n", newRoot.String(), tBatch.StateRoot.String()))
+		errMsg := batchNumStr + fmt.Sprintf("Different field StateRoot. Virtual: %s, Trusted: %s\n", newRoot.String(), tBatch.StateRoot.String())
+		log.Warnf(errMsg)
+		reorgReasons.WriteString(errMsg)
 	}
 	if hex.EncodeToString(batch.BatchL2Data) != hex.EncodeToString(tBatch.BatchL2Data) {
-		log.Warnf("Different field BatchL2Data. Virtual: %s, Trusted: %s\n", hex.EncodeToString(batch.BatchL2Data), hex.EncodeToString(tBatch.BatchL2Data))
-		reorgReasons.WriteString(fmt.Sprintf("Different field BatchL2Data. Virtual: %s, Trusted: %s\n", hex.EncodeToString(batch.BatchL2Data), hex.EncodeToString(tBatch.BatchL2Data)))
+		errMsg := batchNumStr + fmt.Sprintf("Different field BatchL2Data. Virtual: %s, Trusted: %s\n", hex.EncodeToString(batch.BatchL2Data), hex.EncodeToString(tBatch.BatchL2Data))
+		log.Warnf(errMsg)
+		reorgReasons.WriteString(errMsg)
 	}
 	if batch.GlobalExitRoot.String() != tBatch.GlobalExitRoot.String() {
-		log.Warnf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String())
+		errMsg := batchNumStr + fmt.Sprintf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String())
+		log.Warnf(errMsg)
 		reorgReasons.WriteString(fmt.Sprintf("Different field GlobalExitRoot. Virtual: %s, Trusted: %s\n", batch.GlobalExitRoot.String(), tBatch.GlobalExitRoot.String()))
 	}
 	if batch.Timestamp.Unix() < tBatch.Timestamp.Unix() { // TODO: this timestamp will be different in permissionless nodes and the trusted node
-		log.Warnf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
-		reorgReasons.WriteString(fmt.Sprintf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix()))
+		errMsg := batchNumStr + fmt.Sprintf("Invalid timestamp. Virtual timestamp limit(%d) must be greater or equal than Trusted timestamp (%d)\n", batch.Timestamp.Unix(), tBatch.Timestamp.Unix())
+		log.Warnf(errMsg)
+		reorgReasons.WriteString(errMsg)
 	}
 	if batch.Coinbase.String() != tBatch.Coinbase.String() {
-		log.Warnf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String())
-		reorgReasons.WriteString(fmt.Sprintf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String()))
+		errMsg := batchNumStr + fmt.Sprintf("Different field Coinbase. Virtual: %s, Trusted: %s\n", batch.Coinbase.String(), tBatch.Coinbase.String())
+		log.Warnf(errMsg)
+		reorgReasons.WriteString(errMsg)
 	}
 
 	if reorgReasons.Len() > 0 {
