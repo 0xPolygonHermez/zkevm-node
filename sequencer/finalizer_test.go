@@ -1049,7 +1049,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			if tc.timestampResolutionDeadline == true {
 				// ensure that the batch is not empty and the timestamp is in the past
 				f.wipBatch.timestamp = now().Add(-f.cfg.BatchMaxDeltaTimestamp.Duration * 2)
-				f.wipBatch.countOfTxs = 1
+				f.wipBatch.countOfL2Blocks = 1
 			}
 
 			// act
