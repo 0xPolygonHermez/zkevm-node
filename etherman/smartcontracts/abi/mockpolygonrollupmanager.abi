@@ -1291,44 +1291,6 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "trustedAggregator",
-                "type": "address"
-            },
-            {
-                "internalType": "uint64",
-                "name": "_pendingStateTimeout",
-                "type": "uint64"
-            },
-            {
-                "internalType": "uint64",
-                "name": "_trustedAggregatorTimeout",
-                "type": "uint64"
-            },
-            {
-                "internalType": "address",
-                "name": "admin",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "timelock",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "emergencyCouncil",
-                "type": "address"
-            }
-        ],
-        "name": "initializeMock",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
         "inputs": [],
         "name": "isEmergencyState",
         "outputs": [
@@ -1513,19 +1475,6 @@
             }
         ],
         "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "bytes32[]",
-                "name": "localExitRoots",
-                "type": "bytes32[]"
-            }
-        ],
-        "name": "prepareMockCalculateRoot",
-        "outputs": [],
-        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
