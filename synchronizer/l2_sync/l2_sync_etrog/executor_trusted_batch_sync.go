@@ -25,7 +25,7 @@ var (
 	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
-	// ErrCantReprocessBatchMissingPreviousStateBatch
+	// ErrCantReprocessBatchMissingPreviousStateBatch can't reprocess a divergent batch because is missing previous state batch
 	ErrCantReprocessBatchMissingPreviousStateBatch = errors.New("cant reprocess batch because is missing previous state batch")
 )
 
@@ -85,13 +85,11 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			} else {
 				log.Warnf("%s PreviousStateBatch is nil. Can't reprocess", data.DebugPrefix)
 				return nil, ErrCantReprocessBatchMissingPreviousStateBatch
-
 			}
 		} else {
 			log.Warnf("%s StateBatch is not WIP. Can't reprocess", data.DebugPrefix)
 			return nil, ErrCriticalClosedBatchDontContainExpectedData
 		}
-
 	}
 
 	if data.BatchMustBeClosed {

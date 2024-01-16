@@ -124,7 +124,7 @@ func TestGetModeForProcessBatchIncremental(t *testing.T) {
 	require.Equal(t, testData.stateCurrentBatch.StateRoot, processData.OldStateRoot, "the old state root is the intermediate state root (the current batch state root)")
 }
 
-func TestGetModeForProcessBatchIncrementalNoNewL2BatchDataChangeGER(t *testing.T) {
+func TestGetModeForProcessBatchNothingNoNewL2BatchDataChangeGER(t *testing.T) {
 	testData := newTestDataForProcessorTrustedBatchSync(t)
 	testData.stateCurrentBatch.BatchL2Data = []byte("test")
 	testData.stateCurrentBatch.GlobalExitRoot = hash1
@@ -133,9 +133,9 @@ func TestGetModeForProcessBatchIncrementalNoNewL2BatchDataChangeGER(t *testing.T
 	testData.stateCurrentBatch.GlobalExitRoot = hash2
 	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
 	require.NoError(t, err)
-	require.Equal(t, l2_shared.IncrementalProcessMode, processData.Mode, "current batch is WIP and have a intermediate state root")
+	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch is WIP and have a intermediate state root")
 	require.Equal(t, true, processData.BatchMustBeClosed, "the trustedNode batch is closed")
-	require.Equal(t, testData.stateCurrentBatch.StateRoot, processData.OldStateRoot, "the old state root is the intermediate state root (the current batch state root)")
+	require.Equal(t, common.Hash{}, processData.OldStateRoot, "the old state root is none because don't need to be process")
 }
 
 func TestGetModeForProcessBatchFullProcessMode(t *testing.T) {

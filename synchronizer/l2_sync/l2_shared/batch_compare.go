@@ -37,11 +37,6 @@ func (c CompareBatchFlags) IsSet(f CompareBatchFlags) bool {
 	return c&f != 0
 }
 
-type BatchComparator struct {
-	stateBatch   *state.Batch
-	trustedBatch *types.Batch
-}
-
 // ThereAreNewBatchL2Data check if there are new batch data and if the previous data are compatible
 func ThereAreNewBatchL2Data(previousData []byte, incommingData types.ArgBytes) (bool, error) {
 	if len(incommingData) < len(previousData) {

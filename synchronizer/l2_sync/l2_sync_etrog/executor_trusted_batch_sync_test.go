@@ -160,7 +160,6 @@ func TestNothingProcessDoesntMatchBatchCantProcessBecauseNoPreviousStateBatch(t 
 
 	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
 	require.ErrorIs(t, err, ErrCantReprocessBatchMissingPreviousStateBatch)
-
 }
 
 func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
@@ -184,7 +183,7 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 			StateRoot:   common.HexToHash(hashExamplesValues[2]),
 		},
 	}
-	testData.stateMock.EXPECT().ResetTrustedState(testData.ctx, uint64(data.BatchNumber-1), mock.Anything).Return(nil).Once()
+	testData.stateMock.EXPECT().ResetTrustedState(testData.ctx, data.BatchNumber-1, mock.Anything).Return(nil).Once()
 	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
 	testData.stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(testData.ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, nil).Once()
 	testData.stateMock.EXPECT().GetForkIDByBatchNumber(data.BatchNumber).Return(uint64(state.FORKID_ETROG)).Once()
@@ -197,7 +196,6 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(&state.Batch{}, nil).Once()
 	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
 	require.NoError(t, err)
-
 }
 
 func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {

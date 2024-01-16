@@ -93,23 +93,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order eth
 	return err
 }
 
-func (g *ProcessorL1SequenceBatchesEtrog) getGlobalExitRootFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (common.Hash, error) {
-	// Get globalExitRoot from batchL2Data
-	// Decode batchL2Data
-	// (map[uint32]state.L1DataV2, common.Hash, error)
-	leaves, l1inforoot, err := g.state.GetL1InfoTreeDataFromBatchL2Data(ctx, batchL2Data, dbTx)
-	if err != nil {
-		log.Errorf("error getting L1InfoTreeDataFromBatchL2Data. Error: %v", err)
-		return common.Hash{}, err
-	}
-	log.Debugf("l1infroot = %s", l1inforoot.String())
-	if len(leaves) > 0 {
-		return leaves[uint32(len(leaves)-1)].GlobalExitRoot, nil
-	}
-	return common.Hash{}, nil
-
-}
-
 func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
