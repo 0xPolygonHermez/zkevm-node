@@ -34,7 +34,6 @@ type stateProcessSequenceBatches interface {
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
-	// TODO: GER-0:check if need that
 	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 }
 
@@ -240,7 +239,6 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				batch.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
 			}
 			log.Infof("Using GlobalExitRoot: %s for batch: %d", processCtx.GlobalExitRoot.String(), batch.BatchNumber)
-
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
 		var newRoot common.Hash
