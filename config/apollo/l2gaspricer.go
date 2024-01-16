@@ -26,7 +26,7 @@ func (c *Client) fireL2GasPricer(key string, value *storage.ConfigChange) {
 		log.Errorf("failed to unmarshal l2gaspricer config: %v error: %v", value.NewValue, err)
 		return
 	}
-	log.Infof("apollo l2gaspricer old config : %+v", c.config.L2GasPriceSuggester)
+	log.Infof("apollo l2gaspricer old config : %+v", value.OldValue.(string))
 	log.Infof("apollo l2gaspricer config changed: %+v", value.NewValue.(string))
 	c.updateL2GasPricer(&c.config.L2GasPriceSuggester, newConf.L2GasPriceSuggester)
 }
