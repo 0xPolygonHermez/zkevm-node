@@ -216,13 +216,16 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				SkipVerifyL1InfoRoot: 1,
 				GlobalExitRoot:       batch.GlobalExitRoot,
 			}
-			if len(leaves) > 0 {
-				globalExitRoot := leaves[uint32(len(leaves)-1)].GlobalExitRoot
-				if batch.GlobalExitRoot == (common.Hash{}) {
+			// no forced GlobalExitRoot
+			if batch.GlobalExitRoot == (common.Hash{}) {
+				if len(leaves) > 0 {
+					globalExitRoot := leaves[uint32(len(leaves)-1)].GlobalExitRoot
+
 					processCtx.GlobalExitRoot = globalExitRoot
+					batch.GlobalExitRoot = globalExitRoot
 				}
 			} else {
-				log.Warnf("Empty leaves array detected for batch: %d usign GER:%s", batch.BatchNumber, processCtx.GlobalExitRoot.String())
+				log.Infof("Empty leaves array detected for batch: %d getting GER from leaf 0", batch.BatchNumber)
 				leaf0, err := g.state.GetL1InfoRootLeafByIndex(ctx, 0, dbTx)
 				if err != nil {
 					log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
@@ -234,7 +237,10 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 					return err
 				}
 				processCtx.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
+				batch.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
 			}
+			log.Infof("Using GlobalExitRoot: %s for batch: %d", processCtx.GlobalExitRoot.String(), batch.BatchNumber)
+
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
 		var newRoot common.Hash
