@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	flagL1URLName   = "url"
-	flagZkevmAddrName = "zkevm"
+	flagL1URLName             = "url"
+	flagZkevmAddrName         = "zkevm"
 	flagRollupManagerAddrName = "rollupmanager"
-	miningTimeout   = 180
+	miningTimeout             = 180
 )
 
 var (
@@ -125,25 +125,25 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		return err
 	}
 
-	// Allow forced batches in smart contract if disallowed
-	disallowed, err := zkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
-	if err != nil {
-		log.Error("error getting IsForcedBatchAllowed. Error: ", err)
-		return err
-	}
-	if disallowed {
-		tx, err := zkevm.ActivateForceBatches(auth)
-		if err != nil {
-			log.Error("error sending activateForceBatches. Error: ", err)
-			return err
-		}
-		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
-		if err != nil {
+	// // Allow forced batches in smart contract if disallowed
+	// disallowed, err := zkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	// if err != nil {
+	// 	log.Error("error getting IsForcedBatchAllowed. Error: ", err)
+	// 	return err
+	// }
+	// if disallowed {
+	// 	tx, err := zkevm.ActivateForceBatches(auth)
+	// 	if err != nil {
+	// 		log.Error("error sending activateForceBatches. Error: ", err)
+	// 		return err
+	// 	}
+	// 	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+	// 	if err != nil {
 
-			log.Error("error waiting tx to be mined. Error: ", err)
-			return err
-		}
-	}
+	// 		log.Error("error waiting tx to be mined. Error: ", err)
+	// 		return err
+	// 	}
+	// }
 
 	// Send forceBatch
 	tx, err := zkevm.ForceBatch(auth, []byte{}, tip)

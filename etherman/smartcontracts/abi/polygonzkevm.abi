@@ -72,6 +72,16 @@
     },
     {
         "inputs": [],
+        "name": "ForceBatchesDescentralized",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ForceBatchesNotAllowedOnEmergencyState",
+        "type": "error"
+    },
+    {
+        "inputs": [],
         "name": "ForceBatchesOverflow",
         "type": "error"
     },
@@ -93,6 +103,11 @@
     {
         "inputs": [],
         "name": "HaltTimeoutNotExpired",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "HaltTimeoutNotExpiredAfterEmergencyState",
         "type": "error"
     },
     {
@@ -247,6 +262,11 @@
     },
     {
         "inputs": [],
+        "name": "SwitchToSameValue",
+        "type": "error"
+    },
+    {
+        "inputs": [],
         "name": "TransactionsLengthAboveMax",
         "type": "error"
     },
@@ -271,12 +291,6 @@
             }
         ],
         "name": "AcceptAdminRole",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [],
-        "name": "ActivateForceBatches",
         "type": "event"
     },
     {
@@ -386,11 +400,24 @@
             {
                 "indexed": false,
                 "internalType": "address",
-                "name": "newDataCommittee",
+                "name": "newDataAvailabilityProtocol",
                 "type": "address"
             }
         ],
-        "name": "SetDataCommittee",
+        "name": "SetDataAvailabilityProtocol",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "newForceBatchAddress",
+                "type": "address"
+            }
+        ],
+        "name": "SetForceBatchAddress",
         "type": "event"
     },
     {
@@ -641,13 +668,6 @@
     },
     {
         "inputs": [],
-        "name": "activateForceBatches",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
         "name": "admin",
         "outputs": [
             {
@@ -687,10 +707,10 @@
     },
     {
         "inputs": [],
-        "name": "dataCommittee",
+        "name": "dataAvailabilityProtocol",
         "outputs": [
             {
-                "internalType": "contract ICDKDataCommittee",
+                "internalType": "contract IPolygonDataAvailabilityProtocol",
                 "name": "",
                 "type": "address"
             }
@@ -714,6 +734,19 @@
         "name": "forceBatch",
         "outputs": [],
         "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "forceBatchAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -870,19 +903,6 @@
         "name": "initialize",
         "outputs": [],
         "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "isForcedBatchAllowed",
-        "outputs": [
-            {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
-            }
-        ],
-        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -1077,7 +1097,7 @@
                         "type": "bytes32"
                     }
                 ],
-                "internalType": "struct PolygonDataComitteeEtrog.ValidiumBatchData[]",
+                "internalType": "struct PolygonValidiumEtrog.ValidiumBatchData[]",
                 "name": "batches",
                 "type": "tuple[]"
             },
@@ -1092,7 +1112,7 @@
                 "type": "bytes"
             }
         ],
-        "name": "sequenceBatchesDataCommittee",
+        "name": "sequenceBatchesValidium",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1135,12 +1155,25 @@
     {
         "inputs": [
             {
-                "internalType": "contract ICDKDataCommittee",
-                "name": "newDataCommittee",
+                "internalType": "contract IPolygonDataAvailabilityProtocol",
+                "name": "newDataAvailabilityProtocol",
                 "type": "address"
             }
         ],
-        "name": "setDataCommittee",
+        "name": "setDataAvailabilityProtocol",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newForceBatchAddress",
+                "type": "address"
+            }
+        ],
+        "name": "setForceBatchAddress",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"

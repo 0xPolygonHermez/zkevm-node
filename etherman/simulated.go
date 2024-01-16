@@ -173,20 +173,20 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 		return nil, nil, common.Address{}, nil, err
 	}
 
-	_, err = trueZkevm.ActivateForceBatches(auth)
-	if err != nil {
-		log.Error("error: ", err)
-		return nil, nil, common.Address{}, nil, err
-	}
-	_, err = trueZkevm.SetDataCommittee(auth, daAddr)
+	// _, err = trueZkevm.ActivateForceBatches(auth)
+	// if err != nil {
+	// 	log.Error("error: ", err)
+	// 	return nil, nil, common.Address{}, nil, err
+	// }
+	_, err = trueZkevm.SetDataAvailabilityProtocol(auth, daAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 	client.Commit()
 
-	r, _ := trueZkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
-	log.Debug("IsforcedBatch: ", r)
+	// r, _ := trueZkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	// log.Debug("IsforcedBatch: ", r)
 
 	client.Commit()
 	c := &Client{

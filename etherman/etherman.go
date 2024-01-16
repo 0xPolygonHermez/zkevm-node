@@ -162,6 +162,7 @@ type L1Config struct {
 	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
 	// Address of the data availability committee contract
+	// TODO: remove from config and get calling contract
 	DataAvailabilityAddr common.Address `json:"dataAvailabilityContract"`
 }
 
@@ -887,9 +888,10 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 }
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	var batches []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
-	for _, seq := range sequences {
-		batch := polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData{
+	var batches []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
+	log.Info("ARNAU: building sequence")
+	for i, seq := range sequences {
+		batch := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
 			ForcedGlobalExitRoot: seq.GlobalExitRoot,
 			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
@@ -899,7 +901,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatchesDataCommittee(&opts, batches, l2Coinbase, dataAvailabilityMessage)
+	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
@@ -1245,8 +1247,8 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		}
 
 		return sequencedBatches, nil
-	case "sequenceBatchesDataCommittee": // TODO: put correct value
-		var sequencesValidium []polygonzkevm.PolygonDataComitteeEtrogValidiumBatchData
+	case "sequenceBatchesValidium":
+		var sequencesValidium []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
 		err = json.Unmarshal(bytedata, &sequencesValidium)
 		if err != nil {
 			return nil, err
@@ -1254,7 +1256,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 		coinbase := (data[1]).(common.Address)
 		sequencedBatches := make([]SequencedBatch, len(sequencesValidium))
 		for i, seq := range sequencesValidium {
-			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
+			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
 			batchL2Data, err := da.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
 			if err != nil {
 				return nil, err
