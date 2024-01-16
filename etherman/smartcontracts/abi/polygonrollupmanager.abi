@@ -2,7 +2,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "_globalExitRootManager",
                 "type": "address"
             },
@@ -158,6 +158,11 @@
     {
         "inputs": [],
         "name": "PendingStateNotConsolidable",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "RollupAddressAlreadyExist",
         "type": "error"
     },
     {
@@ -1177,7 +1182,7 @@
         "name": "globalExitRootManager",
         "outputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "",
                 "type": "address"
             }
@@ -1325,6 +1330,19 @@
     {
         "inputs": [],
         "name": "lastAggregationTimestamp",
+        "outputs": [
+            {
+                "internalType": "uint64",
+                "name": "",
+                "type": "uint64"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "lastDeactivatedEmergencyStateTimestamp",
         "outputs": [
             {
                 "internalType": "uint64",

@@ -158,15 +158,12 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (etherman *Client
 		return nil, nil, common.Address{}, nil, err
 	}
 
-	_, err = trueZkevm.ActivateForceBatches(auth)
+	_, err = trueZkevm.SetForceBatchAddress(auth, common.Address{})
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 	client.Commit()
-
-	r, _ := trueZkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
-	log.Debug("IsforcedBatch: ", r)
 
 	client.Commit()
 	c := &Client{

@@ -171,33 +171,23 @@ func sendForcedBatches(cliCtx *cli.Context) error {
 		return err
 	}
 	log.Info("Tip: ", tip)
-	// Allow forced batches in smart contract if disallowed
-	allowed, err := zkevm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	tx, err := zkevm.SetForceBatchAddress(authSeq, common.Address{})
 	if err != nil {
-		log.Error("error getting IsForcedBatchAllowed. Error: ", err)
+		log.Error("error sending SetForceBatchAddress. Error: ", err)
 		return err
 	}
-	log.Infof("IsForcedBatchAllowed: %v", allowed)
-	if !allowed {
+	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+	if err != nil {
 
-		tx, err := zkevm.ActivateForceBatches(authSeq)
-		if err != nil {
-			log.Error("error sending activateForceBatches. Error: ", err)
-			return err
-		}
-		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
-		if err != nil {
-
-			log.Error("error waiting tx to be mined. Error: ", err)
-			return err
-		}
+		log.Error("error waiting tx to be mined. Error: ", err)
+		return err
 	}
 
 	txs := "ee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	// Send forceBatch
 	data := common.Hex2Bytes(txs)
 	log.Info("Data: ", data)
-	tx, err := zkevm.ForceBatch(auth, data, tip)
+	tx, err = zkevm.ForceBatch(auth, data, tip)
 	if err != nil {
 		log.Error("error sending forceBatch. Error: ", err)
 		return err
