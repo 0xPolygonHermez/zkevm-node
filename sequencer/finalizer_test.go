@@ -64,14 +64,16 @@ var (
 	}
 	poolCfg = pool.Config{
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
-			Enabled:                   false,
-			L1GasPriceFactor:          0.25,
-			ByteGasCost:               16,
-			ZeroByteGasCost:           4,
-			NetProfit:                 1.0,
-			BreakEvenFactor:           1.1,
-			FinalDeviationPct:         10,
-			L2GasPriceSuggesterFactor: 0.5,
+			Enabled:                     false,
+			L1GasPriceFactor:            0.25,
+			ByteGasCost:                 16,
+			ZeroByteGasCost:             4,
+			NetProfit:                   1.0,
+			BreakEvenFactor:             1.1,
+			FinalDeviationPct:           10,
+			EthTransferGasPrice:         0,
+			EthTransferL1GasPriceFactor: 0,
+			L2GasPriceSuggesterFactor:   0.5,
 		},
 		DefaultMinGasPriceAllowed: 1000000000,
 	}
@@ -2222,7 +2224,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline:    0,
 		nextForcedBatchesMux:       new(sync.Mutex),
-		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice),
 		eventLog:                   eventLog,
 		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToProcessWG: new(sync.WaitGroup),

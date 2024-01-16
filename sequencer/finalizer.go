@@ -35,7 +35,7 @@ var (
 	l2BlockUsedResources = state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
-			UsedArithmetics:    1,   // nolint:gomnd //TODO: config param
+			UsedArithmetics:    0,   // nolint:gomnd //TODO: config param
 			UsedBinaries:       20,  // nolint:gomnd //TODO: config param
 			UsedSteps:          284, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   4,   // nolint:gomnd //TODO: config param
@@ -123,7 +123,7 @@ func newFinalizer(
 		// event log
 		eventLog: eventLog,
 		// effective gas price calculation instance
-		effectiveGasPrice: pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice: pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice),
 		// pending L2 blocks to be processed (executor)
 		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToProcessWG: new(sync.WaitGroup),

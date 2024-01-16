@@ -52,6 +52,8 @@ GlobalQueue = 1024
 	NetProfit = 1
 	BreakEvenFactor = 1.1	
 	FinalDeviationPct = 10
+	EthTransferGasPrice = 0
+	EthTransferL1GasPriceFactor = 0	
 	L2GasPriceSuggesterFactor = 0.5
     [Pool.DB]
 	User = "pool_user"
@@ -143,6 +145,7 @@ StateConsistencyCheckInterval = "5s"
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}

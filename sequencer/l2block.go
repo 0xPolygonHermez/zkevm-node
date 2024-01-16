@@ -212,9 +212,9 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 
 // processL2Block process (executor) a L2 Block and adds it to the pendingL2BlocksToStore channel. It returns the response block from the executor
 func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*state.ProcessBatchResponse, error) {
-	processL2BLockError := func() {
+	processL2BLockError := func(err error) {
+		log.Errorf("process L2 block error %v, batch: %d, initialStateRoot: %s", err, f.wipBatch.batchNumber, l2Block.initialStateRoot.String())
 		// Log batch detailed info
-		log.Infof("process L2 block: batch: %d, initialStateRoot: %s", f.wipBatch.batchNumber, l2Block.initialStateRoot.String())
 		for i, tx := range l2Block.transactions {
 			log.Infof("batch: %d, tx position %d, tx hash: %s", f.wipBatch.batchNumber, i, tx.HashStr)
 		}
@@ -267,17 +267,17 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 	result, err = f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, true)
 
 	if err != nil {
-		processL2BLockError()
+		processL2BLockError(err)
 		return nil, err
 	}
 
 	if result.ExecutorError != nil {
-		processL2BLockError()
+		processL2BLockError(err)
 		return nil, ErrExecutorError
 	}
 
 	if result.IsRomOOCError {
-		processL2BLockError()
+		processL2BLockError(err)
 		return nil, ErrProcessBatchOOC
 	}
 
@@ -395,15 +395,20 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		}
 	}
 
+	f.wipBatch.countOfL2Blocks++
+
 	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
 	err := f.wipBatch.remainingResources.Sub(l2BlockUsedResources)
 
-	// we finalize the wip batch if we got an error when subtracting the l2BlockUsedResources or we have exhausted some resources of the batch
+	// we close the wip batch and open a new one if we got an error when subtracting the l2BlockUsedResources or we have exhausted some resources of the batch
 	if err != nil || f.isBatchResourcesExhausted() {
-		f.finalizeBatch(ctx)
+		err := f.closeAndOpenNewWIPBatch(ctx)
+		if err != nil {
+			f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
+		}
 	}
 
 	// Initialize wipL2Block to a new L2 block

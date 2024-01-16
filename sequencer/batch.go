@@ -24,12 +24,13 @@ type Batch struct {
 	finalStateRoot     common.Hash // final stateroot of the batch when a L2 block is processed
 	localExitRoot      common.Hash
 	countOfTxs         int
+	countOfL2Blocks    int
 	remainingResources state.BatchResources
 	closingReason      state.ClosingReason
 }
 
 func (w *Batch) isEmpty() bool {
-	return w.countOfTxs == 0
+	return w.countOfL2Blocks == 0
 }
 
 // setWIPBatch sets finalizer wip batch to the state batch passed as parameter
@@ -126,22 +127,19 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
-	var err error
-	f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
-	if err != nil {
-		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
-	}
-
-	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
-}
-
-// closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error) {
 	// Finalize the wip L2 block if it has transactions, if not we keep it open to store it in the new wip batch
 	if !f.wipL2Block.isEmpty() {
 		f.finalizeL2Block(ctx)
 	}
 
+	err := f.closeAndOpenNewWIPBatch(ctx)
+	if err != nil {
+		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
+	}
+}
+
+// closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	// Wait until all L2 blocks are processed by the executor
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
@@ -162,7 +160,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 		log.Info("reprocessing batch because the state root has not changed...")
 		_, err = f.processTransaction(ctx, nil, true)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -172,7 +170,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 		_, err := f.batchSanityCheck(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot)
 		if err != nil {
 			// There is an error reprocessing the batch. We halt the execution of the Sequencer at this point
-			return nil, fmt.Errorf("halting sequencer because of error reprocessing full batch %d (sanity check), error: %v ", f.wipBatch.batchNumber, err)
+			return fmt.Errorf("halting sequencer because of error reprocessing full batch %d (sanity check), error: %v ", f.wipBatch.batchNumber, err)
 		}
 	} else {
 		// Do the full batch reprocess in parallel
@@ -184,7 +182,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 	// Close the wip batch
 	err = f.closeWIPBatch(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, error: %v", err)
+		return fmt.Errorf("failed to close batch, error: %v", err)
 	}
 
 	log.Infof("batch %d closed", f.wipBatch.batchNumber)
@@ -208,16 +206,20 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 
 	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, currentGER, stateRoot, f.wipBatch.localExitRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open new wip batch, error: %v", err)
+		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
 
 	// Subtract the L2 block used resources to batch
 	err = batch.remainingResources.Sub(l2BlockUsedResources)
 	if err != nil {
-		return nil, fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
+		return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
 	}
 
-	return batch, nil
+	f.wipBatch = batch
+
+	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
+
+	return nil
 }
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch

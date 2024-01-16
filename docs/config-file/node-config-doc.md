@@ -720,16 +720,18 @@ GlobalQueue=1024
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the effective gas price calculation
 
-| Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                                     | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                                                                                          |
-| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )                   | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                                                                                     |
-| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )                             | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                                                                                                   |
-| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )                     | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                                                                                                   |
-| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                                 | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                                                                                          |
-| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )                     | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx                                                                         |
-| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct )                 | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                                                                                        |
-| - [L2GasPriceSuggesterFactor](#Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor ) | No      | number  | No         | -          | L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the<br />calculations when the effective gas price is disabled (testing/metrics purposes) |
+| Property                                                                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                                         | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                                                                                                                                                                                                              |
+| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )                       | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                                                                                                                                                                                                         |
+| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )                                 | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                                                                                                                                                                                                                       |
+| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )                         | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                                                                                                                                                                                                                       |
+| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                                     | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                                                                                                                                                                                                              |
+| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )                         | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx                                                                                                                                                                                             |
+| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct )                     | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                                                                                                                                                                                                            |
+| - [EthTransferGasPrice](#Pool_EffectiveGasPrice_EthTransferGasPrice )                 | No      | integer | No         | -          | EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)<br />Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error                    |
+| - [EthTransferL1GasPriceFactor](#Pool_EffectiveGasPrice_EthTransferL1GasPriceFactor ) | No      | number  | No         | -          | EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)<br />Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error |
+| - [L2GasPriceSuggesterFactor](#Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor )     | No      | number  | No         | -          | L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the<br />calculations when the effective gas price is disabled (testing/metrics purposes)                                                                                                                     |
 
 #### <a name="Pool_EffectiveGasPrice_Enabled"></a>7.11.1. `Pool.EffectiveGasPrice.Enabled`
 
@@ -829,7 +831,37 @@ BreakEvenFactor=1.1
 FinalDeviationPct=10
 ```
 
-#### <a name="Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor"></a>7.11.8. `Pool.EffectiveGasPrice.L2GasPriceSuggesterFactor`
+#### <a name="Pool_EffectiveGasPrice_EthTransferGasPrice"></a>7.11.8. `Pool.EffectiveGasPrice.EthTransferGasPrice`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)
+Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error
+
+**Example setting the default value** (0):
+```
+[Pool.EffectiveGasPrice]
+EthTransferGasPrice=0
+```
+
+#### <a name="Pool_EffectiveGasPrice_EthTransferL1GasPriceFactor"></a>7.11.9. `Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor`
+
+**Type:** : `number`
+
+**Default:** `0`
+
+**Description:** EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)
+Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error
+
+**Example setting the default value** (0):
+```
+[Pool.EffectiveGasPrice]
+EthTransferL1GasPriceFactor=0
+```
+
+#### <a name="Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor"></a>7.11.10. `Pool.EffectiveGasPrice.L2GasPriceSuggesterFactor`
 
 **Type:** : `number`
 
@@ -2083,6 +2115,7 @@ Must be one of:
 | ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| - [L1BlockTimestampMargin](#SequenceSender_L1BlockTimestampMargin )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not.                                                                                                            |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                                                                                                                               |
 | - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                                                                                                                                 |
@@ -2144,7 +2177,34 @@ WaitPeriodSendSequence="5s"
 LastBatchVirtualizationTimeMaxWaitPeriod="5s"
 ```
 
-### <a name="SequenceSender_MaxTxSizeForL1"></a>11.3. `SequenceSender.MaxTxSizeForL1`
+### <a name="SequenceSender_L1BlockTimestampMargin"></a>11.3. `SequenceSender.L1BlockTimestampMargin`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"30s"`
+
+**Description:** L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before
+to send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("30s"):
+```
+[SequenceSender]
+L1BlockTimestampMargin="30s"
+```
+
+### <a name="SequenceSender_MaxTxSizeForL1"></a>11.4. `SequenceSender.MaxTxSizeForL1`
 
 **Type:** : `integer`
 
@@ -2161,13 +2221,13 @@ to validate whether they fit into the pool or not.
 MaxTxSizeForL1=131072
 ```
 
-### <a name="SequenceSender_SenderAddress"></a>11.4. `SequenceSender.SenderAddress`
+### <a name="SequenceSender_SenderAddress"></a>11.5. `SequenceSender.SenderAddress`
 
 **Type:** : `array of integer`
 **Description:** SenderAddress defines which private key the eth tx manager needs to use
 to sign the L1 txs
 
-### <a name="SequenceSender_L2Coinbase"></a>11.5. `SequenceSender.L2Coinbase`
+### <a name="SequenceSender_L2Coinbase"></a>11.6. `SequenceSender.L2Coinbase`
 
 **Type:** : `array of integer`
 
@@ -2181,7 +2241,7 @@ to sign the L1 txs
 L2Coinbase="0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 ```
 
-### <a name="SequenceSender_PrivateKey"></a>11.6. `[SequenceSender.PrivateKey]`
+### <a name="SequenceSender_PrivateKey"></a>11.7. `[SequenceSender.PrivateKey]`
 
 **Type:** : `object`
 **Description:** PrivateKey defines all the key store files that are going
@@ -2192,7 +2252,7 @@ to be read in order to provide the private keys to sign the L1 txs
 | - [Path](#SequenceSender_PrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
 | - [Password](#SequenceSender_PrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
 
-#### <a name="SequenceSender_PrivateKey_Path"></a>11.6.1. `SequenceSender.PrivateKey.Path`
+#### <a name="SequenceSender_PrivateKey_Path"></a>11.7.1. `SequenceSender.PrivateKey.Path`
 
 **Type:** : `string`
 
@@ -2206,7 +2266,7 @@ to be read in order to provide the private keys to sign the L1 txs
 Path="/pk/sequencer.keystore"
 ```
 
-#### <a name="SequenceSender_PrivateKey_Password"></a>11.6.2. `SequenceSender.PrivateKey.Password`
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.7.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
 
@@ -2220,7 +2280,7 @@ Path="/pk/sequencer.keystore"
 Password="testonly"
 ```
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.7. `SequenceSender.ForkUpgradeBatchNumber`
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.8. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2234,7 +2294,7 @@ Password="testonly"
 ForkUpgradeBatchNumber=0
 ```
 
-### <a name="SequenceSender_GasOffset"></a>11.8. `SequenceSender.GasOffset`
+### <a name="SequenceSender_GasOffset"></a>11.9. `SequenceSender.GasOffset`
 
 **Type:** : `integer`
 
@@ -2257,7 +2317,7 @@ final gas: 1100
 GasOffset=80000
 ```
 
-### <a name="SequenceSender_StreamClient"></a>11.9. `[SequenceSender.StreamClient]`
+### <a name="SequenceSender_StreamClient"></a>11.10. `[SequenceSender.StreamClient]`
 
 **Type:** : `object`
 **Description:** StreamClientCfg is the config for the stream client
@@ -2267,7 +2327,7 @@ GasOffset=80000
 | - [Server](#SequenceSender_StreamClient_Server ) | No      | string | No         | -          | Datastream server to connect |
 | - [Log](#SequenceSender_StreamClient_Log )       | No      | object | No         | -          | Log is the log configuration |
 
-#### <a name="SequenceSender_StreamClient_Server"></a>11.9.1. `SequenceSender.StreamClient.Server`
+#### <a name="SequenceSender_StreamClient_Server"></a>11.10.1. `SequenceSender.StreamClient.Server`
 
 **Type:** : `string`
 
@@ -2281,7 +2341,7 @@ GasOffset=80000
 Server=""
 ```
 
-#### <a name="SequenceSender_StreamClient_Log"></a>11.9.2. `[SequenceSender.StreamClient.Log]`
+#### <a name="SequenceSender_StreamClient_Log"></a>11.10.2. `[SequenceSender.StreamClient.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2292,7 +2352,7 @@ Server=""
 | - [Level](#SequenceSender_StreamClient_Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
 | - [Outputs](#SequenceSender_StreamClient_Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
 
-##### <a name="SequenceSender_StreamClient_Log_Environment"></a>11.9.2.1. `SequenceSender.StreamClient.Log.Environment`
+##### <a name="SequenceSender_StreamClient_Log_Environment"></a>11.10.2.1. `SequenceSender.StreamClient.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2312,7 +2372,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="SequenceSender_StreamClient_Log_Level"></a>11.9.2.2. `SequenceSender.StreamClient.Log.Level`
+##### <a name="SequenceSender_StreamClient_Log_Level"></a>11.10.2.2. `SequenceSender.StreamClient.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2335,7 +2395,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="SequenceSender_StreamClient_Log_Outputs"></a>11.9.2.3. `SequenceSender.StreamClient.Log.Outputs`
+##### <a name="SequenceSender_StreamClient_Log_Outputs"></a>11.10.2.3. `SequenceSender.StreamClient.Log.Outputs`
 
 **Type:** : `array of string`
 **Description:** Outputs
