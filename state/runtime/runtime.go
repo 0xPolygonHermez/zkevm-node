@@ -76,10 +76,10 @@ var (
 	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
 	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
 	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
-	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error during while executing (limit timestamp)")
-	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error during while executing (min timestamp)")
+	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error while executing (limit timestamp)")
+	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error while executing (min timestamp)")
 
 	// EXECUTOR ERRORS
 	// ===============
