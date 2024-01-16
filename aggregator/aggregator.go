@@ -367,7 +367,7 @@ func (a *Aggregator) settleWithBeethoven(
 		},
 		RollupID: a.Ethman.GetRollupId(),
 	}
-	signedTx, err := tx.Sign(a.sequencerPrivateKey) // No other way to sign? Dont want to use the PK at too many places...
+	signedTx, err := tx.Sign(a.sequencerPrivateKey)
 
 	if err != nil {
 		log.Errorf("failed to sign tx: %v", err)
