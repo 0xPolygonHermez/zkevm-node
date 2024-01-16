@@ -110,13 +110,20 @@ func newData() l2_shared.ProcessData {
 		BatchNumber: 123,
 		Mode:        l2_shared.IncrementalProcessMode,
 		DebugPrefix: "test",
-		StateBatch:  &state.Batch{},
+		StateBatch: &state.Batch{
+			BatchNumber:   123,
+			StateRoot:     common.HexToHash(hashExamplesValues[0]),
+			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
+			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
+			WIP:           true,
+		},
 		TrustedBatch: &types.Batch{
 			Number:        123,
 			StateRoot:     common.HexToHash(hashExamplesValues[0]),
 			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
 			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
 			BatchL2Data:   []byte{1, 2, 3, 4},
+			Closed:        false,
 		},
 	}
 }
@@ -130,6 +137,7 @@ func TestNothingProcessDontCloseBatch(t *testing.T) {
 		BatchMustBeClosed: false,
 		DebugPrefix:       "test",
 		StateBatch:        &state.Batch{},
+		TrustedBatch:      &types.Batch{},
 	}
 
 	response, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
@@ -150,6 +158,7 @@ func TestNothingProcessDoesntMatchBatchCantProcessBecauseNoPreviousStateBatch(t 
 		StateBatch: &state.Batch{
 			BatchNumber: 123,
 			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			WIP:         true,
 		},
 		TrustedBatch: &types.Batch{
 			Number:    123,
@@ -173,6 +182,7 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 		StateBatch: &state.Batch{
 			BatchNumber: 123,
 			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			WIP:         true,
 		},
 		TrustedBatch: &types.Batch{
 			Number:    123,
@@ -202,6 +212,7 @@ func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
 	testData := newTestData(t)
 	// Arrange
 	data := newData()
+	data.StateBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	data.BatchMustBeClosed = true
 	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -215,6 +226,7 @@ func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
 func TestNothingProcessIfNotBatchMustBeClosedThenDoNothing(t *testing.T) {
 	testData := newTestData(t)
 	data := newData()
+	data.StateBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	data.BatchMustBeClosed = false
 	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
 	require.NoError(t, err)
