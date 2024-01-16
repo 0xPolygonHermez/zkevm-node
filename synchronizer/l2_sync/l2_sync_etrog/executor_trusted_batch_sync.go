@@ -14,20 +14,19 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
 	// ErrNotImplemented is returned when a method is not implemented
 	ErrNotImplemented = errors.New("not implemented")
-	// ErrBatchDataIsNotIncremental is returned when the new batch has different data than the one in node and is not possible to sync
-	ErrBatchDataIsNotIncremental = errors.New("the new batch has different data than the one in node")
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
 	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
 	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
+	// ErrCantReprocessBatchMissingPreviousStateBatch
+	ErrCantReprocessBatchMissingPreviousStateBatch = errors.New("cant reprocess batch because is missing previous state batch")
 )
 
 // StateInterface contains the methods required to interact with the state.
@@ -72,8 +71,29 @@ func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientT
 	return a
 }
 
-// NothingProcess process a batch that is already on database and updated, so it is not going to be processed again. Maybe it needs to be close
+// NothingProcess process a batch that is already on database and no new L2batchData, so it is not going to be processed again.
+// Maybe it needs to be close
 func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
+	isEqual, strResult := l2_shared.AreEqualStateBatchAndTrustedBatch(data.StateBatch, data.TrustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP+l2_shared.CMP_BATCH_IGNORE_WIP)
+	if !isEqual {
+		log.Warnf("%s Nothing new to process but the TrustedBatch differ: %s. Forcing a reprocess", data.DebugPrefix, strResult)
+		if data.StateBatch.WIP {
+			if data.PreviousStateBatch != nil {
+				data.OldAccInputHash = data.PreviousStateBatch.AccInputHash
+				data.OldStateRoot = data.PreviousStateBatch.StateRoot
+				return b.ReProcess(ctx, data, dbTx)
+			} else {
+				log.Warnf("%s PreviousStateBatch is nil. Can't reprocess", data.DebugPrefix)
+				return nil, ErrCantReprocessBatchMissingPreviousStateBatch
+
+			}
+		} else {
+			log.Warnf("%s StateBatch is not WIP. Can't reprocess", data.DebugPrefix)
+			return nil, ErrCriticalClosedBatchDontContainExpectedData
+		}
+
+	}
+
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
@@ -399,17 +419,12 @@ func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.Pro
 }
 
 func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
-	incommingData := data.TrustedBatch.BatchL2Data
-	previousData := data.StateBatch.BatchL2Data
-	if len(incommingData) < len(previousData) {
-		return fmt.Errorf("L2Data check: the new batch has less data than the one in node err:%w", ErrBatchDataIsNotIncremental)
-	}
-
-	if hash(incommingData[:len(previousData)]) != hash(previousData) {
-		strDiff := syncCommon.LogComparedBytes("trusted L2BatchData", "state   L2BatchData", incommingData, previousData, 10, 10) //nolint:gomnd
-		err := fmt.Errorf("L2Data check: the common part with state dont have same hash (different at: %s) err:%w", strDiff, ErrBatchDataIsNotIncremental)
-		log.Error(err.Error())
+	newDataFlag, err := l2_shared.ThereAreNewBatchL2Data(data.StateBatch.BatchL2Data, data.TrustedBatch.BatchL2Data)
+	if err != nil {
 		return err
+	}
+	if !newDataFlag {
+		return l2_shared.ErrBatchDataIsNotIncremental
 	}
 	return nil
 }
@@ -437,10 +452,4 @@ func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *st
 	}
 	log.Debug(debugStr)
 	return newBatchEncoded, nil
-}
-
-func hash(data []byte) common.Hash {
-	sha := sha3.NewLegacyKeccak256()
-	sha.Write(data)
-	return common.BytesToHash(sha.Sum(nil))
 }

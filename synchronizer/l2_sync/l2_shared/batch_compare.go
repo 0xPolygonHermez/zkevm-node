@@ -6,11 +6,15 @@ package l2_shared
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/ethereum/go-ethereum/common"
+	"golang.org/x/crypto/sha3"
 )
 
 // CompareBatchFlags is a flag to ignore some fields when comparing batches
@@ -22,10 +26,40 @@ const (
 	CMP_BATCH_IGNORE_TSTAMP CompareBatchFlags = 0x2 // CMP_BATCH_IGNORE_TSTAMP Ignore Timestamp field
 )
 
+var (
+	// ErrBatchDataIsNotIncremental is returned when the new batch has different data than the one in node and is not possible to sync
+	ErrBatchDataIsNotIncremental = errors.New("the new batch has different data than the one in node")
+)
+
 // IsSet check if a flag is set.
 // example of usage:  v.IsSet(CMP_BATCH_IGNORE_WIP)
 func (c CompareBatchFlags) IsSet(f CompareBatchFlags) bool {
 	return c&f != 0
+}
+
+type BatchComparator struct {
+	stateBatch   *state.Batch
+	trustedBatch *types.Batch
+}
+
+// ThereAreNewBatchL2Data check if there are new batch data and if the previous data are compatible
+func ThereAreNewBatchL2Data(previousData []byte, incommingData types.ArgBytes) (bool, error) {
+	if len(incommingData) < len(previousData) {
+		return false, fmt.Errorf("ThereAreNewBatchL2Data: the new batch has less data than the one in node err:%w", ErrBatchDataIsNotIncremental)
+	}
+	if len(incommingData) == len(previousData) {
+		if hash(incommingData) == hash(previousData) {
+			return false, nil
+		} else {
+			return false, fmt.Errorf("ThereAreNewBatchL2Data: the new batch has same length but different data err:%w", ErrBatchDataIsNotIncremental)
+		}
+	}
+	if hash(incommingData[:len(previousData)]) != hash(previousData) {
+		strDiff := syncCommon.LogComparedBytes("trusted L2BatchData", "state   L2BatchData", incommingData, previousData, 10, 10) //nolint:gomnd
+		err := fmt.Errorf("ThereAreNewBatchL2Data: the common part with state dont have same hash (differ at: %s) err:%w", strDiff, ErrBatchDataIsNotIncremental)
+		return false, err
+	}
+	return true, nil
 }
 
 // AreEqualStateBatchAndTrustedBatch check is are equal, it response true|false and a debug string
@@ -74,4 +108,10 @@ func AreEqualStateBatchAndTrustedBatch(stateBatch *state.Batch, trustedBatch *ty
 		}
 	}
 	return false, debugStrResult
+}
+
+func hash(data []byte) common.Hash {
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write(data)
+	return common.BytesToHash(sha.Sum(nil))
 }

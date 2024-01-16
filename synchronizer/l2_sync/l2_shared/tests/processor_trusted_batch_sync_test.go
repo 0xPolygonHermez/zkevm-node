@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	hash1 = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
+	hash2 = common.HexToHash("0x979b141b8bcd3ba17815cd76811f1fca1cabaa9d51f7c00712606970f81d6e37")
+)
+
 func TestCacheEmpty(t *testing.T) {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
@@ -112,6 +117,20 @@ func TestGetModeForProcessBatchIncremental(t *testing.T) {
 	testData := newTestDataForProcessorTrustedBatchSync(t)
 	testData.trustedNodeBatch.Closed = true
 	testData.trustedNodeBatch.BatchL2Data = []byte("test")
+	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.IncrementalProcessMode, processData.Mode, "current batch is WIP and have a intermediate state root")
+	require.Equal(t, true, processData.BatchMustBeClosed, "the trustedNode batch is closed")
+	require.Equal(t, testData.stateCurrentBatch.StateRoot, processData.OldStateRoot, "the old state root is the intermediate state root (the current batch state root)")
+}
+
+func TestGetModeForProcessBatchIncrementalNoNewL2BatchDataChangeGER(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	testData.stateCurrentBatch.BatchL2Data = []byte("test")
+	testData.stateCurrentBatch.GlobalExitRoot = hash1
+	testData.trustedNodeBatch.Closed = true
+	testData.trustedNodeBatch.BatchL2Data = []byte("test")
+	testData.stateCurrentBatch.GlobalExitRoot = hash2
 	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
 	require.NoError(t, err)
 	require.Equal(t, l2_shared.IncrementalProcessMode, processData.Mode, "current batch is WIP and have a intermediate state root")
