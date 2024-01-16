@@ -26,9 +26,9 @@ type Config struct {
 	SenderAddress common.Address
 	// L2Coinbase defines which address is going to receive the fees
 	L2Coinbase common.Address `mapstructure:"L2Coinbase"`
-	// PrivateKey defines all the key store files that are going
-	// to be read in order to provide the private keys to sign the L1 txs
-	PrivateKey types.KeystoreFileConfig `mapstructure:"PrivateKey"`
+	// DAPermitApiPrivateKey defines all the key store files that are going
+	// to sign batches for DA service
+	DAPermitApiPrivateKey types.KeystoreFileConfig `mapstructure:"DAPermitApiPrivateKey"`
 	// Batch number where there is a forkid change (fork upgrade)
 	ForkUpgradeBatchNumber uint64
 

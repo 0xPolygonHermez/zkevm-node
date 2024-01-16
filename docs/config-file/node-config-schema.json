@@ -1018,7 +1018,7 @@
 					"description": "L2Coinbase defines which address is going to receive the fees",
 					"default": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 				},
-				"PrivateKey": {
+				"DAPermitApiPrivateKey": {
 					"properties": {
 						"Path": {
 							"type": "string",
@@ -1033,7 +1033,7 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
+					"description": "DAPermitApiPrivateKey defines all the key store files that are going\nto sign batches for DA service"
 				},
 				"ForkUpgradeBatchNumber": {
 					"type": "integer",
