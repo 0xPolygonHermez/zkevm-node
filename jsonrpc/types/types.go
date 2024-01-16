@@ -582,7 +582,7 @@ func NewTransaction(
 		res.BlockHash = &receipt.BlockHash
 		ti := ArgUint64(receipt.TransactionIndex)
 		res.TxIndex = &ti
-		rpcReceipt, err := NewReceipt(tx, receipt)
+		rpcReceipt, err := NewReceipt(tx, receipt, includeExtraInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -602,7 +602,6 @@ type Receipt struct {
 	Logs              []*types.Log    `json:"logs"`
 	Status            ArgUint64       `json:"status"`
 	TxHash            common.Hash     `json:"transactionHash"`
-	TxL2Hash          common.Hash     `json:"transactionL2Hash"`
 	TxIndex           ArgUint64       `json:"transactionIndex"`
 	BlockHash         common.Hash     `json:"blockHash"`
 	BlockNumber       ArgUint64       `json:"blockNumber"`
@@ -612,10 +611,11 @@ type Receipt struct {
 	ContractAddress   *common.Address `json:"contractAddress"`
 	Type              ArgUint64       `json:"type"`
 	EffectiveGasPrice *ArgBig         `json:"effectiveGasPrice,omitempty"`
+	TxL2Hash          *common.Hash    `json:"transactionL2Hash,omitempty"`
 }
 
 // NewReceipt creates a new Receipt instance
-func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
+func NewReceipt(tx types.Transaction, r *types.Receipt, includeExtraInfo *bool) (Receipt, error) {
 	to := tx.To()
 	logs := r.Logs
 	if logs == nil {
@@ -656,12 +656,16 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
-		TxL2Hash:          l2Hash,
 	}
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)
 		receipt.EffectiveGasPrice = &egp
 	}
+
+	if includeExtraInfo != nil && *includeExtraInfo {
+		receipt.TxL2Hash = &l2Hash
+	}
+
 	return receipt, nil
 }
 

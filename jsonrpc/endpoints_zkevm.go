@@ -371,7 +371,7 @@ func (z *ZKEVMEndpoints) GetTransactionReceiptByL2Hash(hash types.ArgHash) (inte
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r)
+		receipt, err := types.NewReceipt(*tx, r, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}
