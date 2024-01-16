@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/dataavailabilityprotocol"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
@@ -161,9 +162,6 @@ type L1Config struct {
 	PolAddr common.Address `json:"polTokenAddress"`
 	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
-	// Address of the data availability committee contract
-	// TODO: remove from config and get calling contract
-	DataAvailabilityAddr common.Address `json:"dataAvailabilityContract"`
 }
 
 type externalGasProviders struct {
@@ -180,6 +178,7 @@ type Client struct {
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
 	Pol                      *pol.Pol
+	DAProtocol               *dataavailabilityprotocol.Dataavailabilityprotocol
 	SCAddresses              []common.Address
 
 	RollupID uint32
@@ -222,6 +221,14 @@ func NewClient(cfg Config, l1Config L1Config, da dataAvailabilitier) (*Client, e
 	if err != nil {
 		return nil, err
 	}
+	dapAddr, err := zkevm.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
+	if err != nil {
+		return nil, err
+	}
+	dap, err := dataavailabilityprotocol.NewDataavailabilityprotocol(dapAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -250,6 +257,7 @@ func NewClient(cfg Config, l1Config L1Config, da dataAvailabilitier) (*Client, e
 		RollupManager:         rollupManager,
 		Pol:                   pol,
 		GlobalExitRootManager: globalExitRoot,
+		DAProtocol:            dap,
 		SCAddresses:           scAddresses,
 		RollupID:              rollupID,
 		GasProviders: externalGasProviders{
@@ -889,8 +897,7 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
-	log.Info("ARNAU: building sequence")
-	for i, seq := range sequences {
+	for _, seq := range sequences {
 		batch := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
 			ForcedGlobalExitRoot: seq.GlobalExitRoot,
@@ -1797,4 +1804,12 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 	}
 
 	return *auth, nil
+}
+
+func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
+	return etherMan.ZkEVM.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
+}
+
+func (etherMan *Client) GetDAProtocolName() (string, error) {
+	return etherMan.DAProtocol.GetProcotolName(&bind.CallOpts{Pending: false})
 }

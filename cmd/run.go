@@ -301,10 +301,6 @@ func newEtherman(c config.Config, st *state.State) (*etherman.Client, error) {
 }
 
 func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client, isSequenceSender bool) (*dataavailability.DataAvailability, error) {
-	// Base DA config
-	if err := c.DataAvailability.Validate(); err != nil {
-		return nil, err
-	}
 	var trustedSequencerURL string
 	var err error
 	if !c.IsTrustedSequencer {
@@ -322,9 +318,13 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
 	// Backend specific config
+	daProtocolName, err := etherman.GetDAProtocolName()
+	if err != nil {
+		log.Fatal("error getting data availability protocol name: %v", err)
+	}
 	var daBackend dataavailability.DABackender
-	switch c.DataAvailability.Backend {
-	case dataavailability.DataAvailabilityCommittee:
+	switch daProtocolName {
+	case string(dataavailability.DataAvailabilityCommittee):
 		var pk *ecdsa.PrivateKey
 		var err error
 		if isSequenceSender {
@@ -333,9 +333,14 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 				log.Fatal(err)
 			}
 		}
+		dacAddr, err := etherman.GetDAProtocolAddr()
+		if err != nil {
+			log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+		}
+
 		daBackend, err = datacommittee.New(
 			c.Etherman.URL,
-			c.NetworkConfig.L1Config.DataAvailabilityAddr,
+			dacAddr,
 			c.SequenceSender.L2Coinbase,
 			pk,
 			st,

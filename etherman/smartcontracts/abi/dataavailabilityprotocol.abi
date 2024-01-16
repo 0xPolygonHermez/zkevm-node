@@ -1,0 +1,33 @@
+[
+    {
+        "inputs": [],
+        "name": "getProcotolName",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "hash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "bytes",
+                "name": "dataAvailabilityMessage",
+                "type": "bytes"
+            }
+        ],
+        "name": "verifyMessage",
+        "outputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

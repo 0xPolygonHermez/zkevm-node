@@ -107,6 +107,19 @@
     },
     {
         "inputs": [],
+        "name": "getProcotolName",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "initialize",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -218,7 +231,7 @@
                 "type": "bytes"
             }
         ],
-        "name": "verifySignatures",
+        "name": "verifyMessage",
         "outputs": [],
         "stateMutability": "view",
         "type": "function"

@@ -12,7 +12,7 @@ import (
 	"github.com/0xPolygon/cdk-data-availability/client"
 	jTypes "github.com/0xPolygon/cdk-data-availability/rpc"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -37,7 +37,7 @@ type DataCommittee struct {
 
 // DataCommitteeBackend implements the DAC integration
 type DataCommitteeBackend struct {
-	dataCommitteeContract      *cdkdatacommittee.Cdkdatacommittee
+	dataCommitteeContract      *polygondatacommittee.Polygondatacommittee
 	l2Coinbase                 common.Address
 	privKey                    *ecdsa.PrivateKey
 	state                      stateInterface
@@ -62,7 +62,7 @@ func New(
 		log.Errorf("error connecting to %s: %+v", l1RPCURL, err)
 		return nil, err
 	}
-	dataCommittee, err := cdkdatacommittee.NewCdkdatacommittee(dataCommitteeAddr, ethClient)
+	dataCommittee, err := polygondatacommittee.NewPolygondatacommittee(dataCommitteeAddr, ethClient)
 	if err != nil {
 		return nil, err
 	}

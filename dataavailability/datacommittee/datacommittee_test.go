@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
@@ -65,7 +65,7 @@ func newTestingEnv() (
 	dac *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
 	auth *bind.TransactOpts,
-	da *cdkdatacommittee.Cdkdatacommittee,
+	da *polygondatacommittee.Polygondatacommittee,
 ) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
@@ -87,7 +87,7 @@ func newTestingEnv() (
 func newSimulatedDacman(auth *bind.TransactOpts) (
 	dacman *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
-	da *cdkdatacommittee.Cdkdatacommittee,
+	da *polygondatacommittee.Polygondatacommittee,
 	err error,
 ) {
 	if auth == nil {
@@ -106,7 +106,7 @@ func newSimulatedDacman(auth *bind.TransactOpts) (
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
 
 	// DAC Setup
-	_, _, da, err = cdkdatacommittee.DeployCdkdatacommittee(auth, client)
+	_, _, da, err = polygondatacommittee.DeployPolygondatacommittee(auth, client)
 	if err != nil {
 		return &DataCommitteeBackend{}, nil, nil, err
 	}

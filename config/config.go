@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
-	"github.com/0xPolygonHermez/zkevm-node/dataavailability"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -118,8 +117,6 @@ type Config struct {
 	HashDB db.Config
 	// State service configuration
 	State state.Config
-	// DataAvailability configuration
-	DataAvailability dataavailability.Config
 }
 
 // Default parses the default configuration values.

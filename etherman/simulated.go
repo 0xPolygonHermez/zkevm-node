@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockpolygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockverifier"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
@@ -40,7 +40,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
 
 	// DAC Setup
-	daAddr, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
+	daAddr, _, da, err := polygondatacommittee.DeployPolygondatacommittee(auth, client)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
