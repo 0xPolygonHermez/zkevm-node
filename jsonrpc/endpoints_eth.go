@@ -433,6 +433,10 @@ func (e *EthEndpoints) GetFilterChanges(filterID string) (interface{}, types.Err
 	case FilterTypeLog:
 		{
 			filterParameters := filter.Parameters.(LogFilter)
+			if filterParameters.FromBlock == nil {
+				bn := types.BlockNumber(0)
+				filterParameters.FromBlock = &bn
+			}
 			filterParameters.Since = &filter.LastPoll
 
 			resInterface, err := e.internalGetLogs(context.Background(), nil, filterParameters)
@@ -482,6 +486,11 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
+	if filter.FromBlock == nil {
+		l := types.LatestBlockNumber
+		filter.FromBlock = &l
+	}
+
 	fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, dbTx)
 	if rpcErr != nil {
 		return nil, rpcErr
