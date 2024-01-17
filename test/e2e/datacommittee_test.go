@@ -39,7 +39,7 @@ func TestDataCommittee(t *testing.T) {
 		ksFile           = "/tmp/pkey"
 		cfgFile          = "/tmp/dacnodeconfigfile.json"
 		ksPass           = "pass"
-		dacNodeContainer = "hermeznetwork/cdk-data-availability:v0.0.1"
+		dacNodeContainer = "hermeznetwork/cdk-data-availability:v0.0.4"
 	)
 
 	// Setup
@@ -98,10 +98,8 @@ func TestDataCommittee(t *testing.T) {
 		urls = append(urls, m.url)
 	}
 	tx, err := dacSC.SetupCommittee(authL1, big.NewInt(nSignatures), urls, addrsBytes)
-	if err != nil {
-		for _, m := range membs {
-			fmt.Println(m.addr)
-		}
+	for _, m := range membs {
+		fmt.Println(m.addr)
 	}
 	require.NoError(t, err)
 	err = operations.WaitTxToBeMined(ctx, clientL1, tx, operations.DefaultTimeoutTxToBeMined)

@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/0xPolygon/cdk-data-availability/client"
-	jTypes "github.com/0xPolygon/cdk-data-availability/rpc"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
@@ -41,7 +40,7 @@ type DataCommitteeBackend struct {
 	l2Coinbase                 common.Address
 	privKey                    *ecdsa.PrivateKey
 	state                      stateInterface
-	dataCommitteeClientFactory client.ClientFactoryInterface
+	dataCommitteeClientFactory client.IClientFactory
 
 	committeeMembers        []DataCommitteeMember
 	selectedCommitteeMember int
@@ -55,7 +54,7 @@ func New(
 	l2Coinbase common.Address,
 	privKey *ecdsa.PrivateKey,
 	state stateInterface,
-	dataCommitteeClientFactory client.ClientFactoryInterface,
+	dataCommitteeClientFactory client.IClientFactory,
 ) (*DataCommitteeBackend, error) {
 	ethClient, err := ethclient.Dial(l1RPCURL)
 	if err != nil {
@@ -170,11 +169,12 @@ func (s *DataCommitteeBackend) PostSequence(ctx context.Context, sequences []typ
 	}
 	for _, seq := range sequences {
 		sequence.Batches = append(sequence.Batches, daTypes.Batch{
-			Number:         jTypes.ArgUint64(seq.BatchNumber),
-			GlobalExitRoot: seq.GlobalExitRoot,
-			Timestamp:      jTypes.ArgUint64(seq.Timestamp),
-			Coinbase:       s.l2Coinbase,
-			L2Data:         seq.BatchL2Data,
+			Number:               daTypes.ArgUint64(seq.BatchNumber),
+			ForcedGlobalExitRoot: seq.GlobalExitRoot,
+			ForcedTimestamp:      daTypes.ArgUint64(seq.ForcedBatchTimestamp),
+			Coinbase:             s.l2Coinbase,
+			L2Data:               seq.BatchL2Data,
+			ForcedBlockHashL1:    seq.PrevBlockHash,
 		})
 	}
 	signedSequence, err := sequence.Sign(s.privKey)
@@ -183,6 +183,13 @@ func (s *DataCommitteeBackend) PostSequence(ctx context.Context, sequences []typ
 	}
 
 	// Request signatures to all members in parallel
+	log.Debugf(
+		"Requesting signatures to DAC, firstBatch: %d, lastBatch: %d, prevAccInputHash: %s, hash to sign: %s",
+		sequence.Batches[0].Number,
+		sequence.Batches[len(sequence.Batches)-1].Number,
+		common.Bytes2Hex(sequence.OldAccInputHash[:]),
+		common.Bytes2Hex(sequence.HashToSign()),
+	)
 	ch := make(chan signatureMsg, len(committee.Members))
 	signatureCtx, cancelSignatureCollection := context.WithCancel(ctx)
 	for _, member := range committee.Members {

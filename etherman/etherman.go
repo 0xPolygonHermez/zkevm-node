@@ -897,16 +897,22 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 
 func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
-	for _, seq := range sequences {
+	log.Debug("######### sequenceBatches #########")
+	for i, seq := range sequences {
 		batch := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 			TransactionsHash:     crypto.Keccak256Hash(seq.BatchL2Data),
 			ForcedGlobalExitRoot: seq.GlobalExitRoot,
 			ForcedTimestamp:      uint64(seq.ForcedBatchTimestamp),
 			ForcedBlockHashL1:    seq.PrevBlockHash,
 		}
+		log.Debugf(
+			"sequence %d: \nData: %s,\nForcedGlobalExitRoot: %s",
+			i, seq,
+		)
 
 		batches = append(batches, batch)
 	}
+	log.Debug("######### --- #########")
 
 	tx, err := etherMan.ZkEVM.SequenceBatchesValidium(&opts, batches, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {

@@ -46,7 +46,7 @@ const (
 	DefaultL1ZkEVMSmartContract                = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
 	DefaultL1RollupManagerSmartContract        = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
 	DefaultL1PolSmartContract                  = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-	DefaultL1DataCommitteeContract             = "0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6"
+	DefaultL1DataCommitteeContract             = "0x68B1D87F95878fE05B998F19b66F4baba5De1aed"
 	DefaultL1NetworkURL                        = "http://localhost:8545"
 	DefaultL1NetworkWebSocketURL               = "ws://localhost:8546"
 	DefaultL1ChainID                    uint64 = 1337

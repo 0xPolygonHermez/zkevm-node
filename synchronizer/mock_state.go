@@ -760,62 +760,6 @@ func (_c *stateMock_GetBatchByNumber_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
-// GetBatchL2DataByNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *stateMock) GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	var r0 []byte
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]byte, error)); ok {
-		return rf(ctx, batchNumber, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []byte); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// stateMock_GetBatchL2DataByNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBatchL2DataByNumber'
-type stateMock_GetBatchL2DataByNumber_Call struct {
-	*mock.Call
-}
-
-// GetBatchL2DataByNumber is a helper method to define mock.On call
-//   - ctx context.Context
-//   - batchNumber uint64
-//   - dbTx pgx.Tx
-func (_e *stateMock_Expecter) GetBatchL2DataByNumber(ctx interface{}, batchNumber interface{}, dbTx interface{}) *stateMock_GetBatchL2DataByNumber_Call {
-	return &stateMock_GetBatchL2DataByNumber_Call{Call: _e.mock.On("GetBatchL2DataByNumber", ctx, batchNumber, dbTx)}
-}
-
-func (_c *stateMock_GetBatchL2DataByNumber_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *stateMock_GetBatchL2DataByNumber_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
-	})
-	return _c
-}
-
-func (_c *stateMock_GetBatchL2DataByNumber_Call) Return(_a0 []byte, _a1 error) *stateMock_GetBatchL2DataByNumber_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
-func (_c *stateMock_GetBatchL2DataByNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) ([]byte, error)) *stateMock_GetBatchL2DataByNumber_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetCurrentL1InfoRoot provides a mock function with given fields:
 func (_m *stateMock) GetCurrentL1InfoRoot() common.Hash {
 	ret := _m.Called()

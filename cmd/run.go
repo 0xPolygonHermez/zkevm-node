@@ -344,7 +344,7 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 			c.SequenceSender.L2Coinbase,
 			pk,
 			st,
-			&dataCommitteeClient.ClientFactory{},
+			&dataCommitteeClient.Factory{},
 		)
 		if err != nil {
 			return nil, err
