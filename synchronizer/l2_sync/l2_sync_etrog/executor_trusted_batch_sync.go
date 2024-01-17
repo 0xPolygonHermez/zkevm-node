@@ -21,8 +21,6 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
-	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
-	//ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 	// ErrCantReprocessBatchMissingPreviousStateBatch can't reprocess a divergent batch because is missing previous state batch
