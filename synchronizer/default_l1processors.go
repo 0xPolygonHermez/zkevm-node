@@ -17,5 +17,6 @@ func defaultsL1EventProcessors(sync *ClientSynchronizer) *processor_manager.L1Ev
 	p.Register(etrog.NewProcessorL1InfoTreeUpdate(sync.state))
 	p.Register(etrog.NewProcessorL1SequenceBatches(sync.state, sync.etherMan, sync.pool, sync, common.DefaultTimeProvider{}, sync.halter))
 	p.Register(incaberry.NewProcessorL1VerifyBatch(sync.state))
+	p.Register(etrog.NewProcessorL1UpdateEtrogSequence(sync.state, sync, common.DefaultTimeProvider{}))
 	return p.Build()
 }

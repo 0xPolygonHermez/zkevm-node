@@ -589,25 +589,8 @@ func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order ma
 				log.Debug("EventOrder:", element.Name, "BlockNumber: ", blocks[i].BlockNumber, "forkId:", forkId)
 			}
 			forkIdTyped := actions.ForkIdType(forkId)
-			var err error
-			switch element.Name {
-			case etherman.SequenceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.ForcedBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.GlobalExitRootsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.SequenceForceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.TrustedVerifyBatchOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.VerifyBatchOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.ForkIDsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.L1InfoTreeOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			}
+			// Process event received from l1
+			err := s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			if err != nil {
 				log.Error("error: ", err)
 				// If any goes wrong we ensure that the state is rollbacked
