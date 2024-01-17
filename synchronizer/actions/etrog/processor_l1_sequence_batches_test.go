@@ -57,7 +57,6 @@ func createMocks(t *testing.T) *mocksEtrogProcessorL1 {
 func createSUT(mocks *mocksEtrogProcessorL1) *ProcessorL1SequenceBatchesEtrog {
 	return NewProcessorL1SequenceBatches(mocks.State, mocks.Etherman, mocks.Pool, mocks.Synchronizer,
 		mocks.TimeProvider, mocks.CriticalErrorHandler)
-
 }
 
 func TestL1SequenceBatchesNoData(t *testing.T) {
@@ -88,11 +87,13 @@ func TestL1SequenceBatchesNormalBatch(t *testing.T) {
 		ReceivedAt:       mocks.TimeProvider.Now(),
 		SequencedBatches: [][]etherman.SequencedBatch{},
 	}
+	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
 	l1Block.SequencedBatches = append(l1Block.SequencedBatches, []etherman.SequencedBatch{})
 	l1Block.SequencedBatches = append(l1Block.SequencedBatches, []etherman.SequencedBatch{
 		{
 			BatchNumber:   3,
-			TxHash:        common.HexToHash(hashExamplesValues[0]),
+			L1InfoRoot:    &l1InfoRoot,
+			TxHash:        common.HexToHash(hashExamplesValues[1]),
 			Coinbase:      common.HexToAddress(addrExampleValues[0]),
 			SequencerAddr: common.HexToAddress(addrExampleValues[1]),
 			PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
@@ -101,6 +102,14 @@ func TestL1SequenceBatchesNormalBatch(t *testing.T) {
 		},
 	})
 	mocks.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mocks.DbTx).Return(map[uint32]state.L1DataV2{}, state.ZeroHash, nil)
+	mocks.State.EXPECT().GetBatchByNumber(ctx, uint64(3), mocks.DbTx).Return(nil, state.ErrNotFound)
+	mocks.Synchronizer.EXPECT().PendingFlushID(mock.Anything, mock.Anything)
+	mocks.State.EXPECT().AddVirtualBatch(ctx, mock.Anything, mocks.DbTx).Return(nil)
+	mocks.State.EXPECT().AddSequence(ctx, mock.Anything, mocks.DbTx).Return(nil)
+	newStateRoot := common.HexToHash(hashExamplesValues[2])
+	flushID := uint64(1234)
+	proverID := "prover-id"
+	mocks.State.EXPECT().ProcessAndStoreClosedBatchV2(ctx, mock.Anything, mocks.DbTx, mock.Anything).Return(newStateRoot, flushID, proverID, nil)
 	err := sut.Process(ctx, etherman.Order{Pos: 1}, &l1Block, mocks.DbTx)
-	require.Error(t, err)
+	require.NoError(t, err)
 }
