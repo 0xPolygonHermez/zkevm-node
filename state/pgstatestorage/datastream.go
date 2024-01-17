@@ -144,7 +144,7 @@ func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, la
 		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
 
 	if !readWIPBatch {
-		getBatchByNumberSQL += " AND b.state_root is not null"
+		getBatchByNumberSQL += " AND b.wip = false"
 	}
 
 	getBatchByNumberSQL += " ORDER BY b.batch_num ASC"
