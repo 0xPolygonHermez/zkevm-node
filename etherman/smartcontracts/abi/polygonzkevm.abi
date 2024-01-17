@@ -454,6 +454,12 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "uint64",
+                "name": "numBatch",
+                "type": "uint64"
+            },
+            {
+                "indexed": false,
                 "internalType": "bytes",
                 "name": "transactions",
                 "type": "bytes"

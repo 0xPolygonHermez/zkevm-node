@@ -583,10 +583,10 @@ func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order ma
 			var forkId uint64
 			if batchSequence != nil {
 				forkId = s.state.GetForkIDByBatchNumber(batchSequence.FromBatchNumber)
-				log.Debug("EventOrder:", element.Name, "Batch Sequence: ", batchSequence, "forkId:", forkId)
+				log.Debug("EventOrder: ", element.Name, ". Batch Sequence: ", batchSequence, "forkId: ", forkId)
 			} else {
 				forkId = s.state.GetForkIDByBlockNumber(blocks[i].BlockNumber)
-				log.Debug("EventOrder:", element.Name, "BlockNumber: ", blocks[i].BlockNumber, "forkId:", forkId)
+				log.Debug("EventOrder: ", element.Name, ". BlockNumber: ", blocks[i].BlockNumber, "forkId: ", forkId)
 			}
 			forkIdTyped := actions.ForkIdType(forkId)
 			// Process event received from l1

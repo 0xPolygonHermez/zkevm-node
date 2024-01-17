@@ -71,7 +71,7 @@ var (
 	forceBatchSignatureHash             = crypto.Keccak256Hash([]byte("ForceBatch(uint64,bytes32,address,bytes)")) // Used in oldZkEvm as well
 	sequenceBatchesSignatureHash        = crypto.Keccak256Hash([]byte("SequenceBatches(uint64,bytes32)"))          // Used in oldZkEvm as well
 	initialSequenceBatchesSignatureHash = crypto.Keccak256Hash([]byte("InitialSequenceBatches(bytes,bytes32,address)"))
-	updateEtrogSequenceSignatureHash    = crypto.Keccak256Hash([]byte("UpdateEtrogSequence(bytes,bytes32,address)"))
+	updateEtrogSequenceSignatureHash    = crypto.Keccak256Hash([]byte("UpdateEtrogSequence(uint64,bytes,bytes32,address)"))
 
 	// Extra RollupManager
 	initializedSignatureHash               = crypto.Keccak256Hash([]byte("Initialized(uint64)"))                       // Initializable. Used in RollupBase as well
@@ -685,7 +685,7 @@ func (etherMan *Client) updateEtrogSequence(ctx context.Context, vLog types.Log,
 
 	log.Info("update Etrog transaction sequence...")
 	sequence := UpdateEtrogSequence{
-		BatchNumber:   1,
+		BatchNumber:   updateEtrogSequence.NumBatch,
 		SequencerAddr: updateEtrogSequence.Sequencer,
 		TxHash:        vLog.TxHash,
 		Nonce:         msg.Nonce,

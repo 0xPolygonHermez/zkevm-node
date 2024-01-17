@@ -49,7 +49,7 @@ func NewProcessorL1UpdateEtrogSequence(state stateProcessUpdateEtrogSequence,
 
 // Process process event
 func (g *ProcessorL1UpdateEtrogSequence) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
-	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
+	if l1Block == nil || l1Block.UpdateEtrogSequence.BatchNumber == 0 {
 		return actions.ErrInvalidParams
 	}
 	err := g.processUpdateEtrogSequence(ctx, l1Block.UpdateEtrogSequence, l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
@@ -75,7 +75,7 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 	txs := updateEtrogSequence.PolygonRollupBaseEtrogBatchData.Transactions
 	tstampLimit := time.Unix(int64(updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedTimestamp), 0)
 	processCtx := state.ProcessingContextV2{
-		BatchNumber:          1,
+		BatchNumber:          updateEtrogSequence.BatchNumber,
 		Coinbase:             updateEtrogSequence.SequencerAddr,
 		Timestamp:            &tstampLimit,
 		L1InfoRoot:           updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
@@ -94,7 +94,7 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 		L1InfoRoot:          &processCtx.L1InfoRoot,
 	}
 
-	log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
+	log.Debugf("Storing batchNumber: %d...", batch.BatchNumber)
 	// If it is not found, store batch
 	_, flushID, proverID, err := g.state.ProcessAndStoreClosedBatchV2(ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 	if err != nil {
@@ -110,7 +110,7 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 	g.sync.PendingFlushID(flushID, proverID)
 
 	// Store virtualBatch
-	log.Infof("processUpdateEtrogSequence: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d", virtualBatch.BatchNumber, blockNumber)
+	log.Debugf("processUpdateEtrogSequence: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d", virtualBatch.BatchNumber, blockNumber)
 	err = g.state.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	if err != nil {
 		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, blockNumber, err)
