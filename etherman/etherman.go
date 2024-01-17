@@ -1812,10 +1812,12 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 	return *auth, nil
 }
 
+// GetDAProtocolAddr returns the address of the data availability protocol
 func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
 	return etherMan.ZkEVM.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
 }
 
+// GetDAProtocolName returns the name of the data availability protocol
 func (etherMan *Client) GetDAProtocolName() (string, error) {
 	return etherMan.DAProtocol.GetProcotolName(&bind.CallOpts{Pending: false})
 }
