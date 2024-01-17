@@ -62,7 +62,7 @@ var (
 	// Events new ZkEvm/RollupBase
 	acceptAdminRoleSignatureHash        = crypto.Keccak256Hash([]byte("AcceptAdminRole(address)"))                 // Used in oldZkEvm as well
 	transferAdminRoleSignatureHash      = crypto.Keccak256Hash([]byte("TransferAdminRole(address)"))               // Used in oldZkEvm as well
-	activateForceBatchesSignatureHash   = crypto.Keccak256Hash([]byte("ActivateForceBatches()"))                   // Used in oldZkEvm as well
+	setForceBatchAddressSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchAddress(address)"))            // Used in oldZkEvm as well
 	setForceBatchTimeoutSignatureHash   = crypto.Keccak256Hash([]byte("SetForceBatchTimeout(uint64)"))             // Used in oldZkEvm as well
 	setTrustedSequencerURLSignatureHash = crypto.Keccak256Hash([]byte("SetTrustedSequencerURL(string)"))           // Used in oldZkEvm as well
 	setTrustedSequencerSignatureHash    = crypto.Keccak256Hash([]byte("SetTrustedSequencer(address)"))             // Used in oldZkEvm as well
@@ -557,8 +557,8 @@ func (etherMan *Client) processEvent(ctx context.Context, vLog types.Log, blocks
 	case setForceBatchTimeoutSignatureHash:
 		log.Debug("SetForceBatchTimeout event detected. Ignoring...")
 		return nil
-	case activateForceBatchesSignatureHash:
-		log.Debug("ActivateForceBatches event detected. Ignoring...")
+	case setForceBatchAddressSignatureHash:
+		log.Debug("SetForceBatchAddress event detected. Ignoring...")
 		return nil
 	case transferAdminRoleSignatureHash:
 		log.Debug("TransferAdminRole event detected. Ignoring...")
