@@ -64,12 +64,6 @@ func (p *PostgresStorage) GetLatestL1InfoRoot(ctx context.Context, maxBlockNumbe
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return entry, err
 	}
-
-	// L1InfoTreeIndex = 0 is a special case (empty tree) therefore we will set GER as zero
-	if entry.L1InfoTreeIndex == 0 {
-		entry.GlobalExitRoot.GlobalExitRoot = state.ZeroHash
-	}
-
 	return entry, nil
 }
 func (p *PostgresStorage) GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error) {
