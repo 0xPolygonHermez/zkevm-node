@@ -34,8 +34,6 @@ type stateProcessSequenceBatches interface {
 	AddTrustedReorg(ctx context.Context, trustedReorg *state.TrustedReorg, dbTx pgx.Tx) error
 	GetReorgedTransactions(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]*ethTypes.Transaction, error)
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
-	// TODO: GER-0:check if need that
-	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
 }
 
 type ethermanProcessSequenceBatches interface {
@@ -216,24 +214,19 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				SkipVerifyL1InfoRoot: 1,
 				GlobalExitRoot:       batch.GlobalExitRoot,
 			}
-			if len(leaves) > 0 {
-				globalExitRoot := leaves[uint32(len(leaves)-1)].GlobalExitRoot
-				if batch.GlobalExitRoot == (common.Hash{}) {
+			if batch.GlobalExitRoot == (common.Hash{}) {
+				if len(leaves) > 0 {
+					globalExitRoot := leaves[uint32(len(leaves)-1)].GlobalExitRoot
+					log.Debugf("Empty GER detected for batch: %d usign GER of last leaf (%d):%s",
+						batch.BatchNumber,
+						uint32(len(leaves)-1),
+						globalExitRoot)
+
 					processCtx.GlobalExitRoot = globalExitRoot
+					batch.GlobalExitRoot = globalExitRoot
+				} else {
+					log.Debugf("Empty leaves array detected for batch: %d usign GER:%s", batch.BatchNumber, processCtx.GlobalExitRoot.String())
 				}
-			} else {
-				log.Warnf("Empty leaves array detected for batch: %d usign GER:%s", batch.BatchNumber, processCtx.GlobalExitRoot.String())
-				leaf0, err := g.state.GetL1InfoRootLeafByIndex(ctx, 0, dbTx)
-				if err != nil {
-					log.Errorf("error getting L1InfoRootLeafByL1InfoRoot. sbatch.L1InfoRoot: %v", *sbatch.L1InfoRoot)
-					rollbackErr := dbTx.Rollback(ctx)
-					if rollbackErr != nil {
-						log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", virtualBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
-						return rollbackErr
-					}
-					return err
-				}
-				processCtx.GlobalExitRoot = leaf0.GlobalExitRoot.GlobalExitRoot
 			}
 		}
 		virtualBatch.L1InfoRoot = &processCtx.L1InfoRoot
@@ -245,7 +238,7 @@ func (g *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 			if errors.Is(err, state.ErrNotFound) {
 				log.Debugf("BatchNumber: %d, not found in trusted state. Storing it...", batch.BatchNumber)
 				// If it is not found, store batch
-				log.Infof("processSequenceBatches: (not found batch) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d", processCtx.BatchNumber, blockNumber)
+				log.Infof("processSequenceBatches: (not found batch) ProcessAndStoreClosedBatch . BatchNumber: %d, BlockNumber: %d GER:%s", processCtx.BatchNumber, blockNumber, processCtx.GlobalExitRoot.String())
 				newStateRoot, flushID, proverID, err := g.state.ProcessAndStoreClosedBatchV2(ctx, processCtx, dbTx, stateMetrics.SynchronizerCallerLabel)
 				if err != nil {
 					log.Errorf("error storing trustedBatch. BatchNumber: %d, BlockNumber: %d, error: %v", batch.BatchNumber, blockNumber, err)
