@@ -1265,7 +1265,7 @@
                 "type": "address"
             },
             {
-                "internalType": "contract PolygonZkEVMV2Existent",
+                "internalType": "contract PolygonZkEVMExistentEtrog",
                 "name": "polygonZkEVM",
                 "type": "address"
             },

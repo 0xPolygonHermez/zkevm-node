@@ -1539,12 +1539,6 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 	return block, nil
 }
 
-// GetGapLastBatchTimestamp function allows to retrieve the gaplastTimestamp value in the smc
-// TODO: If nobody uses this function delete
-func (etherMan *Client) GetGapLastBatchTimestamp() (uint64, error) {
-	return etherMan.ZkEVM.GapLastTimestamp(&bind.CallOpts{Pending: false})
-}
-
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)

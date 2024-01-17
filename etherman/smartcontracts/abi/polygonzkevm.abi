@@ -72,7 +72,7 @@
     },
     {
         "inputs": [],
-        "name": "ForceBatchesDescentralized",
+        "name": "ForceBatchesDecentralized",
         "type": "error"
     },
     {
@@ -779,19 +779,6 @@
     },
     {
         "inputs": [],
-        "name": "gapLastTimestamp",
-        "outputs": [
-            {
-                "internalType": "uint64",
-                "name": "",
-                "type": "uint64"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
         "name": "gasTokenAddress",
         "outputs": [
             {
@@ -927,11 +914,6 @@
                 "internalType": "bytes32",
                 "name": "_lastAccInputHash",
                 "type": "bytes32"
-            },
-            {
-                "internalType": "uint64",
-                "name": "",
-                "type": "uint64"
             }
         ],
         "name": "initializeUpgrade",
