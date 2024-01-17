@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygon/cdk-data-availability/client"
 	daTypes "github.com/0xPolygon/cdk-data-availability/types"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -39,7 +38,6 @@ type DataCommitteeBackend struct {
 	dataCommitteeContract      *polygondatacommittee.Polygondatacommittee
 	l2Coinbase                 common.Address
 	privKey                    *ecdsa.PrivateKey
-	state                      stateInterface
 	dataCommitteeClientFactory client.IClientFactory
 
 	committeeMembers        []DataCommitteeMember
@@ -53,7 +51,6 @@ func New(
 	dataCommitteeAddr common.Address,
 	l2Coinbase common.Address,
 	privKey *ecdsa.PrivateKey,
-	state stateInterface,
 	dataCommitteeClientFactory client.IClientFactory,
 ) (*DataCommitteeBackend, error) {
 	ethClient, err := ethclient.Dial(l1RPCURL)
@@ -69,7 +66,6 @@ func New(
 		dataCommitteeContract:      dataCommittee,
 		l2Coinbase:                 l2Coinbase,
 		privKey:                    privKey,
-		state:                      state,
 		dataCommitteeClientFactory: dataCommitteeClientFactory,
 		ctx:                        context.Background(),
 	}, nil
@@ -145,37 +141,17 @@ type signatureMsg struct {
 
 // PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 // as expected by the contract
-func (s *DataCommitteeBackend) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
+func (s *DataCommitteeBackend) PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error) {
 	// Get current committee
 	committee, err := s.getCurrentDataCommittee()
 	if err != nil {
 		return nil, err
 	}
 
-	// Get last accInputHash
-	var accInputHash common.Hash
-	if sequences[0].BatchNumber != 0 {
-		prevBatch, err := s.state.GetBatchByNumber(ctx, sequences[0].BatchNumber-1, nil)
-		if err != nil {
-			return nil, err
-		}
-		accInputHash = prevBatch.AccInputHash
-	}
-
 	// Authenticate as trusted sequencer by signing the sequences
-	sequence := daTypes.Sequence{
-		Batches:         []daTypes.Batch{},
-		OldAccInputHash: accInputHash,
-	}
-	for _, seq := range sequences {
-		sequence.Batches = append(sequence.Batches, daTypes.Batch{
-			Number:               daTypes.ArgUint64(seq.BatchNumber),
-			ForcedGlobalExitRoot: seq.GlobalExitRoot,
-			ForcedTimestamp:      daTypes.ArgUint64(seq.ForcedBatchTimestamp),
-			Coinbase:             s.l2Coinbase,
-			L2Data:               seq.BatchL2Data,
-			ForcedBlockHashL1:    seq.PrevBlockHash,
-		})
+	sequence := daTypes.Sequence{}
+	for _, seq := range batchesData {
+		sequence = append(sequence, seq)
 	}
 	signedSequence, err := sequence.Sign(s.privKey)
 	if err != nil {
@@ -183,13 +159,6 @@ func (s *DataCommitteeBackend) PostSequence(ctx context.Context, sequences []typ
 	}
 
 	// Request signatures to all members in parallel
-	log.Debugf(
-		"Requesting signatures to DAC, firstBatch: %d, lastBatch: %d, prevAccInputHash: %s, hash to sign: %s",
-		sequence.Batches[0].Number,
-		sequence.Batches[len(sequence.Batches)-1].Number,
-		common.Bytes2Hex(sequence.OldAccInputHash[:]),
-		common.Bytes2Hex(sequence.HashToSign()),
-	)
 	ch := make(chan signatureMsg, len(committee.Members))
 	signatureCtx, cancelSignatureCollection := context.WithCancel(ctx)
 	for _, member := range committee.Members {

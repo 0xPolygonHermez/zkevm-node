@@ -162,7 +162,7 @@ require (
 )
 
 require (
-	github.com/0xPolygon/cdk-data-availability v0.0.4-0.20240117093658-179754e59739
+	github.com/0xPolygon/cdk-data-availability v0.0.4-0.20240117132610-c0301289110e
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.17.0

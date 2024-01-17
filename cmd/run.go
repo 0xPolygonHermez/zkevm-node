@@ -343,7 +343,6 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 			dacAddr,
 			c.SequenceSender.L2Coinbase,
 			pk,
-			st,
 			&dataCommitteeClient.Factory{},
 		)
 		if err != nil {

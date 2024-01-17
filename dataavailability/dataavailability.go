@@ -45,7 +45,14 @@ func New(
 // PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 // as expected by the contract
 func (d *DataAvailability) PostSequence(ctx context.Context, sequences []types.Sequence) ([]byte, error) {
-	return d.backend.PostSequence(ctx, sequences)
+	batchesData := [][]byte{}
+	for _, batch := range sequences {
+		// Do not send to the DA backend data that will be stored to L1
+		if batch.ForcedBatchTimestamp == 0 {
+			batchesData = append(batchesData, batch.BatchL2Data)
+		}
+	}
+	return d.backend.PostSequence(ctx, batchesData)
 }
 
 // GetBatchL2Data tries to return the data from a batch, in the following priorities
