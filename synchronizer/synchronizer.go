@@ -47,14 +47,14 @@ type TrustedState struct {
 // ClientSynchronizer connects L1 and L2
 type ClientSynchronizer struct {
 	isTrustedSequencer bool
-	etherMan           EthermanInterface
+	etherMan           syncinterfaces.EthermanFullInterface
 	latestFlushID      uint64
 	// If true the lastFlushID is stored in DB and we don't need to check again
 	latestFlushIDIsFulfilled bool
-	etherManForL1            []EthermanInterface
-	state                    stateInterface
-	pool                     poolInterface
-	ethTxManager             ethTxManager
+	etherManForL1            []syncinterfaces.EthermanFullInterface
+	state                    syncinterfaces.StateFullInterface
+	pool                     syncinterfaces.PoolInterface
+	ethTxManager             syncinterfaces.EthTxManager
 	zkEVMClient              syncinterfaces.ZKEVMClientInterface
 	eventLog                 syncinterfaces.EventLogInterface
 	ctx                      context.Context
@@ -77,11 +77,11 @@ type ClientSynchronizer struct {
 // NewSynchronizer creates and initializes an instance of Synchronizer
 func NewSynchronizer(
 	isTrustedSequencer bool,
-	ethMan EthermanInterface,
-	etherManForL1 []EthermanInterface,
-	st stateInterface,
-	pool poolInterface,
-	ethTxManager ethTxManager,
+	ethMan syncinterfaces.EthermanFullInterface,
+	etherManForL1 []syncinterfaces.EthermanFullInterface,
+	st syncinterfaces.StateFullInterface,
+	pool syncinterfaces.PoolInterface,
+	ethTxManager syncinterfaces.EthTxManager,
 	zkEVMClient syncinterfaces.ZKEVMClientInterface,
 	eventLog syncinterfaces.EventLogInterface,
 	genesis state.Genesis,
@@ -128,7 +128,7 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) *l1_parallel_sync.L1SyncOrchestration {
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []syncinterfaces.EthermanFullInterface, sync *ClientSynchronizer, runExternalControl bool) *l1_parallel_sync.L1SyncOrchestration {
 	chIncommingRollupInfo := make(chan l1_parallel_sync.L1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
 	cfgConsumer := l1_parallel_sync.ConfigConsumer{
 		ApplyAfterNumRollupReceived: cfg.L1ParallelSynchronization.PerformanceWarning.ApplyAfterNumRollupReceived,
