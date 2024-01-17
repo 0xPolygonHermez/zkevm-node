@@ -116,11 +116,7 @@ func NewSynchronizer(
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
 		log.Info("L1SynchronizationMode is parallel")
-		var err error
-		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
-		if err != nil {
-			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
-		}
+		res.l1SyncOrchestration = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
 	case SequentialMode:
 		log.Info("L1SynchronizationMode is sequential")
 	default:
@@ -132,7 +128,7 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1_parallel_sync.L1SyncOrchestration, error) {
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) *l1_parallel_sync.L1SyncOrchestration {
 	chIncommingRollupInfo := make(chan l1_parallel_sync.L1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
 	cfgConsumer := l1_parallel_sync.ConfigConsumer{
 		ApplyAfterNumRollupReceived: cfg.L1ParallelSynchronization.PerformanceWarning.ApplyAfterNumRollupReceived,
@@ -161,7 +157,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
 		externalControl.start()
 	}
-	return l1SyncOrchestration, nil
+	return l1SyncOrchestration
 }
 
 // CleanTrustedState Clean cache of TrustedBatches and StateRoot

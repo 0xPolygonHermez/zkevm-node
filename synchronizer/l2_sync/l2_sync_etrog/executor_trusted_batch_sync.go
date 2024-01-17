@@ -22,7 +22,7 @@ var (
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
 	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
-	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
+	//ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 	// ErrCantReprocessBatchMissingPreviousStateBatch can't reprocess a divergent batch because is missing previous state batch
@@ -133,8 +133,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Warnf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
@@ -204,8 +203,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Warnf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
@@ -276,15 +274,15 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return nil
 	}
 	if processBatchResp.NewStateRoot == state.ZeroHash {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, ErrNotExpectedBathResult)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot {
 		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewLocalExitRoot != data.TrustedBatch.LocalExitRoot {
 		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	// We can't check AccInputHash because we dont have timeLimit neither L1InfoRoot used to create the batch
 	// is going to be update from L1
