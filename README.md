@@ -19,7 +19,7 @@ For an in-depth understanding of the protocol’s specifications, please refer t
 
 ## Run a CDK Validium
 
-> This repo is a fork of the [zkevm-node](https://github.com/0xPolygonHermez/zkevm-node)
+> This repo is a fork of the [zkevm-node](https://github.com/0xPolygonHermez/zkevm-node), more information and code diff explained [here](./docs/diff/diff.md)
 
 ### Development
 
