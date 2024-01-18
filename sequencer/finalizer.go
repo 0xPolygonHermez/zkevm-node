@@ -32,13 +32,21 @@ var (
 	mockL1InfoRoot = common.Hash{}
 
 	//TODO: Review with Carlos which zkCounters are used when creating a new l2 block in the wip batch
-	l2BlockUsedResources = state.BatchResources{
+	l2BlockUsedResourcesIndexZero = state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
-			UsedArithmetics:    0,   // nolint:gomnd //TODO: config param
-			UsedBinaries:       20,  // nolint:gomnd //TODO: config param
-			UsedSteps:          284, // nolint:gomnd //TODO: config param
+			UsedPoseidonHashes: 162, // nolint:gomnd //TODO: config param
+			UsedBinaries:       19,  // nolint:gomnd //TODO: config param
+			UsedSteps:          275, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   4,   // nolint:gomnd //TODO: config param
+		},
+		Bytes: changeL2BlockSize,
+	}
+	l2BlockUsedResourcesIndexNonZero = state.BatchResources{
+		ZKCounters: state.ZKCounters{
+			UsedPoseidonHashes: 148, // nolint:gomnd //TODO: config param
+			UsedBinaries:       23,  // nolint:gomnd //TODO: config param
+			UsedSteps:          521, // nolint:gomnd //TODO: config param
+			UsedKeccakHashes:   38,  // nolint:gomnd //TODO: config param
 		},
 		Bytes: changeL2BlockSize,
 	}
@@ -348,7 +356,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
-	executorBatchRequest := state.ProcessRequest{
+	batchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
@@ -361,117 +369,113 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
 	}
 
-	executorBatchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
+	batchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
 		GlobalExitRoot: f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
 		BlockHashL1:    f.wipL2Block.l1InfoTreeExitRoot.PreviousBlockHash,
 		MinTimestamp:   uint64(f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
 	}
 
 	if f.wipL2Block.isEmpty() {
-		executorBatchRequest.Transactions = f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-		executorBatchRequest.SkipFirstChangeL2Block_V2 = false
+		batchRequest.Transactions = f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.getL1InfoTreeIndex())
+		batchRequest.SkipFirstChangeL2Block_V2 = false
 	} else {
-		executorBatchRequest.Transactions = []byte{}
-		executorBatchRequest.SkipFirstChangeL2Block_V2 = true
+		batchRequest.Transactions = []byte{}
+		batchRequest.SkipFirstChangeL2Block_V2 = true
 	}
 
-	hashStr := "nil"
-	if tx != nil {
-		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, tx.RawTx...)
-		hashStr = tx.HashStr
+	batchRequest.Transactions = append(batchRequest.Transactions, tx.RawTx...)
 
-		txGasPrice := tx.GasPrice
+	txGasPrice := tx.GasPrice
 
-		// If it is the first time we process this tx then we calculate the EffectiveGasPrice
-		if firstTxProcess {
-			// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
-			tx.L1GasPrice, tx.L2GasPrice = f.poolIntf.GetL1AndL2GasPrice()
-			// Get the tx and l2 gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
-			txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
+	// If it is the first time we process this tx then we calculate the EffectiveGasPrice
+	if firstTxProcess {
+		// Get L1 gas price and store in txTracker to make it consistent during the lifespan of the transaction
+		tx.L1GasPrice, tx.L2GasPrice = f.poolIntf.GetL1AndL2GasPrice()
+		// Get the tx and l2 gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
+		txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
 
-			// Save values for later logging
-			tx.EGPLog.L1GasPrice = tx.L1GasPrice
-			tx.EGPLog.L2GasPrice = txL2GasPrice
-			tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.GasUsed
-			tx.EGPLog.GasPrice.Set(txGasPrice)
+		// Save values for later logging
+		tx.EGPLog.L1GasPrice = tx.L1GasPrice
+		tx.EGPLog.L2GasPrice = txL2GasPrice
+		tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.GasUsed
+		tx.EGPLog.GasPrice.Set(txGasPrice)
 
-			// Calculate EffectiveGasPrice
-			egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.ZKCounters.GasUsed, tx.L1GasPrice, txL2GasPrice)
-			if err != nil {
-				if f.effectiveGasPrice.IsEnabled() {
-					return nil, err
-				} else {
-					log.Warnf("effectiveGasPrice is disabled, but failed to calculate effectiveGasPrice for tx %s, error: %v", hashStr, err)
-					tx.EGPLog.Error = fmt.Sprintf("CalculateEffectiveGasPrice#1: %s", err)
-				}
-			} else {
-				tx.EffectiveGasPrice.Set(egp)
-
-				// Save first EffectiveGasPrice for later logging
-				tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
-
-				// If EffectiveGasPrice >= txGasPrice, we process the tx with tx.GasPrice
-				if tx.EffectiveGasPrice.Cmp(txGasPrice) >= 0 {
-					tx.EffectiveGasPrice.Set(txGasPrice)
-
-					loss := new(big.Int).Sub(tx.EffectiveGasPrice, txGasPrice)
-					// If loss > 0 the warning message indicating we loss fee for thix tx
-					if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
-						log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, tx: %s", txGasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
-					}
-
-					tx.IsLastExecution = true
-				}
-			}
-		}
-
-		egpPercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
+		// Calculate EffectiveGasPrice
+		egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.ZKCounters.GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if f.effectiveGasPrice.IsEnabled() {
 				return nil, err
 			} else {
-				log.Warnf("effectiveGasPrice is disabled, but failed to to calculate efftive gas price percentage (#1), error: %v", err)
-				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPricePercentage#1: %s", tx.EGPLog.Error, err)
+				log.Warnf("effectiveGasPrice is disabled, but failed to calculate effectiveGasPrice for tx %s, error: %v", tx.HashStr, err)
+				tx.EGPLog.Error = fmt.Sprintf("CalculateEffectiveGasPrice#1: %s", err)
 			}
 		} else {
-			// Save percentage for later logging
-			tx.EGPLog.Percentage = egpPercentage
+			tx.EffectiveGasPrice.Set(egp)
+
+			// Save first EffectiveGasPrice for later logging
+			tx.EGPLog.ValueFirst.Set(tx.EffectiveGasPrice)
+
+			// If EffectiveGasPrice >= txGasPrice, we process the tx with tx.GasPrice
+			if tx.EffectiveGasPrice.Cmp(txGasPrice) >= 0 {
+				tx.EffectiveGasPrice.Set(txGasPrice)
+
+				loss := new(big.Int).Sub(tx.EffectiveGasPrice, txGasPrice)
+				// If loss > 0 the warning message indicating we loss fee for thix tx
+				if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
+					log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, tx: %s", txGasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
+				}
+
+				tx.IsLastExecution = true
+			}
 		}
-
-		// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
-		if !f.effectiveGasPrice.IsEnabled() {
-			egpPercentage = state.MaxEffectivePercentage
-		}
-
-		// Assign applied EGP percentage to tx (TxTracker)
-		tx.EGPPercentage = egpPercentage
-
-		effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
-		if err != nil {
-			return nil, err
-		}
-
-		executorBatchRequest.Transactions = append(executorBatchRequest.Transactions, effectivePercentageAsDecodedHex...)
 	}
 
-	log.Infof("processing tx %s. Batch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, txHash: %s, L1InfoRootIndex: %d",
-		hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, executorBatchRequest.OldStateRoot, hashStr, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+	egpPercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
+	if err != nil {
+		if f.effectiveGasPrice.IsEnabled() {
+			return nil, err
+		} else {
+			log.Warnf("effectiveGasPrice is disabled, but failed to to calculate efftive gas price percentage (#1), error: %v", err)
+			tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPricePercentage#1: %s", tx.EGPLog.Error, err)
+		}
+	} else {
+		// Save percentage for later logging
+		tx.EGPLog.Percentage = egpPercentage
+	}
 
-	processBatchResponse, err := f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, false)
+	// If EGP is disabled we use tx GasPrice (MaxEffectivePercentage=255)
+	if !f.effectiveGasPrice.IsEnabled() {
+		egpPercentage = state.MaxEffectivePercentage
+	}
+
+	// Assign applied EGP percentage to tx (TxTracker)
+	tx.EGPPercentage = egpPercentage
+
+	effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
+	if err != nil {
+		return nil, err
+	}
+
+	batchRequest.Transactions = append(batchRequest.Transactions, effectivePercentageAsDecodedHex...)
+
+	log.Infof("processing tx %s, wipBatch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, L1InfoRootIndex: %d",
+		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchRequest.OldStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+
+	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
 
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
-		log.Errorf("failed to process tx %s, error: %w", hashStr, err)
+		log.Errorf("failed to process tx %s, error: %v", tx.HashStr, err)
 		return nil, err
-	} else if err == nil && !processBatchResponse.IsRomLevelError && len(processBatchResponse.BlockResponses) == 0 && tx != nil {
+	} else if err == nil && !batchResponse.IsRomLevelError && len(batchResponse.BlockResponses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
 		f.Halt(ctx, err)
-	} else if processBatchResponse.IsExecutorLevelError && tx != nil {
+	} else if batchResponse.IsExecutorLevelError {
 		log.Errorf("error received from executor, error: %v", err)
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
 		// Set tx as invalid in the pool
-		errMsg := processBatchResponse.ExecutorError.Error()
+		errMsg := batchResponse.ExecutorError.Error()
 		err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
 		if err != nil {
 			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
@@ -482,19 +486,20 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	}
 
 	oldStateRoot := f.wipBatch.imStateRoot
-	if len(processBatchResponse.BlockResponses) > 0 && tx != nil {
-		errWg, err = f.handleProcessTransactionResponse(ctx, tx, processBatchResponse, oldStateRoot)
+	if len(batchResponse.BlockResponses) > 0 {
+		errWg, err = f.handleProcessTransactionResponse(ctx, tx, batchResponse, oldStateRoot)
 		if err != nil {
 			return errWg, err
 		}
 	}
 
 	// Update wip batch
-	f.wipBatch.imStateRoot = processBatchResponse.NewStateRoot
-	f.wipBatch.localExitRoot = processBatchResponse.NewLocalExitRoot
+	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
+	f.wipBatch.localExitRoot = batchResponse.NewLocalExitRoot
 
-	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s",
-		hashStr, f.wipBatch.batchNumber, executorBatchRequest.BatchNumber, processBatchResponse.NewStateRoot.String(), processBatchResponse.NewLocalExitRoot.String(), oldStateRoot.String())
+	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s, %s",
+		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
+		batchResponse.NewLocalExitRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return nil, nil
 }
@@ -509,9 +514,14 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
 	}
 
+	//TODO: if it's the first tx in the wipL2Block. We must add the estimated l2block used resources to the batch and sustract the counters returned by the executor (it includes the real counters used by the changeL2block tx)
 	// Check remaining resources
-	err = f.checkRemainingResources(result, tx)
+	err = f.checkRemainingResources(result, uint64(len(tx.RawTx)))
 	if err != nil {
+		log.Infof("current tx %s exceeds the remaining batch resources, updating metadata for tx in worker and continuing", tx.HashStr)
+		start := time.Now()
+		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
+		metrics.WorkerProcessingTime(time.Since(start))
 		return nil, err
 	}
 
@@ -575,6 +585,74 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
 
 	return nil, nil
+}
+
+// processEmptyL2Block processes an empty L2 block to update imStateRoot and remaining resources on batch
+func (f *finalizer) processEmptyL2Block(ctx context.Context) error {
+	start := time.Now()
+	defer func() {
+		metrics.ProcessingTime(time.Since(start))
+	}()
+
+	batchRequest := state.ProcessRequest{
+		BatchNumber:               f.wipBatch.batchNumber,
+		OldStateRoot:              f.wipBatch.imStateRoot,
+		Coinbase:                  f.wipBatch.coinbase,
+		L1InfoRoot_V2:             mockL1InfoRoot,
+		TimestampLimit_V2:         uint64(f.wipL2Block.timestamp.Unix()),
+		Caller:                    stateMetrics.SequencerCallerLabel,
+		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
+		SkipWriteBlockInfoRoot_V2: true,
+		SkipVerifyL1InfoRoot_V2:   true,
+		SkipFirstChangeL2Block_V2: false,
+		Transactions:              f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.getL1InfoTreeIndex()),
+		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
+	}
+
+	batchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
+		GlobalExitRoot: f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
+		BlockHashL1:    f.wipL2Block.l1InfoTreeExitRoot.PreviousBlockHash,
+		MinTimestamp:   uint64(f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
+	}
+
+	log.Infof("processing empty l2 block, wipBatch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, L1InfoRootIndex: %d",
+		f.wipBatch.batchNumber, batchRequest.BatchNumber, batchRequest.OldStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+
+	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+
+	if err != nil {
+		return err
+	}
+
+	if batchResponse.ExecutorError != nil {
+		return ErrExecutorError
+	}
+
+	if batchResponse.IsRomOOCError {
+		return ErrProcessBatchOOC
+	}
+
+	if len(batchResponse.BlockResponses) == 0 {
+		return fmt.Errorf("BlockResponses returned by the executor is empty")
+	}
+
+	//TODO: review this. We must add the estimated l2block used resources to the batch and sustract the counters returned by the executor
+	// Check remaining resources
+	// err = f.checkRemainingResources(batchResponse, changeL2BlockSize)
+	// if err != nil {
+	//	log.Errorf("empty L2 block exceeds the remaining batch resources, error: %v", err)
+	//	return err
+	// }
+
+	// Update wip batch
+	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
+	f.wipBatch.localExitRoot = batchResponse.NewLocalExitRoot
+
+	log.Infof("processed empty L2 block %d, batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s, %s",
+		batchResponse.BlockResponses[0].BlockNumber, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
+		batchResponse.NewLocalExitRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
+
+	return nil
 }
 
 // compareTxEffectiveGasPrice compares newEffectiveGasPrice with tx.EffectiveGasPrice.

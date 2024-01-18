@@ -94,7 +94,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		return rollbackOnError(fmt.Errorf("error opening state batch %d for forced batch %d, error: %v", newBatchNumber, forcedBatch.ForcedBatchNumber, err))
 	}
 
-	executorBatchRequest := state.ProcessRequest{
+	batchRequest := state.ProcessRequest{
 		BatchNumber:             newBatchNumber,
 		L1InfoRoot_V2:           forcedBatch.GlobalExitRoot,
 		ForcedBlockHashL1:       fbL1Block.ParentHash,
@@ -107,7 +107,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		Caller:                  stateMetrics.SequencerCallerLabel,
 	}
 
-	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, true)
+	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("failed to process/execute forced batch %d, error: %v", forcedBatch.ForcedBatchNumber, err))
 	}
