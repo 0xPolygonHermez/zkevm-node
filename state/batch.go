@@ -557,7 +557,7 @@ func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, force
 	return batchTimestamp, nil
 }
 
-// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data and the last L1InfoRoot used
+// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data, the last L1InfoRoot used and the highest globalExitRoot used in the batch
 func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]L1DataV2, common.Hash, common.Hash, error) {
 	batchRaw, err := DecodeBatchV2(batchL2Data)
 	if err != nil {
