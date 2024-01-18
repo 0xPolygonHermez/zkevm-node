@@ -408,7 +408,6 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 	}
 	if processedBatch.IsRomOOCError {
 		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
-		//	return common.Hash{}, noFlushID, noProverID, ErrExecutingBatchOOC
 	}
 
 	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError {
