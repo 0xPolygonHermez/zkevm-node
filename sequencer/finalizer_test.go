@@ -1122,7 +1122,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			}
 
 			// act
-			err := f.checkRemainingResources(result, tc.expectedTxTracker)
+			err := f.checkRemainingResources(result, uint64(len(tc.expectedTxTracker.RawTx)))
 
 			// assert
 			if tc.expectedErr != nil {
@@ -1130,11 +1130,6 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 				assert.EqualError(t, err, tc.expectedErr.Error())
 			} else {
 				assert.NoError(t, err)
-			}
-			if tc.expectedWorkerUpdate {
-				workerMock.AssertCalled(t, "UpdateTxZKCounters", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters)
-			} else {
-				workerMock.AssertNotCalled(t, "UpdateTxZKCounters", mock.Anything, mock.Anything, mock.Anything)
 			}
 		})
 	}

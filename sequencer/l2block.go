@@ -15,12 +15,13 @@ import (
 
 // L2Block represents a wip or processed L2 block
 type L2Block struct {
-	timestamp          time.Time
-	deltaTimestamp     uint32
-	initialStateRoot   common.Hash
-	l1InfoTreeExitRoot state.L1InfoTreeExitRootStorageEntry
-	transactions       []*TxTracker
-	batchResponse      *state.ProcessBatchResponse
+	timestamp                 time.Time
+	deltaTimestamp            uint32
+	initialStateRoot          common.Hash
+	l1InfoTreeExitRoot        state.L1InfoTreeExitRootStorageEntry
+	l1InfoTreeExitRootChanged bool
+	transactions              []*TxTracker
+	batchResponse             *state.ProcessBatchResponse
 }
 
 func (b *L2Block) isEmpty() bool {
@@ -32,10 +33,39 @@ func (b *L2Block) addTx(tx *TxTracker) {
 	b.transactions = append(b.transactions, tx)
 }
 
+// getL1InfoTreeIndex returns the L1InfoTreeIndex that must be used when processing/storing the block
+func (b *L2Block) getL1InfoTreeIndex() uint32 {
+	// If the L1InfoTreeIndex has changed in this block then we return the new index, otherwise we return 0
+	if b.l1InfoTreeExitRootChanged {
+		return b.l1InfoTreeExitRoot.L1InfoTreeIndex
+	} else {
+		return 0
+	}
+}
+
+// getUsedResources returns the estimated batch resources used to process the changeL2block tx for this block
+func (b *L2Block) getUsedResources() state.BatchResources {
+	// If the L1InfoTreeIndex has changed we return the resources used when the index != 0,
+	// otherwise we return the used resources when the index = 0
+	if b.l1InfoTreeExitRootChanged {
+		return l2BlockUsedResourcesIndexNonZero
+	} else {
+		return l2BlockUsedResourcesIndexZero
+	}
+}
+
+// getWriteInfoRootUsedResources returns the additional batch resources used when processing
+// this block with the SkipWriteBlockInfoRoot_V2 flag of the executor request to false
+// func (b *L2Block) getWriteInfoRootUsedResources() state.BatchResources {
+// 	if b.l1InfoTreeExitRootChanged {
+// 		return l2BlockUsedResourcesIndexNonZero
+// 	} else {
+// 		return l2BlockUsedResourcesIndexZero
+// 	}
+// }
+
 // initWIPL2Block inits the wip L2 block
 func (f *finalizer) initWIPL2Block(ctx context.Context) {
-	f.wipL2Block = &L2Block{}
-
 	// Wait to l1InfoTree to be updated for first time
 	f.lastL1InfoTreeCond.L.Lock()
 	for !f.lastL1InfoTreeValid {
@@ -43,10 +73,6 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 		f.lastL1InfoTreeCond.Wait()
 	}
 	f.lastL1InfoTreeCond.L.Unlock()
-
-	f.lastL1InfoTreeMux.Lock()
-	f.wipL2Block.l1InfoTreeExitRoot = f.lastL1InfoTree
-	f.lastL1InfoTreeMux.Unlock()
 
 	lastL2Block, err := f.stateIntf.GetLastL2Block(ctx, nil)
 	if err != nil {
@@ -135,9 +161,10 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			// Update finalStateRoot of the batch to the newStateRoot for the L2 block
 			f.wipBatch.finalStateRoot = l2Block.batchResponse.NewStateRoot
 
-			log.Infof("processed L2 block: %d, batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
+			log.Infof("processed L2 block: %d, batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v, %s",
 				blockResponse.BlockNumber, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot, len(l2Block.transactions),
-				len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endProcessing.Sub(startProcessing))
+				len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endProcessing.Sub(startProcessing),
+				f.logZKCounters(batchResponse.UsedZkCounters))
 
 			f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
 
@@ -223,7 +250,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 	batchL2Data := []byte{}
 
 	// Add changeL2Block to batchL2Data
-	changeL2BlockBytes := f.stateIntf.BuildChangeL2Block(l2Block.deltaTimestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+	changeL2BlockBytes := f.stateIntf.BuildChangeL2Block(l2Block.deltaTimestamp, l2Block.getL1InfoTreeIndex())
 	batchL2Data = append(batchL2Data, changeL2BlockBytes...)
 
 	// Add transactions data to batchL2Data
@@ -239,7 +266,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		batchL2Data = append(batchL2Data, txData...)
 	}
 
-	executorBatchRequest := state.ProcessRequest{
+	batchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              l2Block.initialStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
@@ -253,35 +280,35 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		SkipVerifyL1InfoRoot_V2:   true,
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
 	}
-	executorBatchRequest.L1InfoTreeData_V2[l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
+	batchRequest.L1InfoTreeData_V2[l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
 		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
 		BlockHashL1:    l2Block.l1InfoTreeExitRoot.PreviousBlockHash,
 		MinTimestamp:   uint64(l2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
 	}
 
 	var (
-		err    error
-		result *state.ProcessBatchResponse
+		err           error
+		batchResponse *state.ProcessBatchResponse
 	)
 
-	result, err = f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, true)
+	batchResponse, err = f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)
 
 	if err != nil {
 		processL2BLockError(err)
 		return nil, err
 	}
 
-	if result.ExecutorError != nil {
+	if batchResponse.ExecutorError != nil {
 		processL2BLockError(err)
 		return nil, ErrExecutorError
 	}
 
-	if result.IsRomOOCError {
+	if batchResponse.IsRomOOCError {
 		processL2BLockError(err)
 		return nil, ErrProcessBatchOOC
 	}
 
-	return result, nil
+	return batchResponse, nil
 }
 
 // storeL2Block stores the L2 block in the state and updates the related batch and transactions
@@ -324,7 +351,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 
 	// Add changeL2Block to batch.BatchL2Data
 	blockL2Data := []byte{}
-	changeL2BlockBytes := f.stateIntf.BuildChangeL2Block(l2Block.deltaTimestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+	changeL2BlockBytes := f.stateIntf.BuildChangeL2Block(l2Block.deltaTimestamp, l2Block.getL1InfoTreeIndex())
 	blockL2Data = append(blockL2Data, changeL2BlockBytes...)
 
 	// Add transactions data to batch.BatchL2Data
@@ -387,11 +414,11 @@ func (f *finalizer) finalizeL2Block(ctx context.Context) {
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
-	// If the L2 block is empty (no txs) We need to process it to update the state root before closing it
+	// If the L2 block is empty (no txs) We need to process it to update the state root and remaining batch resources before closing it
 	if f.wipL2Block.isEmpty() {
-		log.Debug("processing L2 block because it is empty")
-		if _, err := f.processTransaction(ctx, nil, true); err != nil {
-			f.Halt(ctx, fmt.Errorf("failed to process empty L2 block. Error: %s ", err))
+		log.Debug("processing WIP L2 block because it is empty")
+		if err := f.processEmptyL2Block(ctx); err != nil {
+			f.Halt(ctx, fmt.Errorf("failed to process empty WIP L2 block, error: %v ", err))
 		}
 	}
 
@@ -401,17 +428,6 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 }
 
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
-	err := f.wipBatch.remainingResources.Sub(l2BlockUsedResources)
-
-	// we close the wip batch and open a new one if we got an error when subtracting the l2BlockUsedResources or we have exhausted some resources of the batch
-	if err != nil || f.isBatchResourcesExhausted() {
-		err := f.closeAndOpenNewWIPBatch(ctx)
-		if err != nil {
-			f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
-		}
-	}
-
-	// Initialize wipL2Block to a new L2 block
 	newL2Block := &L2Block{}
 
 	newL2Block.timestamp = now()
@@ -427,7 +443,23 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 	newL2Block.l1InfoTreeExitRoot = f.lastL1InfoTree
 	f.lastL1InfoTreeMux.Unlock()
 
+	// Check if L1InfoTreeIndex has changed, in this case we need to use this index in the changeL2block instead of zero
+	// If it's the first wip L2 block after starting sequencer (wipL2Block == nil) then we assume that the L1InfoTreeIndex has changed (there is no problem assuming this)
+	if f.wipL2Block == nil || newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex {
+		newL2Block.l1InfoTreeExitRootChanged = true
+	}
+
 	f.wipL2Block = newL2Block
+
+	// Check if there are enough counters in the wip batch to store the new wip L2 block
+	err := f.wipBatch.remainingResources.Sub(f.wipL2Block.getUsedResources())
+	// We close the wip batch and open a new one if we got an error when subtracting the getUsedResources or we have exhausted some resources of the batch
+	if err != nil || f.isBatchResourcesExhausted() {
+		err := f.closeAndOpenNewWIPBatch(ctx)
+		if err != nil {
+			f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
+		}
+	}
 
 	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d, l1InfoTreeIndex: %d",
 		f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)

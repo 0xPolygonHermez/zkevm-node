@@ -154,16 +154,6 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 
 	var err error
 
-	//TODO: remove this as it's not necessary in ETROG, in theory is not possible
-	// We need to process the batch to update the state root before closing the batch
-	if f.wipBatch.initialStateRoot == f.wipBatch.finalStateRoot {
-		log.Info("reprocessing batch because the state root has not changed...")
-		_, err = f.processTransaction(ctx, nil, true)
-		if err != nil {
-			return err
-		}
-	}
-
 	// Reprocess full batch as sanity check
 	if f.cfg.SequentialBatchSanityCheck {
 		// Do the full batch reprocess now
@@ -210,7 +200,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	}
 
 	// Subtract the L2 block used resources to batch
-	err = batch.remainingResources.Sub(l2BlockUsedResources)
+	err = batch.remainingResources.Sub(f.wipL2Block.getUsedResources())
 	if err != nil {
 		return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
 	}
@@ -326,7 +316,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		}
 
 		// Log batch detailed info
-		log.Infof("batch %d sanity check: initialStateRoot: %s, expectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
+		log.Errorf("batch %d sanity check error: initialStateRoot: %s, expectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			for j, rawTx := range rawL2block.Transactions {
 				log.Infof("batch %d, block position: %d, tx position: %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
@@ -349,7 +339,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		caller = stateMetrics.SequencerCallerLabel
 	}
 
-	executorBatchRequest := state.ProcessRequest{
+	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
 		L1InfoRoot_V2:           mockL1InfoRoot,
 		OldStateRoot:            initialStateRoot,
@@ -360,33 +350,36 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
 	}
-	executorBatchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
+	batchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
 		log.Errorf("failed to get L1InfoTreeData for batch %d, error: %v", batch.BatchNumber, err)
 		reprocessError(nil)
 		return nil, ErrGetBatchByNumber
 	}
 
-	var result *state.ProcessBatchResponse
+	var batchResponse *state.ProcessBatchResponse
 
-	result, err = f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, false)
+	startProcessing := time.Now()
+	batchResponse, err = f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+	endProcessing := time.Now()
+
 	if err != nil {
 		log.Errorf("failed to process batch %d, error: %v", batch.BatchNumber, err)
 		reprocessError(batch)
 		return nil, ErrProcessBatch
 	}
 
-	if result.ExecutorError != nil {
-		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
+	if batchResponse.ExecutorError != nil {
+		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, batchResponse.ExecutorError)
 		reprocessError(batch)
 		return nil, ErrExecutorError
 	}
 
-	if result.IsRomOOCError {
+	if batchResponse.IsRomOOCError {
 		log.Errorf("failed to process batch %d because OutOfCounters", batch.BatchNumber)
 		reprocessError(batch)
 
-		payload, err := json.Marshal(executorBatchRequest)
+		payload, err := json.Marshal(batchRequest)
 		if err != nil {
 			log.Errorf("error marshaling payload, error: %v", err)
 		} else {
@@ -397,7 +390,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 				Level:       event.Level_Critical,
 				EventID:     event.EventID_ReprocessFullBatchOOC,
 				Description: string(payload),
-				Json:        executorBatchRequest,
+				Json:        batchRequest,
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
@@ -408,33 +401,34 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrProcessBatchOOC
 	}
 
-	if result.NewStateRoot != expectedNewStateRoot {
-		log.Errorf("new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
+	if batchResponse.NewStateRoot != expectedNewStateRoot {
+		log.Errorf("new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), batchResponse.NewStateRoot.String())
 		reprocessError(batch)
 		return nil, ErrStateRootNoMatch
 	}
 
-	log.Infof("successful sanity check for batch %d", batch.BatchNumber)
-	return result, nil
+	log.Infof("successful sanity check for batch %d, initialStateRoot: %s, stateRoot: %s, l2Blocks: %d, time: %v, %s",
+		batch.BatchNumber, initialStateRoot, batchResponse.NewStateRoot.String(), len(batchResponse.BlockResponses),
+		endProcessing.Sub(startProcessing), f.logZKCounters(batchResponse.UsedZkCounters))
+
+	return batchResponse, nil
 }
 
-// checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+// checkRemainingResources checks if the resources passed as parameters fits in the wip batch.
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, bytes uint64) error {
 	usedResources := state.BatchResources{
 		ZKCounters: result.UsedZkCounters,
-		Bytes:      uint64(len(tx.RawTx)),
+		Bytes:      bytes,
 	}
 
-	err := f.wipBatch.remainingResources.Sub(usedResources)
-	if err != nil {
-		log.Infof("current tx %s exceeds the remaining batch resources, updating metadata for tx in worker and continuing", tx.HashStr)
-		start := time.Now()
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return err
-	}
+	return f.wipBatch.remainingResources.Sub(usedResources)
+}
 
-	return nil
+// logZKCounters returns a string with all the zkCounters values
+func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
+	return fmt.Sprintf("gasUsed: %d, keccakHashes: %d, poseidonHashes: %d, poseidonPaddings: %d, memAligns: %d, arithmetics: %d, binaries: %d, sha256Hashes: %d, steps: %d",
+		counters.GasUsed, counters.UsedKeccakHashes, counters.UsedPoseidonHashes, counters.UsedPoseidonPaddings, counters.UsedMemAligns, counters.UsedArithmetics,
+		counters.UsedBinaries, counters.UsedSha256Hashes_V2, counters.UsedSteps)
 }
 
 // isBatchResourcesExhausted checks if one of resources of the wip batch has reached the max value
