@@ -178,7 +178,7 @@ func RomErrorCode(err error) RomError {
 
 // IsROMOutOfCountersError indicates if the error is an ROM OOC
 func IsROMOutOfCountersError(error RomError) bool {
-	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 }
 
 // IsROMOutOfGasError indicates if the error is an ROM OOG
