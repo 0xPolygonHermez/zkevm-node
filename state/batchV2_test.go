@@ -104,3 +104,81 @@ func TestProcessAndStoreClosedBatchV2(t *testing.T) {
 
 	// Add assertions as needed
 }
+
+func TestProcessAndStoreClosedBatchV2ErrorOOC(t *testing.T) {
+	stateCfg := state.Config{
+		MaxCumulativeGasUsed: 800000,
+		ChainID:              1000,
+		MaxLogsCount:         10000,
+		MaxLogsBlockRange:    10000,
+		ForkIDIntervals: []state.ForkIDInterval{{
+			FromBatchNumber: 0,
+			ToBatchNumber:   math.MaxUint64,
+			ForkId:          state.FORKID_ETROG,
+			Version:         "",
+		}},
+	}
+
+	ctx := context.Background()
+	mockStorage := mocks.NewStorageMock(t)
+	mockExecutor := mocks.NewExecutorServiceClientMock(t)
+	testState := state.NewState(stateCfg, mockStorage, mockExecutor, nil, nil, nil)
+	mockStorage.EXPECT().Begin(ctx).Return(mocks.NewDbTxMock(t), nil)
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	processingCtx := state.ProcessingContextV2{
+		BatchNumber:    128,
+		Coinbase:       addr1,
+		Timestamp:      &time2,
+		L1InfoRoot:     hash1,
+		BatchL2Data:    &data1,
+		GlobalExitRoot: hash2,
+	}
+	batchContext := state.ProcessingContext{
+		BatchNumber:    processingCtx.BatchNumber,
+		Coinbase:       processingCtx.Coinbase,
+		Timestamp:      *processingCtx.Timestamp,
+		GlobalExitRoot: processingCtx.GlobalExitRoot,
+		ForcedBatchNum: processingCtx.ForcedBatchNum,
+		BatchL2Data:    processingCtx.BatchL2Data,
+	}
+	latestBatch := state.Batch{
+		BatchNumber: 128,
+	}
+	previousBatch := state.Batch{
+		BatchNumber: 127,
+	}
+
+	executorResponse := executor.ProcessBatchResponseV2{
+		Error:            executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR,
+		ErrorRom:         executor.RomError_ROM_ERROR_OUT_OF_COUNTERS_KECCAK,
+		NewStateRoot:     hash3.Bytes(),
+		NewLocalExitRoot: hash4.Bytes(),
+		NewAccInputHash:  hash5.Bytes(),
+	}
+	// IMPORTANT: GlobalExitRoot is not stored in the close call
+	closingReceipt := state.ProcessingReceipt{
+		BatchNumber:   processingCtx.BatchNumber,
+		StateRoot:     hash3,
+		LocalExitRoot: hash4,
+		AccInputHash:  hash5,
+		BatchL2Data:   *processingCtx.BatchL2Data,
+	}
+	// Call the function under test
+	mockStorage.EXPECT().GetLastBatchNumber(ctx, dbTx).Return(uint64(127), nil)
+	mockStorage.EXPECT().IsBatchClosed(ctx, uint64(127), dbTx).Return(true, nil)
+	mockStorage.EXPECT().GetLastBatchTime(ctx, dbTx).Return(time1, nil)
+	// When calls to OpenBatch doesnt store the BatchL2Data yet
+	batchContext.BatchL2Data = nil
+	mockStorage.EXPECT().OpenBatchInStorage(ctx, batchContext, dbTx).Return(nil)
+	mockStorage.EXPECT().GetLastNBatches(ctx, uint(2), dbTx).Return([]*state.Batch{&latestBatch, &previousBatch}, nil)
+	mockStorage.EXPECT().IsBatchClosed(ctx, uint64(128), dbTx).Return(false, nil)
+	mockStorage.EXPECT().GetForkIDByBatchNumber(uint64(128)).Return(uint64(state.FORKID_ETROG))
+	mockExecutor.EXPECT().ProcessBatchV2(ctx, mock.Anything, mock.Anything).Return(&executorResponse, nil)
+	mockStorage.EXPECT().CloseBatchInStorage(ctx, closingReceipt, dbTx).Return(nil)
+	_, _, _, err = testState.ProcessAndStoreClosedBatchV2(ctx, processingCtx, dbTx, metrics.CallerLabel("test"))
+	require.NoError(t, err)
+
+	// Add assertions as needed
+}

@@ -7,3 +7,17 @@ type SynchronizerFlushIDManager interface {
 	PendingFlushID(flushID uint64, proverID string)
 	CheckFlushID(dbTx pgx.Tx) error
 }
+
+type SynchronizerIsTrustedSequencer interface {
+	IsTrustedSequencer() bool
+}
+
+type SynchronizerCleanTrustedState interface {
+	CleanTrustedState()
+}
+
+type SynchronizerFullInterface interface {
+	SynchronizerFlushIDManager
+	SynchronizerIsTrustedSequencer
+	SynchronizerCleanTrustedState
+}

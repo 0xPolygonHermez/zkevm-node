@@ -289,8 +289,10 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		log.Debug(processBatchResponseToString(res, ""))
 		err = executor.ExecutorErr(res.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, res.Error, batchRequest)
+	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(res.ErrorRom) {
+		log.Warn("OOC error: ", processBatchResponseToString(res, ""))
 	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
-		log.Debug(processBatchResponseToString(res, ""))
+		log.Warn(processBatchResponseToString(res, ""))
 		err = executor.RomErr(res.ErrorRom)
 	}
 	//workarroundDuplicatedBlock(res)
@@ -399,7 +401,6 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 	}
 	if processedBatch.IsRomOOCError {
 		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
-		return common.Hash{}, noFlushID, noProverID, ErrExecutingBatchOOC
 	}
 
 	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError {
