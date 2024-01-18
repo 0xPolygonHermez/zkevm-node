@@ -100,12 +100,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber))
 		}
 
-		// Get las GlobalExitRoot
-		f.lastL1InfoTreeMux.Lock()
-		lastGER := f.lastL1InfoTree.GlobalExitRoot.GlobalExitRoot
-		f.lastL1InfoTreeMux.Unlock()
-
-		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastGER, lastStateBatch.StateRoot, lastStateBatch.LocalExitRoot)
+		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastStateBatch.StateRoot, lastStateBatch.LocalExitRoot)
 		if err != nil {
 			log.Fatalf("failed to open new wip batch, error: %v", err)
 		}
@@ -192,9 +187,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 		f.initWIPL2Block(ctx)
 	}
 
-	currentGER := f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot
-
-	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, currentGER, stateRoot, f.wipBatch.localExitRoot)
+	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot, f.wipBatch.localExitRoot)
 	if err != nil {
 		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
@@ -213,13 +206,13 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 }
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch
-func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, ger, stateRoot, LER common.Hash) (*Batch, error) {
+func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot, LER common.Hash) (*Batch, error) {
 	// open next batch
 	newStateBatch := state.Batch{
 		BatchNumber:    batchNumber,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      now(),
-		GlobalExitRoot: ger,
+		GlobalExitRoot: state.ZeroHash,
 		StateRoot:      stateRoot,
 		LocalExitRoot:  LER,
 	}
