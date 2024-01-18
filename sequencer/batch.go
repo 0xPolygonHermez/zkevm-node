@@ -360,7 +360,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
 	}
-	executorBatchRequest.L1InfoTreeData_V2, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
+	executorBatchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
 		log.Errorf("failed to get L1InfoTreeData for batch %d, error: %v", batch.BatchNumber, err)
 		reprocessError(nil)
