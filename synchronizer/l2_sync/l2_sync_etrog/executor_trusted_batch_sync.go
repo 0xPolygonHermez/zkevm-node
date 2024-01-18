@@ -21,8 +21,6 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
-	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
-	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
 	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
 	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
 	// ErrCantReprocessBatchMissingPreviousStateBatch can't reprocess a divergent batch because is missing previous state batch
@@ -40,7 +38,7 @@ type StateInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
-	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)
 }
 
 // L1SyncChecker is the interface to check if we are synced from L1 to process a batch
@@ -119,7 +117,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		return nil, err
@@ -133,8 +131,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
@@ -186,7 +183,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		return nil, err
 	}
 
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		// TODO: Need to refine, depending of the response of GetL1InfoTreeDataFromBatchL2Data
@@ -204,8 +201,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
@@ -276,15 +272,15 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return nil
 	}
 	if processBatchResp.NewStateRoot == state.ZeroHash {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, ErrNotExpectedBathResult)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot {
 		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewLocalExitRoot != data.TrustedBatch.LocalExitRoot {
 		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	// We can't check AccInputHash because we dont have timeLimit neither L1InfoRoot used to create the batch
 	// is going to be update from L1

@@ -116,11 +116,7 @@ func NewSynchronizer(
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
 		log.Info("L1SynchronizationMode is parallel")
-		var err error
-		res.l1SyncOrchestration, err = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
-		if err != nil {
-			log.Fatalf("Can't initialize L1SyncParallel. Error: %s", err)
-		}
+		res.l1SyncOrchestration = newL1SyncParallel(ctx, cfg, etherManForL1, res, runInDevelopmentMode)
 	case SequentialMode:
 		log.Info("L1SynchronizationMode is sequential")
 	default:
@@ -132,7 +128,7 @@ func NewSynchronizer(
 
 var waitDuration = time.Duration(0)
 
-func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) (*l1_parallel_sync.L1SyncOrchestration, error) {
+func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []EthermanInterface, sync *ClientSynchronizer, runExternalControl bool) *l1_parallel_sync.L1SyncOrchestration {
 	chIncommingRollupInfo := make(chan l1_parallel_sync.L1SyncMessage, cfg.L1ParallelSynchronization.MaxPendingNoProcessedBlocks)
 	cfgConsumer := l1_parallel_sync.ConfigConsumer{
 		ApplyAfterNumRollupReceived: cfg.L1ParallelSynchronization.PerformanceWarning.ApplyAfterNumRollupReceived,
@@ -161,7 +157,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []Etherman
 		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
 		externalControl.start()
 	}
-	return l1SyncOrchestration, nil
+	return l1SyncOrchestration
 }
 
 // CleanTrustedState Clean cache of TrustedBatches and StateRoot
@@ -583,31 +579,14 @@ func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order ma
 			var forkId uint64
 			if batchSequence != nil {
 				forkId = s.state.GetForkIDByBatchNumber(batchSequence.FromBatchNumber)
-				log.Debug("EventOrder:", element.Name, "Batch Sequence: ", batchSequence, "forkId:", forkId)
+				log.Debug("EventOrder: ", element.Name, ". Batch Sequence: ", batchSequence, "forkId: ", forkId)
 			} else {
 				forkId = s.state.GetForkIDByBlockNumber(blocks[i].BlockNumber)
-				log.Debug("EventOrder:", element.Name, "BlockNumber: ", blocks[i].BlockNumber, "forkId:", forkId)
+				log.Debug("EventOrder: ", element.Name, ". BlockNumber: ", blocks[i].BlockNumber, "forkId: ", forkId)
 			}
 			forkIdTyped := actions.ForkIdType(forkId)
-			var err error
-			switch element.Name {
-			case etherman.SequenceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.ForcedBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.GlobalExitRootsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.SequenceForceBatchesOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.TrustedVerifyBatchOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.VerifyBatchOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.ForkIDsOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			case etherman.L1InfoTreeOrder:
-				err = s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
-			}
+			// Process event received from l1
+			err := s.l1EventProcessors.Process(s.ctx, forkIdTyped, element, &blocks[i], dbTx)
 			if err != nil {
 				log.Error("error: ", err)
 				// If any goes wrong we ensure that the state is rollbacked

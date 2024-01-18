@@ -613,7 +613,7 @@ func (_m *StateMock) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeInd
 }
 
 // GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
-func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
+func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error) {
 	ret := _m.Called(ctx, batchL2Data, dbTx)
 
 	if len(ret) == 0 {
@@ -622,8 +622,9 @@ func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batch
 
 	var r0 map[uint32]state.L1DataV2
 	var r1 common.Hash
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)); ok {
+	var r2 common.Hash
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)); ok {
 		return rf(ctx, batchL2Data, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
@@ -642,13 +643,21 @@ func (_m *StateMock) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batch
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) common.Hash); ok {
 		r2 = rf(ctx, batchL2Data, dbTx)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(common.Hash)
+		}
 	}
 
-	return r0, r1, r2
+	if rf, ok := ret.Get(3).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r3 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // GetLastBatch provides a mock function with given fields: ctx, dbTx

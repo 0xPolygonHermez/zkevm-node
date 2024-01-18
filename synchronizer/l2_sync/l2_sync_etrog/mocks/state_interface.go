@@ -240,7 +240,7 @@ func (_c *StateInterface_GetForkIDByBatchNumber_Call) RunAndReturn(run func(uint
 }
 
 // GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
-func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
+func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error) {
 	ret := _m.Called(ctx, batchL2Data, dbTx)
 
 	if len(ret) == 0 {
@@ -249,8 +249,9 @@ func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, 
 
 	var r0 map[uint32]state.L1DataV2
 	var r1 common.Hash
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)); ok {
+	var r2 common.Hash
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)); ok {
 		return rf(ctx, batchL2Data, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
@@ -269,13 +270,21 @@ func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, 
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) common.Hash); ok {
 		r2 = rf(ctx, batchL2Data, dbTx)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(common.Hash)
+		}
 	}
 
-	return r0, r1, r2
+	if rf, ok := ret.Get(3).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r3 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoTreeDataFromBatchL2Data'
@@ -298,12 +307,12 @@ func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Return(_a0 map[uint32]state.L1DataV2, _a1 common.Hash, _a2 error) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Return(_a0 map[uint32]state.L1DataV2, _a1 common.Hash, _a2 common.Hash, _a3 error) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Return(_a0, _a1, _a2, _a3)
 	return _c
 }
 
-func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
+func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
 	_c.Call.Return(run)
 	return _c
 }
