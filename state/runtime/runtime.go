@@ -39,6 +39,8 @@ var (
 	ErrOutOfCountersPadding = errors.New("not enough padding counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
 	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters to continue the execution")
+	// ErrOutOfCountersSha indicates there are not enough sha256 counters to continue the execution
+	ErrOutOfCountersSha = errors.New("not enough sha256 counters to continue the execution")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
@@ -343,16 +345,4 @@ func (r *ExecutionResult) Failed() bool {
 // Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
 	return errors.Is(r.Err, ErrExecutionReverted)
-}
-
-// IsOutOfCounterError checks if the provided error is one
-// of the errors related to out of counters errors
-func IsOutOfCounterError(err error) bool {
-	return errors.Is(err, ErrOutOfCountersArith) ||
-		errors.Is(err, ErrOutOfCountersBinary) ||
-		errors.Is(err, ErrOutOfCountersKeccak) ||
-		errors.Is(err, ErrOutOfCountersMemory) ||
-		errors.Is(err, ErrOutOfCountersPadding) ||
-		errors.Is(err, ErrOutOfCountersPoseidon) ||
-		errors.Is(err, ErrOutOfCountersStep)
 }
