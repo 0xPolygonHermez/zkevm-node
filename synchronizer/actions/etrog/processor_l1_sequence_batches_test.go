@@ -78,7 +78,7 @@ func TestL1SequenceBatchesWrongOrder(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestL1SequenceBatchesNormalBatch(t *testing.T) {
+func TestL1SequenceBatchesPermissionlessNewBatchSequenced(t *testing.T) {
 	mocks := createMocks(t)
 	sut := createSUT(mocks)
 	ctx := context.Background()
