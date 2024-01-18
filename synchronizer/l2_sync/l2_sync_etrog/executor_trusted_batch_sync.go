@@ -131,7 +131,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		log.Warnf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
@@ -201,7 +201,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		log.Warnf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
