@@ -33,7 +33,7 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 	if err != nil {
 		return nil, err
 	}
-
+	isRomOOCError = isRomOOCError || executor.IsROMOutOfCountersError(batchResponse.ErrorRom)
 	readWriteAddresses, err := convertToReadWriteAddressesV2(batchResponse.ReadWriteAddresses)
 	if err != nil {
 		return nil, err
