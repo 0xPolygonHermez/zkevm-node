@@ -38,7 +38,7 @@ type StateInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
-	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)
 }
 
 // L1SyncChecker is the interface to check if we are synced from L1 to process a batch
@@ -117,7 +117,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		return nil, err
@@ -183,7 +183,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		return nil, err
 	}
 
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		// TODO: Need to refine, depending of the response of GetL1InfoTreeDataFromBatchL2Data

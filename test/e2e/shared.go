@@ -159,17 +159,13 @@ func sendForcedBatchForVector(t *testing.T, txs []byte, opsman *operations.Manag
 	tip, err := rollupManager.GetForcedBatchFee(&bind.CallOpts{Pending: false})
 	require.NoError(t, err)
 
-	allowed, err := zkEvm.IsForcedBatchAllowed(&bind.CallOpts{Pending: false})
+	tx, err := zkEvm.SetForceBatchAddress(auth, common.Address{})
 	require.NoError(t, err)
-	if !allowed {
-		tx, err := zkEvm.ActivateForceBatches(auth)
-		require.NoError(t, err)
-		err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
-		require.NoError(t, err)
-	}
+	err = operations.WaitTxToBeMined(ctx, ethClient, tx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
 
 	// Send forceBatch
-	tx, err := zkEvm.ForceBatch(auth, txs, tip)
+	tx, err = zkEvm.ForceBatch(auth, txs, tip)
 	require.NoError(t, err)
 
 	log.Info("Forced Batch Submit to L1 TxHash: ", tx.Hash())

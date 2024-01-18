@@ -101,7 +101,7 @@ func TestL1SequenceBatchesPermissionlessNewBatchSequenced(t *testing.T) {
 			},
 		},
 	})
-	mocks.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mocks.DbTx).Return(map[uint32]state.L1DataV2{}, state.ZeroHash, nil)
+	mocks.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mocks.DbTx).Return(map[uint32]state.L1DataV2{}, state.ZeroHash, state.ZeroHash, nil)
 	mocks.State.EXPECT().GetBatchByNumber(ctx, uint64(3), mocks.DbTx).Return(nil, state.ErrNotFound)
 	mocks.Synchronizer.EXPECT().PendingFlushID(mock.Anything, mock.Anything)
 	mocks.State.EXPECT().AddVirtualBatch(ctx, mock.Anything, mocks.DbTx).Return(nil)
