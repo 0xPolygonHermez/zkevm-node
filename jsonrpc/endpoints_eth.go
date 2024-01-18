@@ -812,7 +812,7 @@ func (e *EthEndpoints) GetTransactionReceipt(hash types.ArgHash) (interface{}, t
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r)
+		receipt, err := types.NewReceipt(*tx, r, state.Ptr(false))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}
