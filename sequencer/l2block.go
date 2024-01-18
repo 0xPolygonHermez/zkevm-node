@@ -56,13 +56,13 @@ func (b *L2Block) getUsedResources() state.BatchResources {
 
 // getWriteInfoRootUsedResources returns the additional batch resources used when processing
 // this block with the SkipWriteBlockInfoRoot_V2 flag of the executor request to false
-func (b *L2Block) getWriteInfoRootUsedResources() state.BatchResources {
-	if b.l1InfoTreeExitRootChanged {
-		return l2BlockUsedResourcesIndexNonZero
-	} else {
-		return l2BlockUsedResourcesIndexZero
-	}
-}
+// func (b *L2Block) getWriteInfoRootUsedResources() state.BatchResources {
+// 	if b.l1InfoTreeExitRootChanged {
+// 		return l2BlockUsedResourcesIndexNonZero
+// 	} else {
+// 		return l2BlockUsedResourcesIndexZero
+// 	}
+// }
 
 // initWIPL2Block inits the wip L2 block
 func (f *finalizer) initWIPL2Block(ctx context.Context) {
