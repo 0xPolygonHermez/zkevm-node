@@ -34,7 +34,7 @@ var (
 	//TODO: Review with Carlos which zkCounters are used when creating a new l2 block in the wip batch
 	l2BlockUsedResourcesIndexZero = state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			UsedPoseidonHashes: 162, // nolint:gomnd //TODO: config param
+			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
 			UsedBinaries:       19,  // nolint:gomnd //TODO: config param
 			UsedSteps:          275, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   4,   // nolint:gomnd //TODO: config param
@@ -43,7 +43,7 @@ var (
 	}
 	l2BlockUsedResourcesIndexNonZero = state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			UsedPoseidonHashes: 148, // nolint:gomnd //TODO: config param
+			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
 			UsedBinaries:       23,  // nolint:gomnd //TODO: config param
 			UsedSteps:          521, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   38,  // nolint:gomnd //TODO: config param
