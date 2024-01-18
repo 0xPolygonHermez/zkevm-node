@@ -245,6 +245,11 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 			continue
 		}
 
+		// L1InfoTreeIndex = 0 is a special case (empty tree) therefore we will set GER as zero
+		if l1InfoRoot.L1InfoTreeIndex == 0 {
+			l1InfoRoot.GlobalExitRoot.GlobalExitRoot = state.ZeroHash
+		}
+
 		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {
 			firstL1InfoRootUpdate = false
 
