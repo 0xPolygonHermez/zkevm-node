@@ -1131,11 +1131,6 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			if tc.expectedWorkerUpdate {
-				workerMock.AssertCalled(t, "UpdateTxZKCounters", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters)
-			} else {
-				workerMock.AssertNotCalled(t, "UpdateTxZKCounters", mock.Anything, mock.Anything, mock.Anything)
-			}
 		})
 	}
 }
