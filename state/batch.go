@@ -563,6 +563,9 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 	if err != nil {
 		return nil, ZeroHash, err
 	}
+	if len(batchRaw.Blocks) == 0 {
+		return map[uint32]L1DataV2{}, ZeroHash, nil
+	}
 
 	l1InfoTreeData := map[uint32]L1DataV2{}
 	maxIndex := findMax(batchRaw.Blocks)

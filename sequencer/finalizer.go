@@ -35,7 +35,7 @@ var (
 	l2BlockUsedResources = state.BatchResources{
 		ZKCounters: state.ZKCounters{
 			UsedPoseidonHashes: 256, // nolint:gomnd //TODO: config param
-			UsedArithmetics:    1,   // nolint:gomnd //TODO: config param
+			UsedArithmetics:    0,   // nolint:gomnd //TODO: config param
 			UsedBinaries:       20,  // nolint:gomnd //TODO: config param
 			UsedSteps:          284, // nolint:gomnd //TODO: config param
 			UsedKeccakHashes:   4,   // nolint:gomnd //TODO: config param
@@ -243,6 +243,11 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 		if err != nil {
 			log.Errorf("error checking latest L1InfoRoot, error: %v", err)
 			continue
+		}
+
+		// L1InfoTreeIndex = 0 is a special case (empty tree) therefore we will set GER as zero
+		if l1InfoRoot.L1InfoTreeIndex == 0 {
+			l1InfoRoot.GlobalExitRoot.GlobalExitRoot = state.ZeroHash
 		}
 
 		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {

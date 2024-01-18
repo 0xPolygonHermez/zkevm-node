@@ -44,7 +44,8 @@ func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNum
           FROM state.l2block bl
 		 INNER JOIN state.batch ba
 		    ON ba.batch_num = bl.batch_num
-         WHERE ba.batch_num = $1`
+         WHERE ba.batch_num = $1
+		 ORDER BY bl.block_num ASC`
 
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, query, batchNumber)

@@ -438,6 +438,10 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorHashDBGRPCError
 	case ExecutorError_EXECUTOR_ERROR_STATE_MANAGER:
 		return runtime.ErrExecutorErrorStateManager
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeIndex
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue
 	}
 	return ErrExecutorUnknown
 }
@@ -666,6 +670,11 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR
 	case runtime.ErrExecutorErrorStateManager:
 		return ExecutorError_EXECUTOR_ERROR_STATE_MANAGER
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeIndex:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE
 	}
+
 	return ErrCodeExecutorUnknown
 }

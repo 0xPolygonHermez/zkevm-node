@@ -76,10 +76,10 @@ var (
 	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
 	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
 	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
-	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error during while executing (limit timestamp)")
-	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error during while executing (min timestamp)")
+	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error while executing (limit timestamp)")
+	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error while executing (min timestamp)")
 
 	// EXECUTOR ERRORS
 	// ===============
@@ -305,6 +305,10 @@ var (
 	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
 	// ErrExecutorErrorStateManager indicates an error in the State Manager
 	ErrExecutorErrorStateManager = errors.New("state Manager error")
+	// ErrExecutorErrorInvalidL1InfoTreeIndex indicates that the ROM asked for an L1InfoTree index that was not present in the input
+	ErrExecutorErrorInvalidL1InfoTreeIndex = errors.New("invalid l1_info_tree_index")
+	// ErrExecutorErrorInvalidL1InfoTreeSmtProofValue indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
+	ErrExecutorErrorInvalidL1InfoTreeSmtProofValue = errors.New("invalid l1_info_tree_smt_proof_value")
 
 	// GRPC ERRORS
 	// ===========

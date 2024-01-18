@@ -27,6 +27,11 @@ const (
 	NothingProcessMode BatchProcessMode = "nothing"
 )
 
+var (
+	// ErrFatalBatchDesynchronized is the error when the batch is desynchronized
+	ErrFatalBatchDesynchronized = fmt.Errorf("batch desynchronized")
+)
+
 // ProcessData contains the data required to process a batch
 type ProcessData struct {
 	BatchNumber       uint64
@@ -34,12 +39,14 @@ type ProcessData struct {
 	OldStateRoot      common.Hash
 	OldAccInputHash   common.Hash
 	BatchMustBeClosed bool
-	// The batch in trusted node, it NEVER will be nil
+	// TrustedBatch The batch in trusted node, it NEVER will be nil
 	TrustedBatch *types.Batch
-	// Current batch in state DB, it could be nil
-	StateBatch  *state.Batch
-	Now         time.Time
-	Description string
+	// StateBatch Current batch in state DB, it could be nil
+	StateBatch *state.Batch
+	// PreviousStateBatch Previous batch in state DB (BatchNumber - 1), it could be nil
+	PreviousStateBatch *state.Batch
+	Now                time.Time
+	Description        string
 	// DebugPrefix is used to log, must prefix all logs entries
 	DebugPrefix string
 }
@@ -203,7 +210,7 @@ func (s *ProcessorTrustedBatchSync) ExecuteProcessBatch(ctx context.Context, pro
 	var err error
 	switch processMode.Mode {
 	case NothingProcessMode:
-		log.Debugf("%s  is already synchronized", processMode.DebugPrefix, processMode.BatchNumber)
+		log.Debugf("%s  no new L2BatchData", processMode.DebugPrefix, processMode.BatchNumber)
 		processBatchResp, err = s.Steps.NothingProcess(ctx, processMode, dbTx)
 	case FullProcessMode:
 		log.Debugf("%s is not on database, so is the first time we process it", processMode.DebugPrefix)
@@ -267,14 +274,18 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			Description:       "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		batchSynced, strSync := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP|CMP_BATCH_IGNORE_WIP)
-		if batchSynced {
+		_, strDiffsBatches := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
+		newL2DataFlag, err := ThereAreNewBatchL2Data(stateBatch.BatchL2Data, trustedNodeBatch.BatchL2Data)
+		if err != nil {
+			return ProcessData{}, err
+		}
+		if !newL2DataFlag {
 			// "The batch from Node, and the one in database are the same, already synchronized",
 			result = ProcessData{
 				Mode:              NothingProcessMode,
 				OldStateRoot:      common.Hash{},
 				BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch) && stateBatch.WIP,
-				Description:       "no new data on batch",
+				Description:       "no new data on batch. Diffs: " + strDiffsBatches,
 			}
 		} else {
 			// We have a previous batch, but in node something change
@@ -284,7 +295,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 					Mode:              IncrementalProcessMode,
 					OldStateRoot:      stateBatch.StateRoot,
 					BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch),
-					Description:       "batch exists + intermediateStateRoot " + strSync,
+					Description:       "batch exists + intermediateStateRoot " + strDiffsBatches,
 				}
 			} else {
 				// We have processed this batch before, but we don't have the intermediate state root, so we need to reprocess all txs.
@@ -292,7 +303,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 					Mode:              ReprocessProcessMode,
 					OldStateRoot:      statePreviousBatch.StateRoot,
 					BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch),
-					Description:       "batch exists + StateRoot==Zero" + strSync,
+					Description:       "batch exists + StateRoot==Zero" + strDiffsBatches,
 				}
 			}
 		}
@@ -303,6 +314,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	result.BatchNumber = uint64(trustedNodeBatch.Number)
 	result.StateBatch = stateBatch
 	result.TrustedBatch = trustedNodeBatch
+	result.PreviousStateBatch = statePreviousBatch
 	result.OldAccInputHash = statePreviousBatch.AccInputHash
 	result.Now = s.timeProvider.Now()
 	result.DebugPrefix = fmt.Sprintf("%s mode %s:", debugPrefix, result.Mode)
@@ -315,10 +327,10 @@ func isTrustedBatchClosed(batch *types.Batch) bool {
 
 func checkStateRootAndLER(batchNumber uint64, expectedStateRoot common.Hash, expectedLER common.Hash, calculatedStateRoot common.Hash, calculatedLER common.Hash) error {
 	if calculatedStateRoot != expectedStateRoot {
-		return fmt.Errorf("batch %v: stareRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedStateRoot, expectedStateRoot)
+		return fmt.Errorf("batch %v: stareRoot calculated [%s] is different from the one in the batch [%s] err:%w", batchNumber, calculatedStateRoot, expectedStateRoot, ErrFatalBatchDesynchronized)
 	}
 	if calculatedLER != expectedLER {
-		return fmt.Errorf("batch %v: LocalExitRoot calculated [%s] is different from the one in the batch [%s]", batchNumber, calculatedLER, expectedLER)
+		return fmt.Errorf("batch %v: LocalExitRoot calculated [%s] is different from the one in the batch [%s] err:%w", batchNumber, calculatedLER, expectedLER, ErrFatalBatchDesynchronized)
 	}
 	return nil
 }
