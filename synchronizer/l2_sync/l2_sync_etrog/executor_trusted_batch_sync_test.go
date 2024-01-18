@@ -70,7 +70,7 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	}
 
 	stateMock.EXPECT().UpdateWIPBatch(ctx, mock.Anything, mock.Anything).Return(nil).Once()
-	stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, expectedStateRoot, nil).Once()
+	stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, expectedStateRoot, common.Hash{}, nil).Once()
 	stateMock.EXPECT().GetForkIDByBatchNumber(batchNumber).Return(uint64(7)).Once()
 
 	processBatchResp := &state.ProcessBatchResponse{
@@ -195,7 +195,7 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 	}
 	testData.stateMock.EXPECT().ResetTrustedState(testData.ctx, data.BatchNumber-1, mock.Anything).Return(nil).Once()
 	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
-	testData.stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(testData.ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, nil).Once()
+	testData.stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(testData.ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, common.Hash{}, nil).Once()
 	testData.stateMock.EXPECT().GetForkIDByBatchNumber(data.BatchNumber).Return(uint64(state.FORKID_ETROG)).Once()
 	testData.syncMock.EXPECT().PendingFlushID(mock.Anything, mock.Anything).Once()
 	testData.stateMock.EXPECT().UpdateWIPBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()

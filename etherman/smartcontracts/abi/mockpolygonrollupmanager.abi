@@ -2,7 +2,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "_globalExitRootManager",
                 "type": "address"
             },
@@ -158,6 +158,11 @@
     {
         "inputs": [],
         "name": "PendingStateNotConsolidable",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "RollupAddressAlreadyExist",
         "type": "error"
     },
     {
@@ -1177,7 +1182,7 @@
         "name": "globalExitRootManager",
         "outputs": [
             {
-                "internalType": "contract IPolygonZkEVMGlobalExitRoot",
+                "internalType": "contract IPolygonZkEVMGlobalExitRootV2",
                 "name": "",
                 "type": "address"
             }
@@ -1260,7 +1265,7 @@
                 "type": "address"
             },
             {
-                "internalType": "contract PolygonZkEVMV2Existent",
+                "internalType": "contract PolygonZkEVMExistentEtrog",
                 "name": "polygonZkEVM",
                 "type": "address"
             },
@@ -1281,44 +1286,6 @@
             }
         ],
         "name": "initialize",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "internalType": "address",
-                "name": "trustedAggregator",
-                "type": "address"
-            },
-            {
-                "internalType": "uint64",
-                "name": "_pendingStateTimeout",
-                "type": "uint64"
-            },
-            {
-                "internalType": "uint64",
-                "name": "_trustedAggregatorTimeout",
-                "type": "uint64"
-            },
-            {
-                "internalType": "address",
-                "name": "admin",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "timelock",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "emergencyCouncil",
-                "type": "address"
-            }
-        ],
-        "name": "initializeMock",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -1363,6 +1330,19 @@
     {
         "inputs": [],
         "name": "lastAggregationTimestamp",
+        "outputs": [
+            {
+                "internalType": "uint64",
+                "name": "",
+                "type": "uint64"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "lastDeactivatedEmergencyStateTimestamp",
         "outputs": [
             {
                 "internalType": "uint64",
