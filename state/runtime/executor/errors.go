@@ -55,6 +55,8 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrOutOfCountersPadding
 	case RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON:
 		return runtime.ErrOutOfCountersPoseidon
+	case RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA:
+		return runtime.ErrOutOfCountersSha
 	case RomError_ROM_ERROR_INVALID_JUMP:
 		return runtime.ErrInvalidJump
 	case RomError_ROM_ERROR_INVALID_OPCODE:
@@ -129,6 +131,8 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_PADDING
 	case runtime.ErrOutOfCountersPoseidon:
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	case runtime.ErrOutOfCountersSha:
+		return RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 	case runtime.ErrInvalidJump:
 		return RomError_ROM_ERROR_INVALID_JUMP
 	case runtime.ErrInvalidOpCode:
