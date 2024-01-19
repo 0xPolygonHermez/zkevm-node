@@ -411,6 +411,18 @@
           }
         }
       ]
+    },
+    {
+      "name": "zkevm_getLatestGlobalExitRoot",
+      "summary": "Returns the latest global exit root.",
+      "params": [
+      ],
+      "result": {
+        "name": "GER",
+          "schema": {
+            "$ref": "#/components/schemas/Keccak"
+          }
+      }
     }
   ],
   "components": {

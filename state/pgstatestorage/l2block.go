@@ -154,8 +154,8 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	e := p.getExecQuerier(dbTx)
 
 	const addL2BlockSQL = `
-        INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at)
-                           VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9)`
+        INSERT INTO state.l2block (block_num, block_hash, header, uncles, parent_hash, state_root, received_at, batch_num, created_at, ger)
+                           VALUES (       $1,         $2,     $3,     $4,          $5,         $6,          $7,        $8,         $9, $10)`
 
 	var header = "{}"
 	if l2Block.Header() != nil {
@@ -178,7 +178,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	if _, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),
-		l2Block.ReceivedAt, batchNumber, time.Now().UTC()); err != nil {
+		l2Block.ReceivedAt, batchNumber, time.Now().UTC(), l2Block.GlobalExitRoot().String()); err != nil {
 		return err
 	}
 
@@ -488,4 +488,21 @@ func buildBlock(header *state.L2Header, transactions []*types.Transaction, uncle
 	l2Block.ReceivedAt = receivedAt
 
 	return l2Block
+}
+
+// GetLatestL2BlockGER gets the last GER that is not zero
+func (p *PostgresStorage) GetLatestL2BlockGER(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	var lastGER string
+	const query = "SELECT ger FROM state.l2block where ger != $1 ORDER BY block_num DESC LIMIT 1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return state.ZeroHash, state.ErrStateNotSynchronized
+	} else if err != nil {
+		return state.ZeroHash, err
+	}
+
+	return common.HexToHash(lastGER), nil
 }

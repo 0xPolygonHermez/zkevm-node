@@ -2586,3 +2586,111 @@ func TestGetExitRootsByGER(t *testing.T) {
 		})
 	}
 }
+
+func TestGetLatestGlobalExitRoot(t *testing.T) {
+	type testCase struct {
+		Name           string
+		ExpectedResult *string
+		ExpectedError  interface{}
+		SetupMocks     func(*mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "GER not found",
+			ExpectedResult: nil,
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
+					Return(nil, state.ErrStateNotSynchronized).
+					Once()
+			},
+		},
+		{
+			Name:           "failed to load GER from state",
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load the last global exit root"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
+					Return(nil, fmt.Errorf("failed to load GER from state")).
+					Once()
+			},
+		},
+		{
+			Name:           "Get latest GER successfully",
+			ExpectedResult: state.Ptr(common.HexToHash("0x1").String()),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
+					Return(common.HexToHash("0x1"), nil).
+					Once()
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
+
+			res, err := s.JSONRPCCall("zkevm_getLatestGlobalExitRoot")
+			require.NoError(t, err)
+
+			if tc.ExpectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var result string
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				assert.Equal(t, *tc.ExpectedResult, result)
+			}
+
+			if tc.ExpectedError != nil {
+				if expectedErr, ok := tc.ExpectedError.(*types.RPCError); ok {
+					assert.Equal(t, expectedErr.ErrorCode(), res.Error.Code)
+					assert.Equal(t, expectedErr.Error(), res.Error.Message)
+				} else {
+					assert.Equal(t, tc.ExpectedError, err)
+				}
+			}
+		})
+	}
+}

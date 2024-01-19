@@ -535,3 +535,19 @@ func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.Bloc
 
 	return block, nil
 }
+
+// GetLatestGlobalExitRoot returns the last global exit root in the state
+func (z *ZKEVMEndpoints) GetLatestGlobalExitRoot() (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		var err error
+
+		ger, err := z.state.GetLatestL2BlockGER(ctx, dbTx)
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			return nil, nil
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "couldn't load the last global exit root", err, true)
+		}
+
+		return ger.String(), nil
+	})
+}

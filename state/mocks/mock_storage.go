@@ -4542,6 +4542,65 @@ func (_c *StorageMock_GetLatestL1InfoRoot_Call) RunAndReturn(run func(context.Co
 	return _c
 }
 
+// GetLatestL2BlockGER provides a mock function with given fields: ctx, dbTx
+func (_m *StorageMock) GetLatestL2BlockGER(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestL2BlockGER")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetLatestL2BlockGER_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestL2BlockGER'
+type StorageMock_GetLatestL2BlockGER_Call struct {
+	*mock.Call
+}
+
+// GetLatestL2BlockGER is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetLatestL2BlockGER(ctx interface{}, dbTx interface{}) *StorageMock_GetLatestL2BlockGER_Call {
+	return &StorageMock_GetLatestL2BlockGER_Call{Call: _e.mock.On("GetLatestL2BlockGER", ctx, dbTx)}
+}
+
+func (_c *StorageMock_GetLatestL2BlockGER_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetLatestL2BlockGER_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetLatestL2BlockGER_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetLatestL2BlockGER_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetLatestL2BlockGER_Call) RunAndReturn(run func(context.Context, pgx.Tx) (common.Hash, error)) *StorageMock_GetLatestL2BlockGER_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLatestVirtualBatchTimestamp provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetLatestVirtualBatchTimestamp(ctx context.Context, dbTx pgx.Tx) (time.Time, error) {
 	ret := _m.Called(ctx, dbTx)

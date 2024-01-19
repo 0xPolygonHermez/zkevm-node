@@ -1232,7 +1232,7 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 	require.Equal(t, virtualBatch, *read)
 	virtualBatch2 := state.VirtualBatch{
 		BlockNumber:         blockNumber,
-		BatchNumber:         batchNumber+1,
+		BatchNumber:         batchNumber + 1,
 		Coinbase:            addr,
 		SequencerAddr:       addr,
 		TxHash:              hash,
@@ -1316,4 +1316,65 @@ func TestGetForcedBatch(t *testing.T) {
 	require.Equal(t, uint64(2002), fb.BlockNumber)
 	require.Equal(t, "0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761", fb.GlobalExitRoot.String())
 	require.Equal(t, []byte{0xb}, fb.RawTxsData)
+}
+
+func TestGetLastGER(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	blockNumber := uint64(1)
+	batchNumber := uint64(1)
+
+	// add l1 block
+	err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
+	require.NoError(t, err)
+
+	// add batch
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num,wip) VALUES ($1, FALSE)", batchNumber)
+	require.NoError(t, err)
+
+	// ger doesn't exist yet
+	_, err = testState.GetLatestL2BlockGER(ctx, dbTx)
+	require.ErrorIs(t, err, state.ErrStateNotSynchronized)
+
+	// add ger 0x1
+	h := state.NewL2Header(&types.Header{Number: big.NewInt(1)})
+	h.GlobalExitRoot = common.HexToHash("0x1")
+	l2Block := state.NewL2Block(h, nil, nil, nil, &trie.StackTrie{})
+
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, nil, nil, dbTx)
+	require.NoError(t, err)
+
+	ger, err := testState.GetLatestL2BlockGER(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x1").String(), ger.String())
+
+	// add ger 0x0
+	h = state.NewL2Header(&types.Header{Number: big.NewInt(2)})
+	h.GlobalExitRoot = common.HexToHash("0x0")
+	l2Block = state.NewL2Block(h, nil, nil, nil, &trie.StackTrie{})
+
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, nil, nil, dbTx)
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestL2BlockGER(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x1").String(), ger.String())
+
+	// add ger 0x2
+	h = state.NewL2Header(&types.Header{Number: big.NewInt(3)})
+	h.GlobalExitRoot = common.HexToHash("0x2")
+	l2Block = state.NewL2Block(h, nil, nil, nil, &trie.StackTrie{})
+
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, nil, nil, dbTx)
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestL2BlockGER(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x2").String(), ger.String())
+
 }
