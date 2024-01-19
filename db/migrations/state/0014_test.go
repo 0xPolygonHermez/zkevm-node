@@ -16,7 +16,7 @@ func (m migrationTest0014) InsertData(db *sql.DB) error {
 
 func (m migrationTest0014) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
 	indexes := []string{
-		"idx_l2block_ger",
+		"idx_batch_global_exit_root",
 	}
 	// Check indexes adding
 	for _, idx := range indexes {
@@ -27,18 +27,11 @@ func (m migrationTest0014) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 1, result)
 	}
-
-	// Check added column
-	const getFinalDeviationColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='l2block' and column_name='ger'`
-	row := db.QueryRow(getFinalDeviationColumn)
-	var result int
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 1, result)
 }
 
 func (m migrationTest0014) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
 	indexes := []string{
-		"idx_l2block_ger",
+		"idx_batch_global_exit_root",
 	}
 	// Check indexes removing
 	for _, idx := range indexes {
@@ -49,13 +42,6 @@ func (m migrationTest0014) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 0, result)
 	}
-
-	// Check removed column
-	const getFinalDeviationColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='l2block' and column_name='ger'`
-	row := db.QueryRow(getFinalDeviationColumn)
-	var result int
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 0, result)
 }
 
 func TestMigration0014(t *testing.T) {
