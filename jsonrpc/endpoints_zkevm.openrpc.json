@@ -414,7 +414,7 @@
     },
     {
       "name": "zkevm_getLatestGlobalExitRoot",
-      "summary": "Returns the latest global exit root.",
+      "summary": "Returns the latest global exit root used in a batch.",
       "params": [
       ],
       "result": {
