@@ -2612,7 +2612,7 @@ func TestGetLatestGlobalExitRoot(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
+					On("GetLatestBatchGlobalExitRoot", context.Background(), m.DbTx).
 					Return(nil, fmt.Errorf("failed to load GER from state")).
 					Once()
 			},
@@ -2633,7 +2633,7 @@ func TestGetLatestGlobalExitRoot(t *testing.T) {
 					Once()
 
 				m.State.
-					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
+					On("GetLatestBatchGlobalExitRoot", context.Background(), m.DbTx).
 					Return(common.HexToHash("0x1"), nil).
 					Once()
 			},

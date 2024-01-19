@@ -1,12 +1,6 @@
 -- +migrate Up
-ALTER TABLE state.l2block
-    ADD COLUMN IF NOT EXISTS ger VARCHAR;
-
-CREATE INDEX IF NOT EXISTS idx_l2block_ger ON state.l2block (ger);
+CREATE INDEX IF NOT EXISTS idx_batch_global_exit_root ON state.batch (global_exit_root);
 
 -- +migrate Down
-DROP INDEX IF EXISTS state.idx_l2block_ger;
-
-ALTER TABLE state.l2block
-    DROP COLUMN IF EXISTS ger;
+DROP INDEX IF EXISTS state.idx_batch_global_exit_root;
     

@@ -489,20 +489,3 @@ func buildBlock(header *state.L2Header, transactions []*types.Transaction, uncle
 
 	return l2Block
 }
-
-// GetLatestL2BlockGER gets the last GER that is not zero
-func (p *PostgresStorage) GetLatestL2BlockGER(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
-	var lastGER string
-	const query = "SELECT ger FROM state.l2block where ger != $1 ORDER BY block_num DESC LIMIT 1"
-
-	q := p.getExecQuerier(dbTx)
-	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return state.ZeroHash, nil
-	} else if err != nil {
-		return state.ZeroHash, err
-	}
-
-	return common.HexToHash(lastGER), nil
-}

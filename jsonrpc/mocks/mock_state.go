@@ -791,12 +791,12 @@ func (_m *StateMock) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx p
 	return r0, r1
 }
 
-// GetLatestL2BlockGER provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetLatestL2BlockGER(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+// GetLatestBatchGlobalExitRoot provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetLatestL2BlockGER")
+		panic("no return value specified for GetLatestBatchGlobalExitRoot")
 	}
 
 	var r0 common.Hash
