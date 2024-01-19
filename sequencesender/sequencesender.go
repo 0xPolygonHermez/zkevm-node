@@ -16,7 +16,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/jackc/pgx/v4"
 )
 
 const (
@@ -33,20 +32,21 @@ var (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg                Config
-	state              stateInterface
-	ethTxManager       ethTxManager
-	etherman           etherman
-	eventLog           *event.EventLog
-	fromStreamBatch    uint64                   // Initial batch to connect to the streaming
-	latestStreamBatch  uint64                   // Latest batch received by the streaming
-	latestVirtualBatch uint64                   // Latest virtualized batch
-	wipBatch           uint64                   // Work in progress batch
-	sequenceList       []uint64                 // Sequence of batch number to be send to L1
-	sequenceData       map[uint64]*sequenceData // All the batch data indexed by batch number
-	validStream        bool
-	mutexSequence      sync.Mutex
-	streamClient       *datastreamer.StreamClient
+	cfg                 Config
+	state               stateInterface
+	ethTxManager        ethTxManager
+	etherman            etherman
+	eventLog            *event.EventLog
+	fromStreamBatch     uint64                   // Initial batch to connect to the streaming
+	latestStreamBatch   uint64                   // Latest batch received by the streaming
+	latestVirtualBatch  uint64                   // Latest virtualized batch
+	latestSentToL1Batch uint64                   // Latest batch sent to L1
+	wipBatch            uint64                   // Work in progress batch
+	sequenceList        []uint64                 // Sequence of batch number to be send to L1
+	sequenceData        map[uint64]*sequenceData // All the batch data indexed by batch number
+	validStream         bool
+	mutexSequence       sync.Mutex
+	streamClient        *datastreamer.StreamClient
 }
 
 type sequenceData struct {
@@ -83,14 +83,14 @@ func (s *SequenceSender) Start(ctx context.Context) {
 		log.Debugf("[SeqSender] new stream client")
 	}
 
+	// Set func to handle the streaming
+	s.streamClient.SetProcessEntryFunc(s.handleReceivedDataStream)
+
 	// Start datastream client
 	err = s.streamClient.Start()
 	if err != nil {
 		log.Fatalf("[SeqSender] failed to start stream client, error: %v", err)
 	}
-
-	// Handle the streaming
-	s.streamClient.SetProcessEntryFunc(s.handleReceivedDataStream)
 
 	// Get latest virtual state batch from L1
 	err = s.updateLatestVirtualBatch()
@@ -107,6 +107,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 
 	// Current batch to sequence
 	s.wipBatch = s.latestVirtualBatch + 1
+	s.latestSentToL1Batch = s.latestVirtualBatch
 
 	// Start receiving the streaming
 	err = s.streamClient.ExecCommand(datastreamer.CmdStart)
@@ -122,19 +123,19 @@ func (s *SequenceSender) Start(ctx context.Context) {
 }
 
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
-	retry := false
 	// process monitored sequences before starting a next cycle
-	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
-		if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-			retry = true
-			mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
-			mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
-		}
-	}, nil)
+	// retry := false
+	// s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
+	// 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
+	// 		retry = true
+	// 		mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
+	// 		mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
+	// 	}
+	// }, nil)
 
-	if retry {
-		return
-	}
+	// if retry {
+	// 	return
+	// }
 
 	// Check if should send sequence to L1
 	log.Debugf("[SeqSender] getting sequences to send")
@@ -169,6 +170,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
 		return
 	}
+
+	s.latestSentToL1Batch = lastSequence.BatchNumber
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
@@ -181,63 +184,40 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		return nil, err
 	}
 
-	s.printSequences()
-
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	sequences := []types.Sequence{}
 	for i := 0; i < len(s.sequenceList); i++ {
 		batchNumber := s.sequenceList[i]
-		if batchNumber <= s.latestVirtualBatch {
+		if batchNumber <= s.latestVirtualBatch || batchNumber <= s.latestSentToL1Batch {
 			continue
 		}
 
-		//Check if the next batch belongs to a new forkid, in this case we need to stop sequencing as we need to
-		//wait the upgrade of forkid is completed and s.cfg.NumBatchForkIdUpgrade is disabled (=0) again
+		// Check if the next batch belongs to a new forkid, in this case we need to stop sequencing as we need to
+		// wait the upgrade of forkid is completed and s.cfg.NumBatchForkIdUpgrade is disabled (=0) again
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber + 1)) {
 			return nil, fmt.Errorf("[SeqSender] aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber+1)
 		}
 
 		// Check if batch is closed
-		isClosed := s.sequenceData[batchNumber].batchClosed
-		if !isClosed {
-			// Reached current (WIP) batch
+		if !s.sequenceData[batchNumber].batchClosed {
+			// Reached current wip batch
 			break
 		}
+
 		// Add new sequence
-		batch := s.sequenceData[batchNumber].batch
-		seq := types.Sequence{
-			GlobalExitRoot: batch.GlobalExitRoot, //TODO: set empty for regular batches
-			Timestamp:      batch.Timestamp,      //TODO: set empty for regular batches
-			BatchL2Data:    batch.BatchL2Data,
-			BatchNumber:    batch.BatchNumber,
-		}
+		batch := *s.sequenceData[batchNumber].batch
+		sequences = append(sequences, batch)
 
-		// if batch.ForcedBatchNum != nil {
-		// 	//TODO: Assign GER, timestamp(forcedAt) and l1block.parentHash to seq
-		// 	forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-
-		// 	// Get L1 block for the forced batch
-		// 	fbL1Block, err := s.state.GetBlockByNumber(ctx, forcedBatch.BlockNumber, nil)
-		// 	if err != nil {
-		// 		return nil, err
-		// 	}
-
-		// 	seq.GlobalExitRoot = forcedBatch.GlobalExitRoot
-		// 	seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
-		// 	seq.PrevBlockHash = fbL1Block.ParentHash
-		// }
-
-		sequences = append(sequences, seq)
 		// Check if can be send
 		tx, err := s.etherman.EstimateGasSequenceBatches(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+		log.Debugf("[SeqSender] estimated gas L1, tx size %d, result %v", tx.Size(), err)
+
 		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
 			metrics.SequencesOvesizedDataError()
 			log.Infof("[SeqSender] oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
 			err = ErrOversizedData
 		}
+
 		if err != nil {
 			log.Infof("[SeqSender] handling estimate gas send sequence error: %v", err)
 			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, batchNumber, err)
@@ -249,7 +229,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return sequences, err
 		}
 
-		//Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
+		// Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (batchNumber == (s.cfg.ForkUpgradeBatchNumber)) {
 			log.Infof("[SeqSender] sequence should be sent to L1, as we have reached the batch %d from which a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber)
 			return sequences, nil
@@ -262,18 +242,19 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		return nil, nil
 	}
 
-	lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
-	if err != nil && !errors.Is(err, state.ErrNotFound) {
-		log.Warnf("[SeqSender] failed to get last l1 interaction time, err: %v. Sending sequences as a conservative approach", err)
-		return sequences, nil
-	}
-	if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
-		log.Info("[SeqSender] sequence should be sent to L1, because too long since didn't send anything to L1")
-		return sequences, nil
-	}
+	// lastBatchVirtualizationTime, err := s.state.GetTimeForLatestBatchVirtualization(ctx, nil)
+	// if err != nil && !errors.Is(err, state.ErrNotFound) {
+	// 	log.Warnf("[SeqSender] failed to get last l1 interaction time, err: %v. Sending sequences as a conservative approach", err)
+	// 	return sequences, nil
+	// }
+	// if lastBatchVirtualizationTime.Before(time.Now().Add(-s.cfg.LastBatchVirtualizationTimeMaxWaitPeriod.Duration)) {
+	// 	log.Info("[SeqSender] sequence should be sent to L1, because too long since didn't send anything to L1")
+	// 	return sequences, nil
+	// }
 
-	log.Info("[SeqSender] not enough time has passed since last batch was virtualized, and the sequence could be bigger")
-	return nil, nil
+	return sequences, nil
+	// log.Info("[SeqSender] not enough time has passed since last batch was virtualized, and the sequence could be bigger")
+	// return nil, nil
 }
 
 // handleEstimateGasSendSequenceErr handles an error on the estimate gas. It will return:
@@ -333,6 +314,7 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 	}
 }
 
+// handleReceivedDataStream manages the events received by the streaming
 func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *datastreamer.StreamClient, ss *datastreamer.StreamServer) error {
 	switch e.Type {
 	case state.EntryTypeL2BlockStart:
@@ -400,13 +382,18 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		// TODO: What should I do
 	}
 
+	if e.Number%20 == 0 {
+		s.printSequences(false)
+	}
+
 	return nil
 }
 
+// addNewSequenceBatch adds a new batch to the sequence
 func (s *SequenceSender) addNewSequenceBatch(l2BlockStart state.DSL2BlockStart) {
 	s.mutexSequence.Lock()
 	if s.sequenceData[l2BlockStart.BatchNumber] == nil {
-		log.Infof("[SeqSender] ..new batch, number %d", l2BlockStart.BatchNumber)
+		log.Infof("[SeqSender] ...new batch, number %d", l2BlockStart.BatchNumber)
 
 		// Create sequence
 		sequence := types.Sequence{
@@ -433,9 +420,10 @@ func (s *SequenceSender) addNewSequenceBatch(l2BlockStart state.DSL2BlockStart) 
 	s.mutexSequence.Unlock()
 }
 
+// addNewBatchL2Block adds a new L2 block to the work in progress batch
 func (s *SequenceSender) addNewBatchL2Block(l2BlockStart state.DSL2BlockStart) {
 	s.mutexSequence.Lock()
-	log.Infof("[SeqSender] ....new L2 block, number %d (batch %d)", l2BlockStart.L2BlockNumber, l2BlockStart.BatchNumber)
+	log.Infof("[SeqSender] .....new L2 block, number %d (batch %d)", l2BlockStart.L2BlockNumber, l2BlockStart.BatchNumber)
 
 	// Current batch
 	wipBatchRaw := s.sequenceData[s.wipBatch].batchRaw
@@ -448,7 +436,6 @@ func (s *SequenceSender) addNewBatchL2Block(l2BlockStart state.DSL2BlockStart) {
 
 	// Get current L2 block
 	blockIndex, blockRaw := s.getWipL2Block()
-
 	if blockRaw == nil {
 		log.Debugf("[SeqSender] wip block %d not found!")
 		return
@@ -456,16 +443,17 @@ func (s *SequenceSender) addNewBatchL2Block(l2BlockStart state.DSL2BlockStart) {
 
 	// Fill in data
 	if blockIndex > 0 {
-		blockRaw.DeltaTimestamp = uint32(time.Now().Unix()) - wipBatchRaw.Blocks[0].DeltaTimestamp
+		blockRaw.DeltaTimestamp = uint32(l2BlockStart.Timestamp) - wipBatchRaw.Blocks[0].DeltaTimestamp
 	} else {
-		blockRaw.DeltaTimestamp = uint32(time.Now().Unix())
+		blockRaw.DeltaTimestamp = uint32(l2BlockStart.Timestamp)
 	}
 	s.mutexSequence.Unlock()
 }
 
+// addNewBlockTx adds a new Tx to the current L2 block
 func (s *SequenceSender) addNewBlockTx(l2Tx state.DSL2Transaction) {
 	s.mutexSequence.Lock()
-	log.Infof("[SeqSender] ......new tx, length %d", l2Tx.EncodedLength)
+	log.Infof("[SeqSender] ........new tx, length %d", l2Tx.EncodedLength)
 
 	// Current L2 block
 	_, blockRaw := s.getWipL2Block()
@@ -480,6 +468,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx state.DSL2Transaction) {
 	s.mutexSequence.Unlock()
 }
 
+// getWipL2Block returns index of the array and pointer to the current L2 block (helper func)
 func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
 	// Current batch
 	var wipBatchRaw *state.BatchRawV2
@@ -490,13 +479,13 @@ func (s *SequenceSender) getWipL2Block() (uint64, *state.L2BlockRaw) {
 	// Current wip block
 	if len(wipBatchRaw.Blocks) > 0 {
 		blockIndex := uint64(len(wipBatchRaw.Blocks)) - 1
-		blockRaw := wipBatchRaw.Blocks[blockIndex]
-		return blockIndex, &blockRaw
+		return blockIndex, &wipBatchRaw.Blocks[blockIndex]
 	} else {
 		return 0, nil
 	}
 }
 
+// updateLatestVirtualBatch queries the value in L1 and updates the latest virtual batch field
 func (s *SequenceSender) updateLatestVirtualBatch() error {
 	// Get latest virtual state batch from L1
 	var err error
@@ -506,12 +495,13 @@ func (s *SequenceSender) updateLatestVirtualBatch() error {
 		log.Errorf("[SeqSender] error getting latest virtual batch, error: %v", err)
 		return errors.New("fail to get latest virtual batch")
 	} else {
-		log.Debugf("[SeqSender] latest virtual batch number %d", s.latestVirtualBatch)
+		log.Debugf("[SeqSender] latest virtual batch %d", s.latestVirtualBatch)
 	}
 	return nil
 }
 
-func (s *SequenceSender) printSequences() {
+// printSequences prints the current values in the memory structures
+func (s *SequenceSender) printSequences(showBlock bool) {
 	for i := 0; i < len(s.sequenceList); i++ {
 		// Batch info
 		batchNumber := s.sequenceList[i]
@@ -528,20 +518,22 @@ func (s *SequenceSender) printSequences() {
 		log.Debugf("[SeqSender] seq %d: batch %d (closed? %t, #blocks: %d, GER: %v)", i, batchNumber, seq.batchClosed, len(raw.Blocks), seq.batch.GlobalExitRoot)
 
 		// Blocks info
-		numBlocks := len(raw.Blocks)
-		var firstBlock *state.L2BlockRaw
-		var lastBlock *state.L2BlockRaw
-		if numBlocks > 0 {
-			firstBlock = &raw.Blocks[0]
-		}
-		if numBlocks > 1 {
-			lastBlock = &raw.Blocks[numBlocks-1]
-		}
-		if firstBlock != nil {
-			log.Debugf("[SeqSender]    block first (delta-timestamp %d, #txs: %d)", firstBlock.DeltaTimestamp, len(firstBlock.Transactions))
-		}
-		if lastBlock != nil {
-			log.Debugf("[SeqSender]    block last (delta-timestamp %d, #txs: %d)", lastBlock.DeltaTimestamp, len(lastBlock.Transactions))
+		if showBlock {
+			numBlocks := len(raw.Blocks)
+			var firstBlock *state.L2BlockRaw
+			var lastBlock *state.L2BlockRaw
+			if numBlocks > 0 {
+				firstBlock = &raw.Blocks[0]
+			}
+			if numBlocks > 1 {
+				lastBlock = &raw.Blocks[numBlocks-1]
+			}
+			if firstBlock != nil {
+				log.Debugf("[SeqSender]    block first (delta-timestamp %d, #txs: %d)", firstBlock.DeltaTimestamp, len(firstBlock.Transactions))
+			}
+			if lastBlock != nil {
+				log.Debugf("[SeqSender]    block last (delta-timestamp %d, #txs: %d)", lastBlock.DeltaTimestamp, len(lastBlock.Transactions))
+			}
 		}
 	}
 }
