@@ -2,7 +2,7 @@ package processor_manager
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/log"
+	// "github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 )
 
@@ -36,28 +36,6 @@ func (p *L1EventProcessorsBuilder) Register(processor actions.L1EventProcessor) 
 			p.Set(forkID, event, processor, true)
 		}
 	}
-}
-
-// AddEventProcessor add a L1EventProcessor. It ask to the processor the supported Id and register
-// if there are a previous object register it will panic.
-// It acts like Register but let to choose the event
-func (p *L1EventProcessorsBuilder) AddEventProcessor(event etherman.EventOrder, processor actions.L1EventProcessor) {
-	p.createResultIfNeeded()
-	for _, forkID := range processor.SupportedForkIds() {
-		if !isIn(processor.SupportedEvents(), event) {
-			log.Warn("event not supported by processor", "event:", event, "processor:", processor.Name(), " forkId:", forkID)
-		}
-		p.Set(forkID, event, processor, true)
-	}
-}
-
-func isIn[T comparable](array []T, value T) bool {
-	for _, v := range array {
-		if v == value {
-			return true
-		}
-	}
-	return false
 }
 
 // Set add a L1EventProcessor. If param panicIfExists is true, will panic if already exists the object

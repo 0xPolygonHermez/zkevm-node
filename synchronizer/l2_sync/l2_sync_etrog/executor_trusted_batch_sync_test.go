@@ -70,7 +70,7 @@ func TestIncrementalProcessUpdateBatchL2DataOnCache(t *testing.T) {
 	}
 
 	stateMock.EXPECT().UpdateWIPBatch(ctx, mock.Anything, mock.Anything).Return(nil).Once()
-	stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, expectedStateRoot, nil).Once()
+	stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, expectedStateRoot, common.Hash{}, nil).Once()
 	stateMock.EXPECT().GetForkIDByBatchNumber(batchNumber).Return(uint64(7)).Once()
 
 	processBatchResp := &state.ProcessBatchResponse{
@@ -110,13 +110,20 @@ func newData() l2_shared.ProcessData {
 		BatchNumber: 123,
 		Mode:        l2_shared.IncrementalProcessMode,
 		DebugPrefix: "test",
-		StateBatch:  &state.Batch{},
+		StateBatch: &state.Batch{
+			BatchNumber:   123,
+			StateRoot:     common.HexToHash(hashExamplesValues[0]),
+			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
+			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
+			WIP:           true,
+		},
 		TrustedBatch: &types.Batch{
 			Number:        123,
 			StateRoot:     common.HexToHash(hashExamplesValues[0]),
 			LocalExitRoot: common.HexToHash(hashExamplesValues[1]),
 			AccInputHash:  common.HexToHash(hashExamplesValues[2]),
 			BatchL2Data:   []byte{1, 2, 3, 4},
+			Closed:        false,
 		},
 	}
 }
@@ -130,6 +137,7 @@ func TestNothingProcessDontCloseBatch(t *testing.T) {
 		BatchMustBeClosed: false,
 		DebugPrefix:       "test",
 		StateBatch:        &state.Batch{},
+		TrustedBatch:      &types.Batch{},
 	}
 
 	response, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
@@ -139,10 +147,72 @@ func TestNothingProcessDontCloseBatch(t *testing.T) {
 	require.Equal(t, true, data.StateBatch.WIP)
 }
 
+func TestNothingProcessDoesntMatchBatchCantProcessBecauseNoPreviousStateBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch: &state.Batch{
+			BatchNumber: 123,
+			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			WIP:         true,
+		},
+		TrustedBatch: &types.Batch{
+			Number:    123,
+			StateRoot: common.HexToHash(hashExamplesValues[0]),
+		},
+		PreviousStateBatch: nil,
+	}
+
+	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
+	require.ErrorIs(t, err, ErrCantReprocessBatchMissingPreviousStateBatch)
+}
+
+func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch: &state.Batch{
+			BatchNumber: 123,
+			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			WIP:         true,
+		},
+		TrustedBatch: &types.Batch{
+			Number:    123,
+			StateRoot: common.HexToHash(hashExamplesValues[0]),
+		},
+		PreviousStateBatch: &state.Batch{
+			BatchNumber: 123,
+			StateRoot:   common.HexToHash(hashExamplesValues[2]),
+		},
+	}
+	testData.stateMock.EXPECT().ResetTrustedState(testData.ctx, data.BatchNumber-1, mock.Anything).Return(nil).Once()
+	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+	testData.stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(testData.ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, common.Hash{}, nil).Once()
+	testData.stateMock.EXPECT().GetForkIDByBatchNumber(data.BatchNumber).Return(uint64(state.FORKID_ETROG)).Once()
+	testData.syncMock.EXPECT().PendingFlushID(mock.Anything, mock.Anything).Once()
+	testData.stateMock.EXPECT().UpdateWIPBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+	processBatchResp := &state.ProcessBatchResponse{
+		NewStateRoot: data.TrustedBatch.StateRoot,
+	}
+	testData.stateMock.EXPECT().ProcessBatchV2(testData.ctx, mock.Anything, true).Return(processBatchResp, nil).Once()
+	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(&state.Batch{}, nil).Once()
+	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+}
+
 func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
 	testData := newTestData(t)
 	// Arrange
 	data := newData()
+	data.StateBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	data.BatchMustBeClosed = true
 	testData.stateMock.EXPECT().CloseBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
 
@@ -156,6 +226,7 @@ func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
 func TestNothingProcessIfNotBatchMustBeClosedThenDoNothing(t *testing.T) {
 	testData := newTestData(t)
 	data := newData()
+	data.StateBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	data.BatchMustBeClosed = false
 	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
 	require.NoError(t, err)

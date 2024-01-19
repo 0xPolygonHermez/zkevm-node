@@ -1,4 +1,4 @@
-package l2_shared
+package test_l2_shared
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 )
@@ -39,29 +40,29 @@ func newExampleTrustedBatch() types.Batch {
 func TestA(t *testing.T) {
 	stateBatch := newExampleStateBatch()
 	trustedBatch := newExampleTrustedBatch()
-	equal, _ := AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_NONE)
+	equal, _ := l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_NONE)
 	require.True(t, equal)
 
 	stateBatch = newExampleStateBatch()
 	trustedBatch = newExampleTrustedBatch()
 	trustedBatch.Number = 2
-	equal, _ = AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_NONE)
+	equal, _ = l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_NONE)
 	require.False(t, equal)
 
 	stateBatch = newExampleStateBatch()
 	trustedBatch = newExampleTrustedBatch()
 	trustedBatch.Timestamp = 123
-	equal, _ = AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_NONE)
+	equal, _ = l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_NONE)
 	require.False(t, equal)
-	equal, _ = AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_IGNORE_TSTAMP)
+	equal, _ = l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP)
 	require.True(t, equal)
 
 	stateBatch = newExampleStateBatch()
 	stateBatch.WIP = true
 	trustedBatch = newExampleTrustedBatch()
 	trustedBatch.Closed = true
-	equal, _ = AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_NONE)
+	equal, _ = l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_NONE)
 	require.False(t, equal)
-	equal, _ = AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, CMP_BATCH_IGNORE_WIP)
+	equal, _ = l2_shared.AreEqualStateBatchAndTrustedBatch(&stateBatch, &trustedBatch, l2_shared.CMP_BATCH_IGNORE_WIP)
 	require.True(t, equal)
 }

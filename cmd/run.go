@@ -38,6 +38,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
@@ -304,7 +305,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
-	etherManForL1 := []synchronizer.EthermanInterface{}
+	etherManForL1 := []syncinterfaces.EthermanFullInterface{}
 	// If synchronizer are using sequential mode, we only need one etherman client
 	if cfg.Synchronizer.L1SynchronizationMode == synchronizer.ParallelMode {
 		for i := 0; i < int(cfg.Synchronizer.L1ParallelSynchronization.MaxClients+1); i++ {

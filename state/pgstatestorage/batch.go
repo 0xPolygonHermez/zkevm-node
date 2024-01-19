@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -482,15 +483,21 @@ func scanForcedBatch(row pgx.Row) (state.ForcedBatch, error) {
 	var (
 		gerStr      string
 		coinbaseStr string
+		rawTxsStr   string
+		err         error
 	)
 	if err := row.Scan(
 		&forcedBatch.ForcedBatchNumber,
 		&gerStr,
 		&forcedBatch.ForcedAt,
-		&forcedBatch.RawTxsData,
+		&rawTxsStr,
 		&coinbaseStr,
 		&forcedBatch.BlockNumber,
 	); err != nil {
+		return forcedBatch, err
+	}
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxsStr)
+	if err != nil {
 		return forcedBatch, err
 	}
 	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
@@ -506,10 +513,15 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *sta
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
+		var l1InfoRoot *string
+		if virtualBatch.L1InfoRoot != nil {
+			l1IR := virtualBatch.L1InfoRoot.String()
+			l1InfoRoot = &l1IR
+		}
 		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog, l1_info_root) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.TimestampBatchEtrog.UTC(), virtualBatch.L1InfoRoot.String())
+			virtualBatch.TimestampBatchEtrog.UTC(), l1InfoRoot)
 		return err
 	}
 }
@@ -760,7 +772,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.local_exit_root,
 			b.acc_input_hash,
 			b.state_root,
-			b.timestamp,
+			v.timestamp_batch_etrog,
 			b.coinbase,
 			b.raw_txs_data,
 			b.forced_batch_num,
@@ -995,4 +1007,21 @@ func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBa
 		return common.Hash{}, err
 	}
 	return common.HexToHash(parentHash), nil
+}
+
+// GetLatestBatchGlobalExitRoot gets the last GER that is not zero from batches
+func (p *PostgresStorage) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	var lastGER string
+	const query = "SELECT global_exit_root FROM state.batch where global_exit_root != $1 ORDER BY batch_num DESC LIMIT 1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return state.ZeroHash, nil
+	} else if err != nil {
+		return state.ZeroHash, err
+	}
+
+	return common.HexToHash(lastGER), nil
 }

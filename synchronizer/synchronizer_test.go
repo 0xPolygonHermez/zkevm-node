@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
@@ -32,10 +33,10 @@ const (
 )
 
 type mocks struct {
-	Etherman     *ethermanMock
-	State        *stateMock
-	Pool         *poolMock
-	EthTxManager *ethTxManagerMock
+	Etherman     *mock_syncinterfaces.EthermanFullInterface
+	State        *mock_syncinterfaces.StateFullInterface
+	Pool         *mock_syncinterfaces.PoolInterface
+	EthTxManager *mock_syncinterfaces.EthTxManager
 	DbTx         *syncMocks.DbTxMock
 	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
 	//EventLog     *eventLogMock
@@ -46,7 +47,7 @@ type mocks struct {
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
 func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -81,7 +82,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 //	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
 func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -118,13 +119,13 @@ func TestForcedBatchEtrog(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman:    newEthermanMock(t),
-		State:       newStateMock(t),
-		Pool:        newPoolMock(t),
+		Etherman:    mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:       mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:        mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
@@ -305,12 +306,14 @@ func TestForcedBatchEtrog(t *testing.T) {
 				Return(trustedBatch, nil).
 				Once()
 
+			var forcedGER common.Hash = sequencedBatch.ForcedGlobalExitRoot
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber:         sequencedBatch.BatchNumber,
 				TxHash:              sequencedBatch.TxHash,
 				Coinbase:            sequencedBatch.Coinbase,
 				BlockNumber:         ethermanBlock.BlockNumber,
 				TimestampBatchEtrog: &t,
+				L1InfoRoot:          &forcedGER,
 			}
 
 			m.State.
@@ -363,13 +366,13 @@ func TestSequenceForcedBatchIncaberry(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman:    newEthermanMock(t),
-		State:       newStateMock(t),
-		Pool:        newPoolMock(t),
+		Etherman:    mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:       mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:        mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
@@ -613,12 +616,12 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 	}
 
 	m := mocks{
-		Etherman:     newEthermanMock(t),
-		State:        newStateMock(t),
-		Pool:         newPoolMock(t),
+		Etherman:     mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:        mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:         mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:         syncMocks.NewDbTxMock(t),
 		ZKEVMClient:  mock_syncinterfaces.NewZKEVMClientInterface(t),
-		EthTxManager: newEthTxManagerMock(t),
+		EthTxManager: mock_syncinterfaces.NewEthTxManager(t),
 		//EventLog:    newEventLogMock(t),
 	}
 	return &genesis, &cfg, &m
@@ -822,7 +825,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		NewStateRoot: batchInTrustedNode.StateRoot,
 	}
 	if etrogMode {
-		m.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(mock.Anything, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, nil).Times(1)
+		m.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(mock.Anything, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, common.Hash{}, nil).Times(1)
 		m.State.EXPECT().ProcessBatchV2(mock.Anything, mock.Anything, mock.Anything).
 			Return(&processedBatch, nil).Times(1)
 		m.State.EXPECT().StoreL2Block(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).

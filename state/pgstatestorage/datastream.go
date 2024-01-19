@@ -11,7 +11,7 @@ import (
 
 // GetDSGenesisBlock returns the genesis block
 func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error) {
-	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.received_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root, '' AS info_root
+	const genesisL2BlockSQL = `SELECT 0 as batch_num, l2b.block_num, l2b.received_at, '0x0000000000000000000000000000000000000000' as global_exit_root, l2b.header->>'miner' AS coinbase, 0 as fork_id, l2b.block_hash, l2b.state_root
 							FROM state.l2block l2b
 							WHERE l2b.block_num  = 0`
 
@@ -29,7 +29,7 @@ func (p *PostgresStorage) GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*
 
 // GetDSL2Blocks returns the L2 blocks
 func (p *PostgresStorage) GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error) {
-	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.received_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root, coalesce(l2b.header->>'blockInfoRoot', '') AS info_root
+	const l2BlockSQL = `SELECT l2b.batch_num, l2b.block_num, l2b.received_at, b.global_exit_root, l2b.header->>'miner' AS coinbase, f.fork_id, l2b.block_hash, l2b.state_root
 						FROM state.l2block l2b, state.batch b, state.fork_id f
 						WHERE l2b.batch_num BETWEEN $1 AND $2 AND l2b.batch_num = b.batch_num AND l2b.batch_num between f.from_batch_num AND f.to_batch_num
 						ORDER BY l2b.block_num ASC`
@@ -61,7 +61,6 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 		timestamp    time.Time
 		blockHashStr string
 		stateRootStr string
-		infoRootStr  string
 	)
 	if err := row.Scan(
 		&l2Block.BatchNumber,
@@ -72,12 +71,10 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 		&l2Block.ForkID,
 		&blockHashStr,
 		&stateRootStr,
-		&infoRootStr,
 	); err != nil {
 		return &l2Block, err
 	}
 	l2Block.GlobalExitRoot = common.HexToHash(gerStr)
-	l2Block.L1InfoRoot = common.HexToHash(infoRootStr)
 	l2Block.Coinbase = common.HexToAddress(coinbaseStr)
 	l2Block.Timestamp = timestamp.Unix()
 	l2Block.BlockHash = common.HexToHash(blockHashStr)
@@ -147,7 +144,7 @@ func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, la
 		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
 
 	if !readWIPBatch {
-		getBatchByNumberSQL += " AND b.state_root is not null"
+		getBatchByNumberSQL += " AND b.wip = false"
 	}
 
 	getBatchByNumberSQL += " ORDER BY b.batch_num ASC"

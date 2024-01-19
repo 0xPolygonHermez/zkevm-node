@@ -22,14 +22,14 @@ type Batch struct {
 	initialStateRoot   common.Hash // initial stateRoot of the batch
 	imStateRoot        common.Hash // intermediate stateRoot that is updated each time a single tx is processed
 	finalStateRoot     common.Hash // final stateroot of the batch when a L2 block is processed
-	localExitRoot      common.Hash
 	countOfTxs         int
+	countOfL2Blocks    int
 	remainingResources state.BatchResources
 	closingReason      state.ClosingReason
 }
 
 func (w *Batch) isEmpty() bool {
-	return w.countOfTxs == 0
+	return w.countOfL2Blocks == 0
 }
 
 // setWIPBatch sets finalizer wip batch to the state batch passed as parameter
@@ -63,7 +63,6 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 		imStateRoot:        wipStateBatch.StateRoot,
 		initialStateRoot:   prevStateBatch.StateRoot,
 		finalStateRoot:     wipStateBatch.StateRoot,
-		localExitRoot:      wipStateBatch.LocalExitRoot,
 		timestamp:          wipStateBatch.Timestamp,
 		countOfTxs:         wipStateBatchCountOfTxs,
 		remainingResources: remainingResources,
@@ -99,12 +98,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber))
 		}
 
-		// Get las GlobalExitRoot
-		f.lastL1InfoTreeMux.Lock()
-		lastGER := f.lastL1InfoTree.GlobalExitRoot.GlobalExitRoot
-		f.lastL1InfoTreeMux.Unlock()
-
-		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastGER, lastStateBatch.StateRoot, lastStateBatch.LocalExitRoot)
+		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastStateBatch.StateRoot)
 		if err != nil {
 			log.Fatalf("failed to open new wip batch, error: %v", err)
 		}
@@ -115,8 +109,8 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 		}
 	}
 
-	log.Infof("initial batch: %d, initialStateRoot: %s, stateRoot: %s, coinbase: %s, LER: %s",
-		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot, f.wipBatch.coinbase, f.wipBatch.localExitRoot)
+	log.Infof("initial batch: %d, initialStateRoot: %s, stateRoot: %s, coinbase: %s",
+		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot, f.wipBatch.coinbase)
 }
 
 // finalizeBatch retries until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
@@ -126,22 +120,19 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
-	var err error
-	f.wipBatch, err = f.closeAndOpenNewWIPBatch(ctx)
-	if err != nil {
-		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
-	}
-
-	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
-}
-
-// closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error) {
 	// Finalize the wip L2 block if it has transactions, if not we keep it open to store it in the new wip batch
 	if !f.wipL2Block.isEmpty() {
 		f.finalizeL2Block(ctx)
 	}
 
+	err := f.closeAndOpenNewWIPBatch(ctx)
+	if err != nil {
+		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
+	}
+}
+
+// closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	// Wait until all L2 blocks are processed by the executor
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
@@ -156,23 +147,13 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 
 	var err error
 
-	//TODO: remove this as it's not necessary in ETROG, in theory is not possible
-	// We need to process the batch to update the state root before closing the batch
-	if f.wipBatch.initialStateRoot == f.wipBatch.finalStateRoot {
-		log.Info("reprocessing batch because the state root has not changed...")
-		_, err = f.processTransaction(ctx, nil, true)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	// Reprocess full batch as sanity check
 	if f.cfg.SequentialBatchSanityCheck {
 		// Do the full batch reprocess now
 		_, err := f.batchSanityCheck(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot)
 		if err != nil {
 			// There is an error reprocessing the batch. We halt the execution of the Sequencer at this point
-			return nil, fmt.Errorf("halting sequencer because of error reprocessing full batch %d (sanity check), error: %v ", f.wipBatch.batchNumber, err)
+			return fmt.Errorf("halting sequencer because of error reprocessing full batch %d (sanity check), error: %v ", f.wipBatch.batchNumber, err)
 		}
 	} else {
 		// Do the full batch reprocess in parallel
@@ -184,7 +165,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 	// Close the wip batch
 	err = f.closeWIPBatch(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to close batch, error: %v", err)
+		return fmt.Errorf("failed to close batch, error: %v", err)
 	}
 
 	log.Infof("batch %d closed", f.wipBatch.batchNumber)
@@ -204,32 +185,34 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) (*Batch, error)
 		f.initWIPL2Block(ctx)
 	}
 
-	currentGER := f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot
-
-	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, currentGER, stateRoot, f.wipBatch.localExitRoot)
+	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open new wip batch, error: %v", err)
+		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
 
 	// Subtract the L2 block used resources to batch
-	err = batch.remainingResources.Sub(l2BlockUsedResources)
+	err = batch.remainingResources.Sub(f.wipL2Block.getUsedResources())
 	if err != nil {
-		return nil, fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
+		return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
 	}
 
-	return batch, nil
+	f.wipBatch = batch
+
+	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
+
+	return nil
 }
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch
-func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, ger, stateRoot, LER common.Hash) (*Batch, error) {
+func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot common.Hash) (*Batch, error) {
 	// open next batch
 	newStateBatch := state.Batch{
 		BatchNumber:    batchNumber,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      now(),
-		GlobalExitRoot: ger,
 		StateRoot:      stateRoot,
-		LocalExitRoot:  LER,
+		GlobalExitRoot: state.ZeroHash,
+		LocalExitRoot:  state.ZeroHash,
 	}
 
 	dbTx, err := f.stateIntf.BeginStateTransaction(ctx)
@@ -250,6 +233,9 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, ger
 		return nil, fmt.Errorf("failed to commit database transaction for opening a wip batch, error: %v", err)
 	}
 
+	// Send batch bookmark to the datastream
+	f.DSSendBatchBookmark(batchNumber)
+
 	// Check if synchronizer is up-to-date
 	for !f.isSynced(ctx) {
 		log.Info("wait for synchronizer to sync last batch")
@@ -263,7 +249,6 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, ger
 		imStateRoot:        newStateBatch.StateRoot,
 		finalStateRoot:     newStateBatch.StateRoot,
 		timestamp:          newStateBatch.Timestamp,
-		localExitRoot:      newStateBatch.LocalExitRoot,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 		closingReason:      state.EmptyClosingReason,
 	}, err
@@ -321,7 +306,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		}
 
 		// Log batch detailed info
-		log.Infof("batch %d sanity check: initialStateRoot: %s, expectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
+		log.Errorf("batch %d sanity check error: initialStateRoot: %s, expectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			for j, rawTx := range rawL2block.Transactions {
 				log.Infof("batch %d, block position: %d, tx position: %d, tx hash: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash())
@@ -344,7 +329,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		caller = stateMetrics.SequencerCallerLabel
 	}
 
-	executorBatchRequest := state.ProcessRequest{
+	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
 		L1InfoRoot_V2:           mockL1InfoRoot,
 		OldStateRoot:            initialStateRoot,
@@ -355,33 +340,36 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
 	}
-	executorBatchRequest.L1InfoTreeData_V2, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
+	batchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
 		log.Errorf("failed to get L1InfoTreeData for batch %d, error: %v", batch.BatchNumber, err)
 		reprocessError(nil)
 		return nil, ErrGetBatchByNumber
 	}
 
-	var result *state.ProcessBatchResponse
+	var batchResponse *state.ProcessBatchResponse
 
-	result, err = f.stateIntf.ProcessBatchV2(ctx, executorBatchRequest, false)
+	startProcessing := time.Now()
+	batchResponse, err = f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+	endProcessing := time.Now()
+
 	if err != nil {
 		log.Errorf("failed to process batch %d, error: %v", batch.BatchNumber, err)
 		reprocessError(batch)
 		return nil, ErrProcessBatch
 	}
 
-	if result.ExecutorError != nil {
-		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, result.ExecutorError)
+	if batchResponse.ExecutorError != nil {
+		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, batchResponse.ExecutorError)
 		reprocessError(batch)
 		return nil, ErrExecutorError
 	}
 
-	if result.IsRomOOCError {
+	if batchResponse.IsRomOOCError {
 		log.Errorf("failed to process batch %d because OutOfCounters", batch.BatchNumber)
 		reprocessError(batch)
 
-		payload, err := json.Marshal(executorBatchRequest)
+		payload, err := json.Marshal(batchRequest)
 		if err != nil {
 			log.Errorf("error marshaling payload, error: %v", err)
 		} else {
@@ -392,7 +380,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 				Level:       event.Level_Critical,
 				EventID:     event.EventID_ReprocessFullBatchOOC,
 				Description: string(payload),
-				Json:        executorBatchRequest,
+				Json:        batchRequest,
 			}
 			err = f.eventLog.LogEvent(ctx, event)
 			if err != nil {
@@ -403,33 +391,34 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrProcessBatchOOC
 	}
 
-	if result.NewStateRoot != expectedNewStateRoot {
-		log.Errorf("new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), result.NewStateRoot.String())
+	if batchResponse.NewStateRoot != expectedNewStateRoot {
+		log.Errorf("new state root mismatch for batch %d, expected: %s, got: %s", batch.BatchNumber, expectedNewStateRoot.String(), batchResponse.NewStateRoot.String())
 		reprocessError(batch)
 		return nil, ErrStateRootNoMatch
 	}
 
-	log.Infof("successful sanity check for batch %d", batch.BatchNumber)
-	return result, nil
+	log.Infof("successful sanity check for batch %d, initialStateRoot: %s, stateRoot: %s, l2Blocks: %d, time: %v, %s",
+		batch.BatchNumber, initialStateRoot, batchResponse.NewStateRoot.String(), len(batchResponse.BlockResponses),
+		endProcessing.Sub(startProcessing), f.logZKCounters(batchResponse.UsedZkCounters))
+
+	return batchResponse, nil
 }
 
-// checkRemainingResources checks if the transaction uses less resources than the remaining ones in the batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, tx *TxTracker) error {
+// checkRemainingResources checks if the resources passed as parameters fits in the wip batch.
+func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, bytes uint64) error {
 	usedResources := state.BatchResources{
 		ZKCounters: result.UsedZkCounters,
-		Bytes:      uint64(len(tx.RawTx)),
+		Bytes:      bytes,
 	}
 
-	err := f.wipBatch.remainingResources.Sub(usedResources)
-	if err != nil {
-		log.Infof("current tx %s exceeds the remaining batch resources, updating metadata for tx in worker and continuing", tx.HashStr)
-		start := time.Now()
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, usedResources.ZKCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return err
-	}
+	return f.wipBatch.remainingResources.Sub(usedResources)
+}
 
-	return nil
+// logZKCounters returns a string with all the zkCounters values
+func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
+	return fmt.Sprintf("gasUsed: %d, keccakHashes: %d, poseidonHashes: %d, poseidonPaddings: %d, memAligns: %d, arithmetics: %d, binaries: %d, sha256Hashes: %d, steps: %d",
+		counters.GasUsed, counters.UsedKeccakHashes, counters.UsedPoseidonHashes, counters.UsedPoseidonPaddings, counters.UsedMemAligns, counters.UsedArithmetics,
+		counters.UsedBinaries, counters.UsedSha256Hashes_V2, counters.UsedSteps)
 }
 
 // isBatchResourcesExhausted checks if one of resources of the wip batch has reached the max value

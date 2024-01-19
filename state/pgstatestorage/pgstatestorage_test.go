@@ -548,13 +548,13 @@ func TestVirtualBatch(t *testing.T) {
 	ti := time.Now()
 	l1InfoR := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	virtualBatch := state.VirtualBatch{
-		BlockNumber:   1,
-		BatchNumber:   1,
-		Coinbase:      addr,
-		SequencerAddr: addr,
-		TxHash:        common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
+		BlockNumber:         1,
+		BatchNumber:         1,
+		Coinbase:            addr,
+		SequencerAddr:       addr,
+		TxHash:              common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1"),
 		TimestampBatchEtrog: &ti,
-		L1InfoRoot:    &l1InfoR,
+		L1InfoRoot:          &l1InfoR,
 	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
@@ -1212,19 +1212,38 @@ func TestGetVirtualBatchWithTstamp(t *testing.T) {
 	// add batch
 	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, timestamp, wip) VALUES ($1,$2, false)", batchNumber, timestampBatch)
 	require.NoError(t, err)
-
-	virtualBatch := state.VirtualBatch{BlockNumber: blockNumber,
+	_, err = testState.Exec(ctx, "INSERT INTO state.batch (batch_num, timestamp, wip) VALUES ($1,$2, false)", batchNumber+1, timestampBatch)
+	require.NoError(t, err)
+	l1InfoRoot := common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f2")
+	virtualBatch := state.VirtualBatch{
+		BlockNumber:         blockNumber,
 		BatchNumber:         batchNumber,
 		Coinbase:            addr,
 		SequencerAddr:       addr,
 		TxHash:              hash,
-		TimestampBatchEtrog: &virtualTimestampBatch}
+		TimestampBatchEtrog: &virtualTimestampBatch,
+		L1InfoRoot:          &l1InfoRoot,
+	}
 	err = testState.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	require.NoError(t, err)
 
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, virtualBatch, *read)
+	virtualBatch2 := state.VirtualBatch{
+		BlockNumber:         blockNumber,
+		BatchNumber:         batchNumber + 1,
+		Coinbase:            addr,
+		SequencerAddr:       addr,
+		TxHash:              hash,
+		TimestampBatchEtrog: &virtualTimestampBatch,
+	}
+	err = testState.AddVirtualBatch(ctx, &virtualBatch2, dbTx)
+	require.NoError(t, err)
+
+	read, err = testState.GetVirtualBatch(ctx, batchNumber+1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, virtualBatch2, *read)
 	forcedForkId := uint64(state.FORKID_ETROG)
 	timeData, err := testState.GetBatchTimestamp(ctx, batchNumber, &forcedForkId, dbTx)
 	require.NoError(t, err)
@@ -1271,4 +1290,107 @@ func TestGetVirtualBatchWithNoTstamp(t *testing.T) {
 	read, err := testState.GetVirtualBatch(ctx, batchNumber, dbTx)
 	require.NoError(t, err)
 	require.Equal(t, (*time.Time)(nil), read.TimestampBatchEtrog)
+}
+
+func TestGetForcedBatch(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	block1 := *block
+	block1.BlockNumber = 2002
+	err = testState.AddBlock(ctx, &block1, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+	dbTx, err = testState.BeginStateTransaction(ctx)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	require.NoError(t, err)
+	_, err = testState.Exec(ctx, "INSERT INTO state.forced_batch (forced_batch_num, global_exit_root,timestamp, raw_txs_data,coinbase, block_num) "+
+		"VALUES (1,'0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761','2024-01-11 12:01:01.000 +0100','0b','010203',2002)")
+	require.NoError(t, err)
+	fb, err := testState.GetForcedBatch(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), fb.ForcedBatchNumber)
+	require.Equal(t, uint64(2002), fb.BlockNumber)
+	require.Equal(t, "0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761", fb.GlobalExitRoot.String())
+	require.Equal(t, []byte{0xb}, fb.RawTxsData)
+}
+
+func TestGetLastGER(t *testing.T) {
+	initOrResetDB()
+
+	ctx := context.Background()
+	dbTx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, dbTx.Commit(ctx)) }()
+
+	blockNumber := uint64(1)
+	batchNumber := uint64(1)
+	query := "INSERT INTO state.batch (batch_num,wip,global_exit_root) VALUES ($1, FALSE, $2)"
+
+	// add l1 block
+	err = testState.AddBlock(ctx, state.NewBlock(blockNumber), dbTx)
+	require.NoError(t, err)
+
+	// ger doesn't exist yet
+	ger, err := testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x0").String(), ger.String())
+
+	// add ger 0x0
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x0").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x0").String(), ger.String())
+
+	// add ger 0x1
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x1").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x1").String(), ger.String())
+
+	// add ger 0x0
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x0").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x1").String(), ger.String())
+
+	// add ger 0x0
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x0").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x1").String(), ger.String())
+
+	// add ger 0x2
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x2").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x2").String(), ger.String())
+
+	// add ger 0x0
+	batchNumber++
+	_, err = testState.Exec(ctx, query, batchNumber, common.HexToHash("0x0").String())
+	require.NoError(t, err)
+
+	ger, err = testState.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x2").String(), ger.String())
+
 }

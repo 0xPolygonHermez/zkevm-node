@@ -557,19 +557,27 @@ func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, force
 	return batchTimestamp, nil
 }
 
-// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data and the last L1InfoRoot used
-func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]L1DataV2, common.Hash, error) {
+// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data, the last L1InfoRoot used and the highest globalExitRoot used in the batch
+func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]L1DataV2, common.Hash, common.Hash, error) {
 	batchRaw, err := DecodeBatchV2(batchL2Data)
 	if err != nil {
-		return nil, ZeroHash, err
+		return nil, ZeroHash, ZeroHash, err
+	}
+	if len(batchRaw.Blocks) == 0 {
+		return map[uint32]L1DataV2{}, ZeroHash, ZeroHash, nil
 	}
 
 	l1InfoTreeData := map[uint32]L1DataV2{}
 	maxIndex := findMax(batchRaw.Blocks)
 	l1InfoTreeExitRoot, err := s.GetL1InfoRootLeafByIndex(ctx, maxIndex, dbTx)
 	if err != nil {
-		return nil, ZeroHash, err
+		return nil, ZeroHash, ZeroHash, err
 	}
+	maxGER := l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot
+	if maxIndex == 0 {
+		maxGER = ZeroHash
+	}
+
 	l1InfoRoot := l1InfoTreeExitRoot.L1InfoTreeRoot
 	for _, l2blockRaw := range batchRaw.Blocks {
 		// Index 0 is a special case, it means that the block is not changing GlobalExitRoot.
@@ -579,7 +587,7 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 			if !found {
 				l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
 				if err != nil {
-					return nil, ZeroHash, err
+					return nil, l1InfoRoot, maxGER, err
 				}
 
 				l1Data := L1DataV2{
@@ -593,7 +601,7 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 		}
 	}
 
-	return l1InfoTreeData, l1InfoRoot, nil
+	return l1InfoTreeData, l1InfoRoot, maxGER, nil
 }
 
 func findMax(blocks []L2BlockRaw) uint32 {

@@ -18,6 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -105,7 +106,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
-			logError := !runtime.IsOutOfCounterError(err) && !errors.Is(err, runtime.ErrOutOfGas)
+			logError := !executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) && !errors.Is(err, runtime.ErrOutOfGas)
 			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
@@ -436,6 +437,10 @@ func (e *EthEndpoints) GetFilterChanges(filterID string) (interface{}, types.Err
 	case FilterTypeLog:
 		{
 			filterParameters := filter.Parameters.(LogFilter)
+			if filterParameters.FromBlock == nil {
+				bn := types.BlockNumber(0)
+				filterParameters.FromBlock = &bn
+			}
 			filterParameters.Since = &filter.LastPoll
 
 			resInterface, err := e.internalGetLogs(context.Background(), nil, filterParameters)
@@ -485,6 +490,11 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
+	if filter.FromBlock == nil {
+		l := types.LatestBlockNumber
+		filter.FromBlock = &l
+	}
+
 	fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, dbTx)
 	if rpcErr != nil {
 		return nil, rpcErr
@@ -802,7 +812,7 @@ func (e *EthEndpoints) GetTransactionReceipt(hash types.ArgHash) (interface{}, t
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r)
+		receipt, err := types.NewReceipt(*tx, r, state.Ptr(false))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}

@@ -371,7 +371,7 @@ func (z *ZKEVMEndpoints) GetTransactionReceiptByL2Hash(hash types.ArgHash) (inte
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r)
+		receipt, err := types.NewReceipt(*tx, r, state.Ptr(true))
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}
@@ -462,6 +462,7 @@ func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNum
 		}
 
 		txGasPrice := new(big.Int).SetUint64(gasPrices.L2GasPrice) // by default we assume the tx gas price is the current L2 gas price
+		txEGPPct := state.MaxEffectivePercentage
 		egpEnabled := z.pool.EffectiveGasPriceEnabled()
 
 		if egpEnabled {
@@ -476,11 +477,19 @@ func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNum
 			}
 
 			if txEGP.Cmp(txGasPrice) == -1 { // txEGP < txGasPrice
-				txGasPrice = txEGP
+				// We need to "round" the final effectiveGasPrice to a 256 fraction of the txGasPrice
+				txEGPPct, err = z.pool.CalculateEffectiveGasPricePercentage(txGasPrice, txEGP)
+				if err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to calculate effective gas price percentage", err, false)
+				}
+				// txGasPriceFraction = txGasPrice/256
+				txGasPriceFraction := new(big.Int).Div(txGasPrice, new(big.Int).SetUint64(256)) //nolint:gomnd
+				// txGasPrice = txGasPriceFraction*(txEGPPct+1)
+				txGasPrice = new(big.Int).Mul(txGasPriceFraction, new(big.Int).SetUint64(uint64(txEGPPct+1)))
 			}
 
-			log.Infof("[EstimateFee] gasPrice: %d, effectiveGasPrice: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
-				txGasPrice, txEGP, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
+			log.Infof("[EstimateFee] finalGasPrice: %d, effectiveGasPrice: %d, egpPct: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
+				txGasPrice, txEGP, txEGPPct, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
 		}
 
 		fee := new(big.Int).Mul(txGasPrice, new(big.Int).SetUint64(gasEstimation))
@@ -525,4 +534,18 @@ func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.Bloc
 	}
 
 	return block, nil
+}
+
+// GetLatestGlobalExitRoot returns the last global exit root used by l2
+func (z *ZKEVMEndpoints) GetLatestGlobalExitRoot() (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		var err error
+
+		ger, err := z.state.GetLatestBatchGlobalExitRoot(ctx, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "couldn't load the last global exit root", err, true)
+		}
+
+		return ger.String(), nil
+	})
 }

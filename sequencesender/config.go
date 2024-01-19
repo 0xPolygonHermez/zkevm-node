@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -12,6 +13,9 @@ type Config struct {
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
+	// L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before
+	// to send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater
+	L1BlockTimestampMargin types.Duration `mapstructure:"L1BlockTimestampMargin"`
 	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
 	// non-trivial consequences: larger transactions than 128KB are significantly harder and
 	// more expensive to propagate; larger transactions also take more resources
@@ -38,4 +42,15 @@ type Config struct {
 	// gas offset: 100
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
+
+	// StreamClientCfg is the config for the stream client
+	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
+}
+
+// StreamClientCfg contains the data streamer's configuration properties
+type StreamClientCfg struct {
+	// Datastream server to connect
+	Server string `mapstructure:"Server"`
+	// Log is the log configuration
+	Log log.Config `mapstructure:"Log"`
 }

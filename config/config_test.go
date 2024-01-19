@@ -141,6 +141,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
+			path:          "SequenceSender.L1BlockTimestampMargin",
+			expectedValue: types.NewDuration(30 * time.Second),
+		},
+		{
 			path:          "SequenceSender.MaxTxSizeForL1",
 			expectedValue: uint64(131072),
 		},
@@ -296,6 +300,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.EffectiveGasPrice.FinalDeviationPct",
 			expectedValue: uint64(10),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferGasPrice",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor",
+			expectedValue: float64(0),
 		},
 		{
 			path:          "Pool.DB.User",

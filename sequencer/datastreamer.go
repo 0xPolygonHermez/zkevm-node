@@ -14,7 +14,6 @@ func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.Proce
 			L2BlockNumber:  blockResponse.BlockNumber,
 			Timestamp:      int64(blockResponse.Timestamp),
 			L1BlockHash:    blockResponse.BlockHashL1,
-			L1InfoRoot:     blockResponse.BlockInfoRoot,
 			GlobalExitRoot: blockResponse.GlobalExitRoot,
 			Coinbase:       f.sequencerAddress,
 			ForkID:         uint16(forkID),
@@ -48,4 +47,15 @@ func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.Proce
 	}
 
 	return nil
+}
+
+func (f *finalizer) DSSendBatchBookmark(batchNumber uint64) {
+	// Check if stream server enabled
+	if f.streamServer != nil {
+		// Send batch bookmark to the streamer
+		f.dataToStream <- state.DSBookMark{
+			Type:  state.BookMarkTypeBatch,
+			Value: batchNumber,
+		}
+	}
 }

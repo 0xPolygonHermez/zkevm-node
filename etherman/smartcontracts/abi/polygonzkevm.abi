@@ -72,6 +72,16 @@
     },
     {
         "inputs": [],
+        "name": "ForceBatchesDecentralized",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "ForceBatchesNotAllowedOnEmergencyState",
+        "type": "error"
+    },
+    {
+        "inputs": [],
         "name": "ForceBatchesOverflow",
         "type": "error"
     },
@@ -93,6 +103,11 @@
     {
         "inputs": [],
         "name": "HaltTimeoutNotExpired",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "HaltTimeoutNotExpiredAfterEmergencyState",
         "type": "error"
     },
     {
@@ -270,12 +285,6 @@
     },
     {
         "anonymous": false,
-        "inputs": [],
-        "name": "ActivateForceBatches",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
         "inputs": [
             {
                 "indexed": true,
@@ -380,6 +389,19 @@
         "inputs": [
             {
                 "indexed": false,
+                "internalType": "address",
+                "name": "newForceBatchAddress",
+                "type": "address"
+            }
+        ],
+        "name": "SetForceBatchAddress",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
                 "internalType": "uint64",
                 "name": "newforceBatchTimeout",
                 "type": "uint64"
@@ -425,6 +447,37 @@
             }
         ],
         "name": "TransferAdminRole",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "uint64",
+                "name": "numBatch",
+                "type": "uint64"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes",
+                "name": "transactions",
+                "type": "bytes"
+            },
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "lastGlobalExitRoot",
+                "type": "bytes32"
+            },
+            {
+                "indexed": false,
+                "internalType": "address",
+                "name": "sequencer",
+                "type": "address"
+            }
+        ],
+        "name": "UpdateEtrogSequence",
         "type": "event"
     },
     {
@@ -571,6 +624,19 @@
     },
     {
         "inputs": [],
+        "name": "SET_UP_ETROG_TX",
+        "outputs": [
+            {
+                "internalType": "bytes",
+                "name": "",
+                "type": "bytes"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "SIGNATURE_INITIALIZE_TX_R",
         "outputs": [
             {
@@ -611,13 +677,6 @@
     {
         "inputs": [],
         "name": "acceptAdminRole",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "activateForceBatches",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
@@ -681,6 +740,19 @@
     },
     {
         "inputs": [],
+        "name": "forceBatchAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "forceBatchTimeout",
         "outputs": [
             {
@@ -706,19 +778,6 @@
                 "internalType": "bytes32",
                 "name": "",
                 "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "gapLastTimestamp",
-        "outputs": [
-            {
-                "internalType": "uint64",
-                "name": "",
-                "type": "uint64"
             }
         ],
         "stateMutability": "view",
@@ -836,16 +895,36 @@
         "type": "function"
     },
     {
-        "inputs": [],
-        "name": "isForcedBatchAllowed",
-        "outputs": [
+        "inputs": [
             {
-                "internalType": "bool",
-                "name": "",
-                "type": "bool"
+                "internalType": "address",
+                "name": "_admin",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_trustedSequencer",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_trustedSequencerURL",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_networkName",
+                "type": "string"
+            },
+            {
+                "internalType": "bytes32",
+                "name": "_lastAccInputHash",
+                "type": "bytes32"
             }
         ],
-        "stateMutability": "view",
+        "name": "initializeUpgrade",
+        "outputs": [],
+        "stateMutability": "nonpayable",
         "type": "function"
     },
     {
@@ -1033,6 +1112,19 @@
             }
         ],
         "name": "sequenceForceBatches",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newForceBatchAddress",
+                "type": "address"
+            }
+        ],
+        "name": "setForceBatchAddress",
         "outputs": [],
         "stateMutability": "nonpayable",
         "type": "function"
