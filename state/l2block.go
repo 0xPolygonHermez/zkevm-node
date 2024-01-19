@@ -12,7 +12,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/jackc/pgx/v4"
 )
 
 type gethHeader struct {
@@ -311,49 +310,4 @@ func (s *State) handleEvents() {
 		}
 		wg.Wait()
 	}
-}
-
-func (s *State) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *L2Block, receipts []*types.Receipt, txsEGPData []StoreTxEGPData, dbTx pgx.Tx) error {
-	// if the block has a zeroed GER we propagate the GER from the latest block
-	ger := l2Block.GlobalExitRoot().String()
-	zero := ZeroHash.String()
-	if l2Block != nil && ger == zero {
-		// if latestBlock is not loaded yet
-		if s.latestL2Block == nil {
-			// lock
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			// double check to avoid loading it by multiple unlocked go routines
-			if s.latestL2Block == nil {
-				// load latest block
-				var err error
-				s.latestL2Block, err = s.storage.GetLastL2Block(ctx, dbTx)
-				if errors.Is(err, ErrStateNotSynchronized) {
-					// if the state is not synchronized, we add the block as is
-					err := s.storage.AddL2Block(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
-					if err != nil {
-						return err
-					}
-
-					// update the latestBlock in memory
-					s.latestL2Block = l2Block
-					return nil
-				} else if err != nil {
-					return err
-				}
-			}
-		}
-		// replace the zeroed GER by the latestBlock GER
-		l2Block.header.GlobalExitRoot = s.latestL2Block.GlobalExitRoot()
-	}
-
-	// add the block
-	err := s.storage.AddL2Block(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
-	if err != nil {
-		return err
-	}
-
-	// update the latestBlock in memory
-	s.latestL2Block = l2Block
-	return nil
 }

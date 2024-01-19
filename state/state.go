@@ -37,9 +37,6 @@ type State struct {
 	eventLog       *event.EventLog
 	l1InfoTree     *l1infotree.L1InfoTree
 
-	mu            *sync.Mutex
-	latestL2Block *L2Block
-
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
@@ -60,7 +57,6 @@ func NewState(cfg Config, storage storage, executorClient executor.ExecutorServi
 		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 		l1InfoTree:              mt,
-		mu:                      &sync.Mutex{},
 	}
 
 	return state
