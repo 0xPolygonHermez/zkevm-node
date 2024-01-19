@@ -369,10 +369,17 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
 		StateRoot:      l2Block.batchResponse.NewStateRoot,
-		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
 		LocalExitRoot:  l2Block.batchResponse.NewLocalExitRoot,
 		BatchL2Data:    batch.BatchL2Data,
 		BatchResources: batch.Resources,
+	}
+
+	// We need to update the batch GER only in the GER of the block (response) is not zero, since the final GER stored in the batch
+	// must be the last GER from the blocks that is not zero (last L1InfoRootIndex change)
+	if blockResponse.GlobalExitRoot != state.ZeroHash {
+		receipt.GlobalExitRoot = blockResponse.GlobalExitRoot
+	} else {
+		receipt.GlobalExitRoot = batch.GlobalExitRoot
 	}
 
 	err = f.stateIntf.UpdateWIPBatch(ctx, receipt, dbTx)
