@@ -47,7 +47,6 @@ func newTestingEnv(t *testing.T) (ethman *Client, ethBackend *backends.Simulated
 	if err != nil {
 		log.Fatal(err)
 	}
-	// TODO: need mock for the DataAvailability
 	da = newDaMock(t)
 	ethman, ethBackend, polAddr, br, err = NewSimulatedEtherman(Config{ForkIDChunkSize: 10}, auth, da)
 	if err != nil {

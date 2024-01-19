@@ -1,5 +1,5 @@
 -- +migrate Up
-CREATE TABLE IF NOT EXISTS pool.whitelisted (
+CREATE TABLE pool.whitelisted (
 	addr VARCHAR PRIMARY KEY
 );
 
