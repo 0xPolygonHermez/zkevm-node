@@ -542,9 +542,7 @@ func (z *ZKEVMEndpoints) GetLatestGlobalExitRoot() (interface{}, types.Error) {
 		var err error
 
 		ger, err := z.state.GetLatestL2BlockGER(ctx, dbTx)
-		if errors.Is(err, state.ErrStateNotSynchronized) {
-			return nil, nil
-		} else if err != nil {
+		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "couldn't load the last global exit root", err, true)
 		}
 

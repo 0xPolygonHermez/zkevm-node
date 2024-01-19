@@ -499,7 +499,7 @@ func (p *PostgresStorage) GetLatestL2BlockGER(ctx context.Context, dbTx pgx.Tx) 
 	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return state.ZeroHash, state.ErrStateNotSynchronized
+		return state.ZeroHash, nil
 	} else if err != nil {
 		return state.ZeroHash, err
 	}

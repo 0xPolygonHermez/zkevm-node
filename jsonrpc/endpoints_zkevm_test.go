@@ -2597,27 +2597,6 @@ func TestGetLatestGlobalExitRoot(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			Name:           "GER not found",
-			ExpectedResult: nil,
-			ExpectedError:  nil,
-			SetupMocks: func(m *mocksWrapper, tc *testCase) {
-				m.DbTx.
-					On("Commit", context.Background()).
-					Return(nil).
-					Once()
-
-				m.State.
-					On("BeginStateTransaction", context.Background()).
-					Return(m.DbTx, nil).
-					Once()
-
-				m.State.
-					On("GetLatestL2BlockGER", context.Background(), m.DbTx).
-					Return(nil, state.ErrStateNotSynchronized).
-					Once()
-			},
-		},
-		{
 			Name:           "failed to load GER from state",
 			ExpectedResult: nil,
 			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load the last global exit root"),

@@ -1,6 +1,6 @@
 -- +migrate Up
 ALTER TABLE state.l2block
-    ADD COLUMN IF NOT EXISTS ger VARCHAR UNIQUE;
+    ADD COLUMN IF NOT EXISTS ger VARCHAR;
 
 CREATE INDEX IF NOT EXISTS idx_l2block_ger ON state.l2block (ger);
 
