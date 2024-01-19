@@ -173,7 +173,7 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *test
 	// TODO: Really don't have to write a entry to `trusted_reorgs` table? how the rest of servicies known about that??!?
 	//mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
 	mocks.CriticalErrorHandler.EXPECT().CriticalError(mock.Anything, mock.Anything)
-	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx) })
+	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx) }) //nolint
 }
 
 // --------------------- Helper functions ----------------------------------------------------------------------------------------------------

@@ -21,12 +21,14 @@ type poolInterfaceReorgPool interface {
 	StoreTx(ctx context.Context, tx ethTypes.Transaction, ip string, isWIP bool) error
 }
 
+// ReorgPool is the struct that implements the PoolReorger interface to reorg the pool
 type ReorgPool struct {
 	state    stateInterfaceReorgPool
 	etherMan ethermanInterfaceReorgPool
 	pool     poolInterfaceReorgPool
 }
 
+// NewReorgPool returns a new ReorgPool struct
 func NewReorgPool(state stateInterfaceReorgPool, etherMan ethermanInterfaceReorgPool, pool poolInterfaceReorgPool) *ReorgPool {
 	return &ReorgPool{
 		state:    state,
@@ -35,6 +37,7 @@ func NewReorgPool(state stateInterfaceReorgPool, etherMan ethermanInterfaceReorg
 	}
 }
 
+// ReorgPool reorgs the pool
 func (p *ReorgPool) ReorgPool(ctx context.Context, dbTx pgx.Tx) error {
 	latestBatchNum, err := p.etherMan.GetLatestBatchNumber()
 	if err != nil {
