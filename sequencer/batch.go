@@ -22,7 +22,6 @@ type Batch struct {
 	initialStateRoot   common.Hash // initial stateRoot of the batch
 	imStateRoot        common.Hash // intermediate stateRoot that is updated each time a single tx is processed
 	finalStateRoot     common.Hash // final stateroot of the batch when a L2 block is processed
-	localExitRoot      common.Hash
 	countOfTxs         int
 	countOfL2Blocks    int
 	remainingResources state.BatchResources
@@ -64,7 +63,6 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 		imStateRoot:        wipStateBatch.StateRoot,
 		initialStateRoot:   prevStateBatch.StateRoot,
 		finalStateRoot:     wipStateBatch.StateRoot,
-		localExitRoot:      wipStateBatch.LocalExitRoot,
 		timestamp:          wipStateBatch.Timestamp,
 		countOfTxs:         wipStateBatchCountOfTxs,
 		remainingResources: remainingResources,
@@ -100,7 +98,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 			f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber))
 		}
 
-		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastStateBatch.StateRoot, lastStateBatch.LocalExitRoot)
+		f.wipBatch, err = f.openNewWIPBatch(ctx, lastStateBatch.BatchNumber+1, lastStateBatch.StateRoot)
 		if err != nil {
 			log.Fatalf("failed to open new wip batch, error: %v", err)
 		}
@@ -111,8 +109,8 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 		}
 	}
 
-	log.Infof("initial batch: %d, initialStateRoot: %s, stateRoot: %s, coinbase: %s, LER: %s",
-		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot, f.wipBatch.coinbase, f.wipBatch.localExitRoot)
+	log.Infof("initial batch: %d, initialStateRoot: %s, stateRoot: %s, coinbase: %s",
+		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot, f.wipBatch.coinbase)
 }
 
 // finalizeBatch retries until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
@@ -187,7 +185,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 		f.initWIPL2Block(ctx)
 	}
 
-	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot, f.wipBatch.localExitRoot)
+	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot)
 	if err != nil {
 		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
@@ -206,15 +204,15 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 }
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch
-func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot, LER common.Hash) (*Batch, error) {
+func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot common.Hash) (*Batch, error) {
 	// open next batch
 	newStateBatch := state.Batch{
 		BatchNumber:    batchNumber,
 		Coinbase:       f.sequencerAddress,
 		Timestamp:      now(),
-		GlobalExitRoot: state.ZeroHash,
 		StateRoot:      stateRoot,
-		LocalExitRoot:  LER,
+		GlobalExitRoot: state.ZeroHash,
+		LocalExitRoot:  state.ZeroHash,
 	}
 
 	dbTx, err := f.stateIntf.BeginStateTransaction(ctx)
@@ -251,7 +249,6 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 		imStateRoot:        newStateBatch.StateRoot,
 		finalStateRoot:     newStateBatch.StateRoot,
 		timestamp:          newStateBatch.Timestamp,
-		localExitRoot:      newStateBatch.LocalExitRoot,
 		remainingResources: getMaxRemainingResources(f.batchConstraints),
 		closingReason:      state.EmptyClosingReason,
 	}, err

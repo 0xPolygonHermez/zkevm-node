@@ -495,11 +495,10 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	// Update wip batch
 	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
-	f.wipBatch.localExitRoot = batchResponse.NewLocalExitRoot
 
-	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s, %s",
+	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, oldStateRoot: %s, %s",
 		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
-		batchResponse.NewLocalExitRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
+		batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return nil, nil
 }
@@ -646,11 +645,10 @@ func (f *finalizer) processEmptyL2Block(ctx context.Context) error {
 
 	// Update wip batch
 	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
-	f.wipBatch.localExitRoot = batchResponse.NewLocalExitRoot
 
-	log.Infof("processed empty L2 block %d, batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, newLocalExitRoot: %s, oldStateRoot: %s, %s",
+	log.Infof("processed empty L2 block %d, batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, oldStateRoot: %s, %s",
 		batchResponse.BlockResponses[0].BlockNumber, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
-		batchResponse.NewLocalExitRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
+		batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return nil
 }

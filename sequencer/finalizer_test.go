@@ -2196,7 +2196,6 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			coinbase:           seqAddr,
 			initialStateRoot:   oldHash,
 			imStateRoot:        newHash,
-			localExitRoot:      newHash,
 			timestamp:          now(),
 			remainingResources: getMaxRemainingResources(bc),
 			closingReason:      state.EmptyClosingReason,
