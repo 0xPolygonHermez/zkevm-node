@@ -1139,17 +1139,31 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 				aLeaves := make([][32]byte, len(leaves))
 				for i, leaf := range leaves {
 					aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+					log.Debugf("aLeaves[%d]: %s", i, common.Bytes2Hex(aLeaves[i][:]))
 				}
 
+				log.Debugf("IndexL1InfoTree: %d", l2blockRaw.IndexL1InfoTree)
+
 				// Calculate smt proof
-				smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+				smtProof, l1InfoRoot, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
 				if err != nil {
 					return nil, err
 				}
 
+				log.Debugf("L1InfoRoot: %s", l1InfoRoot.String())
+
+				for i, proof := range smtProof {
+					log.Debugf("smtProof[%d]: %s", i, common.Bytes2Hex(proof[:]))
+				}
+
 				protoProof := make([][]byte, len(smtProof))
 				for i, proof := range smtProof {
-					protoProof[i] = proof[:]
+					tmpProof := proof
+					protoProof[i] = tmpProof[:]
+				}
+
+				for i, proof := range protoProof {
+					log.Debugf("proof[%d]: %s", i, common.Bytes2Hex(proof))
 				}
 
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
