@@ -1032,7 +1032,8 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 				protoProof := make([][]byte, len(smtProof))
 				for i, proof := range smtProof {
-					protoProof[i] = proof[:]
+					tmpProof := proof
+					protoProof[i] = tmpProof[:]
 				}
 
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{

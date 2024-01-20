@@ -287,7 +287,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		start := now()
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
 		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockMaxDeltaTimestamp.Duration).After(time.Now()) {
-			f.finalizeL2Block(ctx)
+			f.finalizeWIPL2Block(ctx)
 		}
 
 		tx, err := f.workerIntf.GetBestFittingTx(f.wipBatch.remainingResources)

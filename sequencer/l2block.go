@@ -411,9 +411,9 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	return nil
 }
 
-// finalizeL2Block closes the current L2 block and opens a new one
-func (f *finalizer) finalizeL2Block(ctx context.Context) {
-	log.Debugf("finalizing L2 block")
+// finalizeWIPL2Block closes the wip L2 block and opens a new one
+func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
+	log.Debugf("finalizing WIP L2 block")
 
 	f.closeWIPL2Block(ctx)
 
@@ -421,6 +421,8 @@ func (f *finalizer) finalizeL2Block(ctx context.Context) {
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
+	log.Debugf("closing WIP L2 block")
+
 	// If the L2 block is empty (no txs) We need to process it to update the state root and remaining batch resources before closing it
 	if f.wipL2Block.isEmpty() {
 		log.Debug("processing WIP L2 block because it is empty")
