@@ -120,6 +120,9 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
+	prevTimestamp := f.wipL2Block.timestamp
+	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
+
 	// Close the wip L2 block if it has transactions, if not we keep it open to store it in the new wip batch
 	if !f.wipL2Block.isEmpty() {
 		f.closeWIPL2Block(ctx)
@@ -132,7 +135,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 
 	// If we have closed the wipL2Block then we open a new one
 	if f.wipL2Block == nil {
-		f.openNewWIPL2Block(ctx, nil)
+		f.openNewWIPL2Block(ctx, prevTimestamp, prevL1InfoTreeIndex)
 	}
 }
 

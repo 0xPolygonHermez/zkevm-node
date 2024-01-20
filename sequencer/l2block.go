@@ -79,7 +79,7 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 		log.Fatalf("failed to get last L2 block number, error: %v", err)
 	}
 
-	f.openNewWIPL2Block(ctx, &lastL2Block.ReceivedAt)
+	f.openNewWIPL2Block(ctx, lastL2Block.ReceivedAt, 0)
 }
 
 // addPendingL2BlockToProcess adds a pending L2 block that is closed and ready to be processed by the executor
@@ -415,11 +415,12 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 	log.Debugf("finalizing WIP L2 block")
 
+	prevTimestamp := f.wipL2Block.timestamp
+	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
+
 	f.closeWIPL2Block(ctx)
 
-	f.openNewWIPL2Block(ctx, nil)
-
-	f.wipL2Block = nil
+	f.openNewWIPL2Block(ctx, prevTimestamp, prevL1InfoTreeIndex)
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
@@ -436,17 +437,15 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	f.wipBatch.countOfL2Blocks++
 
 	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+
+	f.wipL2Block = nil
 }
 
-func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
+func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Time, prevL1InfoTreeIndex uint32) {
 	newL2Block := &L2Block{}
 
 	newL2Block.timestamp = now()
-	if prevTimestamp != nil {
-		newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(*prevTimestamp).Truncate(time.Second).Seconds())
-	} else {
-		newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(f.wipL2Block.timestamp).Truncate(time.Second).Seconds())
-	}
+	newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(prevTimestamp).Truncate(time.Second).Seconds())
 
 	newL2Block.transactions = []*TxTracker{}
 
@@ -455,10 +454,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 	f.lastL1InfoTreeMux.Unlock()
 
 	// Check if L1InfoTreeIndex has changed, in this case we need to use this index in the changeL2block instead of zero
-	// If it's the first wip L2 block after starting sequencer (wipL2Block == nil) then we assume that the L1InfoTreeIndex has changed (there is no problem assuming this)
-	if f.wipL2Block == nil || newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex {
-		newL2Block.l1InfoTreeExitRootChanged = true
-	}
+	newL2Block.l1InfoTreeExitRootChanged = newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != prevL1InfoTreeIndex
 
 	f.wipL2Block = newL2Block
 
