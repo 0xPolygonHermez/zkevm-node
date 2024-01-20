@@ -130,7 +130,10 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
 	}
 
-	f.openNewWIPL2Block(ctx, nil)
+	// We keep the wip L2 block since is empty, it's not necessary to open a new WIP L2 block
+	if !f.wipL2Block.isEmpty() {
+		f.openNewWIPL2Block(ctx, nil)
+	}
 }
 
 // closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
