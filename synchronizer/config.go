@@ -26,7 +26,7 @@ type L1ParallelSynchronizationConfig struct {
 	// MaxClients Number of clients used to synchronize with L1
 	MaxClients uint64
 	// MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
-	// sugested twice of NumberOfParallelOfEthereumClients
+	// suggested twice of NumberOfParallelOfEthereumClients
 	MaxPendingNoProcessedBlocks uint64
 
 	// RequestLastBlockPeriod is the time to wait to request the
@@ -41,7 +41,7 @@ type L1ParallelSynchronizationConfig struct {
 	RequestLastBlockTimeout types.Duration
 	// RequestLastBlockMaxRetries Max number of retries to request LastBlock On L1
 	RequestLastBlockMaxRetries int
-	// StatisticsPeriod how ofter show a log with statistics (0 is disabled)
+	// StatisticsPeriod how often show a log with statistics (0 is disabled)
 	StatisticsPeriod types.Duration
 	// TimeOutMainLoop is the timeout for the main loop of the L1 synchronizer when is not updated
 	TimeOutMainLoop types.Duration
@@ -54,9 +54,9 @@ type L1ParallelSynchronizationConfig struct {
 // L1PerformanceCheckConfig Configuration for the consumer of rollup information from L1
 type L1PerformanceCheckConfig struct {
 	// AceptableInacctivityTime is the expected maximum time that the consumer
-	// could wait until new data is produced. If the time is greater it emmit a log to warn about
+	// could wait until new data is produced. If the time is greater it emit a log to warn about
 	// that. The idea is keep working the consumer as much as possible, so if the producer is not
-	// fast enought then you could increse the number of parallel clients to sync with L1
+	// fast enough then you could increase the number of parallel clients to sync with L1
 	AceptableInacctivityTime types.Duration
 	// ApplyAfterNumRollupReceived is the number of iterations to
 	// start checking the time waiting for new rollup info data

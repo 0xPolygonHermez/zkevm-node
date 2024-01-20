@@ -496,7 +496,7 @@
 						},
 						"MaxPendingNoProcessedBlocks": {
 							"type": "integer",
-							"description": "MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsugested twice of NumberOfParallelOfEthereumClients",
+							"description": "MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be \u003e= to NumberOfEthereumClientsToSync\nsuggested twice of NumberOfParallelOfEthereumClients",
 							"default": 25
 						},
 						"RequestLastBlockPeriod": {
@@ -514,7 +514,7 @@
 								"AceptableInacctivityTime": {
 									"type": "string",
 									"title": "Duration",
-									"description": "AceptableInacctivityTime is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emmit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enought then you could increse the number of parallel clients to sync with L1",
+									"description": "AceptableInacctivityTime is the expected maximum time that the consumer\ncould wait until new data is produced. If the time is greater it emit a log to warn about\nthat. The idea is keep working the consumer as much as possible, so if the producer is not\nfast enough then you could increase the number of parallel clients to sync with L1",
 									"default": "5s",
 									"examples": [
 										"1m",
@@ -549,7 +549,7 @@
 						"StatisticsPeriod": {
 							"type": "string",
 							"title": "Duration",
-							"description": "StatisticsPeriod how ofter show a log with statistics (0 is disabled)",
+							"description": "StatisticsPeriod how often show a log with statistics (0 is disabled)",
 							"default": "5m0s",
 							"examples": [
 								"1m",
