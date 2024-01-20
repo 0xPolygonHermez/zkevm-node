@@ -120,15 +120,17 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
-	// Finalize the wip L2 block if it has transactions, if not we keep it open to store it in the new wip batch
+	// Close the wip L2 block if it has transactions, if not we keep it open to store it in the new wip batch
 	if !f.wipL2Block.isEmpty() {
-		f.finalizeL2Block(ctx)
+		f.closeWIPL2Block(ctx)
 	}
 
 	err := f.closeAndOpenNewWIPBatch(ctx)
 	if err != nil {
 		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
 	}
+
+	f.openNewWIPL2Block(ctx, nil)
 }
 
 // closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
