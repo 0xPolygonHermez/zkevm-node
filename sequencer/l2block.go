@@ -452,7 +452,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 
 	// Check if L1InfoTreeIndex has changed, in this case we need to use this index in the changeL2block instead of zero
 	// If it's the first wip L2 block after starting sequencer (wipL2Block == nil) then we assume that the L1InfoTreeIndex has changed (there is no problem assuming this)
-	if f.wipL2Block == nil || newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex {
+	if f.wipL2Block != nil && newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex {
 		newL2Block.l1InfoTreeExitRootChanged = true
 	}
 
