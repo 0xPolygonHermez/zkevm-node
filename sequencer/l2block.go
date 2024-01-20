@@ -418,6 +418,8 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 	f.closeWIPL2Block(ctx)
 
 	f.openNewWIPL2Block(ctx, nil)
+
+	f.wipL2Block = nil
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {

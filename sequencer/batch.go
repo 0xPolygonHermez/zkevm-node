@@ -130,8 +130,8 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
 	}
 
-	// We keep the wip L2 block since is empty, it's not necessary to open a new WIP L2 block
-	if !f.wipL2Block.isEmpty() {
+	// If we have closed the wipL2Block then we open a new one
+	if f.wipL2Block == nil {
 		f.openNewWIPL2Block(ctx, nil)
 	}
 }
@@ -186,7 +186,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	// Process forced batches
 	if len(f.nextForcedBatches) > 0 {
 		lastBatchNumber, stateRoot = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
-		// We must init/reset the wip L2 block from the state since processForcedBatches has created new L2 blocks
+		// We must init/reset the wip L2 block from the state since processForcedBatches can create new L2 blocks
 		f.initWIPL2Block(ctx)
 	}
 
@@ -195,10 +195,12 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
 
-	// Subtract the L2 block used resources to batch
-	err = batch.remainingResources.Sub(f.wipL2Block.getUsedResources())
-	if err != nil {
-		return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
+	if f.wipL2Block != nil {
+		// Sustract the WIP L2 block used resources to batch
+		err = batch.remainingResources.Sub(f.wipL2Block.getUsedResources())
+		if err != nil {
+			return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
+		}
 	}
 
 	f.wipBatch = batch
