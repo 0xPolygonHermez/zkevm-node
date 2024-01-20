@@ -79,7 +79,7 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 		log.Fatalf("failed to get last L2 block number, error: %v", err)
 	}
 
-	f.openNewWIPL2Block(ctx, lastL2Block.ReceivedAt, 0)
+	f.openNewWIPL2Block(ctx, lastL2Block.ReceivedAt, nil)
 }
 
 // addPendingL2BlockToProcess adds a pending L2 block that is closed and ready to be processed by the executor
@@ -420,7 +420,7 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 
 	f.closeWIPL2Block(ctx)
 
-	f.openNewWIPL2Block(ctx, prevTimestamp, prevL1InfoTreeIndex)
+	f.openNewWIPL2Block(ctx, prevTimestamp, &prevL1InfoTreeIndex)
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
@@ -441,7 +441,7 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	f.wipL2Block = nil
 }
 
-func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Time, prevL1InfoTreeIndex uint32) {
+func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Time, prevL1InfoTreeIndex *uint32) {
 	newL2Block := &L2Block{}
 
 	newL2Block.timestamp = now()
@@ -454,7 +454,19 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 	f.lastL1InfoTreeMux.Unlock()
 
 	// Check if L1InfoTreeIndex has changed, in this case we need to use this index in the changeL2block instead of zero
-	newL2Block.l1InfoTreeExitRootChanged = newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != prevL1InfoTreeIndex
+	// If it's the first wip L2 block after starting sequencer (prevL1InfoTreeIndex == nil) then we retrieve the last GER and we check if it's
+	// different from the GER of the current L1InfoTreeIndex (if the GER is different this means that the index also is different)
+	if prevL1InfoTreeIndex == nil {
+		lastGER, err := f.stateIntf.GetLatestBatchGlobalExitRoot(ctx, nil)
+		if err == nil {
+			newL2Block.l1InfoTreeExitRootChanged = (newL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot != lastGER)
+		} else {
+			// If we got an error when getting the latest GER then we consider that the index has not changed and it will be updated the next time we have a new L1InfoTreeIndex
+			log.Warnf("failed to get the latest CER when initializing the WIP L2 block, assuming L1InfoTreeIndex has not changed, error: %v", err)
+		}
+	} else {
+		newL2Block.l1InfoTreeExitRootChanged = (newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != *prevL1InfoTreeIndex)
+	}
 
 	f.wipL2Block = newL2Block
 
