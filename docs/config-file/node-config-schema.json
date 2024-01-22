@@ -1045,6 +1045,11 @@
 					"type": "integer",
 					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
 					"default": 0
+				},
+				"UpgradeEtrogBatchNumber": {
+					"type": "integer",
+					"description": "UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
