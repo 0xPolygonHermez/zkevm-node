@@ -980,7 +980,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 	isForcedBatch := false
 	batchRawData := &state.BatchRawV2{}
-	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == a.cfg.UpdateEtrogBatchNumber {
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
 		isForcedBatch = true
 	} else {
 		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
@@ -1045,7 +1045,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		}
 	} else {
 		// Initial batch must be handled differently
-		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.UpdateEtrogBatchNumber {
+		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
 			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err

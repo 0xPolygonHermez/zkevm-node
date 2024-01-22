@@ -474,7 +474,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
-			path:          "Aggregator.UpdateEtrogBatchNumber",
+			path:          "Aggregator.UpgradeEtrogBatchNumber",
 			expectedValue: uint64(0),
 		},
 		{

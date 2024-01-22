@@ -194,7 +194,7 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
       - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
-      - ZKEVM_NODE_AGGREGATOR_UPDATEETROGBATCHNUMBER=2
+      - ZKEVM_NODE_AGGREGATOR_UPGRADEETROGBATCHNUMBER=2
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
