@@ -38,7 +38,6 @@ type mocksEtrogProcessorL1 struct {
 	DbTx                 *syncMocks.DbTxMock
 	TimeProvider         *syncCommon.MockTimerProvider
 	CriticalErrorHandler *mock_syncinterfaces.CriticalErrorHandler
-	PoolReorg            *mock_syncinterfaces.PoolReorger
 }
 
 func createMocks(t *testing.T) *mocksEtrogProcessorL1 {
@@ -50,14 +49,13 @@ func createMocks(t *testing.T) *mocksEtrogProcessorL1 {
 		DbTx:                 syncMocks.NewDbTxMock(t),
 		TimeProvider:         &syncCommon.MockTimerProvider{},
 		CriticalErrorHandler: mock_syncinterfaces.NewCriticalErrorHandler(t),
-		PoolReorg:            mock_syncinterfaces.NewPoolReorger(t),
 	}
 	return mocks
 }
 
 func createSUT(mocks *mocksEtrogProcessorL1) *ProcessorL1SequenceBatchesEtrog {
 	return NewProcessorL1SequenceBatches(mocks.State, mocks.Synchronizer,
-		mocks.TimeProvider, mocks.CriticalErrorHandler, mocks.PoolReorg)
+		mocks.TimeProvider, mocks.CriticalErrorHandler)
 }
 
 func TestL1SequenceBatchesNoData(t *testing.T) {
@@ -144,7 +142,7 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsMismatch(
 	mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
 	mocks.State.EXPECT().ResetTrustedState(ctx, batch.BatchNumber-1, mocks.DbTx).Return(nil)
 	mocks.Synchronizer.EXPECT().CleanTrustedState()
-	mocks.PoolReorg.EXPECT().ReorgPool(ctx, mocks.DbTx).Return(nil)
+
 	// Reexecute it as a new batch
 	expectationsProcessAndStoreClosedBatchV2(t, mocks, ctx, executionResponse, nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)

@@ -44,7 +44,6 @@ type syncProcessSequenceBatchesInterface interface {
 type ProcessorL1SequenceBatchesEtrog struct {
 	actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]
 	state        stateProcessSequenceBatches
-	poolReorger  syncinterfaces.PoolReorger
 	sync         syncProcessSequenceBatchesInterface
 	timeProvider syncCommon.TimeProvider
 	halter       syncinterfaces.CriticalErrorHandler
@@ -54,8 +53,7 @@ type ProcessorL1SequenceBatchesEtrog struct {
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	sync syncProcessSequenceBatchesInterface,
 	timeProvider syncCommon.TimeProvider,
-	halter syncinterfaces.CriticalErrorHandler,
-	poolReorger syncinterfaces.PoolReorger) *ProcessorL1SequenceBatchesEtrog {
+	halter syncinterfaces.CriticalErrorHandler) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
@@ -64,7 +62,6 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 		sync:         sync,
 		timeProvider: timeProvider,
 		halter:       halter,
-		poolReorger:  poolReorger,
 	}
 }
 
@@ -283,18 +280,6 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 		// Call the check trusted state method to compare trusted and virtual state
 		status := p.checkTrustedState(ctx, batch, tBatch, newRoot, dbTx)
 		if status {
-			// Reorg Pool
-			err := p.reorgPool(ctx, dbTx)
-			if err != nil {
-				rollbackErr := dbTx.Rollback(ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. BatchNumber: %d, BlockNumber: %d, rollbackErr: %s, error : %v", tBatch.BatchNumber, blockNumber, rollbackErr.Error(), err)
-					return rollbackErr
-				}
-				log.Errorf("error: %v. BatchNumber: %d, BlockNumber: %d", err, tBatch.BatchNumber, blockNumber)
-				return err
-			}
-
 			// Clean trustedState sync variables to avoid sync the trusted state from the wrong starting point.
 			// This wrong starting point would force the trusted sync to clean the virtualization of the batch reaching an inconsistency.
 			p.sync.CleanTrustedState()
@@ -364,10 +349,6 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 		return err
 	}
 	return nil
-}
-
-func (p *ProcessorL1SequenceBatchesEtrog) reorgPool(ctx context.Context, dbTx pgx.Tx) error {
-	return p.poolReorger.ReorgPool(ctx, dbTx)
 }
 
 func (p *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
