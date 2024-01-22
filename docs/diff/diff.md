@@ -1,6 +1,6 @@
 # Diff
 
-This repo is a fork from [zkevm-node](https://github.com/0xPolygonHermez.zkevm-node). The puirpose of the fork is to implement tha Validium consensus, enabling data availability to be posted outside of L1.
+This repo is a fork from [zkevm-node](https://github.com/0xPolygonHermez.zkevm-node). The purpose of the fork is to implement tha Validium consensus, enabling data availability to be posted outside of L1.
 
 In order to document the code diff the [diff2html-cli](https://www.npmjs.com/package/diff2html-cli) tool is used. An html file is included in the repo [here](./diff.html). This file has been generated running the following command:
 

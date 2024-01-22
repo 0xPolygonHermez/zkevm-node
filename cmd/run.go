@@ -301,8 +301,10 @@ func newEtherman(c config.Config, st *state.State) (*etherman.Client, error) {
 }
 
 func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Client, isSequenceSender bool) (*dataavailability.DataAvailability, error) {
-	var trustedSequencerURL string
-	var err error
+	var (
+		trustedSequencerURL string
+		err                 error
+	)
 	if !c.IsTrustedSequencer {
 		if c.Synchronizer.TrustedSequencerURL != "" {
 			trustedSequencerURL = c.Synchronizer.TrustedSequencerURL
@@ -310,7 +312,7 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 			log.Debug("getting trusted sequencer URL from smc")
 			trustedSequencerURL, err = etherman.GetTrustedSequencerURL()
 			if err != nil {
-				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+				return nil, fmt.Errorf("error getting trusted sequencer URI. Error: %v", err)
 			}
 		}
 		log.Debug("trustedSequencerURL ", trustedSequencerURL)
@@ -320,34 +322,37 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 	// Backend specific config
 	daProtocolName, err := etherman.GetDAProtocolName()
 	if err != nil {
-		log.Fatal("error getting data availability protocol name: %v", err)
+		return nil, fmt.Errorf("error getting data availability protocol name: %v", err)
 	}
 	var daBackend dataavailability.DABackender
 	switch daProtocolName {
 	case string(dataavailability.DataAvailabilityCommittee):
-		var pk *ecdsa.PrivateKey
-		var err error
+		var (
+			pk  *ecdsa.PrivateKey
+			err error
+		)
 		if isSequenceSender {
 			_, pk, err = etherman.LoadAuthFromKeyStore(c.SequenceSender.PrivateKey.Path, c.SequenceSender.PrivateKey.Password)
 			if err != nil {
-				log.Fatal(err)
+				return nil, err
 			}
 		}
 		dacAddr, err := etherman.GetDAProtocolAddr()
 		if err != nil {
-			log.Fatal("error getting trusted sequencer URI. Error: %v", err)
+			return nil, fmt.Errorf("error getting trusted sequencer URI. Error: %v", err)
 		}
 
 		daBackend, err = datacommittee.New(
 			c.Etherman.URL,
 			dacAddr,
-			c.SequenceSender.L2Coinbase,
 			pk,
 			&dataCommitteeClient.Factory{},
 		)
 		if err != nil {
 			return nil, err
 		}
+	default:
+		return nil, fmt.Errorf("unexpected / unsupported DA protocol: %s", daProtocolName)
 	}
 
 	return dataavailability.New(

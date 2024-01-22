@@ -13,7 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-// DataAvailability implements an abstract data avaiolability integration
+const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
+
+// DataAvailability implements an abstract data availability integration
 type DataAvailability struct {
 	isTrustedSequencer bool
 
@@ -26,13 +28,13 @@ type DataAvailability struct {
 
 // New creates a DataAvailability instance
 func New(
-	IsTrustedSequencer bool,
+	isTrustedSequencer bool,
 	backend DABackender,
 	state stateInterface,
 	zkEVMClient syncinterfaces.ZKEVMClientInterface,
 ) (*DataAvailability, error) {
 	da := &DataAvailability{
-		isTrustedSequencer: IsTrustedSequencer,
+		isTrustedSequencer: isTrustedSequencer,
 		backend:            backend,
 		state:              state,
 		zkEVMClient:        zkEVMClient,
@@ -79,16 +81,16 @@ func (d *DataAvailability) GetBatchL2Data(batchNum uint64, expectedTransactionsH
 			log.Info("trying to get data from trusted sequencer")
 			data, err := d.getDataFromTrustedSequencer(batchNum, expectedTransactionsHash)
 			if err != nil {
-				log.Error(err)
+				log.Error("failed to get data from trusted sequencer: %w", err)
 			} else {
 				return data, nil
 			}
 		}
 
 		log.Info("trying to get data from the data availability backend")
-		data, err := d.backend.GetData(batchNum, expectedTransactionsHash)
+		data, err := d.backend.GetBatchL2Data(batchNum, expectedTransactionsHash)
 		if err != nil {
-			log.Error(err)
+			log.Error("failed to get data from the data availability backend: %w", err)
 			if d.isTrustedSequencer {
 				return nil, fmt.Errorf("data not found on the local DB nor on any data committee member")
 			} else {
@@ -100,10 +102,8 @@ func (d *DataAvailability) GetBatchL2Data(batchNum uint64, expectedTransactionsH
 	return transactionsData, nil
 }
 
-const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
-
 func (d *DataAvailability) getDataFromTrustedSequencer(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
-	b, err := d.zkEVMClient.BatchByNumber(d.ctx, big.NewInt(int64(batchNum)))
+	b, err := d.zkEVMClient.BatchByNumber(d.ctx, new(big.Int).SetUint64(batchNum))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get batch num %d from trusted sequencer: %w", batchNum, err)
 	}

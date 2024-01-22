@@ -20,6 +20,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
+
 // DataCommitteeMember represents a member of the Data Committee
 type DataCommitteeMember struct {
 	Addr common.Address
@@ -36,7 +38,6 @@ type DataCommittee struct {
 // DataCommitteeBackend implements the DAC integration
 type DataCommitteeBackend struct {
 	dataCommitteeContract      *polygondatacommittee.Polygondatacommittee
-	l2Coinbase                 common.Address
 	privKey                    *ecdsa.PrivateKey
 	dataCommitteeClientFactory client.IClientFactory
 
@@ -49,7 +50,6 @@ type DataCommitteeBackend struct {
 func New(
 	l1RPCURL string,
 	dataCommitteeAddr common.Address,
-	l2Coinbase common.Address,
 	privKey *ecdsa.PrivateKey,
 	dataCommitteeClientFactory client.IClientFactory,
 ) (*DataCommitteeBackend, error) {
@@ -64,7 +64,6 @@ func New(
 	}
 	return &DataCommitteeBackend{
 		dataCommitteeContract:      dataCommittee,
-		l2Coinbase:                 l2Coinbase,
 		privKey:                    privKey,
 		dataCommitteeClientFactory: dataCommitteeClientFactory,
 		ctx:                        context.Background(),
@@ -88,10 +87,8 @@ func (d *DataCommitteeBackend) Init() error {
 	return nil
 }
 
-const unexpectedHashTemplate = "missmatch on transaction data for batch num %d. Expected hash %s, actual hash: %s"
-
-// GetData returns the data from the DAC. It checks that it matches with the expected hash
-func (d *DataCommitteeBackend) GetData(batchNum uint64, hash common.Hash) ([]byte, error) {
+// GetBatchL2Data returns the data from the DAC. It checks that it matches with the expected hash
+func (d *DataCommitteeBackend) GetBatchL2Data(batchNum uint64, hash common.Hash) ([]byte, error) {
 	intialMember := d.selectedCommitteeMember
 	found := false
 	for !found && intialMember != -1 {
@@ -167,8 +164,10 @@ func (s *DataCommitteeBackend) PostSequence(ctx context.Context, batchesData [][
 
 	// Collect signatures
 	msgs := []signatureMsg{}
-	var collectedSignatures uint64
-	var failedToCollect uint64
+	var (
+		collectedSignatures uint64
+		failedToCollect     uint64
+	)
 	for collectedSignatures < committee.RequiredSignatures {
 		msg := <-ch
 		if msg.err != nil {
@@ -226,10 +225,14 @@ func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.Sign
 	}
 }
 
-func buildSignaturesAndAddrs(msgs signatureMsgs, members []DataCommitteeMember) []byte {
-	res := []byte{}
-	sort.Sort(msgs)
-	for _, msg := range msgs {
+func buildSignaturesAndAddrs(sigs signatureMsgs, members []DataCommitteeMember) []byte {
+	const (
+		sigLen  = 65
+		addrLen = 20
+	)
+	res := make([]byte, 0, len(sigs)*sigLen+len(members)*addrLen)
+	sort.Sort(sigs)
+	for _, msg := range sigs {
 		log.Debugf("adding signature %s from %s", common.Bytes2Hex(msg.signature), msg.addr.Hex())
 		res = append(res, msg.signature...)
 	}
@@ -273,11 +276,11 @@ func (d *DataCommitteeBackend) getCurrentDataCommittee() (*DataCommittee, error)
 
 // getCurrentDataCommitteeMembers return the currently registered data committee members
 func (d *DataCommitteeBackend) getCurrentDataCommitteeMembers() ([]DataCommitteeMember, error) {
-	members := []DataCommitteeMember{}
 	nMembers, err := d.dataCommitteeContract.GetAmountOfMembers(&bind.CallOpts{Pending: false})
 	if err != nil {
 		return nil, fmt.Errorf("error getting GetAmountOfMembers from L1 SC: %w", err)
 	}
+	members := make([]DataCommitteeMember, 0, nMembers.Int64())
 	for i := int64(0); i < nMembers.Int64(); i++ {
 		member, err := d.dataCommitteeContract.Members(&bind.CallOpts{Pending: false}, big.NewInt(i))
 		if err != nil {

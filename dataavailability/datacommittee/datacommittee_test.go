@@ -17,7 +17,7 @@ import (
 
 func TestUpdateDataCommitteeEvent(t *testing.T) {
 	// Set up testing environment
-	dac, ethBackend, auth, da := newTestingEnv()
+	dac, ethBackend, auth, da := newTestingEnv(t)
 
 	// Update the committee
 	requiredAmountOfSignatures := big.NewInt(2)
@@ -61,12 +61,13 @@ func init() {
 }
 
 // This function prepare the blockchain, the wallet with funds and deploy the smc
-func newTestingEnv() (
+func newTestingEnv(t *testing.T) (
 	dac *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
 	auth *bind.TransactOpts,
 	da *polygondatacommittee.Polygondatacommittee,
 ) {
+	t.Helper()
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		log.Fatal(err)
@@ -75,7 +76,7 @@ func newTestingEnv() (
 	if err != nil {
 		log.Fatal(err)
 	}
-	dac, ethBackend, da, err = newSimulatedDacman(auth)
+	dac, ethBackend, da, err = newSimulatedDacman(t, auth)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,12 +85,13 @@ func newTestingEnv() (
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func newSimulatedDacman(auth *bind.TransactOpts) (
+func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	dacman *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
 	da *polygondatacommittee.Polygondatacommittee,
 	err error,
 ) {
+	t.Helper()
 	if auth == nil {
 		// read only client
 		return &DataCommitteeBackend{}, nil, nil, nil

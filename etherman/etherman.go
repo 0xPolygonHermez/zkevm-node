@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/dataavailability"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
@@ -189,11 +190,11 @@ type Client struct {
 	cfg   Config
 	auth  map[common.Address]bind.TransactOpts // empty in case of read-only client
 
-	da dataAvailabilitier
+	da dataavailability.BatchDataProvider
 }
 
 // NewClient creates a new etherman.
-func NewClient(cfg Config, l1Config L1Config, da dataAvailabilitier) (*Client, error) {
+func NewClient(cfg Config, l1Config L1Config, da dataavailability.BatchDataProvider) (*Client, error) {
 	// Connect to ethereum node
 	ethClient, err := ethclient.Dial(cfg.URL)
 	if err != nil {
@@ -1207,7 +1208,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 	return nil
 }
 
-func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataAvailabilitier) ([]SequencedBatch, error) {
+func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
 	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))

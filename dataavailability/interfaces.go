@@ -13,13 +13,21 @@ type stateInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
 
-// DABackender is the interface for a DA backend
-type DABackender interface {
-	// Init initializes the DABackend
-	Init() error
-	// GetData retrieve the data of a batch from the DA backend. The returned data must be the pre-image of the hash
-	GetData(batchNum uint64, hash common.Hash) ([]byte, error)
+// BatchDataProvider is used to retrieve batch data
+type BatchDataProvider interface {
+	// GetBatchL2Data retrieve the data of a batch from the DA backend. The returned data must be the pre-image of the hash
+	GetBatchL2Data(batchNum uint64, hash common.Hash) ([]byte, error)
+}
+
+// SequenceSender is used to send provided sequence of batches
+type SequenceSender interface {
 	// PostSequence sends the sequence data to the data availability backend, and returns the dataAvailabilityMessage
 	// as expected by the contract
 	PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error)
+}
+type DABackender interface {
+	BatchDataProvider
+	SequenceSender
+	// Init initializes the DABackend
+	Init() error
 }
