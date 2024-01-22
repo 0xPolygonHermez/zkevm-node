@@ -1008,3 +1008,20 @@ func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBa
 	}
 	return common.HexToHash(parentHash), nil
 }
+
+// GetLatestBatchGlobalExitRoot gets the last GER that is not zero from batches
+func (p *PostgresStorage) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	var lastGER string
+	const query = "SELECT global_exit_root FROM state.batch where global_exit_root != $1 ORDER BY batch_num DESC LIMIT 1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return state.ZeroHash, nil
+	} else if err != nil {
+		return state.ZeroHash, err
+	}
+
+	return common.HexToHash(lastGER), nil
+}

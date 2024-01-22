@@ -4299,6 +4299,65 @@ func (_c *StorageMock_GetLastVirtualizedL2BlockNumber_Call) RunAndReturn(run fun
 	return _c
 }
 
+// GetLatestBatchGlobalExitRoot provides a mock function with given fields: ctx, dbTx
+func (_m *StorageMock) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestBatchGlobalExitRoot")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetLatestBatchGlobalExitRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestBatchGlobalExitRoot'
+type StorageMock_GetLatestBatchGlobalExitRoot_Call struct {
+	*mock.Call
+}
+
+// GetLatestBatchGlobalExitRoot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetLatestBatchGlobalExitRoot(ctx interface{}, dbTx interface{}) *StorageMock_GetLatestBatchGlobalExitRoot_Call {
+	return &StorageMock_GetLatestBatchGlobalExitRoot_Call{Call: _e.mock.On("GetLatestBatchGlobalExitRoot", ctx, dbTx)}
+}
+
+func (_c *StorageMock_GetLatestBatchGlobalExitRoot_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetLatestBatchGlobalExitRoot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetLatestBatchGlobalExitRoot_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetLatestBatchGlobalExitRoot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetLatestBatchGlobalExitRoot_Call) RunAndReturn(run func(context.Context, pgx.Tx) (common.Hash, error)) *StorageMock_GetLatestBatchGlobalExitRoot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLatestGer provides a mock function with given fields: ctx, maxBlockNumber
 func (_m *StorageMock) GetLatestGer(ctx context.Context, maxBlockNumber uint64) (state.GlobalExitRoot, time.Time, error) {
 	ret := _m.Called(ctx, maxBlockNumber)

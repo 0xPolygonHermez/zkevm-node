@@ -79,7 +79,7 @@ func (f *finalizer) initWIPL2Block(ctx context.Context) {
 		log.Fatalf("failed to get last L2 block number, error: %v", err)
 	}
 
-	f.openNewWIPL2Block(ctx, &lastL2Block.ReceivedAt)
+	f.openNewWIPL2Block(ctx, lastL2Block.ReceivedAt, nil)
 }
 
 // addPendingL2BlockToProcess adds a pending L2 block that is closed and ready to be processed by the executor
@@ -411,16 +411,21 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	return nil
 }
 
-// finalizeL2Block closes the current L2 block and opens a new one
-func (f *finalizer) finalizeL2Block(ctx context.Context) {
-	log.Debugf("finalizing L2 block")
+// finalizeWIPL2Block closes the wip L2 block and opens a new one
+func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
+	log.Debugf("finalizing WIP L2 block")
+
+	prevTimestamp := f.wipL2Block.timestamp
+	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
 
 	f.closeWIPL2Block(ctx)
 
-	f.openNewWIPL2Block(ctx, nil)
+	f.openNewWIPL2Block(ctx, prevTimestamp, &prevL1InfoTreeIndex)
 }
 
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
+	log.Debugf("closing WIP L2 block")
+
 	// If the L2 block is empty (no txs) We need to process it to update the state root and remaining batch resources before closing it
 	if f.wipL2Block.isEmpty() {
 		log.Debug("processing WIP L2 block because it is empty")
@@ -432,17 +437,15 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	f.wipBatch.countOfL2Blocks++
 
 	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+
+	f.wipL2Block = nil
 }
 
-func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.Time) {
+func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Time, prevL1InfoTreeIndex *uint32) {
 	newL2Block := &L2Block{}
 
 	newL2Block.timestamp = now()
-	if prevTimestamp != nil {
-		newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(*prevTimestamp).Truncate(time.Second).Seconds())
-	} else {
-		newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(f.wipL2Block.timestamp).Truncate(time.Second).Seconds())
-	}
+	newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(prevTimestamp).Truncate(time.Second).Seconds())
 
 	newL2Block.transactions = []*TxTracker{}
 
@@ -451,9 +454,18 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp *time.T
 	f.lastL1InfoTreeMux.Unlock()
 
 	// Check if L1InfoTreeIndex has changed, in this case we need to use this index in the changeL2block instead of zero
-	// If it's the first wip L2 block after starting sequencer (wipL2Block == nil) then we assume that the L1InfoTreeIndex has changed (there is no problem assuming this)
-	if f.wipL2Block == nil || newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex {
-		newL2Block.l1InfoTreeExitRootChanged = true
+	// If it's the first wip L2 block after starting sequencer (prevL1InfoTreeIndex == nil) then we retrieve the last GER and we check if it's
+	// different from the GER of the current L1InfoTreeIndex (if the GER is different this means that the index also is different)
+	if prevL1InfoTreeIndex == nil {
+		lastGER, err := f.stateIntf.GetLatestBatchGlobalExitRoot(ctx, nil)
+		if err == nil {
+			newL2Block.l1InfoTreeExitRootChanged = (newL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot != lastGER)
+		} else {
+			// If we got an error when getting the latest GER then we consider that the index has not changed and it will be updated the next time we have a new L1InfoTreeIndex
+			log.Warnf("failed to get the latest CER when initializing the WIP L2 block, assuming L1InfoTreeIndex has not changed, error: %v", err)
+		}
+	} else {
+		newL2Block.l1InfoTreeExitRootChanged = (newL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex != *prevL1InfoTreeIndex)
 	}
 
 	f.wipL2Block = newL2Block
