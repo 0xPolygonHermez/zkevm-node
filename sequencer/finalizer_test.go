@@ -2043,7 +2043,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 			// assert
 			assert.Equal(t, tc.expectedResult, result)
 			if tc.expectedResult {
-				assert.Equal(t, state.ResourceExhaustedClosingReason, closeReason)
+				assert.Equal(t, state.ResourceMarginExhaustedClosingReason, closeReason)
 			} else {
 				assert.Equal(t, state.EmptyClosingReason, closeReason)
 			}
