@@ -162,7 +162,7 @@ ProofStatePollingInterval = "5s"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
-Update = 0
+UpdateEtrogBatchNumber = 0
 
 [L2GasPriceSuggester]
 Type = "follower"

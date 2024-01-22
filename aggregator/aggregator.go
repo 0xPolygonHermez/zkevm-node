@@ -81,7 +81,7 @@ func New(
 	case ProfitabilityAcceptAll:
 		profitabilityChecker = NewTxProfitabilityCheckerAcceptAll(stateInterface, cfg.IntervalAfterWhichBatchConsolidateAnyway.Duration)
 	}
-	log.Debug("config aggr: ", cfg.Update)
+
 	a := Aggregator{
 		cfg: cfg,
 
@@ -980,8 +980,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 	isForcedBatch := false
 	batchRawData := &state.BatchRawV2{}
-	log.Debug("a.cfg.UpdateEtrogBatchNumber! ", a.cfg.Update)
-	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == uint64(a.cfg.Update) {
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == a.cfg.UpdateEtrogBatchNumber {
 		isForcedBatch = true
 	} else {
 		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
@@ -1046,7 +1045,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		}
 	} else {
 		// Initial batch must be handled differently
-		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.Update {
+		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.UpdateEtrogBatchNumber {
 			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err
