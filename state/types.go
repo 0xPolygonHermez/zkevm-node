@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -177,35 +176,35 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
 }
 
-// Sub subtract zk counters with passed zk counters (not safe)
-func (z *ZKCounters) Sub(other ZKCounters) error {
+// Sub subtract zk counters with passed zk counters (not safe). if there is a counter underflow it returns true and the name of the counter that caused the overflow
+func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
 	// ZKCounters
 	if other.GasUsed > z.GasUsed {
-		return GetZKCounterError("CumulativeGasUsed")
+		return true, "CumulativeGas"
 	}
 	if other.UsedKeccakHashes > z.UsedKeccakHashes {
-		return GetZKCounterError("UsedKeccakHashes")
+		return true, "KeccakHashes"
 	}
 	if other.UsedPoseidonHashes > z.UsedPoseidonHashes {
-		return GetZKCounterError("UsedPoseidonHashes")
+		return true, "PoseidonHashes"
 	}
 	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
-		return fmt.Errorf("underflow ZKCounter: UsedPoseidonPaddings")
+		return true, "PoseidonPaddings"
 	}
 	if other.UsedMemAligns > z.UsedMemAligns {
-		return GetZKCounterError("UsedMemAligns")
+		return true, "UsedMemAligns"
 	}
 	if other.UsedArithmetics > z.UsedArithmetics {
-		return GetZKCounterError("UsedArithmetics")
+		return true, "UsedArithmetics"
 	}
 	if other.UsedBinaries > z.UsedBinaries {
-		return GetZKCounterError("UsedBinaries")
+		return true, "UsedBinaries"
 	}
 	if other.UsedSteps > z.UsedSteps {
-		return GetZKCounterError("UsedSteps")
+		return true, "UsedSteps"
 	}
 	if other.UsedSha256Hashes_V2 > z.UsedSha256Hashes_V2 {
-		return GetZKCounterError("UsedSha256Hashes_V2")
+		return true, "UsedSha256Hashes_V2"
 	}
 
 	z.GasUsed -= other.GasUsed
@@ -218,7 +217,7 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedSteps -= other.UsedSteps
 	z.UsedSha256Hashes_V2 -= other.UsedSha256Hashes_V2
 
-	return nil
+	return false, ""
 }
 
 // BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
@@ -227,21 +226,21 @@ type BatchResources struct {
 	Bytes      uint64
 }
 
-// Sub subtracts the batch resources from other
-func (r *BatchResources) Sub(other BatchResources) error {
+// Sub subtracts the batch resources from other. if there is a resource underflow it returns true and the name of the resource that caused the overflow
+func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 	// Bytes
 	if other.Bytes > r.Bytes {
-		return ErrBatchResourceBytesUnderflow
+		return true, "Bytes"
 	}
 	bytesBackup := r.Bytes
 	r.Bytes -= other.Bytes
-	err := r.ZKCounters.Sub(other.ZKCounters)
-	if err != nil {
+	exhausted, resourceName := r.ZKCounters.Sub(other.ZKCounters)
+	if exhausted {
 		r.Bytes = bytesBackup
-		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
+		return exhausted, resourceName
 	}
 
-	return err
+	return false, ""
 }
 
 // SumUp sum ups the batch resources from other

@@ -116,7 +116,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	// Check there are L2 blocks for the last batch
 	if len(lastBatchL2Blocks) == 0 {
-		log.Errorf("no L2 blocks returned from the state for batch %d")
+		log.Errorf("no L2 blocks returned from the state for batch %d", lastBatchNumInSequence)
 		return
 	}
 

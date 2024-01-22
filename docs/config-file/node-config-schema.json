@@ -727,13 +727,18 @@
 						},
 						"HaltOnBatchNumber": {
 							"type": "integer",
-							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
+							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.\nThe Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
 						},
 						"SequentialBatchSanityCheck": {
 							"type": "boolean",
 							"description": "SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
+						},
+						"SequentialProcessL2Block": {
+							"type": "boolean",
+							"description": "SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead\nin the processPendingL2Blocks go func",
+							"default": true
 						}
 					},
 					"additionalProperties": false,

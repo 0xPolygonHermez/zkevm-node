@@ -136,6 +136,7 @@ StateConsistencyCheckInterval = "5s"
 		ResourceExhaustedMarginPct = 10
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
+		SequentialProcessL2Block = true
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
