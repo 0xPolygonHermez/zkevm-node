@@ -98,12 +98,13 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsHappyPath(t *tes
 	ctx := context.Background()
 	batch := newStateBatch(3)
 	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
+	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
-	expectationsForExecution(t, mocks, ctx, executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
-	err := sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx)
+	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
 	require.NoError(t, err)
 }
 
@@ -113,12 +114,13 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsHappyPath
 	ctx := context.Background()
 	batch := newStateBatch(3)
 	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
+	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
-	expectationsForExecution(t, mocks, ctx, executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
-	err := sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx)
+	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
 	require.NoError(t, err)
 }
 
@@ -133,10 +135,11 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsMismatch(
 	ctx := context.Background()
 	batch := newStateBatch(3)
 	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
+	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
 	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
-	expectationsForExecution(t, mocks, ctx, executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	mocks.Synchronizer.EXPECT().IsTrustedSequencer().Return(false)
 	mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
@@ -147,7 +150,7 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsMismatch(
 	expectationsProcessAndStoreClosedBatchV2(t, mocks, ctx, executionResponse, nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
 	mocks.Synchronizer.EXPECT().PendingFlushID(mock.Anything, mock.Anything)
-	err := sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx)
+	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
 	require.NoError(t, err)
 }
 
@@ -161,17 +164,18 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *test
 	ctx := context.Background()
 	batch := newStateBatch(3)
 	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
+	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
 	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
-	expectationsForExecution(t, mocks, ctx, executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	// Here it says that is a TRUSTED NODE
 	mocks.Synchronizer.EXPECT().IsTrustedSequencer().Return(true)
 	// TODO: Really don't have to write a entry to `trusted_reorgs` table? how the rest of servicies known about that??!?
 	//mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
 	mocks.CriticalErrorHandler.EXPECT().CriticalError(mock.Anything, mock.Anything)
-	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, newL1Block(mocks, batch, l1InfoRoot), mocks.DbTx) }) //nolint
+	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx) }) //nolint
 }
 
 // --------------------- Helper functions ----------------------------------------------------------------------------------------------------
@@ -191,9 +195,9 @@ func expectationsProcessAndStoreClosedBatchV2(t *testing.T, mocks *mocksEtrogPro
 	mocks.State.EXPECT().ProcessAndStoreClosedBatchV2(ctx, mock.Anything, mocks.DbTx, mock.Anything).Return(newStateRoot, response.FlushId, response.ProverId, responseError)
 }
 
-func expectationsForExecution(t *testing.T, mocks *mocksEtrogProcessorL1, ctx context.Context, response *executor.ProcessBatchResponseV2) {
+func expectationsForExecution(t *testing.T, mocks *mocksEtrogProcessorL1, ctx context.Context, sequencedBatch etherman.SequencedBatch, response *executor.ProcessBatchResponseV2) {
 	mocks.State.EXPECT().ExecuteBatchV2(ctx,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything, false,
+		mock.Anything, *sequencedBatch.L1InfoRoot, mock.Anything, mock.Anything, false,
 		mock.Anything, mock.Anything, mocks.DbTx).Return(response, nil)
 }
 
