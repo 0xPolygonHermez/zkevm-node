@@ -85,4 +85,7 @@ type Config struct {
 	// gas offset: 100
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
+
+	// UpdateEtrogBatchNumber is the number of the first batch after upgrading to etrog
+	Update uint64 `mapstructure:"Update"`
 }

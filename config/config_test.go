@@ -474,6 +474,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
+			path:          "Aggregator.UpdateEtrogBatchNumber",
+			expectedValue: uint64(0),
+		},
+		{
 			path:          "State.Batch.Constraints.MaxTxsPerBatch",
 			expectedValue: uint64(300),
 		},
