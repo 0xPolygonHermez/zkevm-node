@@ -96,7 +96,7 @@ var (
 	testErrStr = "some err"
 	// testErr                 = fmt.Errorf(testErrStr)
 	// openBatchError          = fmt.Errorf("failed to open new batch, err: %v", testErr)
-	cumulativeGasErr        = state.GetZKCounterError("CumulativeGasUsed")
+	// cumulativeGasErr        = state.GetZKCounterError("CumulativeGasUsed")
 	testBatchL2DataAsString = "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	decodedBatchL2Data      []byte
 	// done                    chan bool
@@ -945,7 +945,7 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_closeWIPBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
-	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
@@ -1053,7 +1053,7 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			}
 
 			// act
-			actual := f.isDeadlineEncountered()
+			actual, _ := f.checkIfFinalizeBatch()
 
 			// assert
 			assert.Equal(t, tc.expected, actual)
@@ -1077,18 +1077,19 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		ZKCounters: state.ZKCounters{GasUsed: 9000},
 		Bytes:      10000,
 	}
-	f.wipBatch.remainingResources = remainingResources
+	f.wipBatch.imRemainingResources = remainingResources
 	testCases := []struct {
 		name                 string
 		remaining            state.BatchResources
-		expectedErr          error
+		overflow             bool
+		overflowResource     string
 		expectedWorkerUpdate bool
 		expectedTxTracker    *TxTracker
 	}{
 		{
 			name:                 "Success",
 			remaining:            remainingResources,
-			expectedErr:          nil,
+			overflow:             false,
 			expectedWorkerUpdate: false,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
@@ -1097,7 +1098,8 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			remaining: state.BatchResources{
 				Bytes: 0,
 			},
-			expectedErr:          state.ErrBatchResourceBytesUnderflow,
+			overflow:             true,
+			overflowResource:     "Bytes",
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
@@ -1106,7 +1108,8 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			remaining: state.BatchResources{
 				ZKCounters: state.ZKCounters{GasUsed: 0},
 			},
-			expectedErr:          state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
+			overflow:             true,
+			overflowResource:     "CumulativeGas",
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: make([]byte, 0)},
 		},
@@ -1115,22 +1118,18 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			f.wipBatch.remainingResources = tc.remaining
+			f.wipBatch.imRemainingResources = tc.remaining
 			stateMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
 			if tc.expectedWorkerUpdate {
 				workerMock.On("UpdateTxZKCounters", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return().Once()
 			}
 
 			// act
-			err := f.checkRemainingResources(result, uint64(len(tc.expectedTxTracker.RawTx)))
+			overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tc.expectedTxTracker.RawTx))})
 
 			// assert
-			if tc.expectedErr != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr.Error())
-			} else {
-				assert.NoError(t, err)
-			}
+			assert.Equal(t, tc.overflow, overflow)
+			assert.Equal(t, tc.overflowResource, overflowResource)
 		})
 	}
 }
@@ -2036,17 +2035,17 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 			// arrange
 			f = setupFinalizer(true)
 			maxRemainingResource := getMaxRemainingResources(bc)
-			f.wipBatch.remainingResources = tc.modifyResourceFunc(maxRemainingResource)
+			f.wipBatch.imRemainingResources = tc.modifyResourceFunc(maxRemainingResource)
 
 			// act
-			result := f.isBatchResourcesExhausted()
+			result, closeReason := f.checkIfFinalizeBatch()
 
 			// assert
 			assert.Equal(t, tc.expectedResult, result)
 			if tc.expectedResult {
-				assert.Equal(t, state.BatchAlmostFullClosingReason, f.wipBatch.closingReason)
+				assert.Equal(t, state.ResourceExhaustedClosingReason, closeReason)
 			} else {
-				assert.Equal(t, state.EmptyClosingReason, f.wipBatch.closingReason)
+				assert.Equal(t, state.EmptyClosingReason, closeReason)
 			}
 		})
 	}
@@ -2139,10 +2138,7 @@ func Test_isBatchFull(t *testing.T) {
 			f.wipBatch.countOfTxs = tc.batchCountOfTxs
 			f.batchConstraints.MaxTxsPerBatch = tc.maxTxsPerBatch
 
-			assert.Equal(t, tc.expected, f.maxTxsPerBatchReached())
-			if tc.expected == true {
-				assert.Equal(t, state.BatchFullClosingReason, f.wipBatch.closingReason)
-			}
+			assert.Equal(t, tc.expected, f.maxTxsPerBatchReached(f.wipBatch))
 		})
 	}
 }
@@ -2192,13 +2188,13 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			panic(err)
 		}
 		wipBatch = &Batch{
-			batchNumber:        1,
-			coinbase:           seqAddr,
-			initialStateRoot:   oldHash,
-			imStateRoot:        newHash,
-			timestamp:          now(),
-			remainingResources: getMaxRemainingResources(bc),
-			closingReason:      state.EmptyClosingReason,
+			batchNumber:          1,
+			coinbase:             seqAddr,
+			initialStateRoot:     oldHash,
+			imStateRoot:          newHash,
+			timestamp:            now(),
+			imRemainingResources: getMaxRemainingResources(bc),
+			closingReason:        state.EmptyClosingReason,
 		}
 	}
 	eventStorage, err := nileventstorage.NewNilEventStorage()

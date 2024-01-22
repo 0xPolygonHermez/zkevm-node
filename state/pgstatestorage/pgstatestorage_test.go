@@ -60,7 +60,6 @@ var (
 		},
 		Bytes: 1,
 	}
-	closingReason = state.GlobalExitRootDeadlineClosingReason
 )
 
 func initOrResetDB() {

@@ -1729,19 +1729,20 @@ StateConsistencyCheckInterval="5s"
 **Type:** : `object`
 **Description:** Finalizer's specific config properties
 
-| Property                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                        |
-| ---------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [ForcedBatchesTimeout](#Sequencer_Finalizer_ForcedBatchesTimeout )                           | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [NewTxsWaitInterval](#Sequencer_Finalizer_NewTxsWaitInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [ResourceExhaustedMarginPct](#Sequencer_Finalizer_ResourceExhaustedMarginPct )               | No      | integer | No         | -          | ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed                                                                                                  |
-| - [ForcedBatchesL1BlockConfirmations](#Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations ) | No      | integer | No         | -          | ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final                                                                                                                              |
-| - [L1InfoTreeL1BlockConfirmations](#Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations )       | No      | integer | No         | -          | L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final                                                                                                                          |
-| - [ForcedBatchesCheckInterval](#Sequencer_Finalizer_ForcedBatchesCheckInterval )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [L1InfoTreeCheckInterval](#Sequencer_Finalizer_L1InfoTreeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [BatchMaxDeltaTimestamp](#Sequencer_Finalizer_BatchMaxDeltaTimestamp )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [L2BlockMaxDeltaTimestamp](#Sequencer_Finalizer_L2BlockMaxDeltaTimestamp )                   | No      | string  | No         | -          | Duration                                                                                                                                                                                                 |
-| - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
-| - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                  |
+| Property                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [ForcedBatchesTimeout](#Sequencer_Finalizer_ForcedBatchesTimeout )                           | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [NewTxsWaitInterval](#Sequencer_Finalizer_NewTxsWaitInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [ResourceExhaustedMarginPct](#Sequencer_Finalizer_ResourceExhaustedMarginPct )               | No      | integer | No         | -          | ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed                                                                                                       |
+| - [ForcedBatchesL1BlockConfirmations](#Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations ) | No      | integer | No         | -          | ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final                                                                                                                                   |
+| - [L1InfoTreeL1BlockConfirmations](#Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations )       | No      | integer | No         | -          | L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final                                                                                                                               |
+| - [ForcedBatchesCheckInterval](#Sequencer_Finalizer_ForcedBatchesCheckInterval )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [L1InfoTreeCheckInterval](#Sequencer_Finalizer_L1InfoTreeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [BatchMaxDeltaTimestamp](#Sequencer_Finalizer_BatchMaxDeltaTimestamp )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [L2BlockMaxDeltaTimestamp](#Sequencer_Finalizer_L2BlockMaxDeltaTimestamp )                   | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.<br />The Sequencer will halt after it closes the batch equal to this number |
+| - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                       |
+| - [SequentialProcessL2Block](#Sequencer_Finalizer_SequentialProcessL2Block )                   | No      | boolean | No         | -          | SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead<br />in the processPendingL2Blocks go func                                              |
 
 #### <a name="Sequencer_Finalizer_ForcedBatchesTimeout"></a>10.7.1. `Sequencer.Finalizer.ForcedBatchesTimeout`
 
@@ -1947,7 +1948,8 @@ L2BlockMaxDeltaTimestamp="3s"
 
 **Default:** `0`
 
-**Description:** HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+**Description:** HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.
+The Sequencer will halt after it closes the batch equal to this number
 
 **Example setting the default value** (0):
 ```
@@ -1968,6 +1970,21 @@ sequential way (instead than in parallel)
 ```
 [Sequencer.Finalizer]
 SequentialBatchSanityCheck=false
+```
+
+#### <a name="Sequencer_Finalizer_SequentialProcessL2Block"></a>10.7.12. `Sequencer.Finalizer.SequentialProcessL2Block`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead
+in the processPendingL2Blocks go func
+
+**Example setting the default value** (true):
+```
+[Sequencer.Finalizer]
+SequentialProcessL2Block=true
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`

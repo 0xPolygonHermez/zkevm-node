@@ -318,8 +318,8 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, e
 				foundMutex.RUnlock()
 
 				txCandidate := w.txSortedList.getByIndex(i)
-				err := bresources.Sub(txCandidate.BatchResources)
-				if err != nil {
+				overflow, _ := bresources.Sub(txCandidate.BatchResources)
+				if overflow {
 					// We don't add this Tx
 					continue
 				}

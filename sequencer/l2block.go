@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,11 +16,13 @@ import (
 
 // L2Block represents a wip or processed L2 block
 type L2Block struct {
+	trackingNum               uint64
 	timestamp                 time.Time
 	deltaTimestamp            uint32
 	initialStateRoot          common.Hash
 	l1InfoTreeExitRoot        state.L1InfoTreeExitRootStorageEntry
 	l1InfoTreeExitRootChanged bool
+	usedResources             state.BatchResources
 	transactions              []*TxTracker
 	batchResponse             *state.ProcessBatchResponse
 }
@@ -42,27 +45,6 @@ func (b *L2Block) getL1InfoTreeIndex() uint32 {
 		return 0
 	}
 }
-
-// getUsedResources returns the estimated batch resources used to process the changeL2block tx for this block
-func (b *L2Block) getUsedResources() state.BatchResources {
-	// If the L1InfoTreeIndex has changed we return the resources used when the index != 0,
-	// otherwise we return the used resources when the index = 0
-	if b.l1InfoTreeExitRootChanged {
-		return l2BlockUsedResourcesIndexNonZero
-	} else {
-		return l2BlockUsedResourcesIndexZero
-	}
-}
-
-// getWriteInfoRootUsedResources returns the additional batch resources used when processing
-// this block with the SkipWriteBlockInfoRoot_V2 flag of the executor request to false
-// func (b *L2Block) getWriteInfoRootUsedResources() state.BatchResources {
-// 	if b.l1InfoTreeExitRootChanged {
-// 		return l2BlockUsedResourcesIndexNonZero
-// 	} else {
-// 		return l2BlockUsedResourcesIndexZero
-// 	}
-// }
 
 // initWIPL2Block inits the wip L2 block
 func (f *finalizer) initWIPL2Block(ctx context.Context) {
@@ -125,52 +107,14 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 				return
 			}
 
-			l2Block.initialStateRoot = f.wipBatch.finalStateRoot
-
-			log.Infof("processing L2 block, batch: %d, initialStateRoot: %s txs: %d, l1InfoTreeIndex: %d",
-				f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions), l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-
-			startProcessing := time.Now()
-			batchResponse, err := f.processL2Block(ctx, l2Block)
-			endProcessing := time.Now()
+			err := f.processL2Block(ctx, l2Block)
 
 			if err != nil {
-				f.Halt(ctx, fmt.Errorf("error processing L2 block, error: %v", err))
+				f.Halt(ctx, fmt.Errorf("error processing L2 block [%d], error: %v", l2Block.trackingNum, err))
 			}
-
-			if len(batchResponse.BlockResponses) == 0 {
-				f.Halt(ctx, fmt.Errorf("error processing L2 block, error: BlockResponses returned by the executor is empty"))
-			}
-
-			blockResponse := batchResponse.BlockResponses[0]
-
-			// Sanity check. Check blockResponse.TransactionsReponses match l2Block.Transactions length, order and tx hashes
-			if len(blockResponse.TransactionResponses) != len(l2Block.transactions) {
-				f.Halt(ctx, fmt.Errorf("error processing L2 block, error: length of TransactionsResponses %d don't match length of l2Block.transactions %d",
-					len(blockResponse.TransactionResponses), len(l2Block.transactions)))
-			}
-			for i, txResponse := range blockResponse.TransactionResponses {
-				if txResponse.TxHash != l2Block.transactions[i].Hash {
-					f.Halt(ctx, fmt.Errorf("error processing L2 block, error: TransactionsResponses hash %s in position %d don't match l2Block.transactions[%d] hash %s",
-						txResponse.TxHash.String(), i, i, l2Block.transactions[i].Hash))
-				}
-			}
-
-			l2Block.batchResponse = batchResponse
-
-			// Update finalStateRoot of the batch to the newStateRoot for the L2 block
-			f.wipBatch.finalStateRoot = l2Block.batchResponse.NewStateRoot
-
-			log.Infof("processed L2 block: %d, batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v, %s",
-				blockResponse.BlockNumber, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot, len(l2Block.transactions),
-				len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endProcessing.Sub(startProcessing),
-				f.logZKCounters(batchResponse.UsedZkCounters))
-
-			f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
-
-			f.addPendingL2BlockToStore(ctx, l2Block)
 
 			f.pendingL2BlocksToProcessWG.Done()
+
 		case <-ctx.Done():
 			// The context was cancelled from outside, Wait for all goroutines to finish, cleanup and exit
 			f.pendingL2BlocksToProcessWG.Wait()
@@ -191,39 +135,10 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 				return
 			}
 
-			// Wait until L2 block has been flushed/stored by the executor
-			f.storedFlushIDCond.L.Lock()
-			for f.storedFlushID < l2Block.batchResponse.FlushID {
-				f.storedFlushIDCond.Wait()
-				// check if context is done after waking up
-				if ctx.Err() != nil {
-					f.storedFlushIDCond.L.Unlock()
-					return
-				}
-			}
-			f.storedFlushIDCond.L.Unlock()
-
-			// If the L2 block has txs now f.storedFlushID >= l2BlockToStore.flushId, we can store tx
-			blockResponse := l2Block.batchResponse.BlockResponses[0]
-			log.Infof("storing L2 block: %d, batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s",
-				blockResponse.BlockNumber, f.wipBatch.batchNumber, len(l2Block.transactions), len(blockResponse.TransactionResponses),
-				blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
-
-			startStoring := time.Now()
 			err := f.storeL2Block(ctx, l2Block)
-			endStoring := time.Now()
 
 			if err != nil {
-				f.Halt(ctx, fmt.Errorf("error storing L2 block %d, error: %v", l2Block.batchResponse.BlockResponses[0].BlockNumber, err))
-			}
-
-			log.Infof("stored L2 block: %d, batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
-				blockResponse.BlockNumber, f.wipBatch.batchNumber, len(l2Block.transactions), len(blockResponse.TransactionResponses),
-				blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
-
-			for _, tx := range l2Block.transactions {
-				// Delete the tx from the pending list in the worker (addrQueue)
-				f.workerIntf.DeletePendingTxToStore(tx.Hash, tx.From)
+				f.Halt(ctx, fmt.Errorf("error storing L2 block %d [%d], error: %v", l2Block.batchResponse.BlockResponses[0].BlockNumber, l2Block.trackingNum, err))
 			}
 
 			f.pendingL2BlocksToStoreWG.Done()
@@ -237,13 +152,70 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 	}
 }
 
-// processL2Block process (executor) a L2 Block and adds it to the pendingL2BlocksToStore channel. It returns the response block from the executor
-func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*state.ProcessBatchResponse, error) {
-	processL2BLockError := func(err error) {
-		log.Errorf("process L2 block error %v, batch: %d, initialStateRoot: %s", err, f.wipBatch.batchNumber, l2Block.initialStateRoot.String())
+// processL2Block process a L2 Block and adds it to the pendingL2BlocksToStore channel
+func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) error {
+	startProcessing := time.Now()
+
+	l2Block.initialStateRoot = f.wipBatch.finalStateRoot
+
+	log.Infof("processing L2 block [%d], batch: %d, initialStateRoot: %s txs: %d, l1InfoTreeIndex: %d",
+		l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.initialStateRoot, len(l2Block.transactions), l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+
+	batchResponse, batchL2DataSize, err := f.executeL2Block(ctx, l2Block)
+
+	if err != nil {
+		return fmt.Errorf("failed to execute L2 block [%d], error: %v", l2Block.trackingNum, err)
+	}
+
+	if len(batchResponse.BlockResponses) != 1 {
+		return fmt.Errorf("length of batchResponse.BlockRespones returned by the executor is %d and must be 1", len(batchResponse.BlockResponses))
+	}
+
+	blockResponse := batchResponse.BlockResponses[0]
+
+	// Sanity check. Check blockResponse.TransactionsReponses match l2Block.Transactions length, order and tx hashes
+	if len(blockResponse.TransactionResponses) != len(l2Block.transactions) {
+		return fmt.Errorf("length of TransactionsResponses %d don't match length of l2Block.transactions %d", len(blockResponse.TransactionResponses), len(l2Block.transactions))
+	}
+	for i, txResponse := range blockResponse.TransactionResponses {
+		if txResponse.TxHash != l2Block.transactions[i].Hash {
+			return fmt.Errorf("blockResponse.TransactionsResponses[%d] hash %s don't match l2Block.transactions[%d] hash %s", i, txResponse.TxHash.String(), i, l2Block.transactions[i].Hash)
+		}
+	}
+
+	l2Block.batchResponse = batchResponse
+
+	// Update finalRemainingResources of the batch
+	overflow, overflowResource := f.wipBatch.finalRemainingResources.Sub(state.BatchResources{ZKCounters: batchResponse.UsedZkCounters, Bytes: batchL2DataSize})
+	if overflow {
+		return fmt.Errorf("error sustracting L2 block %d [%d] resources from the batch %d, overflow resource: %s, batch remaining counters: %s, L2Block used counters: %s, batch remaining bytes: %d, L2Block used bytes: %d",
+			blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(batchResponse.UsedZkCounters), f.wipBatch.imRemainingResources.Bytes, batchL2DataSize)
+	}
+
+	// Update finalStateRoot of the batch to the newStateRoot for the L2 block
+	f.wipBatch.finalStateRoot = l2Block.batchResponse.NewStateRoot
+
+	f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
+
+	f.addPendingL2BlockToStore(ctx, l2Block)
+
+	endProcessing := time.Now()
+
+	log.Infof("processed L2 block %d [%d], batch: %d, initialStateRoot: %s, stateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v, used counters: %s",
+		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.initialStateRoot, l2Block.batchResponse.NewStateRoot, len(l2Block.transactions),
+		len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot, endProcessing.Sub(startProcessing),
+		f.logZKCounters(batchResponse.UsedZkCounters))
+
+	return nil
+}
+
+// executeL2Block executes a L2 Block in the executor and returns the batch response from the executor and the batchL2Data size
+func (f *finalizer) executeL2Block(ctx context.Context, l2Block *L2Block) (*state.ProcessBatchResponse, uint64, error) {
+	executeL2BLockError := func(err error) {
+		log.Errorf("execute L2 block [%d] error %v, batch: %d, initialStateRoot: %s", l2Block.trackingNum, err, f.wipBatch.batchNumber, l2Block.initialStateRoot.String())
 		// Log batch detailed info
 		for i, tx := range l2Block.transactions {
-			log.Infof("batch: %d, tx position %d, tx hash: %s", f.wipBatch.batchNumber, i, tx.HashStr)
+			log.Infof("batch: %d, block: [%d], tx position: %d, tx hash: %s", f.wipBatch.batchNumber, l2Block.trackingNum, i, tx.HashStr)
 		}
 	}
 
@@ -258,7 +230,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 		epHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
 		if err != nil {
 			log.Errorf("error decoding hex value for effective gas price percentage for tx %s, error: %v", tx.HashStr, err)
-			return nil, err
+			return nil, 0, err
 		}
 
 		txData := append(tx.RawTx, epHex...)
@@ -294,29 +266,43 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) (*stat
 	batchResponse, err = f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)
 
 	if err != nil {
-		processL2BLockError(err)
-		return nil, err
+		executeL2BLockError(err)
+		return nil, 0, err
 	}
 
 	if batchResponse.ExecutorError != nil {
-		processL2BLockError(err)
-		return nil, ErrExecutorError
+		executeL2BLockError(err)
+		return nil, 0, ErrExecutorError
 	}
 
 	if batchResponse.IsRomOOCError {
-		processL2BLockError(err)
-		return nil, ErrProcessBatchOOC
+		executeL2BLockError(err)
+		return nil, 0, ErrProcessBatchOOC
 	}
 
-	return batchResponse, nil
+	return batchResponse, uint64(len(batchL2Data)), nil
 }
 
 // storeL2Block stores the L2 block in the state and updates the related batch and transactions
 func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
-	//log.Infof("storeL2Block: storing processed txToStore: %s", txToStore.response.TxHash.String())
+	startStoring := time.Now()
+
+	// Wait until L2 block has been flushed/stored by the executor
+	f.storedFlushIDCond.L.Lock()
+	for f.storedFlushID < l2Block.batchResponse.FlushID {
+		f.storedFlushIDCond.Wait()
+	}
+	f.storedFlushIDCond.L.Unlock()
+
+	// If the L2 block has txs now f.storedFlushID >= l2BlockToStore.flushId, we can store tx
+	blockResponse := l2Block.batchResponse.BlockResponses[0]
+	log.Infof("storing L2 block %d [%d], batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s",
+		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, len(l2Block.transactions), len(blockResponse.TransactionResponses),
+		blockResponse.BlockHash, blockResponse.BlockInfoRoot.String())
+
 	dbTx, err := f.stateIntf.BeginStateTransaction(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating db transaction to store L2 block, error: %v", err)
+		return fmt.Errorf("error creating db transaction to store L2 block %d [%d], error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
 
 	rollbackOnError := func(retError error) error {
@@ -327,7 +313,6 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		return retError
 	}
 
-	blockResponse := l2Block.batchResponse.BlockResponses[0]
 	forkID := f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber)
 
 	txsEGPLog := []*state.EffectiveGasPriceLog{}
@@ -339,7 +324,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	// Store L2 block in the state
 	err = f.stateIntf.StoreL2Block(ctx, f.wipBatch.batchNumber, blockResponse, txsEGPLog, dbTx)
 	if err != nil {
-		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d, error: %v", blockResponse.BlockNumber, err))
+		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d [%d], error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err))
 	}
 
 	// Now we need to update de BatchL2Data of the wip batch and also update the status of the L2 block txs in the pool
@@ -405,15 +390,26 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	err = f.DSSendL2Block(f.wipBatch.batchNumber, blockResponse)
 	if err != nil {
 		//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
-		log.Errorf("error sending L2 block %d to data streamer, error: %v", blockResponse.BlockNumber, err)
+		log.Errorf("error sending L2 block %d [%d] to data streamer, error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
+
+	for _, tx := range l2Block.transactions {
+		// Delete the tx from the pending list in the worker (addrQueue)
+		f.workerIntf.DeletePendingTxToStore(tx.Hash, tx.From)
+	}
+
+	endStoring := time.Now()
+
+	log.Infof("stored L2 block: %d [%d], batch: %d, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
+		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, len(l2Block.transactions), len(blockResponse.TransactionResponses),
+		blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
 
 	return nil
 }
 
 // finalizeWIPL2Block closes the wip L2 block and opens a new one
 func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
-	log.Debugf("finalizing WIP L2 block")
+	log.Debugf("finalizing WIP L2 block [%d]", f.wipL2Block.trackingNum)
 
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
@@ -423,26 +419,35 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 	f.openNewWIPL2Block(ctx, prevTimestamp, &prevL1InfoTreeIndex)
 }
 
+// closeWIPL2Block closes the wip L2 block
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
-	log.Debugf("closing WIP L2 block")
-
-	// If the L2 block is empty (no txs) We need to process it to update the state root and remaining batch resources before closing it
-	if f.wipL2Block.isEmpty() {
-		log.Debug("processing WIP L2 block because it is empty")
-		if err := f.processEmptyL2Block(ctx); err != nil {
-			f.Halt(ctx, fmt.Errorf("failed to process empty WIP L2 block, error: %v ", err))
-		}
-	}
+	log.Debugf("closing WIP L2 block [%d]", f.wipL2Block.trackingNum)
 
 	f.wipBatch.countOfL2Blocks++
 
-	f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+	if f.cfg.SequentialProcessL2Block {
+		err := f.processL2Block(ctx, f.wipL2Block)
+		if err != nil {
+			f.Halt(ctx, fmt.Errorf("error processing L2 block [%d], error: %v", f.wipL2Block.trackingNum, err))
+		}
+		// We update imStateRoot (used in tx-by-tx execution) to the finalStateRoot that has been updated after process the WIP L2 Block
+		f.wipBatch.imStateRoot = f.wipBatch.finalStateRoot
+	} else {
+		f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
+	}
 
 	f.wipL2Block = nil
 }
 
+// openNewWIPL2Block opens a new wip L2 block
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Time, prevL1InfoTreeIndex *uint32) {
 	newL2Block := &L2Block{}
+
+	// Tracking number
+	newL2Block.trackingNum = f.l2BlockCounter
+	f.l2BlockCounter++
+
+	log.Debugf("opening new WIP L2 block [%d]", newL2Block.trackingNum)
 
 	newL2Block.timestamp = now()
 	newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(prevTimestamp).Truncate(time.Second).Seconds())
@@ -470,16 +475,81 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 
 	f.wipL2Block = newL2Block
 
-	// Check if there are enough counters in the wip batch to store the new wip L2 block
-	err := f.wipBatch.remainingResources.Sub(f.wipL2Block.getUsedResources())
-	// We close the wip batch and open a new one if we got an error when subtracting the getUsedResources or we have exhausted some resources of the batch
-	if err != nil || f.isBatchResourcesExhausted() {
-		err := f.closeAndOpenNewWIPBatch(ctx)
+	// We process (execute) the new wip L2 block to update the imStateRoot and also get the counters used by the wip l2block
+	batchResponse, err := f.executeNewWIPL2Block(ctx)
+	if err != nil {
+		f.Halt(ctx, fmt.Errorf("failed to execute new WIP L2 block [%d], error: %v ", f.wipL2Block.trackingNum, err))
+	}
+
+	if len(batchResponse.BlockResponses) != 1 {
+		f.Halt(ctx, fmt.Errorf("number of L2 block [%d] responses returned by the executor is %d and must be 1", f.wipL2Block.trackingNum, len(batchResponse.BlockResponses)))
+	}
+
+	// Update imStateRoot and wip L2 block number
+	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
+
+	// Save and sustract the resources used by the new WIP L2 block from the wip batch
+	// We need to increase the poseidon hashes to reserve in the batch the hashes needed to write the L1InfoRoot when processing the final L2 Block (SkipWriteBlockInfoRoot_V2=false)
+	f.wipL2Block.usedResources.ZKCounters = batchResponse.UsedZkCounters
+	f.wipL2Block.usedResources.ZKCounters.UsedPoseidonHashes = (batchResponse.UsedZkCounters.UsedPoseidonHashes * 2) + 2 // nolint:gomnd
+	f.wipL2Block.usedResources.Bytes = changeL2BlockSize
+
+	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(f.wipL2Block.usedResources)
+	if overflow {
+		log.Infof("new WIP L2 block [%d] exceeds the remaining resources from the batch %d, overflow resource: %s, closing WIP batch and creating new one",
+			f.wipL2Block.trackingNum, f.wipBatch.batchNumber, overflowResource)
+		err := f.closeAndOpenNewWIPBatch(ctx, state.ResourceExhaustedClosingReason)
 		if err != nil {
-			f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
+			f.Halt(ctx, fmt.Errorf("failed to create new WIP batch [%d], error: %v", f.wipL2Block.trackingNum, err))
 		}
 	}
 
-	log.Debugf("new WIP L2 block created: batch: %d, initialStateRoot: %s, timestamp: %d, l1InfoTreeIndex: %d",
-		f.wipBatch.batchNumber, f.wipL2Block.initialStateRoot, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+	log.Infof("new WIP L2 block [%d] created, batch: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfTreeIndexChanged: %s, oldStateRoot: %s, stateRoot: %s, used counters: %s",
+		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
+		f.wipL2Block.l1InfoTreeExitRootChanged, f.wipBatch.imStateRoot, batchResponse.NewStateRoot, f.logZKCounters(f.wipL2Block.usedResources.ZKCounters))
+}
+
+// executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor
+func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBatchResponse, error) {
+	start := time.Now()
+	defer func() {
+		metrics.ProcessingTime(time.Since(start))
+	}()
+
+	batchRequest := state.ProcessRequest{
+		BatchNumber:               f.wipBatch.batchNumber,
+		OldStateRoot:              f.wipBatch.imStateRoot,
+		Coinbase:                  f.wipBatch.coinbase,
+		L1InfoRoot_V2:             mockL1InfoRoot,
+		TimestampLimit_V2:         uint64(f.wipL2Block.timestamp.Unix()),
+		Caller:                    stateMetrics.SequencerCallerLabel,
+		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
+		SkipWriteBlockInfoRoot_V2: true,
+		SkipVerifyL1InfoRoot_V2:   true,
+		SkipFirstChangeL2Block_V2: false,
+		Transactions:              f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.getL1InfoTreeIndex()),
+		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
+	}
+
+	batchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
+		GlobalExitRoot: f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
+		BlockHashL1:    f.wipL2Block.l1InfoTreeExitRoot.PreviousBlockHash,
+		MinTimestamp:   uint64(f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
+	}
+
+	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if batchResponse.ExecutorError != nil {
+		return nil, ErrExecutorError
+	}
+
+	if batchResponse.IsRomOOCError {
+		return nil, ErrProcessBatchOOC
+	}
+
+	return batchResponse, nil
 }

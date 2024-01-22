@@ -77,10 +77,15 @@ type FinalizerCfg struct {
 	// L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block
 	L2BlockMaxDeltaTimestamp types.Duration `mapstructure:"L2BlockMaxDeltaTimestamp"`
 
-	// HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+	// HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.
+	// The Sequencer will halt after it closes the batch equal to this number
 	HaltOnBatchNumber uint64 `mapstructure:"HaltOnBatchNumber"`
 
 	// SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
 	SequentialBatchSanityCheck bool `mapstructure:"SequentialBatchSanityCheck"`
+
+	// SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead
+	// in the processPendingL2Blocks go func
+	SequentialProcessL2Block bool `mapstructure:"SequentialProcessL2Block"`
 }
