@@ -396,11 +396,11 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				Value: batch.BatchNumber,
 			}
 
-			missingBookMark := false
+			missingBookMark := true
 			if b == 0 {
 				_, err = streamServer.GetBookmark(bookMark.Encode())
-				if err != nil {
-					missingBookMark = true
+				if err == nil {
+					missingBookMark = false
 				}
 			}
 
