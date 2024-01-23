@@ -432,7 +432,13 @@ func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.
 		beethCli = beethovenClient.New(c.BeethovenURL)
 	}
 
-	agg, err := aggregator.New(c, st, ethTxManager, etherman, beethCli, c.SequencerPrivateKey)
+	// Load private key
+	pk, err := config.NewKeyFromKeystore(c.SequencerPrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	agg, err := aggregator.New(c, st, ethTxManager, etherman, beethCli, pk)
 	if err != nil {
 		log.Fatal(err)
 	}

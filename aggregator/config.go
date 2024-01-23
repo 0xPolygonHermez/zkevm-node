@@ -1,7 +1,6 @@
 package aggregator
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 
@@ -106,5 +105,5 @@ type Config struct {
 	BeethovenURL string `mapstructure:"BeethovenURL"`
 
 	// SequencerPrivateKey Private key of the trusted sequencer
-	SequencerPrivateKey *ecdsa.PrivateKey `mapstructure:"SequencerPrivateKey"`
+	SequencerPrivateKey types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`
 }
