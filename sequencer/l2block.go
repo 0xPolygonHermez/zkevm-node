@@ -138,6 +138,8 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 			err := f.storeL2Block(ctx, l2Block)
 
 			if err != nil {
+				// Dump L2Block info
+				f.logL2Block(l2Block)
 				f.Halt(ctx, fmt.Errorf("error storing L2 block %d [%d], error: %v", l2Block.batchResponse.BlockResponses[0].BlockNumber, l2Block.trackingNum, err))
 			}
 
@@ -444,8 +446,8 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 	newL2Block := &L2Block{}
 
 	// Tracking number
-	newL2Block.trackingNum = f.l2BlockCounter
 	f.l2BlockCounter++
+	newL2Block.trackingNum = f.l2BlockCounter
 
 	log.Debugf("opening new WIP L2 block [%d]", newL2Block.trackingNum)
 
@@ -552,4 +554,25 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 	}
 
 	return batchResponse, nil
+}
+
+func (f *finalizer) logL2Block(l2Block *L2Block) {
+	var blockResp *state.ProcessBlockResponse
+	if l2Block.batchResponse != nil {
+		if len(l2Block.batchResponse.BlockResponses) > 0 {
+			blockResp = l2Block.batchResponse.BlockResponses[0]
+		}
+	}
+
+	if blockResp != nil {
+		log.Infof("DUMP L2 block %d [%d], Timestamp: %d, ParentHash: %s, Coinbase: %s, GER: %s, BlockHashL1: %s, GasUsed: %d, BlockInfoRoot: %s, BlockHash: %s",
+			blockResp.BlockNumber, l2Block.trackingNum, blockResp.Timestamp, blockResp.ParentHash, blockResp.Coinbase, blockResp.GlobalExitRoot, blockResp.BlockHashL1,
+			blockResp.GasUsed, blockResp.BlockInfoRoot, blockResp.BlockHash)
+
+		for i, txResp := range blockResp.TransactionResponses {
+			log.Infof("  tx[%d] Hash: %s, HashL2: %s, StateRoot: %s, Type: %d, GasLeft: %d, GasUsed: %d, GasRefund: %d, CreateAddress: %s, ChangesStateRoot: %v, EGP: %s, EGPPct: %d, HasGaspriceOpcode: %v, HasBalanceOpcode: %v",
+				i, txResp.TxHash, txResp.TxHashL2_V2, txResp.StateRoot, txResp.Type, txResp.GasLeft, txResp.GasUsed, txResp.GasRefunded, txResp.CreateAddress, txResp.ChangesStateRoot, txResp.EffectiveGasPrice,
+				txResp.EffectivePercentage, txResp.HasGaspriceOpcode, txResp.HasBalanceOpcode)
+		}
+	}
 }
