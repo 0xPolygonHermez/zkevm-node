@@ -1027,7 +1027,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 				if err != nil {
 					return nil, err
 				}
-				if *l1InfoRoot != calculatedL1InfoRoot {
+				if l1InfoRoot != nil && *l1InfoRoot != calculatedL1InfoRoot {
 					for i, l := range aLeaves {
 						log.Info("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
 					}
