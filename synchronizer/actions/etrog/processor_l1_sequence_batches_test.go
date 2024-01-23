@@ -3,6 +3,7 @@ package etrog
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
@@ -33,7 +34,6 @@ var (
 type mocksEtrogProcessorL1 struct {
 	Etherman             *mock_syncinterfaces.EthermanFullInterface
 	State                *mock_syncinterfaces.StateFullInterface
-	Pool                 *mock_syncinterfaces.PoolInterface
 	Synchronizer         *mock_syncinterfaces.SynchronizerFullInterface
 	DbTx                 *syncMocks.DbTxMock
 	TimeProvider         *syncCommon.MockTimerProvider
@@ -44,7 +44,6 @@ func createMocks(t *testing.T) *mocksEtrogProcessorL1 {
 	mocks := &mocksEtrogProcessorL1{
 		Etherman:             mock_syncinterfaces.NewEthermanFullInterface(t),
 		State:                mock_syncinterfaces.NewStateFullInterface(t),
-		Pool:                 mock_syncinterfaces.NewPoolInterface(t),
 		Synchronizer:         mock_syncinterfaces.NewSynchronizerFullInterface(t),
 		DbTx:                 syncMocks.NewDbTxMock(t),
 		TimeProvider:         &syncCommon.MockTimerProvider{},
@@ -101,7 +100,7 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsHappyPath(t *tes
 	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
-	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], l1Block.ReceivedAt, executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
 	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
@@ -117,7 +116,7 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsHappyPath
 	l1Block := newL1Block(mocks, batch, l1InfoRoot)
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
-	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], l1Block.ReceivedAt, executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
 	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
@@ -139,7 +138,7 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsMismatch(
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
 	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
-	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], l1Block.ReceivedAt, executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	mocks.Synchronizer.EXPECT().IsTrustedSequencer().Return(false)
 	mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
@@ -168,20 +167,58 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *test
 	expectationsPreExecution(t, mocks, ctx, batch, nil)
 	executionResponse := newProcessBatchResponseV2(batch)
 	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
-	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], executionResponse)
+	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], l1Block.ReceivedAt, executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
 	// Here it says that is a TRUSTED NODE
 	mocks.Synchronizer.EXPECT().IsTrustedSequencer().Return(true)
-	// TODO: Really don't have to write a entry to `trusted_reorgs` table? how the rest of servicies known about that??!?
+	// Notice that don't  write any entry to `trusted_reorgs` table.
 	//mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
 	mocks.CriticalErrorHandler.EXPECT().CriticalError(mock.Anything, mock.Anything)
+	// CriticalError call in a real implementation is a blocking call, in the test is going to return and hit a panic next to the call
 	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx) }) //nolint
+
+}
+
+func TestL1SequenceForcedBatchesNum1TrustedBatch(t *testing.T) {
+	mocks := createMocks(t)
+	sut := createSUT(mocks)
+	ctx := context.Background()
+	batch := newStateBatch(3)
+	forcedTime := mocks.TimeProvider.Now()
+	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
+	forcedGlobalExitRoot := common.HexToHash(hashExamplesValues[1])
+	forcedBlockHash := common.HexToHash(hashExamplesValues[2])
+	sequencedForcedBatch := newForcedSequenceBatch(batch, l1InfoRoot, forcedTime, forcedGlobalExitRoot, forcedBlockHash)
+
+	l1Block := newComposedL1Block(mocks, sequencedForcedBatch, l1InfoRoot)
+
+	mocks.State.EXPECT().GetNextForcedBatches(ctx, int(1), mocks.DbTx).Return([]state.ForcedBatch{
+		{
+			BlockNumber:       32,
+			ForcedBatchNumber: 4,
+			Sequencer:         common.HexToAddress(addrExampleValues[0]),
+			GlobalExitRoot:    forcedGlobalExitRoot,
+			RawTxsData:        []byte{},
+			ForcedAt:          forcedTime,
+		},
+	}, nil)
+	expectationsPreExecution(t, mocks, ctx, batch, state.ErrNotFound)
+
+	executionResponse := newProcessBatchResponseV2(batch)
+	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
+
+	expectationsProcessAndStoreClosedBatchV2(t, mocks, ctx, executionResponse, nil)
+	expectationsAddSequencedBatch(t, mocks, ctx, executionResponse)
+	mocks.Synchronizer.EXPECT().PendingFlushID(mock.Anything, mock.Anything)
+
+	err := sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx)
+	require.NoError(t, err)
 }
 
 // --------------------- Helper functions ----------------------------------------------------------------------------------------------------
 
 func expectationsPreExecution(t *testing.T, mocks *mocksEtrogProcessorL1, ctx context.Context, trustedBatch *state.Batch, responseError error) {
-	mocks.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mocks.DbTx).Return(map[uint32]state.L1DataV2{}, state.ZeroHash, state.ZeroHash, nil)
+	mocks.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(ctx, mock.Anything, mocks.DbTx).Return(map[uint32]state.L1DataV2{}, state.ZeroHash, state.ZeroHash, nil).Maybe()
 	mocks.State.EXPECT().GetBatchByNumber(ctx, trustedBatch.BatchNumber, mocks.DbTx).Return(trustedBatch, responseError)
 }
 
@@ -195,10 +232,10 @@ func expectationsProcessAndStoreClosedBatchV2(t *testing.T, mocks *mocksEtrogPro
 	mocks.State.EXPECT().ProcessAndStoreClosedBatchV2(ctx, mock.Anything, mocks.DbTx, mock.Anything).Return(newStateRoot, response.FlushId, response.ProverId, responseError)
 }
 
-func expectationsForExecution(t *testing.T, mocks *mocksEtrogProcessorL1, ctx context.Context, sequencedBatch etherman.SequencedBatch, response *executor.ProcessBatchResponseV2) {
+func expectationsForExecution(t *testing.T, mocks *mocksEtrogProcessorL1, ctx context.Context, sequencedBatch etherman.SequencedBatch, timestampLimit time.Time, response *executor.ProcessBatchResponseV2) {
 	mocks.State.EXPECT().ExecuteBatchV2(ctx,
-		mock.Anything, *sequencedBatch.L1InfoRoot, mock.Anything, mock.Anything, false,
-		mock.Anything, mock.Anything, mocks.DbTx).Return(response, nil)
+		mock.Anything, *sequencedBatch.L1InfoRoot, mock.Anything, timestampLimit, false,
+		uint32(1), (*common.Hash)(nil), mocks.DbTx).Return(response, nil)
 }
 
 func newProcessBatchResponseV2(batch *state.Batch) *executor.ProcessBatchResponseV2 {
@@ -219,25 +256,47 @@ func newStateBatch(number uint64) *state.Batch {
 	}
 }
 
+func newForcedSequenceBatch(batch *state.Batch, l1InfoRoot common.Hash, forcedTimestamp time.Time, forcedGlobalExitRoot, forcedBlockHashL1 common.Hash) *etherman.SequencedBatch {
+	return &etherman.SequencedBatch{
+		BatchNumber:   batch.BatchNumber,
+		L1InfoRoot:    &l1InfoRoot,
+		TxHash:        state.HashByteArray(batch.BatchL2Data),
+		Coinbase:      batch.Coinbase,
+		SequencerAddr: common.HexToAddress(addrExampleValues[0]),
+		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
+			Transactions:         []byte{},
+			ForcedTimestamp:      uint64(forcedTimestamp.Unix()),
+			ForcedGlobalExitRoot: forcedGlobalExitRoot,
+			ForcedBlockHashL1:    forcedBlockHashL1,
+		},
+	}
+}
+
 func newL1Block(mocks *mocksEtrogProcessorL1, batch *state.Batch, l1InfoRoot common.Hash) *etherman.Block {
+	sbatch := etherman.SequencedBatch{
+		BatchNumber:   batch.BatchNumber,
+		L1InfoRoot:    &l1InfoRoot,
+		TxHash:        state.HashByteArray(batch.BatchL2Data),
+		Coinbase:      batch.Coinbase,
+		SequencerAddr: common.HexToAddress(addrExampleValues[0]),
+		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
+			Transactions: []byte{},
+		},
+	}
+
+	return newComposedL1Block(mocks, &sbatch, l1InfoRoot)
+
+}
+
+func newComposedL1Block(mocks *mocksEtrogProcessorL1, forcedBatch *etherman.SequencedBatch, l1InfoRoot common.Hash) *etherman.Block {
 	l1Block := etherman.Block{
 		BlockNumber:      123,
 		ReceivedAt:       mocks.TimeProvider.Now(),
 		SequencedBatches: [][]etherman.SequencedBatch{},
 	}
-	//l1InfoRoot := common.HexToHash(hashExamplesValues[0])
 	l1Block.SequencedBatches = append(l1Block.SequencedBatches, []etherman.SequencedBatch{})
 	l1Block.SequencedBatches = append(l1Block.SequencedBatches, []etherman.SequencedBatch{
-		{
-			BatchNumber:   batch.BatchNumber,
-			L1InfoRoot:    &l1InfoRoot,
-			TxHash:        state.HashByteArray(batch.BatchL2Data),
-			Coinbase:      batch.Coinbase,
-			SequencerAddr: common.HexToAddress(addrExampleValues[0]),
-			PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
-				Transactions: []byte{},
-			},
-		},
+		*forcedBatch,
 	})
 	return &l1Block
 }
