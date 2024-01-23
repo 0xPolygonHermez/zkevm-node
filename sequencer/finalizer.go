@@ -1050,11 +1050,11 @@ func (f *finalizer) syncWithState(ctx context.Context, lastBatchNum *uint64) err
 	}
 	log.Infof("Batch %d isClosed: %v", batchNum, isClosed)
 
-	if batchNum+1 == f.cfg.StopSequencerOnBatchNum {
-		f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.StopSequencerOnBatchNum))
-	}
-
 	if isClosed {
+		if batchNum+1 == f.cfg.StopSequencerOnBatchNum {
+			f.halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.StopSequencerOnBatchNum))
+		}
+
 		ger, _, err := f.dbManager.GetLatestGer(ctx, f.cfg.GERFinalityNumberOfBlocks)
 		if err != nil {
 			return fmt.Errorf("failed to get latest ger, err: %w", err)
