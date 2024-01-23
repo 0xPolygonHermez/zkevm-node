@@ -83,7 +83,7 @@ func TestGEREvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v", blocks)
-	assert.Equal(t, uint64(5), blocks[0].L1InfoTree[0].BlockNumber)
+	assert.Equal(t, uint64(4), blocks[0].L1InfoTree[0].BlockNumber)
 	assert.NotEqual(t, common.Hash{}, blocks[0].L1InfoTree[0].MainnetExitRoot)
 	assert.Equal(t, common.Hash{}, blocks[0].L1InfoTree[0].RollupExitRoot)
 }
@@ -115,8 +115,8 @@ func TestForcedBatchEvent(t *testing.T) {
 	blocks, _, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v", blocks)
-	assert.Equal(t, uint64(5), blocks[0].BlockNumber)
-	assert.Equal(t, uint64(5), blocks[0].ForcedBatches[0].BlockNumber)
+	assert.Equal(t, uint64(4), blocks[0].BlockNumber)
+	assert.Equal(t, uint64(4), blocks[0].ForcedBatches[0].BlockNumber)
 	assert.NotEqual(t, common.Hash{}, blocks[0].ForcedBatches[0].GlobalExitRoot)
 	assert.NotEqual(t, time.Time{}, blocks[0].ForcedBatches[0].ForcedAt)
 	assert.Equal(t, uint64(1), blocks[0].ForcedBatches[0].ForcedBatchNumber)
@@ -164,8 +164,8 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	}, polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 		TransactionsHash: txsHash,
 	})
-	da.Mock.On("GetBatchL2Data", uint64(4), txsHash).Return(data, nil)
-	da.Mock.On("GetBatchL2Data", uint64(5), txsHash).Return(data, nil)
+	da.Mock.On("GetBatchL2Data", uint64(2), txsHash).Return(data, nil)
+	da.Mock.On("GetBatchL2Data", uint64(3), txsHash).Return(data, nil)
 	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, sequences, auth.From, []byte{})
 	require.NoError(t, err)
 
@@ -178,16 +178,6 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	finalBlockNumber := finalBlock.NumberU64()
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
-	// t.Log("Blocks: ", blocks)
-	// assert.Equal(t, 4, len(blocks))
-	// assert.Equal(t, 1, len(blocks[3].SequencedBatches))
-	// assert.Equal(t, crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)), common.Hash(blocks[3].SequencedBatches[0][1].TransactionsHash))
-	// assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].Timestamp)
-	// assert.Equal(t, [32]byte{}, blocks[3].SequencedBatches[0][0].ForcedGlobalExitRoot)
-	// assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].Coinbase)
-	// assert.Equal(t, auth.From, blocks[3].SequencedBatches[0][0].SequencerAddr)
-	// assert.Equal(t, currentBlock.Time(), blocks[3].SequencedBatches[0][0].MinForcedTimestamp)
-	// assert.Equal(t, 0, order[blocks[3].BlockHash][0].Pos)
 	t.Logf("Blocks: %+v", blocks)
 	assert.Equal(t, 3, len(blocks))
 	assert.Equal(t, 1, len(blocks[2].SequencedBatches))
@@ -216,7 +206,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	}
 	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{tx}, auth.From, nil)
 	require.NoError(t, err)
-	da.Mock.On("GetBatchL2Data", uint64(3), crypto.Keccak256Hash(common.Hex2Bytes(rawTxs))).Return(common.Hex2Bytes(rawTxs), nil)
+	da.Mock.On("GetBatchL2Data", uint64(2), crypto.Keccak256Hash(common.Hex2Bytes(rawTxs))).Return(common.Hex2Bytes(rawTxs), nil)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
@@ -234,7 +224,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v, \nOrder: %+v", blocks, order)
-	assert.Equal(t, uint64(6), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(5), blocks[1].BlockNumber)
 	assert.Equal(t, uint64(1), blocks[1].VerifiedBatches[0].BatchNumber)
 	assert.NotEqual(t, common.Address{}, blocks[1].VerifiedBatches[0].Aggregator)
 	assert.NotEqual(t, common.Hash{}, blocks[1].VerifiedBatches[0].TxHash)
@@ -296,7 +286,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	blocks, order, err := etherman.GetRollupInfoByBlockRange(ctx, initBlock.NumberU64(), &finalBlockNumber)
 	require.NoError(t, err)
 	t.Logf("Blocks: %+v", blocks)
-	assert.Equal(t, uint64(7), blocks[1].BlockNumber)
+	assert.Equal(t, uint64(6), blocks[1].BlockNumber)
 	assert.Equal(t, uint64(2), blocks[1].SequencedForceBatches[0][0].BatchNumber)
 	assert.Equal(t, forcedGer, common.BytesToHash(blocks[1].SequencedForceBatches[0][0].ForcedGlobalExitRoot[:]))
 	assert.Equal(t, forcedTimestamp, blocks[1].SequencedForceBatches[0][0].ForcedTimestamp)
@@ -328,7 +318,7 @@ func TestSendSequences(t *testing.T) {
 	}
 	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From, []byte{})
 	require.NoError(t, err)
-	da.Mock.On("GetBatchL2Data", uint64(3), crypto.Keccak256Hash(batchL2Data)).Return(batchL2Data, nil)
+	da.Mock.On("GetBatchL2Data", uint64(2), crypto.Keccak256Hash(batchL2Data)).Return(batchL2Data, nil)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()
 
@@ -377,7 +367,7 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 
 	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from ethGasStation"))
 	gp := etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(512908937), gp)
+	assert.Equal(t, big.NewInt(586181642), gp)
 
 	etherscanM := new(etherscanMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
