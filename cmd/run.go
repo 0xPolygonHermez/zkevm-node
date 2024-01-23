@@ -464,8 +464,6 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := state.NewPostgresStorage(c.State, sqlDB)
-
 	// Executor
 	var executorClient executor.ExecutorServiceClient
 	if needsExecutor {
@@ -492,6 +490,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
 	}
 
+	stateDb := state.NewPostgresStorage(stateCfg, sqlDB)
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog)
 	return st
 }
