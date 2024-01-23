@@ -2139,6 +2139,7 @@ Must be one of:
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                             |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                                                                                                                                    |
 | - [GasOffset](#SequenceSender_GasOffset )                                                               | No      | integer          | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
+| - [MaxBatchesForL1](#SequenceSender_MaxBatchesForL1 )                                                   | No      | integer          | No         | -          | MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx                                                                                                                                                                                                                                                                                                                                            |
 | - [StreamClient](#SequenceSender_StreamClient )                                                         | No      | object           | No         | -          | StreamClientCfg is the config for the stream client                                                                                                                                                                                                                                                                                                                                                                           |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
@@ -2334,7 +2335,21 @@ final gas: 1100
 GasOffset=80000
 ```
 
-### <a name="SequenceSender_StreamClient"></a>11.10. `[SequenceSender.StreamClient]`
+### <a name="SequenceSender_MaxBatchesForL1"></a>11.10. `SequenceSender.MaxBatchesForL1`
+
+**Type:** : `integer`
+
+**Default:** `300`
+
+**Description:** MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
+
+**Example setting the default value** (300):
+```
+[SequenceSender]
+MaxBatchesForL1=300
+```
+
+### <a name="SequenceSender_StreamClient"></a>11.11. `[SequenceSender.StreamClient]`
 
 **Type:** : `object`
 **Description:** StreamClientCfg is the config for the stream client
@@ -2344,7 +2359,7 @@ GasOffset=80000
 | - [Server](#SequenceSender_StreamClient_Server ) | No      | string | No         | -          | Datastream server to connect |
 | - [Log](#SequenceSender_StreamClient_Log )       | No      | object | No         | -          | Log is the log configuration |
 
-#### <a name="SequenceSender_StreamClient_Server"></a>11.10.1. `SequenceSender.StreamClient.Server`
+#### <a name="SequenceSender_StreamClient_Server"></a>11.11.1. `SequenceSender.StreamClient.Server`
 
 **Type:** : `string`
 
@@ -2358,7 +2373,7 @@ GasOffset=80000
 Server=""
 ```
 
-#### <a name="SequenceSender_StreamClient_Log"></a>11.10.2. `[SequenceSender.StreamClient.Log]`
+#### <a name="SequenceSender_StreamClient_Log"></a>11.11.2. `[SequenceSender.StreamClient.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2369,7 +2384,7 @@ Server=""
 | - [Level](#SequenceSender_StreamClient_Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
 | - [Outputs](#SequenceSender_StreamClient_Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
 
-##### <a name="SequenceSender_StreamClient_Log_Environment"></a>11.10.2.1. `SequenceSender.StreamClient.Log.Environment`
+##### <a name="SequenceSender_StreamClient_Log_Environment"></a>11.11.2.1. `SequenceSender.StreamClient.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2389,7 +2404,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="SequenceSender_StreamClient_Log_Level"></a>11.10.2.2. `SequenceSender.StreamClient.Log.Level`
+##### <a name="SequenceSender_StreamClient_Log_Level"></a>11.11.2.2. `SequenceSender.StreamClient.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2412,7 +2427,7 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="SequenceSender_StreamClient_Log_Outputs"></a>11.10.2.3. `SequenceSender.StreamClient.Log.Outputs`
+##### <a name="SequenceSender_StreamClient_Log_Outputs"></a>11.11.2.3. `SequenceSender.StreamClient.Log.Outputs`
 
 **Type:** : `array of string`
 **Description:** Outputs
