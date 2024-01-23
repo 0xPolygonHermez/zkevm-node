@@ -460,8 +460,6 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 }
 
 func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := pgstatestorage.NewPostgresStorage(c.State, sqlDB)
-
 	// Executor
 	var executorClient executor.ExecutorServiceClient
 	if needsExecutor {
@@ -487,6 +485,8 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
 	}
+
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 	allLeaves, err := stateDb.GetAllL1InfoRootEntries(ctx, nil)
 	if err != nil {
 		log.Fatal("error getting all leaves. Error: ", err)
