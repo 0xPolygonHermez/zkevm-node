@@ -70,7 +70,7 @@ const (
 	// ForcedBatchDeadlineClosingReason is the closing reason used when forced batch deadline is reached
 	ForcedBatchDeadlineClosingReason ClosingReason = "Forced batch deadline"
 	// MaxDeltaTimestampClosingReason is the closing reason used when max delta batch timestamp is reached
-	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp delta"
+	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp"
 	// NoTxFitsClosingReason is the closing reason used when any of the txs in the pool (worker) fits in the remaining resources of the batch
 	NoTxFitsClosingReason ClosingReason = "No transactions fits"
 )
