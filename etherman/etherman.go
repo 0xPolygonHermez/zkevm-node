@@ -675,60 +675,7 @@ func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, b
 }
 
 func (etherMan *Client) updateEtrogSequence(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	log.Debug("updateEtrogSequence event detected")
-	updateEtrogSequence, err := etherMan.ZkEVM.ParseUpdateEtrogSequence(vLog)
-	if err != nil {
-		log.Error("error parsing updateEtrogSequence event. Error: ", err)
-		return err
-	}
-
-	// Read the tx for this event.
-	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
-	if err != nil {
-		return err
-	}
-	if tx.Hash() != vLog.TxHash {
-		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
-	}
-	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
-	if err != nil {
-		return err
-	}
-	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
-	if err != nil {
-		return fmt.Errorf("error getting fullBlockInfo. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
-	}
-
-	log.Info("update Etrog transaction sequence...")
-	sequence := UpdateEtrogSequence{
-		BatchNumber:   updateEtrogSequence.NumBatch,
-		SequencerAddr: updateEtrogSequence.Sequencer,
-		TxHash:        vLog.TxHash,
-		Nonce:         msg.Nonce,
-		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
-			Transactions:         updateEtrogSequence.Transactions,
-			ForcedGlobalExitRoot: updateEtrogSequence.LastGlobalExitRoot,
-			ForcedTimestamp:      fullBlock.Time(),
-			ForcedBlockHashL1:    fullBlock.ParentHash(),
-		},
-	}
-
-	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
-		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
-		block.UpdateEtrogSequence = sequence
-		*blocks = append(*blocks, block)
-	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
-		(*blocks)[len(*blocks)-1].UpdateEtrogSequence = sequence
-	} else {
-		log.Error("Error processing UpdateEtrogSequence event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
-		return fmt.Errorf("error processing UpdateEtrogSequence event")
-	}
-	or := Order{
-		Name: UpdateEtrogSequenceOrder,
-		Pos:  0,
-	}
-	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
-	return nil
+	return errors.New("Upgrading validiums to etrog not supported")
 }
 
 func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {

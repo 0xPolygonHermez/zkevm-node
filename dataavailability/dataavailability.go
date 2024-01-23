@@ -8,7 +8,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -20,7 +19,7 @@ type DataAvailability struct {
 	isTrustedSequencer bool
 
 	state       stateInterface
-	zkEVMClient syncinterfaces.ZKEVMClientInterface
+	zkEVMClient ZKEVMClientTrustedBatchesGetter
 	backend     DABackender
 
 	ctx context.Context
@@ -31,7 +30,7 @@ func New(
 	isTrustedSequencer bool,
 	backend DABackender,
 	state stateInterface,
-	zkEVMClient syncinterfaces.ZKEVMClientInterface,
+	zkEVMClient ZKEVMClientTrustedBatchesGetter,
 ) (*DataAvailability, error) {
 	da := &DataAvailability{
 		isTrustedSequencer: isTrustedSequencer,

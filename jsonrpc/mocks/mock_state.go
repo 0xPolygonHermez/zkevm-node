@@ -691,10 +691,6 @@ func (_m *StateMock) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx p
 func (_m *StateMock) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetLatestBatchGlobalExitRoot")
-	}
-
 	var r0 common.Hash
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (common.Hash, error)); ok {

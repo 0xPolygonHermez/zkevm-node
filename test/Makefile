@@ -731,7 +731,7 @@ generate-mocks-etherman: ## Generates mocks for etherman , using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=poolMock --filename=mock_pool.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethermanInterface --dir=../gasprice --output=../gasprice --outpkg=gasprice --structname=ethermanMock --filename=mock_etherman.go
 	
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=dataAvailabilitier --dir=../etherman --output=../etherman --outpkg=etherman --structname=daMock --filename=mock_da.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=dataAvailabilityProvider --dir=../etherman --output=../etherman --outpkg=etherman --structname=daMock --filename=mock_da.go
 
 .PHONY: generate-mocks-aggregator	
 generate-mocks-aggregator: ## Generates mocks for aggregator , using mockery tool

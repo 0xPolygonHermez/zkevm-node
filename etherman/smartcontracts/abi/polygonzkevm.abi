@@ -482,37 +482,6 @@
         "anonymous": false,
         "inputs": [
             {
-                "indexed": false,
-                "internalType": "uint64",
-                "name": "numBatch",
-                "type": "uint64"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes",
-                "name": "transactions",
-                "type": "bytes"
-            },
-            {
-                "indexed": false,
-                "internalType": "bytes32",
-                "name": "lastGlobalExitRoot",
-                "type": "bytes32"
-            },
-            {
-                "indexed": false,
-                "internalType": "address",
-                "name": "sequencer",
-                "type": "address"
-            }
-        ],
-        "name": "UpdateEtrogSequence",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
                 "indexed": true,
                 "internalType": "uint64",
                 "name": "numBatch",
@@ -653,19 +622,6 @@
     },
     {
         "inputs": [],
-        "name": "SET_UP_ETROG_TX",
-        "outputs": [
-            {
-                "internalType": "bytes",
-                "name": "",
-                "type": "bytes"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
         "name": "SIGNATURE_INITIALIZE_TX_R",
         "outputs": [
             {
@@ -754,7 +710,7 @@
         "name": "dataAvailabilityProtocol",
         "outputs": [
             {
-                "internalType": "contract IPolygonDataAvailabilityProtocol",
+                "internalType": "contract IDataAvailabilityProtocol",
                 "name": "",
                 "type": "address"
             }
@@ -937,36 +893,16 @@
         "type": "function"
     },
     {
-        "inputs": [
+        "inputs": [],
+        "name": "isSequenceWithDataAvailabilityAllowed",
+        "outputs": [
             {
-                "internalType": "address",
-                "name": "_admin",
-                "type": "address"
-            },
-            {
-                "internalType": "address",
-                "name": "_trustedSequencer",
-                "type": "address"
-            },
-            {
-                "internalType": "string",
-                "name": "_trustedSequencerURL",
-                "type": "string"
-            },
-            {
-                "internalType": "string",
-                "name": "_networkName",
-                "type": "string"
-            },
-            {
-                "internalType": "bytes32",
-                "name": "_lastAccInputHash",
-                "type": "bytes32"
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
             }
         ],
-        "name": "initializeUpgrade",
-        "outputs": [],
-        "stateMutability": "nonpayable",
+        "stateMutability": "view",
         "type": "function"
     },
     {
@@ -1206,7 +1142,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPolygonDataAvailabilityProtocol",
+                "internalType": "contract IDataAvailabilityProtocol",
                 "name": "newDataAvailabilityProtocol",
                 "type": "address"
             }
@@ -1269,7 +1205,13 @@
         "type": "function"
     },
     {
-        "inputs": [],
+        "inputs": [
+            {
+                "internalType": "bool",
+                "name": "newIsSequenceWithDataAvailabilityAllowed",
+                "type": "bool"
+            }
+        ],
         "name": "switchSequenceWithDataAvailability",
         "outputs": [],
         "stateMutability": "nonpayable",

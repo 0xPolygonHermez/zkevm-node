@@ -438,10 +438,6 @@ func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint6
 func (_m *StateMock) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetForcedBatchParentHash")
-	}
-
 	var r0 common.Hash
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, error)); ok {
@@ -507,10 +503,6 @@ func (_m *StateMock) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 // GetL1InfoRootLeafByIndex provides a mock function with given fields: ctx, l1InfoTreeIndex, dbTx
 func (_m *StateMock) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error) {
 	ret := _m.Called(ctx, l1InfoTreeIndex, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetL1InfoRootLeafByIndex")
-	}
 
 	var r0 state.L1InfoTreeExitRootStorageEntry
 	var r1 error
@@ -834,10 +826,6 @@ func (_m *StateMock) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (u
 func (_m *StateMock) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetLatestBatchGlobalExitRoot")
-	}
-
 	var r0 common.Hash
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (common.Hash, error)); ok {
@@ -1142,10 +1130,6 @@ func (_m *StateMock) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uin
 func (_m *StateMock) GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VirtualBatch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
-	if len(ret) == 0 {
-		panic("no return value specified for GetVirtualBatch")
-	}
-
 	var r0 *state.VirtualBatch
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.VirtualBatch, error)); ok {
@@ -1171,10 +1155,6 @@ func (_m *StateMock) GetVirtualBatch(ctx context.Context, batchNumber uint64, db
 // GetVirtualBatchParentHash provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StateMock) GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetVirtualBatchParentHash")
-	}
 
 	var r0 common.Hash
 	var r1 error
