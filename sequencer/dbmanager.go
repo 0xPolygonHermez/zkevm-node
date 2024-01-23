@@ -184,6 +184,7 @@ func (d *dbManager) sendDataToStreamer() {
 		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
+			log.Infof("Sending data to streamer for l2block %v, start.", l2Block.L2BlockNumber)
 			err = d.streamServer.StartAtomicOp()
 			if err != nil {
 				log.Errorf("failed to start atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
@@ -249,6 +250,7 @@ func (d *dbManager) sendDataToStreamer() {
 				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 				continue
 			}
+			log.Infof("Sending data to streamer for l2block %v, end.", l2Block.L2BlockNumber)
 		}
 	}
 }
@@ -374,6 +376,8 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			DSL2Block: l2Block,
 			Txs:       []state.DSL2Transaction{l2Transaction},
 		}
+
+		log.Infof("Send data to stream successfully tx: %v for batch: %v, block: %v", tx.response.TxHash.String(), tx.batchNumber, l2Block.L2BlockNumber)
 	}
 
 	return nil
