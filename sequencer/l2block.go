@@ -504,7 +504,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 		}
 	}
 
-	log.Infof("new WIP L2 block [%d] created, batch: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfTreeIndexChanged: %s, oldStateRoot: %s, stateRoot: %s, used counters: %s",
+	log.Infof("new WIP L2 block [%d] created, batch: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfTreeIndexChanged: %v, oldStateRoot: %s, stateRoot: %s, used counters: %s",
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, f.wipBatch.imStateRoot, batchResponse.NewStateRoot, f.logZKCounters(f.wipL2Block.usedResources.ZKCounters))
 }
