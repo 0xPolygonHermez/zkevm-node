@@ -125,6 +125,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "",
 		},
 		{
+			path:          "Sequencer.StreamServer.Version",
+			expectedValue: uint8(0),
+		},
+		{
 			path:          "Sequencer.StreamServer.Enabled",
 			expectedValue: false,
 		},
@@ -135,6 +139,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.L1BlockTimestampMargin",
+			expectedValue: types.NewDuration(30 * time.Second),
 		},
 		{
 			path:          "SequenceSender.MaxTxSizeForL1",
@@ -298,6 +306,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Pool.EffectiveGasPrice.EthTransferGasPrice",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor",
+			expectedValue: float64(0),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
@@ -459,6 +475,10 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Aggregator.GasOffset",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Aggregator.UpgradeEtrogBatchNumber",
 			expectedValue: uint64(0),
 		},
 		{

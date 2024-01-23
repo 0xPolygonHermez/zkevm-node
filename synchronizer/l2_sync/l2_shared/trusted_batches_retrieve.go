@@ -134,7 +134,7 @@ func (s *TrustedBatchesRetrieve) syncTrustedBatchesToFrom(ctx context.Context, l
 			s.TrustedStateMngr.Clear()
 			return rollback(ctx, dbTx, err)
 		}
-		log.Debug("%s Checking FlushID to commit trustedState data to db", debugPrefix)
+		log.Debugf("%s Checking FlushID to commit trustedState data to db", debugPrefix)
 		err = s.sync.CheckFlushID(dbTx)
 		if err != nil {
 			log.Errorf("%s error checking flushID. Error: %v", debugPrefix, err)

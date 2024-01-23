@@ -77,3 +77,23 @@ func (c *Client) ExitRootsByGER(ctx context.Context, globalExitRoot common.Hash)
 
 	return result, nil
 }
+
+// GetLatestGlobalExitRoot returns the latest global exit root
+func (c *Client) GetLatestGlobalExitRoot(ctx context.Context) (common.Hash, error) {
+	response, err := JSONRPCCall(c.url, "zkevm_getLatestGlobalExitRoot")
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if response.Error != nil {
+		return common.Hash{}, response.Error.RPCError()
+	}
+
+	var result string
+	err = json.Unmarshal(response.Result, &result)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	return common.HexToHash(result), nil
+}

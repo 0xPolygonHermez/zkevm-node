@@ -63,7 +63,7 @@ func (b *ArgBytes) UnmarshalText(input []byte) error {
 		return nil
 	}
 	aux := make([]byte, len(hh))
-	copy(aux[:], hh[:])
+	copy(aux, hh)
 	*b = aux
 	return nil
 }
@@ -259,12 +259,12 @@ type Block struct {
 	Hash            *common.Hash        `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
-	GlobalExitRoot  common.Hash         `json:"globalExitRoot"`
-	BlockInfoRoot   common.Hash         `json:"blockInfoRoot"`
+	GlobalExitRoot  *common.Hash        `json:"globalExitRoot,omitempty"`
+	BlockInfoRoot   *common.Hash        `json:"blockInfoRoot,omitempty"`
 }
 
 // NewBlock creates a Block instance
-func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool) (*Block, error) {
+func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool) (*Block, error) {
 	h := b.Header()
 
 	var miner *common.Address
@@ -304,8 +304,11 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
-		GlobalExitRoot:  h.GlobalExitRoot,
-		BlockInfoRoot:   h.BlockInfoRoot,
+	}
+
+	if includeExtraInfo != nil && *includeExtraInfo {
+		res.GlobalExitRoot = &h.GlobalExitRoot
+		res.BlockInfoRoot = &h.BlockInfoRoot
 	}
 
 	receiptsMap := make(map[common.Hash]types.Receipt, len(receipts))
@@ -320,7 +323,7 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 				receiptPtr = &receipt
 			}
 
-			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts)
+			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts, includeExtraInfo)
 			if err != nil {
 				return nil, err
 			}
@@ -406,7 +409,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 			if receipt, found := receiptsMap[tx.Hash()]; found {
 				receiptPtr = &receipt
 			}
-			rpcTx, err := NewTransaction(tx, receiptPtr, includeReceipts)
+			rpcTx, err := NewTransaction(tx, receiptPtr, includeReceipts, state.Ptr(true))
 			if err != nil {
 				return nil, err
 			}
@@ -420,7 +423,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(state.Ptr(b.Hash()), &b, nil, false, false)
+			block, err := NewBlock(state.Ptr(b.Hash()), &b, nil, false, false, state.Ptr(true))
 			if err != nil {
 				return nil, err
 			}
@@ -525,7 +528,7 @@ type Transaction struct {
 	ChainID     ArgBig          `json:"chainId"`
 	Type        ArgUint64       `json:"type"`
 	Receipt     *Receipt        `json:"receipt,omitempty"`
-	L2Hash      common.Hash     `json:"l2Hash"`
+	L2Hash      *common.Hash    `json:"l2Hash,omitempty"`
 }
 
 // CoreTx returns a geth core type Transaction
@@ -547,7 +550,7 @@ func (t Transaction) CoreTx() *types.Transaction {
 func NewTransaction(
 	tx types.Transaction,
 	receipt *types.Receipt,
-	includeReceipt bool,
+	includeReceipt bool, includeExtraInfo *bool,
 ) (*Transaction, error) {
 	v, r, s := tx.RawSignatureValues()
 	from, _ := state.GetSender(tx)
@@ -567,7 +570,10 @@ func NewTransaction(
 		From:     from,
 		ChainID:  ArgBig(*tx.ChainId()),
 		Type:     ArgUint64(tx.Type()),
-		L2Hash:   l2Hash,
+	}
+
+	if includeExtraInfo != nil && *includeExtraInfo {
+		res.L2Hash = &l2Hash
 	}
 
 	if receipt != nil {
@@ -576,7 +582,7 @@ func NewTransaction(
 		res.BlockHash = &receipt.BlockHash
 		ti := ArgUint64(receipt.TransactionIndex)
 		res.TxIndex = &ti
-		rpcReceipt, err := NewReceipt(tx, receipt)
+		rpcReceipt, err := NewReceipt(tx, receipt, includeExtraInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -596,7 +602,6 @@ type Receipt struct {
 	Logs              []*types.Log    `json:"logs"`
 	Status            ArgUint64       `json:"status"`
 	TxHash            common.Hash     `json:"transactionHash"`
-	TxL2Hash          common.Hash     `json:"transactionL2Hash"`
 	TxIndex           ArgUint64       `json:"transactionIndex"`
 	BlockHash         common.Hash     `json:"blockHash"`
 	BlockNumber       ArgUint64       `json:"blockNumber"`
@@ -606,10 +611,11 @@ type Receipt struct {
 	ContractAddress   *common.Address `json:"contractAddress"`
 	Type              ArgUint64       `json:"type"`
 	EffectiveGasPrice *ArgBig         `json:"effectiveGasPrice,omitempty"`
+	TxL2Hash          *common.Hash    `json:"transactionL2Hash,omitempty"`
 }
 
 // NewReceipt creates a new Receipt instance
-func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
+func NewReceipt(tx types.Transaction, r *types.Receipt, includeExtraInfo *bool) (Receipt, error) {
 	to := tx.To()
 	logs := r.Logs
 	if logs == nil {
@@ -650,12 +656,16 @@ func NewReceipt(tx types.Transaction, r *types.Receipt) (Receipt, error) {
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
-		TxL2Hash:          l2Hash,
 	}
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)
 		receipt.EffectiveGasPrice = &egp
 	}
+
+	if includeExtraInfo != nil && *includeExtraInfo {
+		receipt.TxL2Hash = &l2Hash
+	}
+
 	return receipt, nil
 }
 

@@ -472,7 +472,7 @@ func unregisterGaugeIfExists(name string) {
 func registerCounterIfNotExists(opts prometheus.CounterOpts) {
 	log := log.WithFields("metricName", opts.Name)
 	if _, exist := counters[opts.Name]; exist {
-		log.Warn("Counter metric already exists.")
+		log.Infof("Counter metric already exists. %s", opts.Name)
 		return
 	}
 
@@ -556,7 +556,7 @@ func unregisterCounterVecIfExists(name string) {
 func registerHistogramIfNotExists(opts prometheus.HistogramOpts) {
 	log := log.WithFields("metricName", opts.Name)
 	if _, exist := histograms[opts.Name]; exist {
-		log.Warn("Histogram metric already exists.")
+		log.Infof("Histogram metric already exists. %s", opts.Name)
 		return
 	}
 

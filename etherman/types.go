@@ -15,6 +15,7 @@ type Block struct {
 	ParentHash            common.Hash
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
+	UpdateEtrogSequence   UpdateEtrogSequence
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches [][]SequencedForceBatch
 	ForkIDs               []ForkID
@@ -43,6 +44,16 @@ type SequencedBatch struct {
 	Coinbase      common.Address
 	// Struct used in preEtrog forks
 	*oldpolygonzkevm.PolygonZkEVMBatchData
+	// Struct used in Etrog
+	*polygonzkevm.PolygonRollupBaseEtrogBatchData
+}
+
+// UpdateEtrogSequence represents the first etrog sequence
+type UpdateEtrogSequence struct {
+	BatchNumber   uint64
+	SequencerAddr common.Address
+	TxHash        common.Hash
+	Nonce         uint64
 	// Struct used in Etrog
 	*polygonzkevm.PolygonRollupBaseEtrogBatchData
 }

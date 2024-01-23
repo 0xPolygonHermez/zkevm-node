@@ -64,14 +64,16 @@ var (
 	}
 	poolCfg = pool.Config{
 		EffectiveGasPrice: pool.EffectiveGasPriceCfg{
-			Enabled:                   false,
-			L1GasPriceFactor:          0.25,
-			ByteGasCost:               16,
-			ZeroByteGasCost:           4,
-			NetProfit:                 1.0,
-			BreakEvenFactor:           1.1,
-			FinalDeviationPct:         10,
-			L2GasPriceSuggesterFactor: 0.5,
+			Enabled:                     false,
+			L1GasPriceFactor:            0.25,
+			ByteGasCost:                 16,
+			ZeroByteGasCost:             4,
+			NetProfit:                   1.0,
+			BreakEvenFactor:             1.1,
+			FinalDeviationPct:           10,
+			EthTransferGasPrice:         0,
+			EthTransferL1GasPriceFactor: 0,
+			L2GasPriceSuggesterFactor:   0.5,
 		},
 		DefaultMinGasPriceAllowed: 1000000000,
 	}
@@ -94,7 +96,7 @@ var (
 	testErrStr = "some err"
 	// testErr                 = fmt.Errorf(testErrStr)
 	// openBatchError          = fmt.Errorf("failed to open new batch, err: %v", testErr)
-	cumulativeGasErr        = state.GetZKCounterError("CumulativeGasUsed")
+	// cumulativeGasErr        = state.GetZKCounterError("CumulativeGasUsed")
 	testBatchL2DataAsString = "0xee80843b9aca00830186a0944d5cf5032b2a844602278b01199ed191a86c93ff88016345785d8a0000808203e980801186622d03b6b8da7cf111d1ccba5bb185c56deae6a322cebc6dda0556f3cb9700910c26408b64b51c5da36ba2f38ef55ba1cee719d5a6c012259687999074321bff"
 	decodedBatchL2Data      []byte
 	// done                    chan bool
@@ -943,7 +945,7 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_closeWIPBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
-	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
@@ -1047,11 +1049,11 @@ func TestFinalizer_isDeadlineEncountered(t *testing.T) {
 			if tc.timestampResolutionDeadline == true {
 				// ensure that the batch is not empty and the timestamp is in the past
 				f.wipBatch.timestamp = now().Add(-f.cfg.BatchMaxDeltaTimestamp.Duration * 2)
-				f.wipBatch.countOfTxs = 1
+				f.wipBatch.countOfL2Blocks = 1
 			}
 
 			// act
-			actual := f.isDeadlineEncountered()
+			actual, _ := f.checkIfFinalizeBatch()
 
 			// assert
 			assert.Equal(t, tc.expected, actual)
@@ -1075,18 +1077,19 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		ZKCounters: state.ZKCounters{GasUsed: 9000},
 		Bytes:      10000,
 	}
-	f.wipBatch.remainingResources = remainingResources
+	f.wipBatch.imRemainingResources = remainingResources
 	testCases := []struct {
 		name                 string
 		remaining            state.BatchResources
-		expectedErr          error
+		overflow             bool
+		overflowResource     string
 		expectedWorkerUpdate bool
 		expectedTxTracker    *TxTracker
 	}{
 		{
 			name:                 "Success",
 			remaining:            remainingResources,
-			expectedErr:          nil,
+			overflow:             false,
 			expectedWorkerUpdate: false,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
@@ -1095,7 +1098,8 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			remaining: state.BatchResources{
 				Bytes: 0,
 			},
-			expectedErr:          state.ErrBatchResourceBytesUnderflow,
+			overflow:             true,
+			overflowResource:     "Bytes",
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: []byte("test")},
 		},
@@ -1104,7 +1108,8 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			remaining: state.BatchResources{
 				ZKCounters: state.ZKCounters{GasUsed: 0},
 			},
-			expectedErr:          state.NewBatchRemainingResourcesUnderflowError(cumulativeGasErr, cumulativeGasErr.Error()),
+			overflow:             true,
+			overflowResource:     "CumulativeGas",
 			expectedWorkerUpdate: true,
 			expectedTxTracker:    &TxTracker{RawTx: make([]byte, 0)},
 		},
@@ -1113,27 +1118,18 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// arrange
-			f.wipBatch.remainingResources = tc.remaining
+			f.wipBatch.imRemainingResources = tc.remaining
 			stateMock.On("AddEvent", ctx, mock.Anything, nil).Return(nil)
 			if tc.expectedWorkerUpdate {
 				workerMock.On("UpdateTxZKCounters", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters).Return().Once()
 			}
 
 			// act
-			err := f.checkRemainingResources(result, tc.expectedTxTracker)
+			overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tc.expectedTxTracker.RawTx))})
 
 			// assert
-			if tc.expectedErr != nil {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.expectedErr.Error())
-			} else {
-				assert.NoError(t, err)
-			}
-			if tc.expectedWorkerUpdate {
-				workerMock.AssertCalled(t, "UpdateTxZKCounters", txResponse.TxHash, tc.expectedTxTracker.From, result.UsedZkCounters)
-			} else {
-				workerMock.AssertNotCalled(t, "UpdateTxZKCounters", mock.Anything, mock.Anything, mock.Anything)
-			}
+			assert.Equal(t, tc.overflow, overflow)
+			assert.Equal(t, tc.overflowResource, overflowResource)
 		})
 	}
 }
@@ -2039,17 +2035,17 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 			// arrange
 			f = setupFinalizer(true)
 			maxRemainingResource := getMaxRemainingResources(bc)
-			f.wipBatch.remainingResources = tc.modifyResourceFunc(maxRemainingResource)
+			f.wipBatch.imRemainingResources = tc.modifyResourceFunc(maxRemainingResource)
 
 			// act
-			result := f.isBatchResourcesExhausted()
+			result, closeReason := f.checkIfFinalizeBatch()
 
 			// assert
 			assert.Equal(t, tc.expectedResult, result)
 			if tc.expectedResult {
-				assert.Equal(t, state.BatchAlmostFullClosingReason, f.wipBatch.closingReason)
+				assert.Equal(t, state.ResourceMarginExhaustedClosingReason, closeReason)
 			} else {
-				assert.Equal(t, state.EmptyClosingReason, f.wipBatch.closingReason)
+				assert.Equal(t, state.EmptyClosingReason, closeReason)
 			}
 		})
 	}
@@ -2142,10 +2138,7 @@ func Test_isBatchFull(t *testing.T) {
 			f.wipBatch.countOfTxs = tc.batchCountOfTxs
 			f.batchConstraints.MaxTxsPerBatch = tc.maxTxsPerBatch
 
-			assert.Equal(t, tc.expected, f.maxTxsPerBatchReached())
-			if tc.expected == true {
-				assert.Equal(t, state.BatchFullClosingReason, f.wipBatch.closingReason)
-			}
+			assert.Equal(t, tc.expected, f.maxTxsPerBatchReached(f.wipBatch))
 		})
 	}
 }
@@ -2195,14 +2188,13 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 			panic(err)
 		}
 		wipBatch = &Batch{
-			batchNumber:        1,
-			coinbase:           seqAddr,
-			initialStateRoot:   oldHash,
-			imStateRoot:        newHash,
-			localExitRoot:      newHash,
-			timestamp:          now(),
-			remainingResources: getMaxRemainingResources(bc),
-			closingReason:      state.EmptyClosingReason,
+			batchNumber:          1,
+			coinbase:             seqAddr,
+			initialStateRoot:     oldHash,
+			imStateRoot:          newHash,
+			timestamp:            now(),
+			imRemainingResources: getMaxRemainingResources(bc),
+			closingReason:        state.EmptyClosingReason,
 		}
 	}
 	eventStorage, err := nileventstorage.NewNilEventStorage()
@@ -2222,7 +2214,7 @@ func setupFinalizer(withWipBatch bool) *finalizer {
 		nextForcedBatches:          make([]state.ForcedBatch, 0),
 		nextForcedBatchDeadline:    0,
 		nextForcedBatchesMux:       new(sync.Mutex),
-		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice, poolCfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:          pool.NewEffectiveGasPrice(poolCfg.EffectiveGasPrice),
 		eventLog:                   eventLog,
 		pendingL2BlocksToProcess:   make(chan *L2Block, pendingL2BlocksBufferSize),
 		pendingL2BlocksToProcessWG: new(sync.WaitGroup),

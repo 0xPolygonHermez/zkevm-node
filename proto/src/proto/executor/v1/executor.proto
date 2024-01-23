@@ -850,4 +850,8 @@ enum ExecutorError {
     EXECUTOR_ERROR_HASHDB_GRPC_ERROR = 109;
     // EXECUTOR_ERROR_STATE_MANAGER indicates an error in the State Manager
     EXECUTOR_ERROR_STATE_MANAGER = 110;
+    // EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX indicates that the ROM asked for an L1InfoTree index that was not present in the input
+    EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX = 111;
+    // EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
+    EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE = 112;
 }

@@ -1,6 +1,11 @@
 [
 	{
 		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
 		"name": "AlreadyClaimed",
 		"type": "error"
 	},
@@ -17,6 +22,11 @@
 	{
 		"inputs": [],
 		"name": "EtherTransferFailed",
+		"type": "error"
+	},
+	{
+		"inputs": [],
+		"name": "FailedTokenWrappedDeployment",
 		"type": "error"
 	},
 	{
@@ -241,6 +251,19 @@
 		],
 		"name": "NewWrappedToken",
 		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "BASE_INIT_BYTECODE_WRAPPED_TOKEN",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"inputs": [],

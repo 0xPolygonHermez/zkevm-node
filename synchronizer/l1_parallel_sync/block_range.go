@@ -23,7 +23,7 @@ type blockRange struct {
 
 func blockNumberToString(b uint64) string {
 	if b == latestBlockNumber {
-		return "earliest"
+		return "latest"
 	}
 	if b == invalidBlockNumber {
 		return "invalid"
