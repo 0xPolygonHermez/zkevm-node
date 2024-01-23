@@ -152,7 +152,7 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		// Add new sequence
 		batch, err := s.state.GetBatchByNumber(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			if err == ethman.ErrNotFound {
+			if err == state.ErrNotFound {
 				break
 			}
 			log.Debugf("failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
