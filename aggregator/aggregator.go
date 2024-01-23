@@ -1004,6 +1004,15 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		if err != nil {
 			return nil, err
 		}
+		leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, *l1InfoRoot, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		aLeaves := make([][32]byte, len(leaves))
+		for i, leaf := range leaves {
+			aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+		}
 
 		for _, l2blockRaw := range batchRawData.Blocks {
 			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
@@ -1013,20 +1022,19 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 					return nil, err
 				}
 
-				leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
-				if err != nil {
-					return nil, err
-				}
-
-				aLeaves := make([][32]byte, len(leaves))
-				for i, leaf := range leaves {
-					aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
-				}
-
 				// Calculate smt proof
-				smtProof, _, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+				smtProof, calculatedL1InfoRoot, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
 				if err != nil {
 					return nil, err
+				}
+				if *l1InfoRoot != calculatedL1InfoRoot {
+					for i, l := range aLeaves {
+						log.Info("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
+					}
+					for i, s := range smtProof {
+						log.Info("smtProof[%d]: %s", i, common.Bytes2Hex(s[:]))
+					}
+					return nil, fmt.Errorf("error: l1InfoRoot mismatch. L1InfoRoot: %s, calculatedL1InfoRoot: %s. l1InfoTreeIndex: %d", l1InfoRoot.String(), calculatedL1InfoRoot.String(), l2blockRaw.IndexL1InfoTree)
 				}
 
 				protoProof := make([][]byte, len(smtProof))
