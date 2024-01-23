@@ -16,6 +16,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -37,15 +38,16 @@ type SequenceSender struct {
 	ethTxManager        ethTxManager
 	etherman            etherman
 	eventLog            *event.EventLog
-	fromStreamBatch     uint64                   // Initial batch to connect to the streaming
-	latestStreamBatch   uint64                   // Latest batch received by the streaming
-	latestVirtualBatch  uint64                   // Latest virtualized batch
-	latestSentToL1Batch uint64                   // Latest batch sent to L1
-	wipBatch            uint64                   // Work in progress batch
-	sequenceList        []uint64                 // Sequence of batch number to be send to L1
-	sequenceData        map[uint64]*sequenceData // All the batch data indexed by batch number
-	validStream         bool
-	mutexSequence       sync.Mutex
+	latestVirtualBatch  uint64                     // Latest virtualized batch obtained from L1
+	latestSentToL1Batch uint64                     // Latest batch sent to L1
+	wipBatch            uint64                     // Work in progress batch
+	sequenceList        []uint64                   // Sequence of batch number to be send to L1
+	sequenceData        map[uint64]*sequenceData   // All the batch data indexed by batch number
+	mutexSequence       sync.Mutex                 // Mutex to update sequence data
+	ethTransactions     map[common.Hash]*ethTxData // All the eth tx sent to L1 indexed by hash
+	validStream         bool                       // Not valid while receiving data before the desired batch
+	fromStreamBatch     uint64                     // Initial batch to connect to the streaming
+	latestStreamBatch   uint64                     // Latest batch received by the streaming
 	streamClient        *datastreamer.StreamClient
 }
 
@@ -53,6 +55,12 @@ type sequenceData struct {
 	batchClosed bool
 	batch       *types.Sequence
 	batchRaw    *state.BatchRawV2
+}
+
+type ethTxData struct {
+	status    ethtxmanager.MonitoredTxStatus
+	fromBatch uint64
+	toBatch   uint64
 }
 
 // New inits sequence sender
@@ -63,9 +71,10 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 		etherman:          etherman,
 		ethTxManager:      manager,
 		eventLog:          eventLog,
+		ethTransactions:   make(map[common.Hash]*ethTxData),
 		sequenceData:      make(map[uint64]*sequenceData),
-		latestStreamBatch: 0,
 		validStream:       false,
+		latestStreamBatch: 0,
 	}
 
 	return &s, nil
@@ -157,7 +166,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
-	// add sequence to be monitored
+	// Add sequence to be monitored
 	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Error("[SeqSender] error estimating new sequenceBatches to add to eth tx manager: ", err)
@@ -171,7 +180,17 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		return
 	}
 
+	// Add new eth tx
+	txHash := common.Hash{} // TODO: from response to call ethTxManager.Add
+	txData := ethTxData{
+		status:    ethtxmanager.MonitoredTxStatusSent,
+		fromBatch: firstSequence.BatchNumber,
+		toBatch:   lastSequence.BatchNumber,
+	}
+	s.ethTransactions[txHash] = &txData
 	s.latestSentToL1Batch = lastSequence.BatchNumber
+
+	s.printEthTxs()
 }
 
 // getSequencesToSend generates an array of sequences to be send to L1.
@@ -382,8 +401,8 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		// TODO: What should I do
 	}
 
-	if e.Number%20 == 0 {
-		s.printSequences(false)
+	if e.Number%50 == 0 {
+		s.printSequences(true)
 	}
 
 	return nil
@@ -447,6 +466,7 @@ func (s *SequenceSender) addNewBatchL2Block(l2BlockStart state.DSL2BlockStart) {
 	} else {
 		blockRaw.DeltaTimestamp = uint32(l2BlockStart.Timestamp)
 	}
+	blockRaw.IndexL1InfoTree = 0 //TODO: how to obtain this value
 	s.mutexSequence.Unlock()
 }
 
@@ -462,6 +482,7 @@ func (s *SequenceSender) addNewBlockTx(l2Tx state.DSL2Transaction) {
 	l2TxRaw := state.L2TxRaw{
 		EfficiencyPercentage: l2Tx.EffectiveGasPricePercentage,
 	}
+	// TODO: how to store data in .Tx
 
 	// Add Tx
 	blockRaw.Transactions = append(blockRaw.Transactions, l2TxRaw)
@@ -500,7 +521,7 @@ func (s *SequenceSender) updateLatestVirtualBatch() error {
 	return nil
 }
 
-// printSequences prints the current values in the memory structures
+// printSequences prints the current batches sequence in the memory structure
 func (s *SequenceSender) printSequences(showBlock bool) {
 	for i := 0; i < len(s.sequenceList); i++ {
 		// Batch info
@@ -512,10 +533,16 @@ func (s *SequenceSender) printSequences(showBlock bool) {
 			raw = seq.batchRaw
 		} else {
 			raw = &state.BatchRawV2{}
-			log.Debugf("[SeqSender] batch number %d not found in the map!", batchNumber)
+			log.Debugf("[SeqSender] // batch number %d not found in the map!", batchNumber)
 		}
 
-		log.Debugf("[SeqSender] seq %d: batch %d (closed? %t, #blocks: %d, GER: %v)", i, batchNumber, seq.batchClosed, len(raw.Blocks), seq.batch.GlobalExitRoot)
+		// Total amount of L2 tx in the batch
+		totalL2Txs := 0
+		for k := 0; k < len(raw.Blocks); k++ {
+			totalL2Txs += len(raw.Blocks[k].Transactions)
+		}
+
+		log.Debugf("[SeqSender] // seq %d: batch %d (closed? %t, #blocks: %d, #L2txs: %d, GER: %x...)", i, batchNumber, seq.batchClosed, len(raw.Blocks), totalL2Txs, seq.batch.GlobalExitRoot[:8])
 
 		// Blocks info
 		if showBlock {
@@ -529,11 +556,18 @@ func (s *SequenceSender) printSequences(showBlock bool) {
 				lastBlock = &raw.Blocks[numBlocks-1]
 			}
 			if firstBlock != nil {
-				log.Debugf("[SeqSender]    block first (delta-timestamp %d, #txs: %d)", firstBlock.DeltaTimestamp, len(firstBlock.Transactions))
+				log.Debugf("[SeqSender] //    block first (delta-timestamp %d, #L2txs: %d)", firstBlock.DeltaTimestamp, len(firstBlock.Transactions))
 			}
 			if lastBlock != nil {
-				log.Debugf("[SeqSender]    block last (delta-timestamp %d, #txs: %d)", lastBlock.DeltaTimestamp, len(lastBlock.Transactions))
+				log.Debugf("[SeqSender] //    block last (delta-timestamp %d, #L2txs: %d)", lastBlock.DeltaTimestamp, len(lastBlock.Transactions))
 			}
 		}
+	}
+}
+
+// printEthTxs prints the current L1 transactions in the memory structure
+func (s *SequenceSender) printEthTxs() {
+	for hash, data := range s.ethTransactions {
+		log.Debugf("[SeqSender] // tx hash %x... (status: %s, from: %d, to: %d) hash %x", hash[:4], data.status, data.fromBatch, data.toBatch, hash)
 	}
 }
