@@ -70,7 +70,7 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 	results := make([]*ProcessBlockResponse, 0, len(responses))
 	for _, response := range responses {
 		result := new(ProcessBlockResponse)
-		transactionResponses, respisRomLevelError, respisRomOOCError, err := s.convertToProcessTransactionResponseV2(response.Responses)
+		transactionResponses, respisRomLevelError, respisRomOOCError, l2Hashes, err := s.convertToProcessTransactionResponseV2(response.Responses)
 		isRomLevelError = isRomLevelError || respisRomLevelError
 		isRomOOCError = isRomOOCError || respisRomOOCError
 		if err != nil {
@@ -90,6 +90,7 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 		result.TransactionResponses = transactionResponses
 		result.Logs = convertToLogV2(response.Logs)
 		result.RomError_V2 = executor.RomErr(response.Error)
+		result.L2Hashes_V2 = l2Hashes
 
 		results = append(results, result)
 	}
@@ -97,11 +98,13 @@ func (s *State) convertToProcessBlockResponseV2(responses []*executor.ProcessBlo
 	return results, isRomLevelError, isRomOOCError, nil
 }
 
-func (s *State) convertToProcessTransactionResponseV2(responses []*executor.ProcessTransactionResponseV2) ([]*ProcessTransactionResponse, bool, bool, error) {
+func (s *State) convertToProcessTransactionResponseV2(responses []*executor.ProcessTransactionResponseV2) ([]*ProcessTransactionResponse, bool, bool, map[common.Hash]common.Hash, error) {
 	isRomLevelError := false
 	isRomOOCError := false
 
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
+	l2Hashes := make(map[common.Hash]common.Hash)
+
 	for _, response := range responses {
 		if response.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			isRomLevelError = true
@@ -111,11 +114,12 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		}
 		if executor.IsInvalidL2Block(response.Error) {
 			err := fmt.Errorf("fails L2 block: romError %v error:%w", response.Error, errL2BlockInvalid)
-			return nil, isRomLevelError, isRomOOCError, err
+			return nil, isRomLevelError, isRomOOCError, l2Hashes, err
 		}
 		result := new(ProcessTransactionResponse)
 		result.TxHash = common.BytesToHash(response.TxHash)
 		result.TxHashL2_V2 = common.BytesToHash(response.TxHashL2)
+		l2Hashes[result.TxHash] = result.TxHashL2_V2
 		result.Type = response.Type
 		result.ReturnValue = response.ReturnValue
 		result.GasLeft = response.GasLeft
@@ -128,7 +132,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		result.ChangesStateRoot = IsStateRootChanged(response.Error)
 		fullTrace, err := convertToFullTraceV2(response.FullTrace)
 		if err != nil {
-			return nil, isRomLevelError, isRomOOCError, err
+			return nil, isRomLevelError, isRomOOCError, l2Hashes, err
 		}
 		result.FullTrace = *fullTrace
 		result.EffectiveGasPrice = response.EffectiveGasPrice
@@ -157,7 +161,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 						log.Errorf("error storing payload: %v", err)
 					}
 
-					return nil, isRomLevelError, isRomOOCError, err
+					return nil, isRomLevelError, isRomOOCError, l2Hashes, err
 				}
 			} else {
 				log.Infof("no txs returned by executor")
@@ -173,7 +177,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		results = append(results, result)
 	}
 
-	return results, isRomLevelError, isRomOOCError, nil
+	return results, isRomLevelError, isRomOOCError, l2Hashes, nil
 }
 
 func convertToLogV2(protoLogs []*executor.LogV2) []*types.Log {
