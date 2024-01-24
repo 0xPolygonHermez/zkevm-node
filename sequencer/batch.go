@@ -16,16 +16,17 @@ import (
 
 // Batch represents a wip or processed batch.
 type Batch struct {
-	batchNumber        uint64
-	coinbase           common.Address
-	timestamp          time.Time
-	initialStateRoot   common.Hash // initial stateRoot of the batch
-	imStateRoot        common.Hash // intermediate stateRoot that is updated each time a single tx is processed
-	finalStateRoot     common.Hash // final stateroot of the batch when a L2 block is processed
-	countOfTxs         int
-	countOfL2Blocks    int
-	remainingResources state.BatchResources
-	closingReason      state.ClosingReason
+	batchNumber             uint64
+	coinbase                common.Address
+	timestamp               time.Time
+	initialStateRoot        common.Hash // initial stateRoot of the batch
+	imStateRoot             common.Hash // intermediate stateRoot when processing tx-by-tx
+	finalStateRoot          common.Hash // final stateroot of the batch when a L2 block is processed
+	countOfTxs              int
+	countOfL2Blocks         int
+	imRemainingResources    state.BatchResources // remaining batch resources when processing tx-by-tx
+	finalRemainingResources state.BatchResources // remaining batch resources when a L2 block is processed
+	closingReason           state.ClosingReason
 }
 
 func (w *Batch) isEmpty() bool {
@@ -52,20 +53,21 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 	}
 
 	remainingResources := getMaxRemainingResources(f.batchConstraints)
-	err = remainingResources.Sub(wipStateBatch.Resources)
-	if err != nil {
-		return nil, err
+	overflow, overflowResource := remainingResources.Sub(wipStateBatch.Resources)
+	if overflow {
+		return nil, fmt.Errorf("failed to subtract used resources when setting the WIP batch to the state batch %d, overflow resource: %s", wipStateBatch.BatchNumber, overflowResource)
 	}
 
 	wipBatch := &Batch{
-		batchNumber:        wipStateBatch.BatchNumber,
-		coinbase:           wipStateBatch.Coinbase,
-		imStateRoot:        wipStateBatch.StateRoot,
-		initialStateRoot:   prevStateBatch.StateRoot,
-		finalStateRoot:     wipStateBatch.StateRoot,
-		timestamp:          wipStateBatch.Timestamp,
-		countOfTxs:         wipStateBatchCountOfTxs,
-		remainingResources: remainingResources,
+		batchNumber:             wipStateBatch.BatchNumber,
+		coinbase:                wipStateBatch.Coinbase,
+		imStateRoot:             wipStateBatch.StateRoot,
+		initialStateRoot:        prevStateBatch.StateRoot,
+		finalStateRoot:          wipStateBatch.StateRoot,
+		timestamp:               wipStateBatch.Timestamp,
+		countOfTxs:              wipStateBatchCountOfTxs,
+		imRemainingResources:    remainingResources,
+		finalRemainingResources: remainingResources,
 	}
 
 	return wipBatch, nil
@@ -113,8 +115,8 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 		f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot, f.wipBatch.coinbase)
 }
 
-// finalizeBatch retries until successful closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) finalizeBatch(ctx context.Context) {
+// finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
+func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
@@ -128,7 +130,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 		f.closeWIPL2Block(ctx)
 	}
 
-	err := f.closeAndOpenNewWIPBatch(ctx)
+	err := f.closeAndOpenNewWIPBatch(ctx, closeReason)
 	if err != nil {
 		f.Halt(ctx, fmt.Errorf("failed to create new WIP batch, error: %v", err))
 	}
@@ -140,7 +142,7 @@ func (f *finalizer) finalizeBatch(ctx context.Context) {
 }
 
 // closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
-func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
+func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason state.ClosingReason) error {
 	// Wait until all L2 blocks are processed by the executor
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
@@ -153,7 +155,16 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	f.pendingL2BlocksToStoreWG.Wait()
 	log.Debugf("waiting for pending L2 blocks to be stored took: %v", time.Since(startWait))
 
+	f.wipBatch.closingReason = closeReason
+
+	// Close the wip batch
 	var err error
+	err = f.closeWIPBatch(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to close batch, error: %v", err)
+	}
+
+	log.Infof("batch %d closed, closing reason: %s", f.wipBatch.batchNumber, closeReason)
 
 	// Reprocess full batch as sanity check
 	if f.cfg.SequentialBatchSanityCheck {
@@ -170,14 +181,6 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 		}()
 	}
 
-	// Close the wip batch
-	err = f.closeWIPBatch(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to close batch, error: %v", err)
-	}
-
-	log.Infof("batch %d closed", f.wipBatch.batchNumber)
-
 	if f.wipBatch.batchNumber+1 == f.cfg.HaltOnBatchNumber {
 		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber))
 	}
@@ -189,7 +192,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	// Process forced batches
 	if len(f.nextForcedBatches) > 0 {
 		lastBatchNumber, stateRoot = f.processForcedBatches(ctx, lastBatchNumber, stateRoot)
-		// We must init/reset the wip L2 block from the state since processForcedBatches can create new L2 blocks
+		// We must init/reset the wip L2 block from the state since processForcedBatches can created new L2 blocks
 		f.initWIPL2Block(ctx)
 	}
 
@@ -199,10 +202,11 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context) error {
 	}
 
 	if f.wipL2Block != nil {
-		// Sustract the WIP L2 block used resources to batch
-		err = batch.remainingResources.Sub(f.wipL2Block.getUsedResources())
-		if err != nil {
-			return fmt.Errorf("failed to subtract L2 block used resources to new wip batch %d, error: %v", batch.batchNumber, err)
+		// Subtract the WIP L2 block used resources to batch
+		overflow, overflowResource := batch.imRemainingResources.Sub(f.wipL2Block.usedResources)
+		if overflow {
+			return fmt.Errorf("failed to subtract L2 block [%d] used resources to new wip batch %d, overflow resource: %s",
+				f.wipL2Block.trackingNum, batch.batchNumber, overflowResource)
 		}
 	}
 
@@ -252,21 +256,24 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 		time.Sleep(time.Second)
 	}
 
+	maxRemainingResources := getMaxRemainingResources(f.batchConstraints)
+
 	return &Batch{
-		batchNumber:        newStateBatch.BatchNumber,
-		coinbase:           newStateBatch.Coinbase,
-		initialStateRoot:   newStateBatch.StateRoot,
-		imStateRoot:        newStateBatch.StateRoot,
-		finalStateRoot:     newStateBatch.StateRoot,
-		timestamp:          newStateBatch.Timestamp,
-		remainingResources: getMaxRemainingResources(f.batchConstraints),
-		closingReason:      state.EmptyClosingReason,
+		batchNumber:             newStateBatch.BatchNumber,
+		coinbase:                newStateBatch.Coinbase,
+		initialStateRoot:        newStateBatch.StateRoot,
+		imStateRoot:             newStateBatch.StateRoot,
+		finalStateRoot:          newStateBatch.StateRoot,
+		timestamp:               newStateBatch.Timestamp,
+		imRemainingResources:    maxRemainingResources,
+		finalRemainingResources: maxRemainingResources,
+		closingReason:           state.EmptyClosingReason,
 	}, err
 }
 
 // closeWIPBatch closes the current batch in the state
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
-	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.remainingResources)
+	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
 		BatchResources: usedResources,
@@ -294,16 +301,6 @@ func (f *finalizer) closeWIPBatch(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// maxTxsPerBatchReached checks if the batch has reached the maximum number of txs per batch
-func (f *finalizer) maxTxsPerBatchReached() bool {
-	if f.wipBatch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch) {
-		log.Infof("closing batch %d, because it reached the maximum number of txs", f.wipBatch.batchNumber)
-		f.wipBatch.closingReason = state.BatchFullClosingReason
-		return true
-	}
-	return false
 }
 
 // batchSanityCheck reprocesses a batch used as sanity check
@@ -407,71 +404,53 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrStateRootNoMatch
 	}
 
-	log.Infof("successful sanity check for batch %d, initialStateRoot: %s, stateRoot: %s, l2Blocks: %d, time: %v, %s",
+	log.Infof("successful sanity check for batch %d, initialStateRoot: %s, stateRoot: %s, l2Blocks: %d, time: %v, used counters: %s",
 		batch.BatchNumber, initialStateRoot, batchResponse.NewStateRoot.String(), len(batchResponse.BlockResponses),
 		endProcessing.Sub(startProcessing), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return batchResponse, nil
 }
 
-// checkRemainingResources checks if the resources passed as parameters fits in the wip batch.
-func (f *finalizer) checkRemainingResources(result *state.ProcessBatchResponse, bytes uint64) error {
-	usedResources := state.BatchResources{
-		ZKCounters: result.UsedZkCounters,
-		Bytes:      bytes,
-	}
-
-	return f.wipBatch.remainingResources.Sub(usedResources)
+// maxTxsPerBatchReached checks if the batch has reached the maximum number of txs per batch
+func (f *finalizer) maxTxsPerBatchReached(batch *Batch) bool {
+	return (f.batchConstraints.MaxTxsPerBatch != 0) && (batch.countOfTxs >= int(f.batchConstraints.MaxTxsPerBatch))
 }
 
-// logZKCounters returns a string with all the zkCounters values
-func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
-	return fmt.Sprintf("gasUsed: %d, keccakHashes: %d, poseidonHashes: %d, poseidonPaddings: %d, memAligns: %d, arithmetics: %d, binaries: %d, sha256Hashes: %d, steps: %d",
-		counters.GasUsed, counters.UsedKeccakHashes, counters.UsedPoseidonHashes, counters.UsedPoseidonPaddings, counters.UsedMemAligns, counters.UsedArithmetics,
-		counters.UsedBinaries, counters.UsedSha256Hashes_V2, counters.UsedSteps)
-}
-
-// isBatchResourcesExhausted checks if one of resources of the wip batch has reached the max value
-func (f *finalizer) isBatchResourcesExhausted() bool {
-	resources := f.wipBatch.remainingResources
+// isBatchResourcesMarginExhausted checks if one of resources of the batch has reached the exhausted margin and returns the name of the exhausted resource
+func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResources) (bool, string) {
 	zkCounters := resources.ZKCounters
 	result := false
-	resourceDesc := ""
+	resourceName := ""
 	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
-		resourceDesc = "MaxBatchBytesSize"
+		resourceName = "Bytes"
 		result = true
 	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
-		resourceDesc = "MaxSteps"
+		resourceName = "Steps"
 		result = true
 	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
-		resourceDesc = "MaxPoseidonPaddings"
+		resourceName = "PoseidonPaddings"
 		result = true
 	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
-		resourceDesc = "MaxBinaries"
+		resourceName = "Binaries"
 		result = true
 	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
-		resourceDesc = "MaxKeccakHashes"
+		resourceName = "KeccakHashes"
 		result = true
 	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
-		resourceDesc = "MaxArithmetics"
+		resourceName = "Arithmetics"
 		result = true
 	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
-		resourceDesc = "MaxMemAligns"
+		resourceName = "MemAligns"
 		result = true
 	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
-		resourceDesc = "MaxCumulativeGasUsed"
+		resourceName = "CumulativeGas"
 		result = true
 	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
-		resourceDesc = "MaxSHA256Hashes"
+		resourceName = "SHA256Hashes"
 		result = true
 	}
 
-	if result {
-		log.Infof("closing batch %d because it reached %s limit", f.wipBatch.batchNumber, resourceDesc)
-		f.wipBatch.closingReason = state.BatchAlmostFullClosingReason
-	}
-
-	return result
+	return result, resourceName
 }
 
 // getConstraintThresholdUint64 returns the threshold for the given input
@@ -484,7 +463,7 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 	return input * f.cfg.ResourceExhaustedMarginPct / 100 //nolint:gomnd
 }
 
-// getUsedBatchResources returns the max resources that can be used in a batch
+// getUsedBatchResources calculates and returns the used resources of a batch from remaining resources
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
@@ -502,7 +481,7 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 	}
 }
 
-// getMaxRemainingResources returns the max zkcounters that can be used in a batch
+// getMaxRemainingResources returns the max resources that can be used in a batch
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
@@ -518,4 +497,34 @@ func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.Batch
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}
+}
+
+// checkIfFinalizeBatch returns true if the batch must be closed due to a closing reason, also it returns the description of the close reason
+func (f *finalizer) checkIfFinalizeBatch() (bool, state.ClosingReason) {
+	// Max txs per batch
+	if f.maxTxsPerBatchReached(f.wipBatch) {
+		log.Infof("closing batch %d, because it reached the maximum number of txs", f.wipBatch.batchNumber)
+		return true, state.MaxTxsClosingReason
+	}
+
+	// Batch resource (zkCounters or batch bytes) margin exhausted
+	exhausted, resourceDesc := f.isBatchResourcesMarginExhausted(f.wipBatch.imRemainingResources)
+	if exhausted {
+		log.Infof("closing batch %d because it exhausted margin for %s batch resource", f.wipBatch.batchNumber, resourceDesc)
+		return true, state.ResourceMarginExhaustedClosingReason
+	}
+
+	// Forced batch deadline
+	if f.nextForcedBatchDeadline != 0 && now().Unix() >= f.nextForcedBatchDeadline {
+		log.Infof("closing batch %d, forced batch deadline encountered", f.wipBatch.batchNumber)
+		return true, state.ForcedBatchDeadlineClosingReason
+	}
+
+	// Batch timestamp resolution
+	if !f.wipBatch.isEmpty() && f.wipBatch.timestamp.Add(f.cfg.BatchMaxDeltaTimestamp.Duration).Before(time.Now()) {
+		log.Infof("closing batch %d, because of batch max delta timestamp reached", f.wipBatch.batchNumber)
+		return true, state.MaxDeltaTimestampClosingReason
+	}
+
+	return false, ""
 }

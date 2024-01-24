@@ -102,6 +102,7 @@ StateConsistencyCheckInterval = "5s"
 		ResourceExhaustedMarginPct = 10
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
+		SequentialProcessL2Block = true
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"
@@ -127,6 +128,7 @@ ProofStatePollingInterval = "5s"
 SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
+UpgradeEtrogBatchNumber = 0
 
 [EthTxManager]
 ForcedGas = 0
