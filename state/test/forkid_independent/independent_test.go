@@ -506,6 +506,14 @@ func TestGetTxsHashesByBatchNumber(t *testing.T) {
 			Tx:     tx2,
 		},
 	}
+
+	for _, txTmp := range txsBatch1 {
+		aux := *txTmp
+		l2TxHash, err := state.GetL2Hash(aux.Tx)
+		require.NoError(t, err)
+		txTmp.TxHashL2_V2 = l2TxHash
+	}
+
 	block1 := []*state.ProcessBlockResponse{
 		{
 			TransactionResponses: txsBatch1,
