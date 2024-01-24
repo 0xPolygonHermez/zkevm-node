@@ -650,12 +650,18 @@ func TestAddGetL2Block(t *testing.T) {
 
 	receipt.BlockHash = l2Block.Hash()
 
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	for range transactions {
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	numTxs := len(transactions)
+	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
+	for i, txTmp := range transactions {
+		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+		aux := *txTmp
+		l2TxHash, err := state.GetL2Hash(aux)
+		require.NoError(t, err)
+		txsL2Hash[i] = l2TxHash
 	}
 
-	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)
