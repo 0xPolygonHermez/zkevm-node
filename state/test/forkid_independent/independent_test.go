@@ -653,9 +653,12 @@ func TestAddGetL2Block(t *testing.T) {
 	numTxs := len(transactions)
 	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
 	txsL2Hash := make([]common.Hash, numTxs)
-	for i, _ := range transactions {
+	for i, txTmp := range transactions {
 		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
-		txsL2Hash[i] = state.ZeroHash
+		aux := *txTmp
+		l2TxHash, err := state.GetL2Hash(aux)
+		require.NoError(t, err)
+		txsL2Hash[i] = l2TxHash
 	}
 
 	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
