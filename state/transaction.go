@@ -44,7 +44,9 @@ func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error)
 	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Nonce()))
 	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.GasPrice()))
 	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Gas()))
-	input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
+	if tx.To() != nil {
+		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
+	}
 	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Value()))
 	if len(tx.Data()) > 0 {
 		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
