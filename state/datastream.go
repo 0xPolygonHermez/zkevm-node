@@ -230,7 +230,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	header := streamServer.GetHeader()
 
 	var currentBatchNumber uint64 = 0
-	var lastAddedL2Block uint64 = 0
+	var lastAddedL2BlockNumber uint64 = 0
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
@@ -323,7 +323,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				return err
 			}
 			currentBatchNumber = binary.LittleEndian.Uint64(firstEntry.Data[0:8])
-			lastAddedL2Block = currentL2BlockNumber
+			lastAddedL2BlockNumber = currentL2BlockNumber
 		case EntryTypeBookMark:
 			log.Info("Latest entry type is BookMark")
 			bookMark := DSBookMark{}
@@ -383,7 +383,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		}
 
 		// Generate full batches
-		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
+		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs, lastAddedL2BlockNumber)
 		currentBatchNumber += limit
 
 		for b, batch := range fullBatches {
@@ -433,10 +433,10 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				}
 			} else {
 				for blockIndex, l2block := range batch.L2Blocks {
-					if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
+					if l2block.L2BlockNumber <= lastAddedL2BlockNumber && lastAddedL2BlockNumber != 0 {
 						continue
 					} else {
-						lastAddedL2Block = l2block.L2BlockNumber
+						lastAddedL2BlockNumber = l2block.L2BlockNumber
 					}
 
 					l1BlockHash := common.Hash{}
@@ -567,8 +567,7 @@ func GetSystemSCPosition(blockNumber uint64) []byte {
 }
 
 // computeFullBatches computes the full batches
-func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction) []*DSFullBatch {
-	prevL2BlockNumber := uint64(0)
+func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction, prevL2BlockNumber uint64) []*DSFullBatch {
 	currentL2Tx := 0
 	currentL2Block := uint64(0)
 

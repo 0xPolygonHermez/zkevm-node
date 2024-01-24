@@ -139,12 +139,12 @@ func scanDSL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
 // GetDSBatches returns the DS batches
 func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error) {
 	var getBatchByNumberSQL = `
-		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, b.wip, f.fork_id
 		  FROM state.batch b, state.fork_id f
 		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
 
 	if !readWIPBatch {
-		getBatchByNumberSQL += " AND b.wip = false"
+		getBatchByNumberSQL += " AND b.wip is false"
 	}
 
 	getBatchByNumberSQL += " ORDER BY b.batch_num ASC"
@@ -191,6 +191,7 @@ func scanDSBatch(row pgx.Row) (state.DSBatch, error) {
 		&coinbaseStr,
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
+		&batch.WIP,
 		&batch.ForkID,
 	)
 	if err != nil {
