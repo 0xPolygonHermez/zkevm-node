@@ -575,6 +575,5 @@ func (f *finalizer) dumpL2Block(l2Block *L2Block) {
 		log.Infof("DUMP L2 block %d [%d], Timestamp: %d, ParentHash: %s, Coinbase: %s, GER: %s, BlockHashL1: %s, GasUsed: %d, BlockInfoRoot: %s, BlockHash: %s\n%s",
 			blockResp.BlockNumber, l2Block.trackingNum, blockResp.Timestamp, blockResp.ParentHash, blockResp.Coinbase, blockResp.GlobalExitRoot, blockResp.BlockHashL1,
 			blockResp.GasUsed, blockResp.BlockInfoRoot, blockResp.BlockHash, txsLog)
-
 	}
 }
