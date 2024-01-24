@@ -262,7 +262,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		return nil, ErrExecutorNil
 	}
 
-	request := "BatchNum: %v, OldBatchNum: %v, From: %v, OldStateRoot: %v, L1InfoRoot: %v, OldAccInputHash: %v, TimestampLimit: %v, Coinbase: %v, UpdateMerkleTree: %v, SkipFirstChangeL2Block: %v, SkipWriteBlockInfoRoot: %v, ChainId: %v, ForkId: %v, ContextId: %v, SkipVerifyL1InfoRoot: %v, ForcedBlockhashL1: %v, L1InfoTreeData: %+v, BatchL2Data: %v"
+	batchRequestLog := "BatchNum: %v, OldBatchNum: %v, From: %v, OldStateRoot: %v, L1InfoRoot: %v, OldAccInputHash: %v, TimestampLimit: %v, Coinbase: %v, UpdateMerkleTree: %v, SkipFirstChangeL2Block: %v, SkipWriteBlockInfoRoot: %v, ChainId: %v, ForkId: %v, ContextId: %v, SkipVerifyL1InfoRoot: %v, ForcedBlockhashL1: %v, L1InfoTreeData: %+v, BatchL2Data: %v"
 
 	l1DataStr := ""
 	for i, l1Data := range batchRequest.L1InfoTreeData {
@@ -272,91 +272,80 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		l1DataStr = l1DataStr[:len(l1DataStr)-1]
 	}
 
-	request = fmt.Sprintf(request, batchRequest.OldBatchNum+1, batchRequest.OldBatchNum, batchRequest.From, hex.EncodeToHex(batchRequest.OldStateRoot), hex.EncodeToHex(batchRequest.L1InfoRoot),
+	batchRequestLog = fmt.Sprintf(batchRequestLog, batchRequest.OldBatchNum+1, batchRequest.OldBatchNum, batchRequest.From, hex.EncodeToHex(batchRequest.OldStateRoot), hex.EncodeToHex(batchRequest.L1InfoRoot),
 		hex.EncodeToHex(batchRequest.OldAccInputHash), batchRequest.TimestampLimit, batchRequest.Coinbase, batchRequest.UpdateMerkleTree, batchRequest.SkipFirstChangeL2Block,
 		batchRequest.SkipWriteBlockInfoRoot, batchRequest.ChainId, batchRequest.ForkId, batchRequest.ContextId, batchRequest.SkipVerifyL1InfoRoot, hex.EncodeToHex(batchRequest.ForcedBlockhashL1),
 		l1DataStr, hex.EncodeToHex(batchRequest.BatchL2Data))
 
-	log.Debugf("executor batch request: %s", request)
+	log.Debugf("executor batchRequest: %s", batchRequestLog)
 
 	now := time.Now()
-	res, err := s.executorClient.ProcessBatchV2(ctx, batchRequest)
+	batchResponse, err := s.executorClient.ProcessBatchV2(ctx, batchRequest)
 	if err != nil {
-		log.Errorf("Error s.executorClient.ProcessBatchV2: %v", err)
-		log.Errorf("Error s.executorClient.ProcessBatchV2: %s", err.Error())
-		log.Errorf("Error s.executorClient.ProcessBatchV2 response: %v", res)
-	} else if res.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
-		log.Debug(processBatchResponseToString(res, ""))
-		err = executor.ExecutorErr(res.Error)
-		s.eventLog.LogExecutorErrorV2(ctx, res.Error, batchRequest)
-	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(res.ErrorRom) {
-		log.Warn("OOC error: ", processBatchResponseToString(res, ""))
-	} else if res.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
-		log.Warn(processBatchResponseToString(res, ""))
-		err = executor.RomErr(res.ErrorRom)
+		log.Errorf("error executor ProcessBatchV2: %v", err)
+		log.Errorf("error executor ProcessBatchV2: %s", err.Error())
+		log.Errorf("error executor ProcessBatchV2 response: %v", batchResponse)
+	} else {
+		batchResponseToString := processBatchResponseToString(batchResponse)
+		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+			err = executor.ExecutorErr(batchResponse.Error)
+			log.Debug("executor batchRequest, executor error: %v", err)
+			log.Debug(batchResponseToString)
+			s.eventLog.LogExecutorErrorV2(ctx, batchResponse.Error, batchRequest)
+		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(batchResponse.ErrorRom) {
+			log.Warn("executor batchRequest, ROM OOC, error: %v", err)
+			log.Warn(batchResponseToString)
+		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
+			err = executor.RomErr(batchResponse.ErrorRom)
+			log.Warn("executor batchRequest, ROM error: %v", err)
+			log.Warn(batchResponseToString)
+		} else {
+			log.Debug(batchResponseToString)
+		}
 	}
+
 	//workarroundDuplicatedBlock(res)
 	elapsed := time.Since(now)
 	if caller != metrics.DiscardCallerLabel {
 		metrics.ExecutorProcessingTime(string(caller), elapsed)
 	}
+
 	log.Infof("batch %d took %v to be processed by the executor ", batchRequest.OldBatchNum+1, elapsed)
 
-	return res, err
+	return batchResponse, err
 }
 
-func processBatchResponseToString(r *executor.ProcessBatchResponseV2, prefix string) string {
-	res := prefix + "ProcessBatchResponseV2: \n"
-	res += prefix + fmt.Sprintf("NewStateRoot: 		%v\n", hex.EncodeToHex(r.NewStateRoot))
-	res += prefix + fmt.Sprintf("NewAccInputHash: 	%v\n", hex.EncodeToHex(r.NewAccInputHash))
-	res += prefix + fmt.Sprintf("NewLocalExitRoot: 	%v\n", hex.EncodeToHex(r.NewLocalExitRoot))
-	res += prefix + fmt.Sprintf("NewBatchNumber: 	%v\n", r.NewBatchNum)
-	res += prefix + fmt.Sprintf("Error: 			%v\n", r.Error)
-	res += prefix + fmt.Sprintf("FlushId: 			%v\n", r.FlushId)
-	res += prefix + fmt.Sprintf("StoredFlushId: 	%v\n", r.StoredFlushId)
-	res += prefix + fmt.Sprintf("ProverId: 			%v\n", r.ProverId)
-	res += prefix + fmt.Sprintf("GasUsed: 			%v\n", r.GasUsed)
-	res += prefix + fmt.Sprintf("ForkId: 			%v\n", r.ForkId)
-	for blockIndex, block := range r.BlockResponses {
-		newPrefix := prefix + "  " + fmt.Sprintf("BlockResponse[%v]: ", blockIndex)
-		res += blockResponseToString(block, newPrefix)
+func processBatchResponseToString(batchResponse *executor.ProcessBatchResponseV2) string {
+	batchResponseLog := "executor batchResponse: NewStateRoot: %v, NewAccInputHash: %v, NewLocalExitRoot: %v, NewBatchNumber: %v, GasUsed: %v, FlushId: %v, StoredFlushId: %v, ProverId:%v, ForkId:%v, Error: %v\n"
+	batchResponseLog = fmt.Sprintf(batchResponseLog, hex.EncodeToHex(batchResponse.NewStateRoot), hex.EncodeToHex(batchResponse.NewAccInputHash), hex.EncodeToHex(batchResponse.NewLocalExitRoot),
+		batchResponse.NewBatchNum, batchResponse.GasUsed, batchResponse.FlushId, batchResponse.StoredFlushId, batchResponse.ProverId, batchResponse.ForkId, batchResponse.Error)
+
+	for blockIndex, block := range batchResponse.BlockResponses {
+		prefix := "  " + fmt.Sprintf("block[%v]: ", blockIndex)
+		batchResponseLog += blockResponseToString(block, prefix)
 	}
-	return res
+
+	return batchResponseLog
 }
-func blockResponseToString(r *executor.ProcessBlockResponseV2, prefix string) string {
-	res := prefix + "ProcessBlockResponseV2:----------------------------- \n"
-	res += prefix + fmt.Sprintf("ParentHash:	%v\n", common.BytesToHash(r.ParentHash))
-	res += prefix + fmt.Sprintf("Coinbase:		%v\n", r.Coinbase)
-	res += prefix + fmt.Sprintf("GasLimit:		%v\n", r.GasLimit)
-	res += prefix + fmt.Sprintf("BlockNumber:	%v\n", r.BlockNumber)
-	res += prefix + fmt.Sprintf("Timestamp:		%v\n", r.Timestamp)
-	res += prefix + fmt.Sprintf("GlobalExitRoot:%v\n", common.BytesToHash(r.Ger))
-	res += prefix + fmt.Sprintf("BlockHashL1:	%v\n", common.BytesToHash(r.BlockHashL1))
-	res += prefix + fmt.Sprintf("GasUsed:		%v\n", r.GasUsed)
-	res += prefix + fmt.Sprintf("BlockInfoRoot:	%v\n", common.BytesToHash(r.BlockInfoRoot))
-	res += prefix + fmt.Sprintf("BlockHash:		%v\n", common.BytesToHash(r.BlockHash))
-	for txIndex, tx := range r.Responses {
-		newPrefix := prefix + "  " + fmt.Sprintf("TransactionResponse[%v]: ", txIndex)
-		res += transactionResponseToString(tx, newPrefix)
+func blockResponseToString(blockResponse *executor.ProcessBlockResponseV2, prefix string) string {
+	blockResponseLog := prefix + "ParentHash: %v, Coinbase: %v, GasLimit: %v, BlockNumber: %v, Timestamp: %v, GlobalExitRoot: %v, BlockHashL1: %v, GasUsed: %v, BlockInfoRoot: %v, BlockHash: %v\n"
+	blockResponseLog = fmt.Sprintf(blockResponseLog, common.BytesToHash(blockResponse.ParentHash), blockResponse.Coinbase, blockResponse.GasLimit, blockResponse.BlockNumber, blockResponse.Timestamp,
+		common.BytesToHash(blockResponse.Ger), common.BytesToHash(blockResponse.BlockHashL1), blockResponse.GasUsed, common.BytesToHash(blockResponse.BlockInfoRoot), common.BytesToHash(blockResponse.BlockHash))
+
+	for txIndex, tx := range blockResponse.Responses {
+		prefix := "    " + fmt.Sprintf("tx[%v]: ", txIndex)
+		blockResponseLog += transactionResponseToString(tx, prefix)
 	}
-	res += prefix + "----------------------------------------------------------------- [Block]\n"
 
-	return res
+	return blockResponseLog
 }
 
-func transactionResponseToString(r *executor.ProcessTransactionResponseV2, prefix string) string {
-	res := prefix + "ProcessTransactionResponseV2:----------------------------------- \n"
-	res += prefix + fmt.Sprintf("TxHash:	%v\n", common.BytesToHash(r.TxHash))
-	res += prefix + fmt.Sprintf("TxHashL2:	%v\n", common.BytesToHash(r.TxHashL2))
-	res += prefix + fmt.Sprintf("Type:		%v\n", r.Type)
-	res += prefix + fmt.Sprintf("Error:	%v\n", r.Error)
-	res += prefix + fmt.Sprintf("GasUsed:	%v\n", r.GasUsed)
-	res += prefix + fmt.Sprintf("GasLeft:	%v\n", r.GasLeft)
-	res += prefix + fmt.Sprintf("GasRefund:%v\n", r.GasRefunded)
-	res += prefix + fmt.Sprintf("StateRoot:%v\n", common.BytesToHash(r.StateRoot))
-	res += prefix + "----------------------------------------------------------------- [Transaction]\n"
+func transactionResponseToString(txResponse *executor.ProcessTransactionResponseV2, prefix string) string {
+	txResponseLog := prefix + "TxHash: %v, TxHashL2: %v, Type: %v, StateRoot:%v, GasUsed: %v, GasLeft: %v, GasRefund: %v, Error: %v\n"
+	txResponseLog = fmt.Sprintf(txResponseLog, common.BytesToHash(txResponse.TxHash), common.BytesToHash(txResponse.TxHashL2), txResponse.Type,
+		common.BytesToHash(txResponse.StateRoot), txResponse.GasUsed, txResponse.GasLeft, txResponse.GasRefunded, txResponse.Error)
 
-	return res
+	return txResponseLog
 }
 
 // ProcessAndStoreClosedBatchV2 is used by the Synchronizer to add a closed batch into the data base. Values returned are the new stateRoot,

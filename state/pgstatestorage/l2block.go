@@ -206,10 +206,13 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 				return err
 			}
 
-			l2TxHash, err := state.GetL2Hash(*tx)
+			aux := *tx
+			l2TxHash, err := state.GetL2Hash(aux)
 			if err != nil {
 				return err
 			}
+
+			log.Debugf("[AddL2Block] L2Block num: %d, tx[%d] = txHash: %s, txHashL2: %s", l2Block.Number().Uint64(), idx, tx.Hash().String(), l2TxHash.String())
 
 			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes, l2TxHash.String()}
 			txRows = append(txRows, txRow)
