@@ -184,6 +184,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	}
 
 	logTxsL2Hash := ""
+	forkId := p.GetForkIDByBatchNumber(batchNumber)
 
 	if len(l2Block.Transactions()) > 0 {
 		txRows := [][]interface{}{}
@@ -211,13 +212,19 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 
 			logTxsL2Hash += fmt.Sprintf("tx[%d] txHash: %s, txHashL2: %s\n", idx, tx.Hash().String(), txsL2Hash[idx].String())
 
-			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes, txsL2Hash[idx].String()}
+			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes}
+			if forkId >= state.FORKID_ETROG {
+				txRow = append(txRow, txsL2Hash[idx].String())
+			}
 			txRows = append(txRows, txRow)
 		}
 
-		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"},
-			[]string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log", "l2_hash"},
-			pgx.CopyFromRows(txRows))
+		txFields := []string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log"}
+		if forkId >= state.FORKID_ETROG {
+			txFields = append(txFields, "l2_hash")
+		}
+
+		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"}, txFields, pgx.CopyFromRows(txRows))
 
 		if err != nil {
 			return err
