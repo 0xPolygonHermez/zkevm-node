@@ -27,7 +27,7 @@
     "runBlakeTest": false,
 
     "executeInParallel": true,
-    "useMainExecGenerated": true,
+    "useMainExecGenerated": false,
     "saveRequestToFile": false,
     "saveInputToFile": false,
     "saveDbReadsToFile": false,
