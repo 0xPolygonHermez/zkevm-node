@@ -163,7 +163,7 @@ require (
 )
 
 require (
-	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.0.1-alpha
+	github.com/0xPolygonHermez/zkevm-ethtx-manager v0.0.1
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.17.0

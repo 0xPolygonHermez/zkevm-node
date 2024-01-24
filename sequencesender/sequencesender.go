@@ -61,6 +61,7 @@ type ethTxData struct {
 
 // New inits sequence sender
 func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
+	log.Infof("seqsendercfg: %+v", cfg)
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,
