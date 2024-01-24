@@ -3260,8 +3260,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
 	logs := []*ethTypes.Log{log}

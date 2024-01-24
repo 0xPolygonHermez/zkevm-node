@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,45 +22,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// TestGetL2Hash computes the l2 hash of a transaction for testing purposes
-func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
-	return getL2Hash(tx, sender)
-}
-
-// GetL2Hash computes the l2 hash of a transaction
-func GetL2Hash(tx types.Transaction) (common.Hash, error) {
-	sender, err := GetSender(tx)
-	if err != nil {
-		log.Debugf("error getting sender: %v", err)
-	}
-
-	return getL2Hash(tx, sender)
-}
-
-func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
-	var input string
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Nonce()))
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.GasPrice()))
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Gas()))
-	if tx.To() != nil {
-		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
-	}
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Value()))
-	if len(tx.Data()) > 0 {
-		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
-	}
-	if sender != ZeroAddress {
-		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
-	}
-
-	h4Hash, err := merkletree.HashContractBytecode(common.Hex2Bytes(input))
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return common.HexToHash(merkletree.H4ToString(h4Hash)), nil
-}
 
 // pad20Bytes pads the given address with 0s to make it 20 bytes long
 func pad20Bytes(address string) string {

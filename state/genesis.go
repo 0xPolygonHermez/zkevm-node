@@ -195,12 +195,14 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	txsL2Hash := make([]common.Hash, numTxs)
 	for i, txTmp := range l2Block.Transactions() {
 		storeTxsEGPData[i] = StoreTxEGPData{EGPLog: nil, EffectivePercentage: MaxEffectivePercentage}
-		aux := *txTmp
-		l2TxHash, err := GetL2Hash(aux)
-		if err != nil {
-			return common.Hash{}, err
-		}
-		txsL2Hash[i] = l2TxHash
+
+		// TODO: review l2Txhash
+		// aux := *txTmp
+		// l2TxHash, err := GetL2Hash(aux)
+		// if err != nil {
+		// 	return common.Hash{}, err
+		// }
+		txsL2Hash[i] = txTmp.Hash()
 	}
 
 	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
