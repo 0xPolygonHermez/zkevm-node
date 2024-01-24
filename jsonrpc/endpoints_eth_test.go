@@ -1305,6 +1305,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 						Return(receipt, nil).
 						Once()
 				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(signedTx.Hash(), nil).
+						Once()
+				}
 			},
 		},
 		{
@@ -1337,6 +1343,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					m.State.
 						On("GetTransactionReceipt", context.Background(), receipt.TxHash, m.DbTx).
 						Return(receipt, nil).
+						Once()
+				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(signedTx.Hash(), nil).
 						Once()
 				}
 			},

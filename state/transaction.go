@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -22,30 +21,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// pad20Bytes pads the given address with 0s to make it 20 bytes long
-func pad20Bytes(address string) string {
-	const addressLength = 40
-
-	if len(address) < addressLength {
-		address = strings.Repeat("0", addressLength-len(address)) + address
-	}
-	return address
-}
-
-func formatL2TxHashParam(param string) string {
-	param = strings.TrimLeft(param, "0x")
-
-	if param == "00" || param == "" {
-		return "00"
-	}
-
-	if len(param)%2 != 0 {
-		param = "0" + param
-	}
-
-	return param
-}
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
