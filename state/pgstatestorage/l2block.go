@@ -206,7 +206,8 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 				return err
 			}
 
-			l2TxHash, err := state.GetL2Hash(*tx)
+			aux := *tx
+			l2TxHash, err := state.GetL2Hash(aux)
 			if err != nil {
 				return err
 			}
