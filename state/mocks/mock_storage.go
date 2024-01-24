@@ -6364,6 +6364,67 @@ func (_c *StorageMock_GetTxsOlderThanNL1Blocks_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetTxsOlderThanNL1BlocksUntilTxHash provides a mock function with given fields: ctx, nL1Blocks, earliestTxHash, dbTx
+func (_m *StorageMock) GetTxsOlderThanNL1BlocksUntilTxHash(ctx context.Context, nL1Blocks uint64, earliestTxHash common.Hash, dbTx pgx.Tx) ([]common.Hash, error) {
+	ret := _m.Called(ctx, nL1Blocks, earliestTxHash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTxsOlderThanNL1BlocksUntilTxHash")
+	}
+
+	var r0 []common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) ([]common.Hash, error)); ok {
+		return rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) []common.Hash); ok {
+		r0 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTxsOlderThanNL1BlocksUntilTxHash'
+type StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call struct {
+	*mock.Call
+}
+
+// GetTxsOlderThanNL1BlocksUntilTxHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - nL1Blocks uint64
+//   - earliestTxHash common.Hash
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetTxsOlderThanNL1BlocksUntilTxHash(ctx interface{}, nL1Blocks interface{}, earliestTxHash interface{}, dbTx interface{}) *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call {
+	return &StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call{Call: _e.mock.On("GetTxsOlderThanNL1BlocksUntilTxHash", ctx, nL1Blocks, earliestTxHash, dbTx)}
+}
+
+func (_c *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call) Run(run func(ctx context.Context, nL1Blocks uint64, earliestTxHash common.Hash, dbTx pgx.Tx)) *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(common.Hash), args[3].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call) Return(_a0 []common.Hash, _a1 error) *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call) RunAndReturn(run func(context.Context, uint64, common.Hash, pgx.Tx) ([]common.Hash, error)) *StorageMock_GetTxsOlderThanNL1BlocksUntilTxHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVerifiedBatch provides a mock function with given fields: ctx, batchNumber, dbTx
 func (_m *StorageMock) GetVerifiedBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VerifiedBatch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
