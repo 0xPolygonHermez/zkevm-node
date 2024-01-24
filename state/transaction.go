@@ -248,9 +248,10 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			if txsEGPLog != nil {
 				storeTxsEGPData[0].EGPLog = txsEGPLog[i]
 			}
+			txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 			// Store L2 block and its transaction
-			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
+			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 				return err
 			}
 		}
@@ -282,9 +283,11 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	l2Header.GlobalExitRoot = l2Block.GlobalExitRoot
 	l2Header.BlockInfoRoot = l2Block.BlockInfoRoot
 
-	transactions := []*types.Transaction{}
-	storeTxsEGPData := []StoreTxEGPData{}
-	receipts := []*types.Receipt{}
+	numTxs := len(l2Block.TransactionResponses)
+	transactions := make([]*types.Transaction, numTxs)
+	storeTxsEGPData := make([]StoreTxEGPData, numTxs)
+	receipts := make([]*types.Receipt, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
 
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
@@ -297,15 +300,16 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		}
 
 		txResp := *txResponse
-		transactions = append(transactions, &txResp.Tx)
+		transactions[i] = &txResp.Tx
+		txsL2Hash[i] = txResp.TxHashL2_V2
 
-		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
+		storeTxsEGPData[i] = StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)}
 		if txsEGPLog != nil {
 			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
 		}
 
 		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
-		receipts = append(receipts, receipt)
+		receipts[i] = receipt
 	}
 
 	// Create block to be able to calculate its hash
@@ -317,7 +321,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	}
 
 	// Store L2 block and its transactions
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 		return err
 	}
 
@@ -699,9 +703,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	receipt.BlockHash = l2Block.Hash()
 
 	storeTxsEGPData := []StoreTxEGPData{{EGPLog: egpLog, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
+	txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 		return nil, err
 	}
 

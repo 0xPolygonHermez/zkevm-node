@@ -81,8 +81,6 @@ type ProcessBlockResponse struct {
 	TransactionResponses []*ProcessTransactionResponse
 	Logs                 []*types.Log
 	RomError_V2          error
-	// map[TxHash]L2Hash
-	L2Hashes_V2 map[common.Hash]common.Hash
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
