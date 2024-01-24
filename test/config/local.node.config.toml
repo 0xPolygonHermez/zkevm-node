@@ -1,0 +1,200 @@
+IsTrustedSequencer = true
+
+[Log]
+Environment = "development" # "production" or "development"
+Level = "debug"
+Outputs = ["stderr"]
+
+[State]
+	[State.DB]
+	User = "state_user"
+	Password = "state_password"
+	Name = "state_db"
+	Host = "127.0.0.1"
+	Port = "5432"
+	EnableLog = false	
+	MaxConns = 200
+	[State.Batch]
+		[State.Batch.Constraints]
+		MaxTxsPerBatch = 300
+		MaxBatchBytesSize = 120000
+		MaxCumulativeGasUsed = 30000000
+		MaxKeccakHashes = 2145
+		MaxPoseidonHashes = 252357
+		MaxPoseidonPaddings = 135191
+		MaxMemAligns = 236585
+		MaxArithmetics = 236585
+		MaxBinaries = 473170
+		MaxSteps = 7570538
+		MaxSHA256Hashes = 1596
+
+[Pool]
+FreeClaimGasLimit = 1500000
+IntervalToRefreshBlockedAddresses = "5m"
+IntervalToRefreshGasPrices = "5s"
+MaxTxBytesSize=100132
+MaxTxDataBytesSize=100000
+DefaultMinGasPriceAllowed = 1000000000
+MinAllowedGasPriceInterval = "5m"
+PollMinAllowedGasPriceInterval = "15s"
+AccountQueue = 64
+GlobalQueue = 1024
+	[Pool.EffectiveGasPrice]
+		Enabled = false
+		L1GasPriceFactor = 0.25
+		ByteGasCost = 16
+		ZeroByteGasCost = 4
+		NetProfit = 1
+	    BreakEvenFactor = 1.1			
+		FinalDeviationPct = 10
+		L2GasPriceSuggesterFactor = 0.5
+	[Pool.DB]
+	User = "pool_user"
+	Password = "pool_password"
+	Name = "pool_db"
+	Host = "127.0.0.1"
+	Port = "5433"
+	EnableLog = false
+	MaxConns = 200
+
+[Etherman]
+URL = "http://127.0.0.1:8545"
+ForkIDChunkSize = 20000
+MultiGasProvider = false
+	[Etherscan]
+		ApiKey = ""
+
+[RPC]
+Host = "0.0.0.0"
+Port = 8123
+ReadTimeout = "60s"
+WriteTimeout = "60s"
+MaxRequestsPerIPAndSecond = 5000
+SequencerNodeURI = ""
+EnableL2SuggestedGasPricePolling = true
+	[RPC.WebSockets]
+		Enabled = true
+		Port = 8133
+
+[Synchronizer]
+SyncInterval = "1s"
+SyncChunkSize = 100
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
+L1SynchronizationMode = "parallel"
+	[Synchronizer.L1ParallelSynchronization]
+		MaxClients = 10
+		MaxPendingNoProcessedBlocks = 25
+		RequestLastBlockPeriod = "5s"
+		RequestLastBlockTimeout = "5s"
+		RequestLastBlockMaxRetries = 3
+		StatisticsPeriod = "5m"
+		TimeoutMainLoop = "5m"
+		RollupInfoRetriesSpacing= "5s"
+		FallbackToSequentialModeOnSynchronized = false
+		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
+			AceptableInacctivityTime = "5s"
+			ApplyAfterNumRollupReceived = 10
+
+[Sequencer]
+DeletePoolTxsL1BlockConfirmations = 100
+DeletePoolTxsCheckInterval = "12h"
+TxLifetimeCheckInterval = "10m"
+TxLifetimeMax = "3h"
+LoadPoolTxsCheckInterval = "500ms"
+StateConsistencyCheckInterval = "5s"
+	[Sequencer.Finalizer]
+		NewTxsWaitInterval = "100ms"
+		ForcedBatchesTimeout = "5s"
+		ForcedBatchesL1BlockConfirmations = 0
+		ForcedBatchesCheckInterval = "10s"
+		L1InfoTreeL1BlockConfirmations = 0
+		L1InfoTreeCheckInterval = "10s"
+		BatchMaxDeltaTimestamp = "10s"
+		L2BlockMaxDeltaTimestamp = "2s"
+		ResourceExhaustedMarginPct = 10
+		HaltOnBatchNumber = 0
+		SequentialBatchSanityCheck = false
+	[Sequencer.StreamServer]
+		Port = 6900
+		Filename = "/datastreamer/datastream.bin"
+		Version = 1
+		Enabled = true
+
+[SequenceSender]
+WaitPeriodSendSequence = "15s"
+LastBatchVirtualizationTimeMaxWaitPeriod = "10s"
+MaxTxSizeForL1 = 131072
+L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+PrivateKey = {Path = "./test/sequencer.keystore", Password = "testonly"}
+	[SequenceSender.StreamClient]
+		Server = "127.0.0.1:6900"
+
+[Aggregator]
+Host = "0.0.0.0"
+Port = 50081
+RetryTime = "5s"
+VerifyProofInterval = "10s"
+TxProfitabilityCheckerType = "acceptall"
+TxProfitabilityMinReward = "1.1"
+ProofStatePollingInterval = "5s"
+SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+CleanupLockedProofsInterval = "2m"
+GeneratingProofCleanupThreshold = "10m"
+
+[EthTxManager]
+FrequencyToMonitorTxs = "1s"
+WaitTxToBeMined = "2m"
+L1ConfirmationBlocks = 60
+PrivateKeys = [
+	{Path = "./test/sequencer.keystore", Password = "testonly"},
+	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+]
+ForcedGas = 0
+GasPriceMarginFactor = 1
+MaxGasPriceLimit = 0
+From = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+	[EthTxManager.Etherman]
+	URL = "http://127.0.0.1:8545"
+	MultiGasProvider = false
+	L1ChainID = 1337
+
+[L2GasPriceSuggester]
+Type = "default"
+UpdatePeriod = "10s"
+Factor = 0.5
+DefaultGasPriceWei = 1000000000
+MaxGasPriceWei = 0
+
+[MTClient]
+URI  = "zkevm-prover:50061"
+
+[Executor]
+URI = "zkevm-prover:50071"
+MaxGRPCMessageSize = 100000000
+
+[Metrics]
+Host = "0.0.0.0"
+Port = 9091
+Enabled = true
+ProfilingHost = "0.0.0.0"
+ProfilingPort = 6060
+ProfilingEnabled = true
+
+[EventLog]
+	[EventLog.DB]
+	User = "event_user"
+	Password = "event_password"
+	Name = "event_db"
+	Host = "127.0.0.1"
+	Port = "5435"
+	EnableLog = false
+	MaxConns = 200
+
+[HashDB]
+User = "prover_user"
+Password = "prover_pass"
+Name = "prover_db"
+Host = "127.0.0.1"
+Port = "5432"
+EnableLog = false
+MaxConns = 200

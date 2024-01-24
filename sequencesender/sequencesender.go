@@ -9,19 +9,14 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
+	// "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
-	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-)
-
-const (
-	ethTxManagerOwner = "sequencer"
-	monitoredIDFormat = "sequence-from-%v-to-%v"
 )
 
 var (
@@ -33,22 +28,23 @@ var (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg                 Config
-	state               stateInterface
-	ethTxManager        ethTxManager
+	cfg   Config
+	state stateInterface
+	// ethTxManager        *ethtxmanager.Client
 	etherman            etherman
 	eventLog            *event.EventLog
-	latestVirtualBatch  uint64                     // Latest virtualized batch obtained from L1
-	latestSentToL1Batch uint64                     // Latest batch sent to L1
-	wipBatch            uint64                     // Work in progress batch
-	sequenceList        []uint64                   // Sequence of batch number to be send to L1
-	sequenceData        map[uint64]*sequenceData   // All the batch data indexed by batch number
-	mutexSequence       sync.Mutex                 // Mutex to update sequence data
-	ethTransactions     map[common.Hash]*ethTxData // All the eth tx sent to L1 indexed by hash
-	validStream         bool                       // Not valid while receiving data before the desired batch
-	fromStreamBatch     uint64                     // Initial batch to connect to the streaming
-	latestStreamBatch   uint64                     // Latest batch received by the streaming
-	streamClient        *datastreamer.StreamClient
+	latestVirtualBatch  uint64                    // Latest virtualized batch obtained from L1
+	latestSentToL1Batch uint64                    // Latest batch sent to L1
+	wipBatch            uint64                    // Work in progress batch
+	sequenceList        []uint64                  // Sequence of batch number to be send to L1
+	sequenceData        map[uint64]*sequenceData  // All the batch data indexed by batch number
+	mutexSequence       sync.Mutex                // Mutex to update sequence data
+	ethTransactions     map[common.Hash]ethTxData // All the eth tx sent to L1 indexed by hash
+	// ethTxFile           *os.File
+	validStream       bool   // Not valid while receiving data before the desired batch
+	fromStreamBatch   uint64 // Initial batch to connect to the streaming
+	latestStreamBatch uint64 // Latest batch received by the streaming
+	streamClient      *datastreamer.StreamClient
 }
 
 type sequenceData struct {
@@ -58,45 +54,53 @@ type sequenceData struct {
 }
 
 type ethTxData struct {
-	status    ethtxmanager.MonitoredTxStatus
-	fromBatch uint64
-	toBatch   uint64
+	Status    string `json:"status"`
+	FromBatch uint64 `json:"fromBatch"`
+	ToBatch   uint64 `json:"toBatch"`
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
+	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,
 		state:             state,
 		etherman:          etherman,
-		ethTxManager:      manager,
 		eventLog:          eventLog,
-		ethTransactions:   make(map[common.Hash]*ethTxData),
+		ethTransactions:   make(map[common.Hash]ethTxData),
 		sequenceData:      make(map[uint64]*sequenceData),
 		validStream:       false,
 		latestStreamBatch: 0,
 	}
+
+	// Create ethtxmanager client
+	var err error
+	// s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
+	// if err != nil {
+	// 	log.Fatalf("[SeqSender] error creating ethtxmanager client: %v", err)
+	// 	return nil, err
+	// }
+
+	// Create datastream client
+	s.streamClient, err = datastreamer.NewClient(s.cfg.StreamClient.Server, 1)
+	if err != nil {
+		log.Fatalf("[SeqSender] failed to create stream client, error: %v", err)
+	} else {
+		log.Debugf("[SeqSender] new stream client")
+	}
+	// Set func to handle the streaming
+	s.streamClient.SetProcessEntryFunc(s.handleReceivedDataStream)
 
 	return &s, nil
 }
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	var err error
-
-	// Create datastream client
-	s.streamClient, err = datastreamer.NewClient(s.cfg.StreamClient.Server, state.StreamTypeSequencer)
-	if err != nil {
-		log.Fatalf("[SeqSender] failed to create stream client, error: %v", err)
-	} else {
-		log.Debugf("[SeqSender] new stream client")
-	}
-
-	// Set func to handle the streaming
-	s.streamClient.SetProcessEntryFunc(s.handleReceivedDataStream)
+	// Start ethtxmanager client
+	// go s.ethTxManager.Start()
 
 	// Start datastream client
-	err = s.streamClient.Start()
+	err := s.streamClient.Start()
 	if err != nil {
 		log.Fatalf("[SeqSender] failed to start stream client, error: %v", err)
 	}
@@ -124,7 +128,7 @@ func (s *SequenceSender) Start(ctx context.Context) {
 		log.Fatalf("[SeqSender] failed to connect to the streaming")
 	}
 
-	// Sequence
+	// Start sending sequences
 	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	for {
 		s.tryToSendSequence(ctx, ticker)
@@ -132,20 +136,6 @@ func (s *SequenceSender) Start(ctx context.Context) {
 }
 
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
-	// process monitored sequences before starting a next cycle
-	// retry := false
-	// s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
-	// 	if result.Status == ethtxmanager.MonitoredTxStatusFailed {
-	// 		retry = true
-	// 		mTxResultLogger := ethtxmanager.CreateMonitoredTxResultLogger(ethTxManagerOwner, result)
-	// 		mTxResultLogger.Error("failed to send sequence, TODO: review this fatal and define what to do in this case")
-	// 	}
-	// }, nil)
-
-	// if retry {
-	// 	return
-	// }
-
 	// Check if should send sequence to L1
 	log.Debugf("[SeqSender] getting sequences to send")
 	sequences, err := s.getSequencesToSend(ctx)
@@ -166,28 +156,27 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
-	// Add sequence to be monitored
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-	if err != nil {
-		log.Error("[SeqSender] error estimating new sequenceBatches to add to eth tx manager: ", err)
-		return
-	}
-	monitoredTxID := fmt.Sprintf(monitoredIDFormat, firstSequence.BatchNumber, lastSequence.BatchNumber)
-	err = s.ethTxManager.Add(ctx, ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to, nil, data, s.cfg.GasOffset, nil)
-	if err != nil {
-		mTxLogger := ethtxmanager.CreateLogger(ethTxManagerOwner, monitoredTxID, s.cfg.SenderAddress, to)
-		mTxLogger.Errorf("error to add sequences tx to eth tx manager: ", err)
-		return
-	}
+	// Add sequence
+	// to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+	// if err != nil {
+	// 	log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
+	// 	return
+	// }
+
+	// nonce := uint64(0)
+	// txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
+	// if err != nil {
+	// 	log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
+	// 	return
+	// }
 
 	// Add new eth tx
-	txHash := common.Hash{} // TODO: from response to call ethTxManager.Add
-	txData := ethTxData{
-		status:    ethtxmanager.MonitoredTxStatusSent,
-		fromBatch: firstSequence.BatchNumber,
-		toBatch:   lastSequence.BatchNumber,
-	}
-	s.ethTransactions[txHash] = &txData
+	// txData := ethTxData{
+	// 	Status:    ethtxmanager.MonitoredTxStatusCreated,
+	// 	FromBatch: firstSequence.BatchNumber,
+	// 	ToBatch:   lastSequence.BatchNumber,
+	// }
+	// s.ethTransactions[txHash] = txData
 	s.latestSentToL1Batch = lastSequence.BatchNumber
 
 	s.printEthTxs()
@@ -332,6 +321,22 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 		return
 	}
 }
+
+// loadSentSequencesTransactions loads the file into the memory structure
+// func (s *SequenceSender) loadSentSequencesTransactions() {
+
+// }
+
+// saveSentSequencesTransactions saves memory structure into persistent file
+// func (s *SequenceSender) saveSentSequencesTransactions() error {
+// 	var err error
+// 	s.ethTxFile, err = os.Create("sequencesender.json")
+// 	if err != nil {
+// 		log.Errorf("[SeqSender] error creating file: %v", err)
+// 		return err
+// 	}
+// 	return nil
+// }
 
 // handleReceivedDataStream manages the events received by the streaming
 func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *datastreamer.StreamClient, ss *datastreamer.StreamServer) error {
@@ -568,6 +573,6 @@ func (s *SequenceSender) printSequences(showBlock bool) {
 // printEthTxs prints the current L1 transactions in the memory structure
 func (s *SequenceSender) printEthTxs() {
 	for hash, data := range s.ethTransactions {
-		log.Debugf("[SeqSender] // tx hash %x... (status: %s, from: %d, to: %d) hash %x", hash[:4], data.status, data.fromBatch, data.toBatch, hash)
+		log.Debugf("[SeqSender] // tx hash %x... (status: %s, from: %d, to: %d) hash %x", hash[:4], data.Status, data.FromBatch, data.ToBatch, hash)
 	}
 }

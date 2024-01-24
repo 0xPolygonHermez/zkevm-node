@@ -18,7 +18,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	ethtxmanager "github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/event/pgeventstorage"
@@ -413,9 +413,9 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	cfg.SequenceSender.ForkUpgradeBatchNumber = cfg.ForkUpgradeBatchNumber
 
-	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+	// ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, eventLog)
 	if err != nil {
 		log.Fatal(err)
 	}

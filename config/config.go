@@ -8,7 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	ethtxmanager "github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"

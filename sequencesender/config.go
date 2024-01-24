@@ -1,6 +1,7 @@
 package sequencesender
 
 import (
+	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
@@ -40,8 +41,11 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
-	// StreamClientCfg is the config for the stream client
+	// StreamClient is the config for the stream client
 	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
+
+	// EthTxManager is the config for the ethtxmanager
+	EthTxManager ethtxmanager.Config `mapstructure:"EthTxManager"`
 }
 
 // StreamClientCfg contains the data streamer's configuration properties
