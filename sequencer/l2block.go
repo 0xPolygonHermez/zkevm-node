@@ -449,8 +449,6 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 	f.l2BlockCounter++
 	newL2Block.trackingNum = f.l2BlockCounter
 
-	log.Debugf("opening new WIP L2 block [%d]", newL2Block.trackingNum)
-
 	newL2Block.timestamp = now()
 	newL2Block.deltaTimestamp = uint32(newL2Block.timestamp.Sub(prevTimestamp).Truncate(time.Second).Seconds())
 
@@ -476,6 +474,9 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 	}
 
 	f.wipL2Block = newL2Block
+
+	log.Debugf("creating new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v",
+		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex, f.wipL2Block.l1InfoTreeExitRootChanged)
 
 	// We process (execute) the new wip L2 block to update the imStateRoot and also get the counters used by the wip l2block
 	batchResponse, err := f.executeNewWIPL2Block(ctx)
@@ -506,8 +507,8 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp time.Ti
 		}
 	}
 
-	log.Infof("new WIP L2 block [%d] created, batch: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfTreeIndexChanged: %v, oldStateRoot: %s, stateRoot: %s, used counters: %s",
-		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
+	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, stateRoot: %s, used counters: %s",
+		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp.Unix(), f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, f.wipBatch.imStateRoot, batchResponse.NewStateRoot, f.logZKCounters(f.wipL2Block.usedResources.ZKCounters))
 }
 
