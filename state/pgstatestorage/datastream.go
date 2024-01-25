@@ -86,9 +86,9 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 // GetDSL2Transactions returns the L2 transactions
 func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*state.DSL2Transaction, error) {
 	const l2TxSQL = `SELECT l2_block_num, t.effective_percentage, t.encoded
-					 FROM state.transaction t
-					 WHERE l2_block_num BETWEEN $1 AND $2
-					 ORDER BY t.l2_block_num ASC`
+					 FROM state.transaction t, state.receipt r
+					 WHERE l2_block_num BETWEEN $1 AND $2 AND r.tx_hash = t.hash
+					 ORDER BY t.l2_block_num ASC, r.tx_index ASC`
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, l2TxSQL, firstL2Block, lastL2Block)
