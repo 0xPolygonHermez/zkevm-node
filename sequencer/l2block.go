@@ -20,6 +20,7 @@ type L2Block struct {
 	timestamp                 uint64
 	deltaTimestamp            uint32
 	initialStateRoot          common.Hash
+	imStateRoot               common.Hash
 	l1InfoTreeExitRoot        state.L1InfoTreeExitRootStorageEntry
 	l1InfoTreeExitRootChanged bool
 	usedResources             state.BatchResources
@@ -402,7 +403,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 
 	endStoring := time.Now()
 
-	log.Infof("stored L2 block: %d [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
+	log.Infof("stored L2 block %d [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v",
 		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.deltaTimestamp, l2Block.timestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		l2Block.l1InfoTreeExitRootChanged, len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
 
@@ -488,8 +489,9 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 		f.Halt(ctx, fmt.Errorf("number of L2 block [%d] responses returned by the executor is %d and must be 1", f.wipL2Block.trackingNum, len(batchResponse.BlockResponses)))
 	}
 
-	// Update imStateRoot and wip L2 block number
-	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
+	// Update imStateRoot
+	f.wipL2Block.imStateRoot = batchResponse.NewStateRoot
+	f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 
 	// Save and sustract the resources used by the new WIP L2 block from the wip batch
 	// We need to increase the poseidon hashes to reserve in the batch the hashes needed to write the L1InfoRoot when processing the final L2 Block (SkipWriteBlockInfoRoot_V2=false)
