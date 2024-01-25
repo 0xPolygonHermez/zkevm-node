@@ -268,7 +268,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
-		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockMaxDeltaTimestamp.Duration).After(time.Now()) {
+		if f.wipL2Block.timestamp+uint64(f.cfg.L2BlockMaxDeltaTimestamp.Seconds()) <= uint64(time.Now().Unix()) {
 			f.finalizeWIPL2Block(ctx)
 		}
 
@@ -345,7 +345,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             mockL1InfoRoot,
-		TimestampLimit_V2:         uint64(f.wipL2Block.timestamp.Unix()),
+		TimestampLimit_V2:         f.wipL2Block.timestamp,
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		Transactions:              tx.RawTx,
