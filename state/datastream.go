@@ -231,6 +231,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 	var currentBatchNumber uint64 = 0
 	var lastAddedL2BlockNumber uint64 = 0
+	var lastAddedBatchNumber uint64 = 0
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
@@ -350,6 +351,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 
 	log.Infof("Current entry number: %d", entry)
 	log.Infof("Current batch number: %d", currentBatchNumber)
+	log.Infof("Last added L2 block number: %d", lastAddedL2BlockNumber)
 
 	for err == nil {
 		// Get Next Batch
@@ -387,6 +389,12 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		currentBatchNumber += limit
 
 		for b, batch := range fullBatches {
+			if batch.BatchNumber <= lastAddedBatchNumber && lastAddedBatchNumber != 0 {
+				continue
+			} else {
+				lastAddedBatchNumber = batch.BatchNumber
+			}
+
 			err = streamServer.StartAtomicOp()
 			if err != nil {
 				return err
