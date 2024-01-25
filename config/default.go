@@ -72,10 +72,20 @@ MultiGasProvider = false
 [EthTxManager]
 FrequencyToMonitorTxs = "1s"
 WaitTxToBeMined = "2m"
+L1ConfirmationBlocks = 60
+PrivateKeys = [
+	{Path = "./test/sequencer.keystore", Password = "testonly"},
+	{Path = "/pk/aggregator.keystore", Password = "testonly"}
+]
 ForcedGas = 0
 GasPriceMarginFactor = 1
 MaxGasPriceLimit = 0
-
+From = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+	[EthTxManager.Etherman]
+	URL = "http://127.0.0.1:8545"
+	MultiGasProvider = false
+	L1ChainID = 1337
+		
 [RPC]
 Host = "0.0.0.0"
 Port = 8545

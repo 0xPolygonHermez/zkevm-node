@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	newtxman "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	ethtxmanager "github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
@@ -87,7 +87,7 @@ type Config struct {
 	// Configuration of the etherman (client for access L1)
 	Etherman etherman.Config
 	// Configuration for ethereum transaction manager
-	EthTxManager ethtxmanager.Config
+	EthTxManager newtxman.Config
 	// Pool service configuration
 	Pool pool.Config
 	// Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node

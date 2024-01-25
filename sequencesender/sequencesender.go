@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
-	// "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
+	ethtxmantypes "github.com/0xPolygonHermez/zkevm-ethtx-manager/config/types"
+	newetherman "github.com/0xPolygonHermez/zkevm-ethtx-manager/etherman"
+	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -28,9 +30,9 @@ var (
 
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
-	cfg   Config
-	state stateInterface
-	// ethTxManager        *ethtxmanager.Client
+	cfg                 Config
+	state               stateInterface
+	ethTxManager        *ethtxmanager.Client
 	etherman            etherman
 	eventLog            *event.EventLog
 	latestVirtualBatch  uint64                    // Latest virtualized batch obtained from L1
@@ -61,7 +63,24 @@ type ethTxData struct {
 
 // New inits sequence sender
 func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
-	log.Infof("seqsendercfg: %+v", cfg)
+	testCfg := ethtxmanager.Config{
+		FrequencyToMonitorTxs: ethtxmantypes.Duration{Duration: 1 * time.Second},
+		WaitTxToBeMined:       ethtxmantypes.Duration{Duration: 2 * time.Minute}, // nolint:gomnd
+		L1ConfirmationBlocks:  60,                                                // nolint:gomnd
+		PrivateKeys: []ethtxmantypes.KeystoreFileConfig{
+			{Path: "./test/sequencer.keystore", Password: "testonly"},
+			{Path: "/pk/aggregator.keystore", Password: "testonly"}},
+		ForcedGas:            0,
+		GasPriceMarginFactor: 1,
+		MaxGasPriceLimit:     0,
+		From:                 common.HexToAddress("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"),
+		Etherman: newetherman.Config{
+			URL:              "http://localhost:8545",
+			MultiGasProvider: false,
+			L1ChainID:        1337, // nolint:gomnd
+		},
+	}
+
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,
@@ -76,11 +95,11 @@ func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.Ev
 
 	// Create ethtxmanager client
 	var err error
-	// s.ethTxManager, err = ethtxmanager.New(cfg.EthTxManager)
-	// if err != nil {
-	// 	log.Fatalf("[SeqSender] error creating ethtxmanager client: %v", err)
-	// 	return nil, err
-	// }
+	s.ethTxManager, err = ethtxmanager.New(testCfg)
+	if err != nil {
+		log.Fatalf("[SeqSender] error creating ethtxmanager client: %v", err)
+		return nil, err
+	}
 
 	// Create datastream client
 	s.streamClient, err = datastreamer.NewClient(s.cfg.StreamClient.Server, 1)

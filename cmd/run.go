@@ -13,12 +13,13 @@ import (
 	"time"
 
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
+	ethtxmanager "github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	ethtxmanager "github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	oldethtxman "github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/event/nileventstorage"
 	"github.com/0xPolygonHermez/zkevm-node/event/pgeventstorage"
@@ -134,12 +135,12 @@ func start(cliCtx *cli.Context) error {
 	c.Aggregator.ForkId = currentForkID
 	c.Pool.ForkID = currentForkID
 
-	ethTxManagerStorage, err := ethtxmanager.NewPostgresStorage(c.State.DB)
+	ethTxManagerStorage, err := oldethtxman.NewPostgresStorage(c.State.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	etm := ethtxmanager.New(c.EthTxManager, etherman, ethTxManagerStorage, st)
+	etm := oldethtxman.New(oldethtxman.Config{}, etherman, ethTxManagerStorage, st)
 
 	ev := &event.Event{
 		ReceivedAt: time.Now(),
@@ -286,7 +287,7 @@ func newEtherman(c config.Config) (*etherman.Client, error) {
 	return etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config)
 }
 
-func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *ethtxmanager.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
+func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerStorage *oldethtxman.PostgresStorage, st *state.State, pool *pool.Pool, eventLog *event.EventLog) {
 	var trustedSequencerURL string
 	var err error
 	if !cfg.IsTrustedSequencer {
@@ -314,7 +315,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 			etherManForL1 = append(etherManForL1, eth)
 		}
 	}
-	etm := ethtxmanager.New(cfg.EthTxManager, etherman, ethTxManagerStorage, st)
+	etm := oldethtxman.New(oldethtxman.Config{}, etherman, ethTxManagerStorage, st)
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, etm,
 		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
@@ -399,7 +400,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, etherm
 	return seq
 }
 
-func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
+func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *oldethtxman.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -423,7 +424,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 	return seqSender
 }
 
-func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
+func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *oldethtxman.Client, st *state.State) {
 	agg, err := aggregator.New(c, st, ethTxManager, etherman)
 	if err != nil {
 		log.Fatal(err)
@@ -513,7 +514,7 @@ func createPool(cfgPool pool.Config, constraintsCfg state.BatchConstraintsCfg, l
 	return poolInstance
 }
 
-func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStorage, st *state.State) *ethtxmanager.Client {
+func createEthTxManager(cfg config.Config, etmStorage *oldethtxman.PostgresStorage, st *state.State) *ethtxmanager.Client {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -525,7 +526,8 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 			log.Fatal(err)
 		}
 	}
-	etm := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
+
+	etm, _ := ethtxmanager.New(cfg.EthTxManager)
 	return etm
 }
 
