@@ -42,11 +42,16 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// L2BlockRaw is the raw representation of a L2 block.
-type L2BlockRaw struct {
+// ChangeL2BlockHeader is the header of a L2 block.
+type ChangeL2BlockHeader struct {
 	DeltaTimestamp  uint32
 	IndexL1InfoTree uint32
-	Transactions    []L2TxRaw
+}
+
+// L2BlockRaw is the raw representation of a L2 block.
+type L2BlockRaw struct {
+	ChangeL2BlockHeader
+	Transactions []L2TxRaw
 }
 
 // BatchRawV2 is the  representation of a batch of transactions.
@@ -61,8 +66,10 @@ type ForcedBatchRawV2 struct {
 
 // L2TxRaw is the raw representation of a L2 transaction  inside a L2 block.
 type L2TxRaw struct {
-	Tx                   types.Transaction
-	EfficiencyPercentage uint8
+	alreadyEncoded       bool              // If true the data is already alreadyEncoded (data field is use)
+	Tx                   types.Transaction // valid if alreadyEncoded == false
+	EfficiencyPercentage uint8             // valid if alreadyEncoded == false
+	Data                 []byte            // valid if alreadyEncoded == true
 }
 
 const (
@@ -92,39 +99,79 @@ func (b *BatchRawV2) String() string {
 
 // EncodeBatchV2 encodes a batch of transactions into a byte slice.
 func EncodeBatchV2(batch *BatchRawV2) ([]byte, error) {
-	var err error
-	var batchData []byte
 	if batch == nil {
 		return nil, fmt.Errorf("batch is nil: %w", ErrInvalidBatchV2)
 	}
-	blocks := batch.Blocks
-	if len(blocks) == 0 {
+	if len(batch.Blocks) == 0 {
 		return nil, fmt.Errorf("a batch need minimum a L2Block: %w", ErrInvalidBatchV2)
 	}
-	for _, block := range blocks {
-		batchData, err = EncodeBlockHeaderV2(batchData, block)
+
+	encoder := NewBatchV2Encoder()
+	for _, block := range batch.Blocks {
+		encoder.AddBlockHeader(block.ChangeL2BlockHeader)
+		err := encoder.AddTransactions(block.Transactions)
 		if err != nil {
-			return nil, fmt.Errorf("can't encode block header: %w", err)
-		}
-		for _, tx := range block.Transactions {
-			batchData, err = encodeTxRLP(batchData, tx)
-			if err != nil {
-				return nil, fmt.Errorf("can't encode tx: %w", err)
-			}
+			return nil, fmt.Errorf("can't encode tx: %w", err)
 		}
 	}
-	return batchData, nil
+	return encoder.GetResult(), nil
 }
 
-// EncodeBlockHeaderV2 encodes a batch of l2blocks header into a byte slice.
-func EncodeBlockHeaderV2(batchData []byte, block L2BlockRaw) ([]byte, error) {
+// BatchV2Encoder is a builder of the batchl2data used by EncodeBatchV2
+type BatchV2Encoder struct {
+	batchData []byte
+}
+
+// NewBatchV2Encoder creates a new BatchV2Encoder.
+func NewBatchV2Encoder() *BatchV2Encoder {
+	return &BatchV2Encoder{}
+}
+
+// AddBlockHeader adds a block header to the batch.
+func (b *BatchV2Encoder) AddBlockHeader(l2BlockHeader ChangeL2BlockHeader) {
+	b.batchData = l2BlockHeader.Encode(b.batchData)
+}
+
+// AddTransactions adds a set of transactions to the batch.
+func (b *BatchV2Encoder) AddTransactions(transactions []L2TxRaw) error {
+	for _, tx := range transactions {
+		err := b.AddTransaction(tx)
+		if err != nil {
+			return fmt.Errorf("can't encode tx: %w", err)
+		}
+	}
+	return nil
+}
+
+// AddTransaction adds a transaction to the batch.
+func (b *BatchV2Encoder) AddTransaction(transaction L2TxRaw) error {
+	var err error
+	b.batchData, err = transaction.Encode(b.batchData)
+	if err != nil {
+		return fmt.Errorf("can't encode tx: %w", err)
+	}
+	return nil
+}
+
+// GetResult returns the batch data.
+func (b *BatchV2Encoder) GetResult() []byte {
+	return b.batchData
+}
+
+// Encode encodes a batch of l2blocks header into a byte slice.
+func (c ChangeL2BlockHeader) Encode(batchData []byte) []byte {
 	batchData = append(batchData, changeL2Block)
-	batchData = append(batchData, serializeUint32(block.DeltaTimestamp)...)
-	batchData = append(batchData, serializeUint32(block.IndexL1InfoTree)...)
-	return batchData, nil
+	batchData = append(batchData, encodeUint32(c.DeltaTimestamp)...)
+	batchData = append(batchData, encodeUint32(c.IndexL1InfoTree)...)
+	return batchData
 }
 
-func encodeTxRLP(batchData []byte, tx L2TxRaw) ([]byte, error) {
+// Encode encodes a transaction into a byte slice.
+func (tx L2TxRaw) Encode(batchData []byte) ([]byte, error) {
+	if tx.alreadyEncoded {
+		batchData = append(batchData, tx.Data...)
+		return batchData, nil
+	}
 	rlpTx, err := prepareRPLTxData(tx.Tx)
 	if err != nil {
 		return nil, fmt.Errorf("can't encode tx to RLP: %w", err)
@@ -132,15 +179,6 @@ func encodeTxRLP(batchData []byte, tx L2TxRaw) ([]byte, error) {
 	batchData = append(batchData, rlpTx...)
 	batchData = append(batchData, tx.EfficiencyPercentage)
 	return batchData, nil
-}
-
-func serializeUint32(value uint32) []byte {
-	return []byte{
-		byte(value >> 24), // nolint:gomnd
-		byte(value >> 16), // nolint:gomnd
-		byte(value >> 8),  // nolint:gomnd
-		byte(value),
-	} // nolint:gomnd
 }
 
 // DecodeBatchV2 decodes a batch of transactions from a byte slice.
@@ -164,7 +202,7 @@ func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 		// is a tx
 		default:
 			if currentBlock == nil {
-				_, _, err := decodeTxRLP(txsData, pos)
+				_, _, err := DecodeTxRLP(txsData, pos)
 				if err == nil {
 					// There is no changeL2Block but have a valid RLP transaction
 					return nil, ErrBatchV2DontStartWithChangeL2Block
@@ -174,7 +212,7 @@ func DecodeBatchV2(txsData []byte) (*BatchRawV2, error) {
 				}
 			}
 			var tx *L2TxRaw
-			pos, tx, err = decodeTxRLP(txsData, pos)
+			pos, tx, err = DecodeTxRLP(txsData, pos)
 			if err != nil {
 				return nil, fmt.Errorf("can't decode transactions: %w", err)
 			}
@@ -227,7 +265,8 @@ func decodeBlockHeader(txsData []byte, pos int) (int, *L2BlockRaw, error) {
 	return pos, currentBlock, nil
 }
 
-func decodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
+// DecodeTxRLP decodes a transaction from a byte slice.
+func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	var err error
 	length, err := decodeRLPListLengthFromOffset(txsData, offset)
 	if err != nil {
@@ -301,4 +340,13 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 		length = n + num - f7 // num - f7 is the header. For example 0xf7
 	}
 	return length + headerByteLength, nil
+}
+
+func encodeUint32(value uint32) []byte {
+	return []byte{
+		byte(value >> 24), // nolint:gomnd
+		byte(value >> 16), // nolint:gomnd
+		byte(value >> 8),  // nolint:gomnd
+		byte(value),
+	} // nolint:gomnd
 }
