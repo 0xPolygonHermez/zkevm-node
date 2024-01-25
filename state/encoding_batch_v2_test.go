@@ -252,7 +252,7 @@ func TestEncodeBatchV2WithTxInBinary(t *testing.T) {
 			IndexL1InfoTree: 456,
 		},
 		Transactions: []L2TxRaw{
-			L2TxRaw{
+			{
 				alreadyEncoded: true,
 				Data:           []byte{0x01, 0x02, 0x03},
 			},
