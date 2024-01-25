@@ -324,7 +324,6 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 			currentBatchNumber = binary.LittleEndian.Uint64(firstEntry.Data[0:8])
 			lastAddedL2BlockNumber = currentL2BlockNumber
-			currentBatchNumber++
 		case EntryTypeBookMark:
 			log.Info("Latest entry type is BookMark")
 			bookMark := DSBookMark{}
@@ -398,15 +397,15 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				Value: batch.BatchNumber,
 			}
 
-			missingBookMark := true
+			missingBatchBookMark := true
 			if b == 0 {
 				_, err = streamServer.GetBookmark(bookMark.Encode())
 				if err == nil {
-					missingBookMark = false
+					missingBatchBookMark = false
 				}
 			}
 
-			if missingBookMark {
+			if missingBatchBookMark {
 				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 				if err != nil {
 					return err
@@ -496,6 +495,12 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					bookMark := DSBookMark{
 						Type:  BookMarkTypeL2Block,
 						Value: blockStart.L2BlockNumber,
+					}
+
+					// Check if l2 block was already added
+					_, err = streamServer.GetBookmark(bookMark.Encode())
+					if err == nil {
+						continue
 					}
 
 					_, err = streamServer.AddStreamBookmark(bookMark.Encode())
