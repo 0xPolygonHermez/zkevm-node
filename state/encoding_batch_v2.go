@@ -32,6 +32,7 @@ This file provide functions to work with ETROG batches:
 package state
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strconv"
@@ -74,6 +75,7 @@ type L2TxRaw struct {
 
 const (
 	changeL2Block = uint8(0x0b)
+	sizeUInt32    = 4
 )
 
 var (
@@ -253,11 +255,11 @@ func DecodeForcedBatchV2(txsData []byte) (*ForcedBatchRawV2, error) {
 func decodeBlockHeader(txsData []byte, pos int) (int, *L2BlockRaw, error) {
 	var err error
 	currentBlock := &L2BlockRaw{}
-	pos, currentBlock.DeltaTimestamp, err = deserializeUint32(txsData, pos)
+	pos, currentBlock.DeltaTimestamp, err = decodeUint32(txsData, pos)
 	if err != nil {
 		return 0, nil, fmt.Errorf("can't get deltaTimestamp: %w", err)
 	}
-	pos, currentBlock.IndexL1InfoTree, err = deserializeUint32(txsData, pos)
+	pos, currentBlock.IndexL1InfoTree, err = decodeUint32(txsData, pos)
 	if err != nil {
 		return 0, nil, fmt.Errorf("can't get leafIndex: %w", err)
 	}
@@ -304,13 +306,6 @@ func DecodeTxRLP(txsData []byte, offset int) (int, *L2TxRaw, error) {
 	return int(endPos), l2Tx, err
 }
 
-func deserializeUint32(txsData []byte, pos int) (int, uint32, error) {
-	if len(txsData)-pos < 4 { // nolint:gomnd
-		return 0, 0, fmt.Errorf("can't get u32 because not enough data: %w", ErrInvalidBatchV2)
-	}
-	return pos + 4, uint32(txsData[pos])<<24 | uint32(txsData[pos+1])<<16 | uint32(txsData[pos+2])<<8 | uint32(txsData[pos+3]), nil // nolint:gomnd
-}
-
 // It returns the length of data from the param offset
 // ex:
 // 0xc0 -> empty data -> 1 byte because it include the 0xc0
@@ -343,10 +338,14 @@ func decodeRLPListLengthFromOffset(txsData []byte, offset int) (uint64, error) {
 }
 
 func encodeUint32(value uint32) []byte {
-	return []byte{
-		byte(value >> 24), // nolint:gomnd
-		byte(value >> 16), // nolint:gomnd
-		byte(value >> 8),  // nolint:gomnd
-		byte(value),
-	} // nolint:gomnd
+	data := make([]byte, sizeUInt32)
+	binary.BigEndian.PutUint32(data, value)
+	return data
+}
+
+func decodeUint32(txsData []byte, pos int) (int, uint32, error) {
+	if len(txsData)-pos < sizeUInt32 {
+		return 0, 0, fmt.Errorf("can't get u32 because not enough data: %w", ErrInvalidBatchV2)
+	}
+	return pos + sizeUInt32, binary.BigEndian.Uint32(txsData[pos : pos+sizeUInt32]), nil
 }
