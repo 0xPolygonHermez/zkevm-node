@@ -58,7 +58,9 @@ func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txP
 		eventLog:  eventLog,
 	}
 
-	sequencer.dataToStream = make(chan interface{}, batchCfg.Constraints.MaxTxsPerBatch*datastreamChannelMultiplier)
+	// TODO: Make configurable
+	channelBufferSize := 200 * datastreamChannelMultiplier // nolint:gomnd
+	sequencer.dataToStream = make(chan interface{}, channelBufferSize)
 
 	return sequencer, nil
 }
@@ -235,11 +237,10 @@ func (s *Sequencer) sendDataToStreamer() {
 		dataStream := <-s.dataToStream
 
 		if s.streamServer != nil {
-			switch t := dataStream.(type) {
+			switch data := dataStream.(type) {
 			// Stream a complete L2 block with its transactions
 			case state.DSL2FullBlock:
-				l2Block := t
-				l2Transactions := t.Txs
+				l2Block := data
 
 				err = s.streamServer.StartAtomicOp()
 				if err != nil {
@@ -274,7 +275,7 @@ func (s *Sequencer) sendDataToStreamer() {
 					continue
 				}
 
-				for _, l2Transaction := range l2Transactions {
+				for _, l2Transaction := range l2Block.Txs {
 					// Populate intermediate state root
 					position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
 					imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
@@ -310,7 +311,7 @@ func (s *Sequencer) sendDataToStreamer() {
 
 			// Stream a bookmark
 			case state.DSBookMark:
-				bookmark := t
+				bookmark := data
 
 				err = s.streamServer.StartAtomicOp()
 				if err != nil {
