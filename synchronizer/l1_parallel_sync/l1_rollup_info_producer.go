@@ -559,13 +559,13 @@ func (l *L1RollupInfoProducer) renewLastBlockOnL1IfNeeded(reason string) {
 	ttl := l.ttlOfLastBlockOnL1()
 	oldBlock := l.syncStatus.GetLastBlockOnL1()
 	if elapsed > ttl {
-		log.Infof("producer: Need a new value for Last Block On L1, doing the request reason:%s", reason)
+		log.Debugf("producer: Need a new value for Last Block On L1, doing the request reason:%s", reason)
 		result := l.workers.requestLastBlockWithRetries(l.ctxWithCancel.ctx, l.cfg.TimeoutForRequestLastBlockOnL1, l.cfg.NumOfAllowedRetriesForRequestLastBlockOnL1)
-		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
 		if result.generic.err != nil {
-			log.Error(result.generic.err)
 			return
 		}
+		log.Infof("producer: Need a new value for Last Block On L1, doing the request old_block:%v -> new block:%v", oldBlock, result.result.block)
+
 		l.onNewLastBlock(result.result.block)
 	}
 }
