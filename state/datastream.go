@@ -324,6 +324,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 			currentBatchNumber = binary.LittleEndian.Uint64(firstEntry.Data[0:8])
 			lastAddedL2BlockNumber = currentL2BlockNumber
+			currentBatchNumber++
 		case EntryTypeBookMark:
 			log.Info("Latest entry type is BookMark")
 			bookMark := DSBookMark{}
