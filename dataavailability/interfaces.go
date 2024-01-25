@@ -27,6 +27,9 @@ type SequenceSender interface {
 	// as expected by the contract
 	PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error)
 }
+
+// DABackender is the interface needed to implement in order to
+// integrate a DA service
 type DABackender interface {
 	BatchDataProvider
 	SequenceSender
@@ -34,7 +37,7 @@ type DABackender interface {
 	Init() error
 }
 
-// ZkEVMClientInterface contains the methods required to interact with zkEVM-RPC
+// ZKEVMClientTrustedBatchesGetter contains the methods required to interact with zkEVM-RPC
 type ZKEVMClientTrustedBatchesGetter interface {
 	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }
