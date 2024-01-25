@@ -41,6 +41,9 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
+	// SequencesTxFileName is the file name to store sequences sent to L1
+	SequencesTxFileName string
+
 	// StreamClient is the config for the stream client
 	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
 

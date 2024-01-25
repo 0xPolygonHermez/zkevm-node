@@ -32,7 +32,6 @@ var (
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg                 Config
-	state               stateInterface
 	ethTxManager        *ethtxmanager.Client
 	etherman            etherman
 	eventLog            *event.EventLog
@@ -43,7 +42,7 @@ type SequenceSender struct {
 	sequenceData        map[uint64]*sequenceData  // All the batch data indexed by batch number
 	mutexSequence       sync.Mutex                // Mutex to update sequence data
 	ethTransactions     map[common.Hash]ethTxData // All the eth tx sent to L1 indexed by hash
-	// ethTxFile           *os.File
+	// sequencesTxFile     *os.File
 	validStream       bool   // Not valid while receiving data before the desired batch
 	fromStreamBatch   uint64 // Initial batch to connect to the streaming
 	latestStreamBatch uint64 // Latest batch received by the streaming
@@ -63,7 +62,7 @@ type ethTxData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
 	testCfg := ethtxmanager.Config{
 		FrequencyToMonitorTxs: ethtxmantypes.Duration{Duration: 1 * time.Second},
 		WaitTxToBeMined:       ethtxmantypes.Duration{Duration: 2 * time.Minute}, // nolint:gomnd
@@ -85,7 +84,6 @@ func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.Ev
 	// Create sequencesender
 	s := SequenceSender{
 		cfg:               cfg,
-		state:             state,
 		etherman:          etherman,
 		eventLog:          eventLog,
 		ethTransactions:   make(map[common.Hash]ethTxData),
@@ -350,13 +348,13 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 
 // saveSentSequencesTransactions saves memory structure into persistent file
 // func (s *SequenceSender) saveSentSequencesTransactions() error {
-// 	var err error
-// 	s.ethTxFile, err = os.Create("sequencesender.json")
-// 	if err != nil {
-// 		log.Errorf("[SeqSender] error creating file: %v", err)
-// 		return err
-// 	}
-// 	return nil
+// var err error
+// s.sequencesTxFile, err = os.Create(s.cfg.SequencesTxFileName)
+// if err != nil {
+// 	log.Errorf("[SeqSender] error creating file %s: %v", s.cfg.SequencesTxFileName, err)
+// 	return err
+// }
+// return nil
 // }
 
 // handleReceivedDataStream manages the events received by the streaming
