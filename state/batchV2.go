@@ -289,15 +289,15 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		batchResponseToString := processBatchResponseToString(batchResponse)
 		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(batchResponse.Error)
-			log.Debug("executor batchRequest, executor error: %v", err)
+			log.Debugf("executor batchResponse, executor error: %v", err)
 			log.Debug(batchResponseToString)
 			s.eventLog.LogExecutorErrorV2(ctx, batchResponse.Error, batchRequest)
 		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(batchResponse.ErrorRom) {
-			log.Warn("executor batchRequest, ROM OOC, error: %v", err)
+			log.Warnf("executor batchResponse, ROM OOC, error: %v", err)
 			log.Warn(batchResponseToString)
 		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 			err = executor.RomErr(batchResponse.ErrorRom)
-			log.Warn("executor batchRequest, ROM error: %v", err)
+			log.Warnf("executor batchResponse, ROM error: %v", err)
 			log.Warn(batchResponseToString)
 		} else {
 			log.Debug(batchResponseToString)
