@@ -80,7 +80,7 @@ func (d *DataAvailability) GetBatchL2Data(batchNum uint64, expectedTransactionsH
 			log.Info("trying to get data from trusted sequencer")
 			data, err := d.getDataFromTrustedSequencer(batchNum, expectedTransactionsHash)
 			if err != nil {
-				log.Error("failed to get data from trusted sequencer: %w", err)
+				log.Warn("failed to get data from trusted sequencer: %w", err)
 			} else {
 				return data, nil
 			}
