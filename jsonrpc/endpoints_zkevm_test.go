@@ -775,6 +775,10 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(tx.Hash(), nil).
+						Once()
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
@@ -966,8 +970,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					receipts = append(receipts, receipt)
 					from, _ := state.GetSender(*tx)
 					V, R, S := tx.RawSignatureValues()
+					l2Hash := common.HexToHash("0x987654321")
 
-					rpcReceipt, err := types.NewReceipt(*tx, receipt, state.Ptr(true))
+					rpcReceipt, err := types.NewReceipt(*tx, receipt, &l2Hash)
 					require.NoError(t, err)
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
@@ -990,6 +995,7 @@ func TestGetBatchByNumber(t *testing.T) {
 								R:           types.ArgBig(*R),
 								S:           types.ArgBig(*S),
 								Receipt:     &rpcReceipt,
+								L2Hash:      &l2Hash,
 							},
 						},
 					)
@@ -1054,7 +1060,13 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(tx.Hash(), nil).
+						Once()
 				}
+
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(batchTxs, effectivePercentages, nil).
@@ -1911,8 +1923,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 
 	txV, txR, txS := signedTx.RawSignatureValues()
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	rpcTransaction := types.Transaction{
 		Nonce:    types.ArgUint64(signedTx.Nonce()),
@@ -1962,6 +1973,11 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
 					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
+					Once()
 			},
 		},
 		{
@@ -1974,6 +1990,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 				tc.ExpectedResult.BlockHash = nil
 				tc.ExpectedResult.BlockNumber = nil
 				tc.ExpectedResult.TxIndex = nil
+				tc.ExpectedResult.L2Hash = nil
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -2201,8 +2218,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
 	logs := []*ethTypes.Log{log}
@@ -2272,6 +2288,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
+					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
 					Once()
 			},
 		},
@@ -2397,6 +2418,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(ethTypes.NewReceipt([]byte{}, false, 0), nil).
+					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
 					Once()
 			},
 		},

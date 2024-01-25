@@ -149,4 +149,5 @@ type storage interface {
 	GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error)
+	GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error)
 }

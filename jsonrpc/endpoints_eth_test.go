@@ -1305,6 +1305,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 						Return(receipt, nil).
 						Once()
 				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(signedTx.Hash(), nil).
+						Once()
+				}
 			},
 		},
 		{
@@ -1337,6 +1343,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					m.State.
 						On("GetTransactionReceipt", context.Background(), receipt.TxHash, m.DbTx).
 						Return(receipt, nil).
+						Once()
+				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(signedTx.Hash(), nil).
 						Once()
 				}
 			},
@@ -3260,8 +3272,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
 	logs := []*ethTypes.Log{log}

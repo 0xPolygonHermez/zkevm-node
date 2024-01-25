@@ -3244,6 +3244,66 @@ func (_c *StorageMock_GetL2BlocksByBatchNumber_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// GetL2TxHashByTxHash provides a mock function with given fields: ctx, hash, dbTx
+func (_m *StorageMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, hash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2TxHashByTxHash")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, hash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, hash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, hash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetL2TxHashByTxHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL2TxHashByTxHash'
+type StorageMock_GetL2TxHashByTxHash_Call struct {
+	*mock.Call
+}
+
+// GetL2TxHashByTxHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hash common.Hash
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetL2TxHashByTxHash(ctx interface{}, hash interface{}, dbTx interface{}) *StorageMock_GetL2TxHashByTxHash_Call {
+	return &StorageMock_GetL2TxHashByTxHash_Call{Call: _e.mock.On("GetL2TxHashByTxHash", ctx, hash, dbTx)}
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) Run(run func(ctx context.Context, hash common.Hash, dbTx pgx.Tx)) *StorageMock_GetL2TxHashByTxHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.Hash), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetL2TxHashByTxHash_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)) *StorageMock_GetL2TxHashByTxHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)

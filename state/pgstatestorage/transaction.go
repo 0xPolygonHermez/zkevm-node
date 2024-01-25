@@ -554,3 +554,21 @@ func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transa
 
 	return &egpLog, nil
 }
+
+// GetL2TxHashByTxHash gets the L2 Hash from the tx found by the provided tx hash
+func (p *PostgresStorage) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+	const getTransactionByHashSQL = "SELECT transaction.l2_hash FROM state.transaction WHERE hash = $1"
+
+	var l2HashHex string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, hash.String()).Scan(&l2HashHex)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, state.ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+
+	l2Hash := common.HexToHash(l2HashHex)
+	return l2Hash, nil
+}
