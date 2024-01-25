@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -117,7 +118,7 @@ func New(cfg Config, state stateInterface, etherman etherman, eventLog *event.Ev
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
 	// Start ethtxmanager client
-	// go s.ethTxManager.Start()
+	go s.ethTxManager.Start()
 
 	// Start datastream client
 	err := s.streamClient.Start()
@@ -177,26 +178,26 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// Add sequence
-	// to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-	// if err != nil {
-	// 	log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
-	// 	return
-	// }
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+	if err != nil {
+		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
+		return
+	}
 
-	// nonce := uint64(0)
-	// txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
-	// if err != nil {
-	// 	log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
-	// 	return
-	// }
+	nonce := uint64(0)
+	txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
+	if err != nil {
+		log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
+		return
+	}
 
 	// Add new eth tx
-	// txData := ethTxData{
-	// 	Status:    ethtxmanager.MonitoredTxStatusCreated,
-	// 	FromBatch: firstSequence.BatchNumber,
-	// 	ToBatch:   lastSequence.BatchNumber,
-	// }
-	// s.ethTransactions[txHash] = txData
+	txData := ethTxData{
+		Status:    string(ethtxmanager.MonitoredTxStatusCreated),
+		FromBatch: firstSequence.BatchNumber,
+		ToBatch:   lastSequence.BatchNumber,
+	}
+	s.ethTransactions[txHash] = txData
 	s.latestSentToL1Batch = lastSequence.BatchNumber
 
 	s.printEthTxs()
