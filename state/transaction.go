@@ -219,10 +219,10 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	l2Header.BlockInfoRoot = l2Block.BlockInfoRoot
 
 	numTxs := len(l2Block.TransactionResponses)
-	transactions := make([]*types.Transaction, numTxs)
-	storeTxsEGPData := make([]StoreTxEGPData, numTxs)
-	receipts := make([]*types.Receipt, numTxs)
-	txsL2Hash := make([]common.Hash, numTxs)
+	transactions := make([]*types.Transaction, 0, numTxs)
+	storeTxsEGPData := make([]StoreTxEGPData, 0, numTxs)
+	receipts := make([]*types.Receipt, 0, numTxs)
+	txsL2Hash := make([]common.Hash, 0, numTxs)
 
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
@@ -235,16 +235,18 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		}
 
 		txResp := *txResponse
-		transactions[i] = &txResp.Tx
-		txsL2Hash[i] = txResp.TxHashL2_V2
+		transactions = append(transactions, &txResp.Tx)
+		txsL2Hash = append(txsL2Hash, txResp.TxHashL2_V2)
 
-		storeTxsEGPData[i] = StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)}
+		storeTxEGPData := StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)}
 		if txsEGPLog != nil {
-			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
+			storeTxEGPData.EGPLog = txsEGPLog[i]
 		}
 
+		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
+
 		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
-		receipts[i] = receipt
+		receipts = append(receipts, receipt)
 	}
 
 	// Create block to be able to calculate its hash
