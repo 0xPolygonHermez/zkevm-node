@@ -202,6 +202,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 	}
 
 	if f.wipL2Block != nil {
+		f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 		// Subtract the WIP L2 block used resources to batch
 		overflow, overflowResource := batch.imRemainingResources.Sub(f.wipL2Block.usedResources)
 		if overflow {

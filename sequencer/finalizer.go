@@ -479,16 +479,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
 	}
 
-	// Check remaining resources
-	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
-	if overflow {
-		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
-		start := time.Now()
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return nil, err
-	}
-
 	egpEnabled := f.effectiveGasPrice.IsEnabled()
 
 	if !tx.IsLastExecution {
@@ -529,6 +519,16 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 				return nil, errCompare
 			}
 		}
+	}
+
+	// Check remaining resources
+	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
+	if overflow {
+		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
+		start := time.Now()
+		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
+		metrics.WorkerProcessingTime(time.Since(start))
+		return nil, err
 	}
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging

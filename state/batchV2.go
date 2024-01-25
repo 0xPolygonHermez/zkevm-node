@@ -262,7 +262,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		return nil, ErrExecutorNil
 	}
 
-	batchRequestLog := "BatchNum: %v, OldBatchNum: %v, From: %v, OldStateRoot: %v, L1InfoRoot: %v, OldAccInputHash: %v, TimestampLimit: %v, Coinbase: %v, UpdateMerkleTree: %v, SkipFirstChangeL2Block: %v, SkipWriteBlockInfoRoot: %v, ChainId: %v, ForkId: %v, ContextId: %v, SkipVerifyL1InfoRoot: %v, ForcedBlockhashL1: %v, L1InfoTreeData: %+v, BatchL2Data: %v"
+	batchRequestLog := "OldBatchNum: %v, From: %v, OldStateRoot: %v, L1InfoRoot: %v, OldAccInputHash: %v, TimestampLimit: %v, Coinbase: %v, UpdateMerkleTree: %v, SkipFirstChangeL2Block: %v, SkipWriteBlockInfoRoot: %v, ChainId: %v, ForkId: %v, ContextId: %v, SkipVerifyL1InfoRoot: %v, ForcedBlockhashL1: %v, L1InfoTreeData: %+v, BatchL2Data: %v"
 
 	l1DataStr := ""
 	for i, l1Data := range batchRequest.L1InfoTreeData {
@@ -272,52 +272,52 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		l1DataStr = l1DataStr[:len(l1DataStr)-1]
 	}
 
-	batchRequestLog = fmt.Sprintf(batchRequestLog, batchRequest.OldBatchNum+1, batchRequest.OldBatchNum, batchRequest.From, hex.EncodeToHex(batchRequest.OldStateRoot), hex.EncodeToHex(batchRequest.L1InfoRoot),
+	batchRequestLog = fmt.Sprintf(batchRequestLog, batchRequest.OldBatchNum, batchRequest.From, hex.EncodeToHex(batchRequest.OldStateRoot), hex.EncodeToHex(batchRequest.L1InfoRoot),
 		hex.EncodeToHex(batchRequest.OldAccInputHash), batchRequest.TimestampLimit, batchRequest.Coinbase, batchRequest.UpdateMerkleTree, batchRequest.SkipFirstChangeL2Block,
 		batchRequest.SkipWriteBlockInfoRoot, batchRequest.ChainId, batchRequest.ForkId, batchRequest.ContextId, batchRequest.SkipVerifyL1InfoRoot, hex.EncodeToHex(batchRequest.ForcedBlockhashL1),
 		l1DataStr, hex.EncodeToHex(batchRequest.BatchL2Data))
 
-	log.Debugf("executor batchRequest, %s", batchRequestLog)
+	newBatchNum := batchRequest.OldBatchNum + 1
+	log.Debugf("executor batch %d request, %s", newBatchNum, batchRequestLog)
 
 	now := time.Now()
 	batchResponse, err := s.executorClient.ProcessBatchV2(ctx, batchRequest)
+	elapsed := time.Since(now)
+
+	//workarroundDuplicatedBlock(res)
+	if caller != metrics.DiscardCallerLabel {
+		metrics.ExecutorProcessingTime(string(caller), elapsed)
+	}
+
 	if err != nil {
 		log.Errorf("error executor ProcessBatchV2: %v", err)
 		log.Errorf("error executor ProcessBatchV2: %s", err.Error())
 		log.Errorf("error executor ProcessBatchV2 response: %v", batchResponse)
 	} else {
-		batchResponseToString := processBatchResponseToString(batchResponse)
+		batchResponseToString := processBatchResponseToString(newBatchNum, batchResponse, elapsed)
 		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(batchResponse.Error)
-			log.Debugf("executor batchResponse, executor error: %v", err)
-			log.Debug(batchResponseToString)
+			log.Warnf("executor batch %d response, executor error: %v", newBatchNum, err)
+			log.Warn(batchResponseToString)
 			s.eventLog.LogExecutorErrorV2(ctx, batchResponse.Error, batchRequest)
 		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(batchResponse.ErrorRom) {
-			log.Warnf("executor batchResponse, ROM OOC, error: %v", err)
+			log.Warnf("executor batch %d response, ROM OOC, error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)
 		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 			err = executor.RomErr(batchResponse.ErrorRom)
-			log.Warnf("executor batchResponse, ROM error: %v", err)
+			log.Warnf("executor batch %d response, ROM error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)
 		} else {
 			log.Debug(batchResponseToString)
 		}
 	}
 
-	//workarroundDuplicatedBlock(res)
-	elapsed := time.Since(now)
-	if caller != metrics.DiscardCallerLabel {
-		metrics.ExecutorProcessingTime(string(caller), elapsed)
-	}
-
-	log.Infof("batch %d took %v to be processed by the executor ", batchRequest.OldBatchNum+1, elapsed)
-
 	return batchResponse, err
 }
 
-func processBatchResponseToString(batchResponse *executor.ProcessBatchResponseV2) string {
-	batchResponseLog := "executor batchResponse, NewStateRoot: %v, NewAccInputHash: %v, NewLocalExitRoot: %v, NewBatchNumber: %v, GasUsed: %v, FlushId: %v, StoredFlushId: %v, ProverId:%v, ForkId:%v, Error: %v\n"
-	batchResponseLog = fmt.Sprintf(batchResponseLog, hex.EncodeToHex(batchResponse.NewStateRoot), hex.EncodeToHex(batchResponse.NewAccInputHash), hex.EncodeToHex(batchResponse.NewLocalExitRoot),
+func processBatchResponseToString(batchNum uint64, batchResponse *executor.ProcessBatchResponseV2, executionTime time.Duration) string {
+	batchResponseLog := "executor batch %d response, Time: %v, NewStateRoot: %v, NewAccInputHash: %v, NewLocalExitRoot: %v, NewBatchNumber: %v, GasUsed: %v, FlushId: %v, StoredFlushId: %v, ProverId:%v, ForkId:%v, Error: %v\n"
+	batchResponseLog = fmt.Sprintf(batchResponseLog, batchNum, executionTime, hex.EncodeToHex(batchResponse.NewStateRoot), hex.EncodeToHex(batchResponse.NewAccInputHash), hex.EncodeToHex(batchResponse.NewLocalExitRoot),
 		batchResponse.NewBatchNum, batchResponse.GasUsed, batchResponse.FlushId, batchResponse.StoredFlushId, batchResponse.ProverId, batchResponse.ForkId, batchResponse.Error)
 
 	for blockIndex, block := range batchResponse.BlockResponses {
