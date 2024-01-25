@@ -775,6 +775,10 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(tx.Hash(), nil).
+						Once()
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
@@ -1056,7 +1060,13 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(tx.Hash(), nil).
+						Once()
 				}
+
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(batchTxs, effectivePercentages, nil).
@@ -1963,6 +1973,11 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
 					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
+					Once()
 			},
 		},
 		{
@@ -1975,6 +1990,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 				tc.ExpectedResult.BlockHash = nil
 				tc.ExpectedResult.BlockNumber = nil
 				tc.ExpectedResult.TxIndex = nil
+				tc.ExpectedResult.L2Hash = nil
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -2273,6 +2289,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
 					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
+					Once()
 			},
 		},
 		{
@@ -2397,6 +2418,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(ethTypes.NewReceipt([]byte{}, false, 0), nil).
+					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+					Return(l2Hash, nil).
 					Once()
 			},
 		},
