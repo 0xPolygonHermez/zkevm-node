@@ -1,7 +1,5 @@
 package main
 
-//nolint:unused
-
 import (
 	"context"
 	"encoding/csv"
