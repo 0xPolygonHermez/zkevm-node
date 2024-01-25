@@ -3,9 +3,11 @@ package sequencesender
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,9 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-ethtx-manager/ethtxmanager"
 	ethman "github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
-	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -34,7 +34,6 @@ type SequenceSender struct {
 	cfg                 Config
 	ethTxManager        *ethtxmanager.Client
 	etherman            etherman
-	eventLog            *event.EventLog
 	latestVirtualBatch  uint64                    // Latest virtualized batch obtained from L1
 	latestSentToL1Batch uint64                    // Latest batch sent to L1
 	wipBatch            uint64                    // Work in progress batch
@@ -42,11 +41,11 @@ type SequenceSender struct {
 	sequenceData        map[uint64]*sequenceData  // All the batch data indexed by batch number
 	mutexSequence       sync.Mutex                // Mutex to update sequence data
 	ethTransactions     map[common.Hash]ethTxData // All the eth tx sent to L1 indexed by hash
-	// sequencesTxFile     *os.File
-	validStream       bool   // Not valid while receiving data before the desired batch
-	fromStreamBatch   uint64 // Initial batch to connect to the streaming
-	latestStreamBatch uint64 // Latest batch received by the streaming
-	streamClient      *datastreamer.StreamClient
+	sequencesTxFile     *os.File
+	validStream         bool   // Not valid while receiving data before the desired batch
+	fromStreamBatch     uint64 // Initial batch to connect to the streaming
+	latestStreamBatch   uint64 // Latest batch received by the streaming
+	streamClient        *datastreamer.StreamClient
 }
 
 type sequenceData struct {
@@ -62,7 +61,7 @@ type ethTxData struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, etherman etherman, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, etherman etherman) (*SequenceSender, error) {
 	testCfg := ethtxmanager.Config{
 		FrequencyToMonitorTxs: ethtxmantypes.Duration{Duration: 1 * time.Second},
 		WaitTxToBeMined:       ethtxmantypes.Duration{Duration: 2 * time.Minute}, // nolint:gomnd
@@ -85,7 +84,6 @@ func New(cfg Config, etherman etherman, eventLog *event.EventLog) (*SequenceSend
 	s := SequenceSender{
 		cfg:               cfg,
 		etherman:          etherman,
-		eventLog:          eventLog,
 		ethTransactions:   make(map[common.Hash]ethTxData),
 		sequenceData:      make(map[uint64]*sequenceData),
 		validStream:       false,
@@ -173,21 +171,27 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	firstSequence := sequences[0]
 	lastSequence := sequences[sequenceCount-1]
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
-	metrics.SequencesSentToL1(float64(sequenceCount))
 
 	// Add sequence
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
+	_, _, err = s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 	if err != nil {
 		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
 		return
 	}
 
-	nonce := uint64(0)
-	txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
-	if err != nil {
-		log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
-		return
-	}
+	// Add sequence tx
+	// nonce := uint64(0)
+	// txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
+	// if err != nil {
+	// 	log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
+	// 	return
+	// }
+	var buffer []byte
+	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
+	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
+	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
+	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
+	txHash := common.Hash(buffer)
 
 	// Add new eth tx
 	txData := ethTxData{
@@ -197,6 +201,12 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	}
 	s.ethTransactions[txHash] = txData
 	s.latestSentToL1Batch = lastSequence.BatchNumber
+
+	// Save sequence sent
+	err = s.saveSentSequencesTransactions()
+	if err != nil {
+		log.Fatalf("[SeqSender] error saving tx sequence sent, error: %v", err)
+	}
 
 	s.printEthTxs()
 }
@@ -240,7 +250,6 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		log.Debugf("[SeqSender] estimated gas L1, tx size %d, result %v", tx.Size(), err)
 
 		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
-			metrics.SequencesOvesizedDataError()
 			log.Infof("[SeqSender] oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
 			err = ErrOversizedData
 		}
@@ -347,15 +356,45 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 // }
 
 // saveSentSequencesTransactions saves memory structure into persistent file
-// func (s *SequenceSender) saveSentSequencesTransactions() error {
-// var err error
-// s.sequencesTxFile, err = os.Create(s.cfg.SequencesTxFileName)
-// if err != nil {
-// 	log.Errorf("[SeqSender] error creating file %s: %v", s.cfg.SequencesTxFileName, err)
-// 	return err
-// }
-// return nil
-// }
+func (s *SequenceSender) saveSentSequencesTransactions() error {
+	var err error
+
+	// Ceate file
+	fileName := s.cfg.SequencesTxFileName[0:strings.IndexRune(s.cfg.SequencesTxFileName, '.')] + ".tmp"
+	s.sequencesTxFile, err = os.Create(fileName)
+	if err != nil {
+		log.Errorf("[SeqSender] error creating file %s: %v", fileName, err)
+		return err
+	}
+	defer s.sequencesTxFile.Close()
+
+	// Write data JSON encoded
+	encoder := json.NewEncoder(s.sequencesTxFile)
+	encoder.SetIndent("", "  ")
+	err = encoder.Encode(s.ethTransactions)
+	if err != nil {
+		log.Errorf("[SeqSender] error writing file %s: %v", fileName, err)
+		return err
+	}
+
+	// Delete the old file
+	if _, err := os.Stat(s.cfg.SequencesTxFileName); err == nil {
+		err = os.Remove(s.cfg.SequencesTxFileName)
+		if err != nil {
+			log.Fatalf("[SeqSender] error deleting file %s: %v", s.cfg.SequencesTxFileName, err)
+			return err
+		}
+	}
+
+	// Rename the new file
+	err = os.Rename(fileName, s.cfg.SequencesTxFileName)
+	if err != nil {
+		log.Fatalf("[SeqSender] error renaming file %s to %s: %v", fileName, s.cfg.SequencesTxFileName, err)
+		return err
+	}
+
+	return nil
+}
 
 // handleReceivedDataStream manages the events received by the streaming
 func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *datastreamer.StreamClient, ss *datastreamer.StreamServer) error {

@@ -1,5 +1,5 @@
 [Online]
-URI = "zkevm-sequencer:6900"
+URI = "34.175.178.16:6900"
 StreamType = 1
 
 [Offline]
