@@ -59,7 +59,7 @@ func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txP
 	}
 
 	// TODO: Make configurable
-	channelBufferSize := 200 * datastreamChannelMultiplier // nolit:gomnd
+	channelBufferSize := 200 * datastreamChannelMultiplier // nolint:gomnd
 	sequencer.dataToStream = make(chan interface{}, channelBufferSize)
 
 	return sequencer, nil
