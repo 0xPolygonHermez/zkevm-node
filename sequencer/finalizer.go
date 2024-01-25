@@ -337,6 +337,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
+	log.Infof("processing tx %s, batchNumber: %d, l2Block: [%d], oldStateRoot: %s, L1InfoRootIndex: %d",
+		tx.HashStr, f.wipBatch.batchNumber, f.wipL2Block.trackingNum, f.wipBatch.imStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+
 	batchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
@@ -425,9 +428,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	batchRequest.Transactions = append(batchRequest.Transactions, effectivePercentageAsDecodedHex...)
 
-	log.Infof("processing tx %s, wipBatch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, L1InfoRootIndex: %d",
-		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchRequest.OldStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
 
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
@@ -463,9 +463,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	// Update imStateRoot
 	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
 
-	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, oldStateRoot: %s, used counters: %s",
-		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
-		batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
+	log.Infof("processed tx %s, batchNumber: %d, l2Block: [%d], newStateRoot: %s, oldStateRoot: %s, used counters: %s",
+		tx.HashStr, batchRequest.BatchNumber, f.wipL2Block.trackingNum, batchResponse.NewStateRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return nil, nil
 }

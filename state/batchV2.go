@@ -277,7 +277,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		batchRequest.SkipWriteBlockInfoRoot, batchRequest.ChainId, batchRequest.ForkId, batchRequest.ContextId, batchRequest.SkipVerifyL1InfoRoot, hex.EncodeToHex(batchRequest.ForcedBlockhashL1),
 		l1DataStr, hex.EncodeToHex(batchRequest.BatchL2Data))
 
-	log.Debugf("executor batchRequest: %s", batchRequestLog)
+	log.Debugf("executor batchRequest, %s", batchRequestLog)
 
 	now := time.Now()
 	batchResponse, err := s.executorClient.ProcessBatchV2(ctx, batchRequest)
@@ -316,7 +316,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 }
 
 func processBatchResponseToString(batchResponse *executor.ProcessBatchResponseV2) string {
-	batchResponseLog := "executor batchResponse: NewStateRoot: %v, NewAccInputHash: %v, NewLocalExitRoot: %v, NewBatchNumber: %v, GasUsed: %v, FlushId: %v, StoredFlushId: %v, ProverId:%v, ForkId:%v, Error: %v\n"
+	batchResponseLog := "executor batchResponse, NewStateRoot: %v, NewAccInputHash: %v, NewLocalExitRoot: %v, NewBatchNumber: %v, GasUsed: %v, FlushId: %v, StoredFlushId: %v, ProverId:%v, ForkId:%v, Error: %v\n"
 	batchResponseLog = fmt.Sprintf(batchResponseLog, hex.EncodeToHex(batchResponse.NewStateRoot), hex.EncodeToHex(batchResponse.NewAccInputHash), hex.EncodeToHex(batchResponse.NewLocalExitRoot),
 		batchResponse.NewBatchNum, batchResponse.GasUsed, batchResponse.FlushId, batchResponse.StoredFlushId, batchResponse.ProverId, batchResponse.ForkId, batchResponse.Error)
 

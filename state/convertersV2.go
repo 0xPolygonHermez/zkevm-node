@@ -102,6 +102,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 	isRomOOCError := false
 
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
+
 	for _, response := range responses {
 		if response.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			isRomLevelError = true

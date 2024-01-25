@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -146,9 +147,9 @@ func (p *PostgresStorage) GetL2BlockTransactionCountByNumber(ctx context.Context
 }
 
 // AddL2Block adds a new L2 block to the State Store
-func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
 	//TODO: Optmize this function using only one SQL (with several values) to insert all the txs, receips and logs
-	log.Debugf("[AddL2Block] adding l2 block: %v", l2Block.NumberU64())
+	log.Debugf("[AddL2Block] adding L2 block %d", l2Block.NumberU64())
 	start := time.Now()
 
 	e := p.getExecQuerier(dbTx)
@@ -182,6 +183,9 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		return err
 	}
 
+	logTxsL2Hash := ""
+	forkId := p.GetForkIDByBatchNumber(batchNumber)
+
 	if len(l2Block.Transactions()) > 0 {
 		txRows := [][]interface{}{}
 
@@ -206,21 +210,21 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 				return err
 			}
 
-			aux := *tx
-			l2TxHash, err := state.GetL2Hash(aux)
-			if err != nil {
-				return err
+			logTxsL2Hash += fmt.Sprintf("tx[%d] txHash: %s, txHashL2: %s\n", idx, tx.Hash().String(), txsL2Hash[idx].String())
+
+			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes}
+			if forkId >= state.FORKID_ETROG {
+				txRow = append(txRow, txsL2Hash[idx].String())
 			}
-
-			log.Debugf("[AddL2Block] L2Block num: %d, tx[%d] = txHash: %s, txHashL2: %s", l2Block.Number().Uint64(), idx, tx.Hash().String(), l2TxHash.String())
-
-			txRow := []interface{}{tx.Hash().String(), encoded, decoded, l2Block.Number().Uint64(), txsEGPData[idx].EffectivePercentage, egpLogBytes, l2TxHash.String()}
 			txRows = append(txRows, txRow)
 		}
 
-		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"},
-			[]string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log", "l2_hash"},
-			pgx.CopyFromRows(txRows))
+		txFields := []string{"hash", "encoded", "decoded", "l2_block_num", "effective_percentage", "egp_log"}
+		if forkId >= state.FORKID_ETROG {
+			txFields = append(txFields, "l2_hash")
+		}
+
+		_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "transaction"}, txFields, pgx.CopyFromRows(txRows))
 
 		if err != nil {
 			return err
@@ -237,7 +241,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		p.AddLogs(ctx, logs, dbTx)
 	}
 
-	log.Debugf("[AddL2Block] l2 block %v took %v to be added", l2Block.NumberU64(), time.Since(start))
+	log.Debugf("[AddL2Block] added L2 block %d, time: %v\n%s", l2Block.NumberU64(), time.Since(start), logTxsL2Hash)
 	return nil
 }
 
