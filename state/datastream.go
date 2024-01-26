@@ -242,7 +242,7 @@ type DSState interface {
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
-func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool, imStateRoots *map[uint64][]byte, chainID uint64) error {
+func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool, imStateRoots *map[uint64][]byte, chainID uint64, upgradeEtrogBatchNumber uint64) error {
 	header := streamServer.GetHeader()
 
 	var currentBatchNumber uint64 = 0
@@ -472,7 +472,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 						isForcedBatch := false
 						batchRawData := &BatchRawV2{}
 
-						if batch.BatchNumber == 1 || batch.ForcedBatchNum != nil {
+						if batch.BatchNumber == 1 || (upgradeEtrogBatchNumber != 0 && batch.BatchNumber == upgradeEtrogBatchNumber) || batch.ForcedBatchNum != nil {
 							isForcedBatch = true
 						} else {
 							batchRawData, err = DecodeBatchV2(batch.BatchL2Data)
@@ -495,7 +495,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 							}
 						} else {
 							// Initial batch must be handled differently
-							if batch.BatchNumber == 1 {
+							if batch.BatchNumber == 1 || (upgradeEtrogBatchNumber != 0 && batch.BatchNumber == upgradeEtrogBatchNumber) {
 								l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
 								if err != nil {
 									return err

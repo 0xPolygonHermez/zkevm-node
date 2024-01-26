@@ -272,7 +272,7 @@ func generate(cliCtx *cli.Context) error {
 		}
 	}
 
-	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots, c.Offline.ChainID)
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots, c.Offline.ChainID, c.Offline.UpgradeEtrogBatchNumber) // nolint:gomnd
 	if err != nil {
 		log.Error(err)
 		os.Exit(1)

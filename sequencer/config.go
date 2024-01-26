@@ -46,6 +46,8 @@ type StreamServerCfg struct {
 	Enabled bool `mapstructure:"Enabled"`
 	// Log is the log configuration
 	Log log.Config `mapstructure:"Log"`
+	// UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+	UpgradeEtrogBatchNumber uint64 `mapstructure:"UpgradeEtrogBatchNumber"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
