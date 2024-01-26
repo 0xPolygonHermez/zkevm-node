@@ -186,14 +186,18 @@ func TestDecodeRLPLength(t *testing.T) {
 
 func TestEncodeBatchV2(t *testing.T) {
 	block1 := L2BlockRaw{
-		DeltaTimestamp:  123,
-		IndexL1InfoTree: 456,
-		Transactions:    []L2TxRaw{},
+		ChangeL2BlockHeader: ChangeL2BlockHeader{
+			DeltaTimestamp:  123,
+			IndexL1InfoTree: 456,
+		},
+		Transactions: []L2TxRaw{},
 	}
 	block2 := L2BlockRaw{
-		DeltaTimestamp:  789,
-		IndexL1InfoTree: 101112,
-		Transactions:    []L2TxRaw{},
+		ChangeL2BlockHeader: ChangeL2BlockHeader{
+			DeltaTimestamp:  789,
+			IndexL1InfoTree: 101112,
+		},
+		Transactions: []L2TxRaw{},
 	}
 	blocks := []L2BlockRaw{block1, block2}
 

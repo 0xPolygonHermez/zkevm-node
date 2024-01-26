@@ -90,8 +90,14 @@ func New(cfg Config, etherman etherman) (*SequenceSender, error) {
 		latestStreamBatch: 0,
 	}
 
+	// Restore pending sent sequences
+	err := s.loadSentSequencesTransactions()
+	if err != nil {
+		log.Fatalf("[SeqSender] error restoring sent sequences from file", err)
+		return nil, err
+	}
+
 	// Create ethtxmanager client
-	var err error
 	s.ethTxManager, err = ethtxmanager.New(testCfg)
 	if err != nil {
 		log.Fatalf("[SeqSender] error creating ethtxmanager client: %v", err)
@@ -152,7 +158,34 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	}
 }
 
+func (s *SequenceSender) updateEthTxResults(ctx context.Context) error {
+	for hash, data := range s.ethTransactions {
+		txResult, err := s.ethTxManager.Result(ctx, hash)
+		if err != nil {
+			log.Errorf("[SeqSender] Error getting result from tx %v: %v", hash, err)
+			return err
+		}
+
+		// Update tx status
+		data.Status = string(txResult.Status)
+
+		// TODO: Manage according to the state
+	}
+
+	s.printEthTxs()
+
+	return nil
+}
+
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+	// Check and update the state of transactions
+	log.Debugf("[SeqSender] updating tx results")
+	err := s.updateEthTxResults(ctx)
+	if err != nil {
+		waitTick(ctx, ticker)
+		return
+	}
+
 	// Check if should send sequence to L1
 	log.Debugf("[SeqSender] getting sequences to send")
 	sequences, err := s.getSequencesToSend(ctx)
@@ -202,7 +235,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	s.ethTransactions[txHash] = txData
 	s.latestSentToL1Batch = lastSequence.BatchNumber
 
-	// Save sequence sent
+	// Save sent sequences
 	err = s.saveSentSequencesTransactions()
 	if err != nil {
 		log.Fatalf("[SeqSender] error saving tx sequence sent, error: %v", err)
@@ -351,9 +384,32 @@ func waitTick(ctx context.Context, ticker *time.Ticker) {
 }
 
 // loadSentSequencesTransactions loads the file into the memory structure
-// func (s *SequenceSender) loadSentSequencesTransactions() {
+func (s *SequenceSender) loadSentSequencesTransactions() error {
+	// Check if file exists
+	if _, err := os.Stat(s.cfg.SequencesTxFileName); os.IsNotExist(err) {
+		log.Infof("[SeqSender] file not found %s: %v", s.cfg.SequencesTxFileName, err)
+		return nil
+	} else if err != nil {
+		log.Errorf("[SeqSender] error opening file %s: %v", s.cfg.SequencesTxFileName, err)
+		return err
+	}
 
-// }
+	// Read file
+	data, err := os.ReadFile(s.cfg.SequencesTxFileName)
+	if err != nil {
+		log.Errorf("[SeqSender] error reading file %s: %v", s.cfg.SequencesTxFileName, err)
+		return err
+	}
+
+	// Restore memory structure
+	err = json.Unmarshal(data, &s.ethTransactions)
+	if err != nil {
+		log.Errorf("[SeqSender] error decoding data from %s: %v", s.cfg.SequencesTxFileName, err)
+		return err
+	}
+
+	return nil
+}
 
 // saveSentSequencesTransactions saves memory structure into persistent file
 func (s *SequenceSender) saveSentSequencesTransactions() error {
@@ -381,7 +437,7 @@ func (s *SequenceSender) saveSentSequencesTransactions() error {
 	if _, err := os.Stat(s.cfg.SequencesTxFileName); err == nil {
 		err = os.Remove(s.cfg.SequencesTxFileName)
 		if err != nil {
-			log.Fatalf("[SeqSender] error deleting file %s: %v", s.cfg.SequencesTxFileName, err)
+			log.Errorf("[SeqSender] error deleting file %s: %v", s.cfg.SequencesTxFileName, err)
 			return err
 		}
 	}
@@ -389,7 +445,7 @@ func (s *SequenceSender) saveSentSequencesTransactions() error {
 	// Rename the new file
 	err = os.Rename(fileName, s.cfg.SequencesTxFileName)
 	if err != nil {
-		log.Fatalf("[SeqSender] error renaming file %s to %s: %v", fileName, s.cfg.SequencesTxFileName, err)
+		log.Errorf("[SeqSender] error renaming file %s to %s: %v", fileName, s.cfg.SequencesTxFileName, err)
 		return err
 	}
 

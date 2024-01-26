@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	errL2BlockInvalid = errors.New("A L2 block fails, that invalidate totally the batch")
+	errL2BlockInvalid = errors.New("a L2 block fails, that invalidate totally the batch")
 )
 
 // TestConvertToProcessBatchResponseV2 for test purposes

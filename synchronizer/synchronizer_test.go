@@ -695,9 +695,11 @@ func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, []types.T
 	transactions := []types.TransactionOrHash{}
 	for nBlock := 0; nBlock < howManyBlocks; nBlock++ {
 		block := state.L2BlockRaw{
-			DeltaTimestamp:  123,
-			IndexL1InfoTree: 456,
-			Transactions:    []state.L2TxRaw{},
+			ChangeL2BlockHeader: state.ChangeL2BlockHeader{
+				DeltaTimestamp:  123,
+				IndexL1InfoTree: 456,
+			},
+			Transactions: []state.L2TxRaw{},
 		}
 		for i := 0; i < howManyTx; i++ {
 			tx := createTransaction(uint64(i + 1))
