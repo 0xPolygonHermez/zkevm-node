@@ -33,8 +33,6 @@ const (
 	SystemSC = "0x000000000000000000000000000000005ca1ab1e"
 	// posConstant is the constant used to compute the position of the intermediate state root
 	posConstant = 1
-	// EmptyDeltaTimestamp represents an empty delta timestamp (pre ETROG)
-	EmptyDeltaTimestamp = 0xFFFFFFFF
 )
 
 // DSBatch represents a data stream batch
