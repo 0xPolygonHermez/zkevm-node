@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +14,17 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func TestCardona(t *testing.T) {
+	cfg := Config{}
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.String(FlagNetwork, string(cardona), string(cardona))
+	fs.Set(FlagNetwork, string(cardona))
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, fs, nil)
+
+	log.Info("flag=", ctx.String(FlagNetwork))
+	cfg.loadNetworkConfig(ctx)
+}
 func TestLoadCustomNetworkConfig(t *testing.T) {
 	tcs := []struct {
 		description      string

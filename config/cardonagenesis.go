@@ -9,7 +9,7 @@ const CardonaNetworkConfigJSON = `
 	  "polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF",
 	  "polTokenAddress": "0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70",
 	  "polygonRollupManagerAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
-	  "chainId": 11155111,
+	  "chainId": 11155111
 	},
 	"genesisBlockNumber": 4789190,
 	"root": "0x91dfcdeb628dfdc51f3a2ee38cb17c78581e4e7ff91bcc2e327d24a9dfa46982",
