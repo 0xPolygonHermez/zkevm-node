@@ -3,14 +3,16 @@ package config
 // CardonaNetworkConfigJSON is the hardcoded network configuration to be used for the official mainnet setup
 const CardonaNetworkConfigJSON = `
 {
-	"l1Config" : {
-		"chainId": 11155111,
-		"polygonZkEVMAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
-		"maticTokenAddress": "0x1850Dd35dE878238fb1dBa7aF7f929303AB6e8E4",
-		"polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF"
+	"l1Config": {
+	  "polygonZkEVMAddress": "0xA13Ddb14437A8F34897131367ad3ca78416d6bCa",
+	  "polygonZkEVMBridgeAddress": "0x528e26b25a34a4A5d0dbDa1d57D318153d2ED582",
+	  "polygonZkEVMGlobalExitRootAddress": "0xAd1490c248c5d3CbAE399Fd529b79B42984277DF",
+	  "polTokenAddress": "0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70",
+	  "polygonRollupManagerAddress": "0x32d33D5137a7cFFb54c5Bf8371172bcEc5f310ff",
+	  "chainId": 11155111,
 	},
-	"root": "0x91dfcdeb628dfdc51f3a2ee38cb17c78581e4e7ff91bcc2e327d24a9dfa46982",
 	"genesisBlockNumber": 4789190,
+	"root": "0x91dfcdeb628dfdc51f3a2ee38cb17c78581e4e7ff91bcc2e327d24a9dfa46982",
 	"genesis": [
 	  {
 		"contractName": "PolygonZkEVMDeployer",
