@@ -272,7 +272,7 @@ func generate(cliCtx *cli.Context) error {
 		}
 	}
 
-	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots)
+	err = state.GenerateDataStreamerFile(cliCtx.Context, streamServer, stateDB, false, &imStateRoots, c.Offline.ChainID)
 	if err != nil {
 		log.Error(err)
 		os.Exit(1)
@@ -420,16 +420,16 @@ func reprocess(cliCtx *cli.Context) error {
 		case state.EntryTypeUpdateGER:
 			printEntry(currentEntry)
 			processBatchRequest = &executor.ProcessBatchRequest{
-				OldBatchNum:      binary.LittleEndian.Uint64(currentEntry.Data[0:8]) - 1,
+				OldBatchNum:      binary.BigEndian.Uint64(currentEntry.Data[0:8]) - 1,
 				Coinbase:         common.Bytes2Hex(currentEntry.Data[48:68]),
 				BatchL2Data:      nil,
 				OldStateRoot:     previousStateRoot,
 				GlobalExitRoot:   currentEntry.Data[16:48],
 				OldAccInputHash:  []byte{},
-				EthTimestamp:     binary.LittleEndian.Uint64(currentEntry.Data[8:16]),
+				EthTimestamp:     binary.BigEndian.Uint64(currentEntry.Data[8:16]),
 				UpdateMerkleTree: uint32(1),
 				ChainId:          c.Offline.ChainID,
-				ForkId:           uint64(binary.LittleEndian.Uint16(currentEntry.Data[68:70])),
+				ForkId:           uint64(binary.BigEndian.Uint16(currentEntry.Data[68:70])),
 			}
 
 			expectedNewRoot = currentEntry.Data[70:102]
@@ -452,7 +452,7 @@ func reprocess(cliCtx *cli.Context) error {
 			}
 			printEntry(endEntry)
 
-			forkID := uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78]))
+			forkID := uint64(binary.BigEndian.Uint16(startEntry.Data[76:78]))
 
 			tx, err := state.DecodeTx(common.Bytes2Hex((txEntry.Data[6:])))
 			if err != nil {
@@ -471,16 +471,16 @@ func reprocess(cliCtx *cli.Context) error {
 			}
 
 			processBatchRequest = &executor.ProcessBatchRequest{
-				OldBatchNum:      binary.LittleEndian.Uint64(startEntry.Data[0:8]) - 1,
+				OldBatchNum:      binary.BigEndian.Uint64(startEntry.Data[0:8]) - 1,
 				Coinbase:         common.Bytes2Hex(startEntry.Data[56:76]),
 				BatchL2Data:      batchL2Data,
 				OldStateRoot:     oldStateRoot,
 				GlobalExitRoot:   startEntry.Data[24:56],
 				OldAccInputHash:  []byte{},
-				EthTimestamp:     binary.LittleEndian.Uint64(startEntry.Data[16:24]),
+				EthTimestamp:     binary.BigEndian.Uint64(startEntry.Data[16:24]),
 				UpdateMerkleTree: uint32(1),
 				ChainId:          c.Offline.ChainID,
-				ForkId:           uint64(binary.LittleEndian.Uint16(startEntry.Data[76:78])),
+				ForkId:           uint64(binary.BigEndian.Uint16(startEntry.Data[76:78])),
 			}
 
 			expectedNewRoot = endEntry.Data[40:72]
@@ -757,6 +757,10 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.L2BlockNumber))
 		printColored(color.FgGreen, "Timestamp.......: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%v (%d)\n", time.Unix(blockStart.Timestamp, 0), blockStart.Timestamp))
+		printColored(color.FgGreen, "Delta Timestamp.: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.DeltaTimestamp))
+		printColored(color.FgGreen, "L1 InfoTree Idx.: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.L1InfoTreeIndex))
 		printColored(color.FgGreen, "L1 Block Hash...: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.L1BlockHash))
 		printColored(color.FgGreen, "Global Exit Root: ")
@@ -765,6 +769,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.Coinbase))
 		printColored(color.FgGreen, "Fork ID.........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ForkID))
+		printColored(color.FgGreen, "Chain ID........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ChainID))
 	case state.EntryTypeL2Tx:
 		dsTx := state.DSL2Transaction{}.Decode(entry.Data)
 		printColored(color.FgGreen, "Entry Type......: ")
@@ -827,6 +833,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", updateGer.Coinbase))
 		printColored(color.FgGreen, "Fork ID.........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", updateGer.ForkID))
+		printColored(color.FgGreen, "Chain ID........: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", updateGer.ChainID))
 		printColored(color.FgGreen, "State Root......: ")
 		printColored(color.FgHiWhite, fmt.Sprint(updateGer.StateRoot.Hex()+"\n"))
 	}

@@ -90,13 +90,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 			log.Fatalf("failed to start stream server, error: %v", err)
 		}
 
-		s.updateDataStreamerFile(ctx)
+		s.updateDataStreamerFile(ctx, s.cfg.StreamServer.ChainID)
 	}
 
 	go s.loadFromPool(ctx)
 
 	if s.streamServer != nil {
-		go s.sendDataToStreamer()
+		go s.sendDataToStreamer(s.cfg.StreamServer.ChainID)
 	}
 
 	s.worker = NewWorker(s.stateIntf, s.batchCfg.Constraints)
@@ -129,8 +129,8 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 	}
 }
 
-func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
-	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateIntf, true, nil)
+func (s *Sequencer) updateDataStreamerFile(ctx context.Context, chainID uint64) {
+	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateIntf, true, nil, chainID)
 	if err != nil {
 		log.Fatalf("failed to generate data streamer file, error: %v", err)
 	}
@@ -221,7 +221,7 @@ func (s *Sequencer) addTxToWorker(ctx context.Context, tx pool.Transaction) erro
 }
 
 // sendDataToStreamer sends data to the data stream server
-func (s *Sequencer) sendDataToStreamer() {
+func (s *Sequencer) sendDataToStreamer(chainID uint64) {
 	var err error
 	for {
 		// Read error from previous iteration
@@ -259,14 +259,31 @@ func (s *Sequencer) sendDataToStreamer() {
 					continue
 				}
 
+				// Get previous block timestamp to calculate delta timestamp
+				bookMark = state.DSBookMark{
+					Type:  state.BookMarkTypeL2Block,
+					Value: l2Block.L2BlockNumber - 1,
+				}
+
+				previousL2BlockEntry, err := s.streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
+				if err != nil {
+					log.Errorf("failed to get previous l2block %d, error: %v", l2Block.L2BlockNumber-1, err)
+					continue
+				}
+
+				previousL2Block := state.DSL2BlockStart{}.Decode(previousL2BlockEntry.Data)
+
 				blockStart := state.DSL2BlockStart{
-					BatchNumber:    l2Block.BatchNumber,
-					L2BlockNumber:  l2Block.L2BlockNumber,
-					Timestamp:      l2Block.Timestamp,
-					L1BlockHash:    l2Block.L1BlockHash,
-					GlobalExitRoot: l2Block.GlobalExitRoot,
-					Coinbase:       l2Block.Coinbase,
-					ForkID:         l2Block.ForkID,
+					BatchNumber:     l2Block.BatchNumber,
+					L2BlockNumber:   l2Block.L2BlockNumber,
+					Timestamp:       l2Block.Timestamp,
+					DeltaTimestamp:  uint32(l2Block.Timestamp - previousL2Block.Timestamp),
+					L1InfoTreeIndex: l2Block.L1InfoTreeIndex,
+					L1BlockHash:     l2Block.L1BlockHash,
+					GlobalExitRoot:  l2Block.GlobalExitRoot,
+					Coinbase:        l2Block.Coinbase,
+					ForkID:          l2Block.ForkID,
+					ChainID:         uint32(chainID),
 				}
 
 				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
