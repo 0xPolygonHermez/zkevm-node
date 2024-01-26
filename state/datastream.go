@@ -350,8 +350,17 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			currentBatchNumber = blockStart.BatchNumber
 			previousTimestamp = blockStart.Timestamp
 			lastAddedL2BlockNumber = currentL2BlockNumber
+		case EntryTypeBookMark:
+			log.Info("Latest entry type is BookMark")
+			bookMark := DSBookMark{}
+			bookMark = bookMark.Decode(latestEntry.Data)
+			if bookMark.Type == BookMarkTypeBatch {
+				currentBatchNumber = bookMark.Value
+			} else {
+				log.Fatalf("Latest entry type is an unexpected bookmark type: %v", bookMark.Type)
+			}
 		default:
-			log.Fatalf("Latest entry type is not am expected one: %v", latestEntry.Type)
+			log.Fatalf("Latest entry type is not an expected one: %v", latestEntry.Type)
 		}
 	}
 
