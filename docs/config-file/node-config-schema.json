@@ -805,6 +805,11 @@
 							"additionalProperties": false,
 							"type": "object",
 							"description": "Log is the log configuration"
+						},
+						"UpgradeEtrogBatchNumber": {
+							"type": "integer",
+							"description": "UpgradeEtrogBatchNumber is the batch number of the upgrade etrog",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
