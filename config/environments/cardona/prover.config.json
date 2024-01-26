@@ -3,6 +3,8 @@
     "runProverServerMock": false,
     "runProverClient": false,
 
+    "stateManagerPurge": false,
+
     "runExecutorServer": true,
     "runExecutorClient": false,
     "runExecutorClientMultithread": false,
