@@ -11,6 +11,7 @@ Port = 6901
 Filename = "datastreamer.bin"
 Version = 1
 ChainID = 1440
+UpgradeEtrogBatchNumber = 0
 
 [StateDB]
 User = "state_user"
