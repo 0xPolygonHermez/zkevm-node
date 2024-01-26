@@ -277,6 +277,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		// If we have txs pending to process but none of them fits into the wip batch, we close the wip batch and open a new one
 		if err == ErrNoFittingTransaction {
 			f.finalizeWIPBatch(ctx, state.NoTxFitsClosingReason)
+			continue
 		}
 
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -293,6 +294,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 						firstTxProcess = false
 						log.Infof("reprocessing tx %s because of effective gas price calculation", tx.HashStr)
 						continue
+					} else if err == ErrBatchResourceUnderFlow {
+						log.Infof("skipping tx %s due to a batch resource underflow", tx.HashStr)
+						break
 					} else {
 						log.Errorf("failed to process tx %s, error: %v", err)
 						break
@@ -528,7 +532,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		start := time.Now()
 		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
 		metrics.WorkerProcessingTime(time.Since(start))
-		return nil, err
+		return nil, ErrBatchResourceUnderFlow
 	}
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging
