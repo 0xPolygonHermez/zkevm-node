@@ -11,8 +11,8 @@ import (
 type SettlementBackend string
 
 const (
-	// To define the beethoven service for settlement
-	Beethoven SettlementBackend = "beethoven"
+	// To define the agglayer service for settlement
+	AggLayer SettlementBackend = "agglayer"
 	// To define the direct settlement to L1
 	L1 SettlementBackend = "l1"
 )
@@ -95,14 +95,14 @@ type Config struct {
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
 
-	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the Beethoven service.
+	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the AggLayer service.
 	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend"`
 
-	// BeethovenTxTimeout is the interval time to wait for a tx to be mined from the beethoven
-	BeethovenTxTimeout types.Duration `mapstructure:"BeethovenTxTimeout"`
+	// AggLayerTxTimeout is the interval time to wait for a tx to be mined from the agglayer
+	AggLayerTxTimeout types.Duration `mapstructure:"AggLayerTxTimeout"`
 
-	// BeethovenURL url of the beethoven service
-	BeethovenURL string `mapstructure:"BeethovenURL"`
+	// AggLayerURL url of the agglayer service
+	AggLayerURL string `mapstructure:"AggLayerURL"`
 
 	// SequencerPrivateKey Private key of the trusted sequencer
 	SequencerPrivateKey types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`

@@ -12,7 +12,7 @@ import (
 	"runtime"
 	"time"
 
-	beethovenClient "github.com/0xPolygon/beethoven/client"
+	agglayerClient "github.com/0xPolygon/agglayer/client"
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
@@ -426,10 +426,10 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 }
 
 func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
-	var beethCli *beethovenClient.Client
+	var beethCli *agglayerClient.Client
 
-	if c.SettlementBackend == aggregator.Beethoven {
-		beethCli = beethovenClient.New(c.BeethovenURL)
+	if c.SettlementBackend == aggregator.AggLayer {
+		beethCli = agglayerClient.New(c.AggLayerURL)
 	}
 
 	// Load private key

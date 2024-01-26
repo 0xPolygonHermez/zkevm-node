@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/0xPolygon/beethoven/tx"
 	"math/big"
 	"net"
 	"strconv"
@@ -15,8 +14,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/0xPolygon/beethoven/client"
-	beethovenTypes "github.com/0xPolygon/beethoven/rpc/types"
+	"github.com/0xPolygon/agglayer/tx"
+
+	"github.com/0xPolygon/agglayer/client"
+	agglayerTypes "github.com/0xPolygon/agglayer/rpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
@@ -70,7 +71,7 @@ type Aggregator struct {
 	ctx  context.Context
 	exit context.CancelFunc
 
-	BeethovenClient     client.ClientInterface
+	AggLayerClient      client.ClientInterface
 	sequencerPrivateKey *ecdsa.PrivateKey
 }
 
@@ -80,7 +81,7 @@ func New(
 	stateInterface stateInterface,
 	ethTxManager ethTxManager,
 	etherman etherman,
-	beethovenClient client.ClientInterface,
+	agglayerClient client.ClientInterface,
 	sequencerPrivateKey *ecdsa.PrivateKey,
 ) (Aggregator, error) {
 	var profitabilityChecker aggregatorTxProfitabilityChecker
@@ -104,7 +105,7 @@ func New(
 
 		finalProof: make(chan finalProofMsg),
 
-		BeethovenClient:     beethovenClient,
+		AggLayerClient:      agglayerClient,
 		sequencerPrivateKey: sequencerPrivateKey,
 	}
 
@@ -280,8 +281,8 @@ func (a *Aggregator) sendFinalProof() {
 			log.Infof("Final proof inputs: NewLocalExitRoot [%#x], NewStateRoot [%#x]", inputs.NewLocalExitRoot, inputs.NewStateRoot)
 
 			switch a.cfg.SettlementBackend {
-			case Beethoven:
-				if success := a.settleWithBeethoven(ctx, proof, inputs); !success {
+			case AggLayer:
+				if success := a.settleWithAggLayer(ctx, proof, inputs); !success {
 					continue
 				}
 			default:
@@ -350,7 +351,7 @@ func (a *Aggregator) settleDirect(
 	return true
 }
 
-func (a *Aggregator) settleWithBeethoven(
+func (a *Aggregator) settleWithAggLayer(
 	ctx context.Context,
 	proof *state.Proof,
 	inputs ethmanTypes.FinalProofInputs,
@@ -358,12 +359,12 @@ func (a *Aggregator) settleWithBeethoven(
 	proofStrNo0x := strings.TrimPrefix(inputs.FinalProof.Proof, "0x")
 	proofBytes := common.Hex2Bytes(proofStrNo0x)
 	tx := tx.Tx{
-		LastVerifiedBatch: beethovenTypes.ArgUint64(proof.BatchNumber - 1),
-		NewVerifiedBatch:  beethovenTypes.ArgUint64(proof.BatchNumberFinal),
+		LastVerifiedBatch: agglayerTypes.ArgUint64(proof.BatchNumber - 1),
+		NewVerifiedBatch:  agglayerTypes.ArgUint64(proof.BatchNumberFinal),
 		ZKP: tx.ZKP{
 			NewStateRoot:     common.BytesToHash(inputs.NewStateRoot),
 			NewLocalExitRoot: common.BytesToHash(inputs.NewLocalExitRoot),
-			Proof:            beethovenTypes.ArgBytes(proofBytes),
+			Proof:            agglayerTypes.ArgBytes(proofBytes),
 		},
 		RollupID: a.Ethman.GetRollupId(),
 	}
@@ -371,27 +372,27 @@ func (a *Aggregator) settleWithBeethoven(
 
 	if err != nil {
 		log.Errorf("failed to sign tx: %v", err)
-		a.handleFailureToSendToBeethoven(ctx, proof)
+		a.handleFailureToSendToAggLayer(ctx, proof)
 
 		return false
 	}
 
 	log.Debug("final proof signedTx: ", signedTx.Tx.ZKP.Proof.Hex())
-	txHash, err := a.BeethovenClient.SendTx(*signedTx)
+	txHash, err := a.AggLayerClient.SendTx(*signedTx)
 	if err != nil {
 		log.Errorf("failed to send tx to the interop: %v", err)
-		a.handleFailureToSendToBeethoven(ctx, proof)
+		a.handleFailureToSendToAggLayer(ctx, proof)
 
 		return false
 	}
 
-	log.Infof("tx %s sent to beethoven, waiting to be mined", txHash.Hex())
-	log.Debugf("Timeout set to %f seconds", a.cfg.BeethovenTxTimeout.Duration.Seconds())
-	waitCtx, cancelFunc := context.WithDeadline(ctx, time.Now().Add(a.cfg.BeethovenTxTimeout.Duration))
+	log.Infof("tx %s sent to agglayer, waiting to be mined", txHash.Hex())
+	log.Debugf("Timeout set to %f seconds", a.cfg.AggLayerTxTimeout.Duration.Seconds())
+	waitCtx, cancelFunc := context.WithDeadline(ctx, time.Now().Add(a.cfg.AggLayerTxTimeout.Duration))
 	defer cancelFunc()
-	if err := a.BeethovenClient.WaitTxToBeMined(txHash, waitCtx); err != nil {
+	if err := a.AggLayerClient.WaitTxToBeMined(txHash, waitCtx); err != nil {
 		log.Errorf("interop didn't mine the tx: %v", err)
-		a.handleFailureToSendToBeethoven(ctx, proof)
+		a.handleFailureToSendToAggLayer(ctx, proof)
 
 		return false
 	}
@@ -400,7 +401,7 @@ func (a *Aggregator) settleWithBeethoven(
 	return true
 }
 
-func (a *Aggregator) handleFailureToSendToBeethoven(ctx context.Context, proof *state.Proof) {
+func (a *Aggregator) handleFailureToSendToAggLayer(ctx context.Context, proof *state.Proof) {
 	log := log.WithFields("proofId", proof.ProofID, "batches", fmt.Sprintf("%d-%d", proof.BatchNumber, proof.BatchNumberFinal))
 	proof.GeneratingSince = nil
 

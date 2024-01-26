@@ -39,6 +39,8 @@ cloud.google.com/go/storage v1.10.0/go.mod h1:FLPqc6j+Ki4BU591ie1oL6qBQGu2Bl/tZ9
 dario.cat/mergo v1.0.0 h1:AGCNq9Evsj31mOgNPcLyXc+4PNABt905YmuqPYYpBWk=
 dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
+github.com/0xPolygon/agglayer v0.0.0-20240126091628-9016453dc02b h1:zwZP+YFDOLWL8qgWDu/D7E09MuLwIKXz6EqyT/CYBEY=
+github.com/0xPolygon/agglayer v0.0.0-20240126091628-9016453dc02b/go.mod h1:grNx11QYbBuhO8UrYjcWAam96cOKgCd3UC+s3Y60KGE=
 github.com/0xPolygon/beethoven v0.0.0-20240112113018-0275d183b7bc h1:yUoC5oDBHbriJSRfVYWNji+rYJdjxqIibmVpzoXUM3g=
 github.com/0xPolygon/beethoven v0.0.0-20240112113018-0275d183b7bc/go.mod h1:V+tv5idj5g9yO/sTPzi9j4waUOcGAC2VakTBWGHB3lw=
 github.com/0xPolygonHermez/zkevm-data-streamer v0.1.18 h1:InqeTcHrNbfj1OUfn2aFplFay7ibd7KhYqvmMZYZfn0=
