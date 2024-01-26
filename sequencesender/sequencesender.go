@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"sync"
@@ -52,6 +53,7 @@ type sequenceData struct {
 	batchClosed bool
 	batch       *types.Sequence
 	batchRaw    *state.BatchRawV2
+	batchRLP    []byte
 }
 
 type ethTxData struct {
@@ -205,26 +207,26 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	lastSequence := sequences[sequenceCount-1]
 	log.Infof("[SeqSender] sending sequences to L1. From batch %d to batch %d", firstSequence.BatchNumber, lastSequence.BatchNumber)
 
-	// Add sequence
-	_, _, err = s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
-	if err != nil {
-		log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
-		return
+	data := make([]byte, 0)
+	for b := firstSequence.BatchNumber; b <= lastSequence.BatchNumber; b++ {
+		data = append(data, s.sequenceData[b].batchRLP...)
 	}
+	to := common.HexToAddress("0x0001")
 
-	// Add sequence tx
-	// nonce := uint64(0)
-	// txHash, err := s.ethTxManager.Add(ctx, to, &nonce, big.NewInt(1), data)
+	// Add sequence
+	// to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase)
 	// if err != nil {
-	// 	log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
+	// 	log.Errorf("[SeqSender] error estimating new sequenceBatches to add to ethtxmanager: ", err)
 	// 	return
 	// }
-	var buffer []byte
-	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
-	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
-	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
-	buffer = binary.LittleEndian.AppendUint64(buffer, uint64(time.Now().UnixMilli()))
-	txHash := common.Hash(buffer)
+
+	// Add sequence tx
+	nonce := uint64(0)
+	txHash, err := s.ethTxManager.Add(ctx, &to, &nonce, big.NewInt(1), data)
+	if err != nil {
+		log.Errorf("[SeqSender] error adding sequence to ethtxmanager: %v", err)
+		return
+	}
 
 	// Add new eth tx
 	txData := ethTxData{
@@ -486,7 +488,11 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		} else if l2BlockStart.BatchNumber > s.wipBatch {
 			// New batch in the sequence
 			// Close current batch
-			s.sequenceData[s.wipBatch].batchClosed = true
+			err := s.closeSequenceBatch()
+			if err != nil {
+				log.Fatalf("[SeqSender] error closing wip batch")
+				return err
+			}
 
 			// Create new sequential batch
 			s.addNewSequenceBatch(l2BlockStart)
@@ -524,6 +530,22 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		s.printSequences(true)
 	}
 
+	return nil
+}
+
+// closeSequenceBatch closes the current batch
+func (s *SequenceSender) closeSequenceBatch() error {
+	s.mutexSequence.Lock()
+	s.sequenceData[s.wipBatch].batchClosed = true
+
+	var err error
+	s.sequenceData[s.wipBatch].batchRLP, err = state.EncodeBatchV2(s.sequenceData[s.wipBatch].batchRaw)
+	if err != nil {
+		log.Errorf("[SeqSender] error closing and encoding the batch %d: %v", s.wipBatch, err)
+		return err
+	}
+
+	s.mutexSequence.Unlock()
 	return nil
 }
 
@@ -600,8 +622,9 @@ func (s *SequenceSender) addNewBlockTx(l2Tx state.DSL2Transaction) {
 	// New Tx raw
 	l2TxRaw := state.L2TxRaw{
 		EfficiencyPercentage: l2Tx.EffectiveGasPricePercentage,
+		TxAlreadyEncoded:     true,
+		Data:                 l2Tx.Encoded,
 	}
-	// TODO: how to store data in .Tx
 
 	// Add Tx
 	blockRaw.Transactions = append(blockRaw.Transactions, l2TxRaw)
