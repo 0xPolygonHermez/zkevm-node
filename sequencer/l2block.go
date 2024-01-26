@@ -490,6 +490,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	}
 
 	// Update imStateRoot
+	oldIMStateRoot := f.wipBatch.imStateRoot
 	f.wipL2Block.imStateRoot = batchResponse.NewStateRoot
 	f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 
@@ -509,9 +510,9 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 		}
 	}
 
-	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, stateRoot: %s, used counters: %s",
+	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, imStateRoot: %s, used counters: %s",
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
-		f.wipL2Block.l1InfoTreeExitRootChanged, f.wipBatch.imStateRoot, batchResponse.NewStateRoot, f.logZKCounters(f.wipL2Block.usedResources.ZKCounters))
+		f.wipL2Block.l1InfoTreeExitRootChanged, oldIMStateRoot, f.wipL2Block.imStateRoot, f.logZKCounters(f.wipL2Block.usedResources.ZKCounters))
 }
 
 // executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor

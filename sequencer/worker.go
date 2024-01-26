@@ -365,7 +365,7 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 			delete(w.pool, addrQueue.fromStr)
 		}
 	}
-	log.Debug("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
+	log.Debugf("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
 
 	return txs
 }
