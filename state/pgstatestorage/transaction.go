@@ -377,7 +377,13 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 
 // GetTxsByBlockNumber returns all the txs in a given block
 func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
-	const getTxsByBlockNumSQL = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
+	const getTxsByBlockNumSQL = `SELECT t.encoded 
+	   FROM state.transaction t
+	   JOIN state.receipt r
+	     ON t.hash = r.tx_hash
+	  WHERE t.l2_block_num = $1
+	    AND r.block_num = $1
+	  ORDER by r.tx_index ASC`
 
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, getTxsByBlockNumSQL, blockNumber)
