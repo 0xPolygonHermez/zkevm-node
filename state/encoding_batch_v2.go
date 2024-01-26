@@ -67,10 +67,10 @@ type ForcedBatchRawV2 struct {
 
 // L2TxRaw is the raw representation of a L2 transaction  inside a L2 block.
 type L2TxRaw struct {
-	alreadyEncoded       bool              // If true the data is already encoded (data field is use)
-	Tx                   types.Transaction // valid if alreadyEncoded == false
-	EfficiencyPercentage uint8             // valid if alreadyEncoded == false
-	Data                 []byte            // valid if alreadyEncoded == true
+	EfficiencyPercentage uint8             // valid always
+	txAlreadyEncoded     bool              // If true the tx is already encoded (data field is use)
+	Tx                   types.Transaction // valid if txAlreadyEncoded == false
+	Data                 []byte            // valid if txAlreadyEncoded == true
 }
 
 const (
@@ -170,15 +170,15 @@ func (c ChangeL2BlockHeader) Encode(batchData []byte) []byte {
 
 // Encode encodes a transaction into a byte slice.
 func (tx L2TxRaw) Encode(batchData []byte) ([]byte, error) {
-	if tx.alreadyEncoded {
+	if tx.txAlreadyEncoded {
 		batchData = append(batchData, tx.Data...)
-		return batchData, nil
+	} else {
+		rlpTx, err := prepareRPLTxData(tx.Tx)
+		if err != nil {
+			return nil, fmt.Errorf("can't encode tx to RLP: %w", err)
+		}
+		batchData = append(batchData, rlpTx...)
 	}
-	rlpTx, err := prepareRPLTxData(tx.Tx)
-	if err != nil {
-		return nil, fmt.Errorf("can't encode tx to RLP: %w", err)
-	}
-	batchData = append(batchData, rlpTx...)
 	batchData = append(batchData, tx.EfficiencyPercentage)
 	return batchData, nil
 }
