@@ -59,18 +59,20 @@ type ClosingReason string
 const (
 	// EmptyClosingReason is the closing reason used when a batch is not closed
 	EmptyClosingReason ClosingReason = ""
-	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
-	BatchFullClosingReason ClosingReason = "Batch is full"
-	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced
-	ForcedBatchClosingReason ClosingReason = "Forced Batch"
-	// BatchAlmostFullClosingReason is the closing reason used when the batch it is almost full
-	BatchAlmostFullClosingReason ClosingReason = "Batch is almost full"
+	// MaxTxsClosingReason is the closing reason used when a batch reachs the max transactions per batch
+	MaxTxsClosingReason ClosingReason = "Max transactions"
+	// ResourceExhaustedClosingReason is the closing reason used when a batch has a resource (zkCounter or Bytes) exhausted
+	ResourceExhaustedClosingReason ClosingReason = "Resource exhausted"
+	// ResourceMarginExhaustedClosingReason is the closing reason used when a batch has a resource (zkCounter or Bytes) margin exhausted
+	ResourceMarginExhaustedClosingReason ClosingReason = "Resource margin exhausted"
+	// ForcedBatchClosingReason is the closing reason used when a batch is a forced batch
+	ForcedBatchClosingReason ClosingReason = "Forced batch"
 	// ForcedBatchDeadlineClosingReason is the closing reason used when forced batch deadline is reached
-	ForcedBatchDeadlineClosingReason ClosingReason = "Forced Batch deadline"
-	// TimeoutResolutionDeadlineClosingReason is the closing reason used when timeout resolution deadline is reached
-	TimeoutResolutionDeadlineClosingReason ClosingReason = "timeout resolution deadline"
-	// GlobalExitRootDeadlineClosingReason is the closing reason used when Global Exit Root deadline is reached
-	GlobalExitRootDeadlineClosingReason ClosingReason = "Global Exit Root deadline"
+	ForcedBatchDeadlineClosingReason ClosingReason = "Forced batch deadline"
+	// MaxDeltaTimestampClosingReason is the closing reason used when max delta batch timestamp is reached
+	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp"
+	// NoTxFitsClosingReason is the closing reason used when any of the txs in the pool (worker) fits in the remaining resources of the batch
+	NoTxFitsClosingReason ClosingReason = "No transaction fits"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch

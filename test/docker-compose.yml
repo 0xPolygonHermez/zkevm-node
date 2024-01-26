@@ -194,6 +194,7 @@ services:
       - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
       - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
       - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+      - ZKEVM_NODE_AGGREGATOR_UPGRADEETROGBATCHNUMBER=2
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
@@ -512,7 +513,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v4.0.0-RC27
+    image: hermeznetwork/zkevm-prover:v4.0.0-RC30
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
@@ -601,7 +602,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v4.0.0-RC27
+    image: hermeznetwork/zkevm-prover:v4.0.0-RC30
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover

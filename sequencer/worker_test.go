@@ -271,8 +271,8 @@ func TestWorkerGetBestTx(t *testing.T) {
 			if tx.HashStr != expectedGetBestTx[ct].String() {
 				t.Fatalf("Error GetBestFittingTx(%d). Expected=%s, Actual=%s", ct, expectedGetBestTx[ct].String(), tx.HashStr)
 			}
-			err := rc.Sub(tx.BatchResources)
-			assert.NoError(t, err)
+			overflow, _ := rc.Sub(tx.BatchResources)
+			assert.Equal(t, false, overflow)
 
 			touch := make(map[common.Address]*state.InfoReadWrite)
 			var newNonce uint64 = tx.Nonce + 1

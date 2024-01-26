@@ -1097,8 +1097,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 
 	isForcedBatch := false
 	batchRawData := &state.BatchRawV2{}
-
-	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil {
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
 		isForcedBatch = true
 	} else {
 		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
@@ -1122,6 +1121,15 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		if err != nil {
 			return nil, err
 		}
+		leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, *l1InfoRoot, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		aLeaves := make([][32]byte, len(leaves))
+		for i, leaf := range leaves {
+			aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+		}
 
 		for _, l2blockRaw := range batchRawData.Blocks {
 			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
@@ -1131,23 +1139,19 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 					return nil, err
 				}
 
-				leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot, nil)
-				if err != nil {
-					return nil, err
-				}
-
-				aLeaves := make([][32]byte, len(leaves))
-				for i, leaf := range leaves {
-					aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
-					log.Debugf("aLeaves[%d]: %s", i, common.Bytes2Hex(aLeaves[i][:]))
-				}
-
-				log.Debugf("IndexL1InfoTree: %d", l2blockRaw.IndexL1InfoTree)
-
 				// Calculate smt proof
-				smtProof, l1InfoRoot, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+				smtProof, calculatedL1InfoRoot, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
 				if err != nil {
 					return nil, err
+				}
+				if l1InfoRoot != nil && *l1InfoRoot != calculatedL1InfoRoot {
+					for i, l := range aLeaves {
+						log.Info("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
+					}
+					for i, s := range smtProof {
+						log.Info("smtProof[%d]: %s", i, common.Bytes2Hex(s[:]))
+					}
+					return nil, fmt.Errorf("error: l1InfoRoot mismatch. L1InfoRoot: %s, calculatedL1InfoRoot: %s. l1InfoTreeIndex: %d", l1InfoRoot.String(), calculatedL1InfoRoot.String(), l2blockRaw.IndexL1InfoTree)
 				}
 
 				log.Debugf("L1InfoRoot: %s", l1InfoRoot.String())
@@ -1162,10 +1166,6 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 					protoProof[i] = tmpProof[:]
 				}
 
-				for i, proof := range protoProof {
-					log.Debugf("proof[%d]: %s", i, common.Bytes2Hex(proof))
-				}
-
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
 					GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
 					BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
@@ -1176,7 +1176,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		}
 	} else {
 		// Initial batch must be handled differently
-		if batchToVerify.BatchNumber == 1 {
+		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
 			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
 			if err != nil {
 				return nil, err

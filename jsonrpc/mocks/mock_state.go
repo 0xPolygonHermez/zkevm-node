@@ -507,6 +507,36 @@ func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber u
 	return r0, r1
 }
 
+// GetL2TxHashByTxHash provides a mock function with given fields: ctx, hash, dbTx
+func (_m *StateMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, hash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2TxHashByTxHash")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, hash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, hash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, hash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)

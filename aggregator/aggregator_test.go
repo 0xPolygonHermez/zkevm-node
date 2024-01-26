@@ -799,6 +799,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
+				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(nil, errBanana).Once()
@@ -840,6 +841,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
+				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -882,6 +884,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
+				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -924,6 +927,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
+				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
@@ -980,6 +984,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					TimestampBatchEtrog: &t,
 				}
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
+				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
 				require.NoError(err)
 				m.proverMock.On("BatchProof", expectedInputProver).Return(&proofID, nil).Once()
