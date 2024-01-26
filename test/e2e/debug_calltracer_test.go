@@ -190,7 +190,7 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 						// send eth transfers txs to make the trace tx to not be the index 0 in the block
 						sendEthTransfersWithoutWaiting(t, ctx, ethereumClient, auth, common.HexToAddress(operations.DefaultSequencerAddress), big.NewInt(1), 3)
 					}
-					signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
+					signedTx, err = tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 					require.NoError(t, err)
 
 					err = ethereumClient.SendTransaction(ctx, signedTx)
