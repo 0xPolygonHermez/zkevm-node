@@ -260,18 +260,21 @@ func (s *Sequencer) sendDataToStreamer(chainID uint64) {
 				}
 
 				// Get previous block timestamp to calculate delta timestamp
-				bookMark = state.DSBookMark{
-					Type:  state.BookMarkTypeL2Block,
-					Value: l2Block.L2BlockNumber - 1,
-				}
+				previousL2Block := state.DSL2BlockStart{}
+				if l2Block.L2BlockNumber > 0 {
+					bookMark = state.DSBookMark{
+						Type:  state.BookMarkTypeL2Block,
+						Value: l2Block.L2BlockNumber - 1,
+					}
 
-				previousL2BlockEntry, err := s.streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
-				if err != nil {
-					log.Errorf("failed to get previous l2block %d, error: %v", l2Block.L2BlockNumber-1, err)
-					continue
-				}
+					previousL2BlockEntry, err := s.streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
+					if err != nil {
+						log.Errorf("failed to get previous l2block %d, error: %v", l2Block.L2BlockNumber-1, err)
+						continue
+					}
 
-				previousL2Block := state.DSL2BlockStart{}.Decode(previousL2BlockEntry.Data)
+					previousL2Block = state.DSL2BlockStart{}.Decode(previousL2BlockEntry.Data)
+				}
 
 				blockStart := state.DSL2BlockStart{
 					BatchNumber:     l2Block.BatchNumber,
