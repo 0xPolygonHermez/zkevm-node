@@ -18,7 +18,8 @@ func TestCardona(t *testing.T) {
 	cfg := Config{}
 	fs := flag.NewFlagSet("", flag.ExitOnError)
 	fs.String(FlagNetwork, string(cardona), string(cardona))
-	fs.Set(FlagNetwork, string(cardona))
+	err := fs.Set(FlagNetwork, string(cardona))
+	require.NoError(t, err)
 	app := cli.NewApp()
 	ctx := cli.NewContext(app, fs, nil)
 
