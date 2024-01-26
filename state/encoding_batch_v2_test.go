@@ -254,7 +254,7 @@ func TestEncodeBatchV2WithTxInBinary(t *testing.T) {
 		Transactions: []L2TxRaw{
 			{
 				EfficiencyPercentage: 255,
-				txAlreadyEncoded:     true,
+				TxAlreadyEncoded:     true,
 				Data:                 []byte{0x01, 0x02, 0x03},
 			},
 		},
