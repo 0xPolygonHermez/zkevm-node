@@ -64,8 +64,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	// since the executor only stores the state roots by block, we need to
 	// execute all the txs in the block until the tx we want to trace
 	var txsToEncode []types.Transaction
+	var effectivePercentage []uint8
 	for i := 0; i <= int(receipt.TransactionIndex); i++ {
 		txsToEncode = append(txsToEncode, *l2Block.Transactions()[i])
+		effectivePercentage = append(effectivePercentage, MaxEffectivePercentage)
+		log.Debugf("trace will reprocess tx: %v", l2Block.Transactions()[i].Hash().String())
 	}
 
 	// gets batch that including the l2 block
@@ -106,7 +109,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			}
 		}
 		// generate batch l2 data for the transaction
-		batchL2Data, err := EncodeTransactions(txsToEncode, []uint8{MaxEffectivePercentage}, forkId)
+		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
 			return nil, err
 		}
@@ -187,7 +190,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
 		transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
 
-		batchL2Data, err := EncodeTransactions(txsToEncode, []uint8{MaxEffectivePercentage}, forkId)
+		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
 			log.Errorf("error encoding transaction ", err)
 			return nil, err
@@ -243,7 +246,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		if err != nil {
 			return nil, err
 		}
-		response = convertedResponse.BlockResponses[0].TransactionResponses[0]
+		response = convertedResponse.BlockResponses[0].TransactionResponses[len(convertedResponse.BlockResponses[0].TransactionResponses)-1]
 	}
 
 	// Sanity check
