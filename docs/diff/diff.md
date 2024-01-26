@@ -50,7 +50,7 @@ diff -ruN \
 -x "coverage.out" \
 -x "*datastream.db*" \
 ${PATH_TO_ZKEVM_NODE_REPO} . | \
-diff2html -i stdin -s side -t "zkEVM node vs CDK validium node</br><h2>zkevm-node version: v0.5.0-RC4<h2/>" \
+diff2html -i stdin -s side -t "zkEVM node vs CDK validium node</br><h2>zkevm-node version: v0.5.0-RC23<h2/>" \
 -F ./docs/diff/diff.html
 ```
 
@@ -58,11 +58,11 @@ Note that some files are excluded from the diff to omit changes that are not ver
 
 ## Policy aka Allow list
 
-Currently using [this version of the smart contracts](https://github.com/0xPolygonHermez/zkevm-contracts/tree/feature/build-v4.0.0-rc.5-fork.7/contracts/v2/consensus/validium)
-
 This is a new feature introduced for Validium (that could exist on rollup). `TODO: ` add more explanation / link to docs.
 
-## Smart contract
+## Smart contracts
+
+Currently using [this version of the smart contracts](https://github.com/0xPolygonHermez/zkevm-contracts/tree/feature/build-v4.0.0-rc.5-fork.7/contracts/v2/consensus/validium)
 
 The main changes on Validium vs Rollup consensus smart contracts are:
 
