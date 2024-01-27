@@ -261,3 +261,26 @@ func TestCloseBatchGivenAlreadyClosedAndTheDataAreRightThenNoError(t *testing.T)
 	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
 	require.NoError(t, res)
 }
+
+func TestEmptyBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.FullProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch:        &state.Batch{},
+		TrustedBatch: &types.Batch{
+			Number: 123,
+		},
+	}
+	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+	testData.stateMock.EXPECT().UpdateWIPBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+
+	response, err := testData.sut.FullProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+	require.Equal(t, false, response.ClearCache)
+	require.Equal(t, false, response.UpdateBatchWithProcessBatchResponse)
+	require.Equal(t, true, response.UpdateBatch.WIP)
+}

@@ -127,7 +127,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) CreateEmptyBatch(ctx context.Context,
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Debugf("%s FullProcess", data.DebugPrefix)
-	if len(data.TrustedBatch.BatchL2Data) == 0 && data.BatchMustBeClosed {
+	if len(data.TrustedBatch.BatchL2Data) == 0 && !data.BatchMustBeClosed {
 		return b.CreateEmptyBatch(ctx, data, dbTx)
 	}
 	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
