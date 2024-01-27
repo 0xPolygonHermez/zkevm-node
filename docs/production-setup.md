@@ -60,6 +60,7 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 10. If everything has gone as expected you should be able to run queries to the JSON RPC at `http://localhost:8545`. For instance you can run the following query that fetches the latest synchronized L2 block, if you call this every few seconds, you should see the number increasing: 
 
 `curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}' http://localhost:8545` 
+
 11. Restart zkevm-rpc when the permission less node is full synced for first time (you could use the next endpoint of the rpc to check if the node is synced: `eth_syncing`): 
 
 `docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml restart zkevm-rpc`
