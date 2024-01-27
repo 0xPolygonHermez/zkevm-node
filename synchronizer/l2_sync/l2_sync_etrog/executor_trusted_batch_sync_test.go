@@ -182,14 +182,16 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 		StateBatch: &state.Batch{
 			BatchNumber: 123,
 			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			BatchL2Data: []byte{1, 2, 3, 4},
 			WIP:         true,
 		},
 		TrustedBatch: &types.Batch{
-			Number:    123,
-			StateRoot: common.HexToHash(hashExamplesValues[0]),
+			Number:      123,
+			StateRoot:   common.HexToHash(hashExamplesValues[0]),
+			BatchL2Data: []byte{1, 2, 3, 4},
 		},
 		PreviousStateBatch: &state.Batch{
-			BatchNumber: 123,
+			BatchNumber: 122,
 			StateRoot:   common.HexToHash(hashExamplesValues[2]),
 		},
 	}
