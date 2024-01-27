@@ -182,14 +182,16 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 		StateBatch: &state.Batch{
 			BatchNumber: 123,
 			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			BatchL2Data: []byte{1, 2, 3, 4},
 			WIP:         true,
 		},
 		TrustedBatch: &types.Batch{
-			Number:    123,
-			StateRoot: common.HexToHash(hashExamplesValues[0]),
+			Number:      123,
+			StateRoot:   common.HexToHash(hashExamplesValues[0]),
+			BatchL2Data: []byte{1, 2, 3, 4},
 		},
 		PreviousStateBatch: &state.Batch{
-			BatchNumber: 123,
+			BatchNumber: 122,
 			StateRoot:   common.HexToHash(hashExamplesValues[2]),
 		},
 	}
@@ -260,4 +262,44 @@ func TestCloseBatchGivenAlreadyClosedAndTheDataAreRightThenNoError(t *testing.T)
 	// No call to HALT!
 	res := testData.sut.CloseBatch(testData.ctx, data.TrustedBatch, nil, "test")
 	require.NoError(t, res)
+}
+
+func TestEmptyBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	expectedBatch := state.Batch{
+		BatchNumber:    123,
+		Coinbase:       common.HexToAddress("0x01"),
+		StateRoot:      common.HexToHash("0x02"),
+		GlobalExitRoot: common.HexToHash("0x03"),
+		LocalExitRoot:  common.HexToHash("0x04"),
+		Timestamp:      time.Now().Truncate(time.Second),
+		WIP:            true,
+	}
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.FullProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch:        nil,
+		TrustedBatch: &types.Batch{
+			Number:         123,
+			Coinbase:       expectedBatch.Coinbase,
+			StateRoot:      expectedBatch.StateRoot,
+			GlobalExitRoot: expectedBatch.GlobalExitRoot,
+			LocalExitRoot:  expectedBatch.LocalExitRoot,
+			Timestamp:      (types.ArgUint64)(expectedBatch.Timestamp.Unix()),
+			Closed:         false,
+		},
+	}
+	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+	testData.stateMock.EXPECT().UpdateWIPBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
+
+	response, err := testData.sut.FullProcess(testData.ctx, &data, nil)
+	require.NoError(t, err)
+	require.Equal(t, false, response.ClearCache)
+	require.Equal(t, false, response.UpdateBatchWithProcessBatchResponse)
+	require.Equal(t, true, response.UpdateBatch.WIP)
+	require.Equal(t, 0, len(response.UpdateBatch.BatchL2Data))
+	require.Equal(t, expectedBatch, *response.UpdateBatch)
 }

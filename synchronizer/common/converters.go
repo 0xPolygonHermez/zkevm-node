@@ -18,7 +18,7 @@ func RpcBatchToStateBatch(rpcBatch *types.Batch) *state.Batch {
 		StateRoot:      rpcBatch.StateRoot,
 		BatchL2Data:    rpcBatch.BatchL2Data,
 		GlobalExitRoot: rpcBatch.GlobalExitRoot,
-		LocalExitRoot:  rpcBatch.MainnetExitRoot,
+		LocalExitRoot:  rpcBatch.LocalExitRoot,
 		Timestamp:      time.Unix(int64(rpcBatch.Timestamp), 0),
 		WIP:            !rpcBatch.Closed,
 	}
