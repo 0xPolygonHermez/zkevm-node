@@ -2,7 +2,13 @@
 This file provide functions to work with ETROG batches:
 - EncodeBatchV2 (equivalent to EncodeTransactions)
 - DecodeBatchV2 (equivalent to DecodeTxs)
-- DecodeForcedBatchV2)
+- DecodeForcedBatchV2
+
+Also provide a builder class to create batches (BatchV2Encoder):
+ This method doesnt check anything, so is more flexible but you need to know what you are doing
+ - `builder := NewBatchV2Encoder()` : Create a new `BatchV2Encoder``
+ - You can call to `AddBlockHeader` or `AddTransaction` to add a block header or a transaction as you wish
+ - You can call to `GetResult` to get the batch data
 
 
 // batch data format:
@@ -27,6 +33,19 @@ This file provide functions to work with ETROG batches:
 // 0x00							   | 32 | V
 // 0x00							   | 1  | efficiencyPercentage
 // Repeat Transaction
+//
+// Usage:
+// There are 2 ways of use this module, direct calls or a builder class:
+// 1) Direct calls:
+// - EncodeBatchV2: Encode a batch of transactions
+// - DecodeBatchV2: Decode a batch of transactions
+//
+// 2) Builder class:
+//  This method doesnt check anything, so is more flexible but you need to know what you are doing
+// - builder := NewBatchV2Encoder(): Create a new BatchV2Encoder
+//    - You can call to `AddBlockHeader` or `AddTransaction` to add a block header or a transaction as you wish
+//    - You can call to `GetResult` to get the batch data
+
 */
 
 package state
