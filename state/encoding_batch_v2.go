@@ -68,7 +68,7 @@ type ForcedBatchRawV2 struct {
 // L2TxRaw is the raw representation of a L2 transaction  inside a L2 block.
 type L2TxRaw struct {
 	EfficiencyPercentage uint8             // valid always
-	TxAlreadyEncoded     bool              // If true the tx is already encoded (data field is use)
+	TxAlreadyEncoded     bool              // If true the tx is already encoded (data field is used)
 	Tx                   types.Transaction // valid if TxAlreadyEncoded == false
 	Data                 []byte            // valid if TxAlreadyEncoded == true
 }
