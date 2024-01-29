@@ -244,7 +244,7 @@ func (e *EthEndpoints) getHighestL2BlockFromTrustedNode() (interface{}, types.Er
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to read eth_blockNumber from sequencer node", err, true)
 	}
-	return highestBlockNum, nil
+	return uint64(highestBlockNum), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
