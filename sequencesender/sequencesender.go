@@ -53,7 +53,6 @@ type sequenceData struct {
 	batchClosed bool
 	batch       *types.Sequence
 	batchRaw    *state.BatchRawV2
-	batchRLP    []byte
 }
 
 type ethTxData struct {
@@ -124,8 +123,14 @@ func (s *SequenceSender) Start(ctx context.Context) {
 	// Start ethtxmanager client
 	go s.ethTxManager.Start()
 
+	// Sync all monitored sent L1 tx
+	err := s.syncAllEthTxResults(ctx)
+	if err != nil {
+		log.Fatalf("[SeqSender] failed to sync monitored tx results, error: %v", err)
+	}
+
 	// Start datastream client
-	err := s.streamClient.Start()
+	err = s.streamClient.Start()
 	if err != nil {
 		log.Fatalf("[SeqSender] failed to start stream client, error: %v", err)
 	}
@@ -163,6 +168,10 @@ func (s *SequenceSender) Start(ctx context.Context) {
 func (s *SequenceSender) updateEthTxResults(ctx context.Context) error {
 	for hash, data := range s.ethTransactions {
 		txResult, err := s.ethTxManager.Result(ctx, hash)
+		if err == ethtxmanager.ErrNotFound {
+			log.Debugf("[SeqSender] transaction %v does not exist in memory structure. Removing it", hash)
+			delete(s.ethTransactions, hash)
+		}
 		if err != nil {
 			log.Errorf("[SeqSender] Error getting result from tx %v: %v", hash, err)
 			return err
@@ -175,7 +184,30 @@ func (s *SequenceSender) updateEthTxResults(ctx context.Context) error {
 	}
 
 	s.printEthTxs()
+	return nil
+}
 
+func (s *SequenceSender) syncAllEthTxResults(ctx context.Context) error {
+	results, err := s.ethTxManager.ResultsByStatus(ctx, nil)
+	if err != nil {
+		log.Errorf("[SeqSender] Error getting results for all tx: %v", err)
+		return err
+	}
+
+	for _, result := range results {
+		txSequence, exists := s.ethTransactions[result.ID]
+		if exists {
+			if txSequence.Status != result.Status.String() {
+				log.Debugf("[SeqSender] update transaction %v state to %s", result.ID, result.Status.String())
+				txSequence.Status = result.Status.String()
+			}
+		} else {
+			log.Debugf("[SeqSender] transaction %v does not exist in memory structure. Adding it", result.ID)
+			s.ethTransactions[result.ID] = ethTxData{
+				Status: result.Status.String(),
+			}
+		}
+	}
 	return nil
 }
 
@@ -209,7 +241,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	data := make([]byte, 0)
 	for b := firstSequence.BatchNumber; b <= lastSequence.BatchNumber; b++ {
-		data = append(data, s.sequenceData[b].batchRLP...)
+		data = append(data, s.sequenceData[b].batch.BatchL2Data...)
 	}
 	to := common.HexToAddress("0x0001")
 
@@ -526,7 +558,7 @@ func (s *SequenceSender) handleReceivedDataStream(e *datastreamer.FileEntry, c *
 		// TODO: What should I do
 	}
 
-	if e.Number%50 == 0 {
+	if e.Number%50000 == 0 {
 		s.printSequences(true)
 	}
 
@@ -539,7 +571,7 @@ func (s *SequenceSender) closeSequenceBatch() error {
 	s.sequenceData[s.wipBatch].batchClosed = true
 
 	var err error
-	s.sequenceData[s.wipBatch].batchRLP, err = state.EncodeBatchV2(s.sequenceData[s.wipBatch].batchRaw)
+	s.sequenceData[s.wipBatch].batch.BatchL2Data, err = state.EncodeBatchV2(s.sequenceData[s.wipBatch].batchRaw)
 	if err != nil {
 		log.Errorf("[SeqSender] error closing and encoding the batch %d: %v", s.wipBatch, err)
 		return err
