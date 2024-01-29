@@ -10,15 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/0xPolygonHermez/zkevm-node/state/pgstatestorage"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
@@ -2085,7 +2082,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, IsSynchronizing: false}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: true}, nil).
 					Once()
 			},
 		},
@@ -2111,7 +2108,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, IsSynchronizing: false}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
@@ -2137,7 +2134,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, IsSynchronizing: false}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
@@ -5406,25 +5403,4 @@ func TestParalelize(t *testing.T) {
 	assert.ElementsMatch(t, []int{10, 11, 12}, results[3])
 	assert.ElementsMatch(t, []int{13, 14, 15}, results[4])
 	assert.ElementsMatch(t, []int{16}, results[5])
-}
-
-func TestExploratoryGetSyncingInfo(t *testing.T) {
-	t.Skip("This test is for exploratory purposes only")
-	cfg := db.Config{
-		Name:     "state_db",
-		Host:     "localhost",
-		Port:     "5434",
-		User:     "test_user",
-		Password: "test_password",
-		MaxConns: 100,
-	}
-	db, err := db.NewSQLDB(cfg)
-	require.NoError(t, err)
-	ctx := context.Background()
-	storage := pgstatestorage.NewPostgresStorage(state.Config{}, db)
-	dbTx, err := storage.Begin(ctx)
-	require.NoError(t, err)
-	sync, err := storage.GetSyncingInfo(ctx, dbTx)
-	require.NoError(t, err)
-	log.Info(sync)
 }

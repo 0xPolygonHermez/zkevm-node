@@ -230,6 +230,23 @@ func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 	return gasPrice, nil
 }
 
+func (e *EthEndpoints) getHighestL2BlockFromTrustedNode() (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_blockNumber")
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get gas price from sequencer node", err, true)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
+	}
+	var highestBlockNum types.ArgUint64
+	err = json.Unmarshal(res.Result, &highestBlockNum)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read eth_blockNumber from sequencer node", err, true)
+	}
+	return highestBlockNum, nil
+}
+
 // GetBalance returns the account's balance at the referenced block
 func (e *EthEndpoints) GetBalance(address types.ArgAddress, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
@@ -980,6 +997,13 @@ func (e *EthEndpoints) UninstallFilter(filterID string) (interface{}, types.Erro
 // https://eth.wiki/json-rpc/API#eth_syncing
 func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
+		if errors.Is(err, state.ErrStateNotSynchronized) {
+			return nil, types.NewRPCError(types.DefaultErrorCode, state.ErrStateNotSynchronized.Error())
+		} else if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to get last block number from state", err, true)
+		}
+
 		syncInfo, err := e.state.GetSyncingInfo(ctx, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err, true)
@@ -988,7 +1012,20 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 		if !syncInfo.IsSynchronizing {
 			return false, nil
 		}
-
+		if e.cfg.SequencerNodeURI != "" {
+			// If we have a trusted node we ask it for the highest l2 block
+			res, err := e.getHighestL2BlockFromTrustedNode()
+			if err != nil {
+				log.Warnf("failed to get highest l2 block from trusted node: %v", err)
+			} else {
+				highestL2BlockInTrusted := res.(uint64)
+				if highestL2BlockInTrusted > syncInfo.CurrentBlockNumber {
+					syncInfo.EstimatedHighestBlock = highestL2BlockInTrusted
+				} else {
+					log.Warnf("highest l2 block in trusted node (%d) is lower than the current block number in the state (%d)", highestL2BlockInTrusted, syncInfo.CurrentBlockNumber)
+				}
+			}
+		}
 		return struct {
 			S types.ArgUint64 `json:"startingBlock"`
 			C types.ArgUint64 `json:"currentBlock"`
@@ -996,8 +1033,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 		}{
 			S: types.ArgUint64(syncInfo.InitialSyncingBlock),
 			C: types.ArgUint64(syncInfo.CurrentBlockNumber),
-			// TODO: What to do, because we don't known the highest L2Block number in the network, just the batch number
-			H: types.ArgUint64(0),
+			H: types.ArgUint64(syncInfo.EstimatedHighestBlock),
 		}, nil
 	})
 }

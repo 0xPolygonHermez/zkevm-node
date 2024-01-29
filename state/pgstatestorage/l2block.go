@@ -496,3 +496,23 @@ func buildBlock(header *state.L2Header, transactions []*types.Transaction, uncle
 
 	return l2Block
 }
+
+func (p *PostgresStorage) GetFirstL2BlockNumberForBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	const getL2BlockNumSQL = `
+	select MIN(block_num) 
+		FROM state.l2block  
+		WHERE batch_num = $1;
+	`
+
+	q := p.getExecQuerier(dbTx)
+	row := q.QueryRow(ctx, getL2BlockNumSQL, batchNumber)
+	var l2BlockNumber uint64
+	err := row.Scan(&l2BlockNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, state.ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2BlockNumber, nil
+}
