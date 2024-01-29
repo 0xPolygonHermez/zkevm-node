@@ -176,7 +176,6 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *test
 	mocks.CriticalErrorHandler.EXPECT().CriticalError(mock.Anything, mock.Anything)
 	// CriticalError call in a real implementation is a blocking call, in the test is going to return and hit a panic next to the call
 	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx) }) //nolint
-
 }
 
 func TestL1SequenceForcedBatchesNum1TrustedBatch(t *testing.T) {
@@ -285,7 +284,6 @@ func newL1Block(mocks *mocksEtrogProcessorL1, batch *state.Batch, l1InfoRoot com
 	}
 
 	return newComposedL1Block(mocks, &sbatch, l1InfoRoot)
-
 }
 
 func newComposedL1Block(mocks *mocksEtrogProcessorL1, forcedBatch *etherman.SequencedBatch, l1InfoRoot common.Hash) *etherman.Block {
