@@ -395,18 +395,18 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			metrics.GetLogStatistics().SetTag(metrics.BatchCloseReason, "deadline")
 			f.finalizeBatch(ctx)
 			log.Infof(metrics.GetLogStatistics().Summary())
+			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelDeadline, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
 			metrics.GetLogStatistics().ResetStatistics()
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
-			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelDeadline, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
 			metrics.TrustBatchNum(f.batch.batchNumber - 1)
 		} else if f.isBatchFull() || f.isBatchAlmostFull() {
 			log.Infof("closing batch %d because it's almost full.", f.batch.batchNumber)
 			metrics.GetLogStatistics().SetTag(metrics.BatchCloseReason, "full")
 			f.finalizeBatch(ctx)
 			log.Infof(metrics.GetLogStatistics().Summary())
+			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelFullBatch, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
 			metrics.GetLogStatistics().ResetStatistics()
 			metrics.GetLogStatistics().UpdateTimestamp(metrics.NewRound, time.Now())
-			metrics.BatchExecuteTime(metrics.BatchFinalizeTypeLabelFullBatch, metrics.GetLogStatistics().GetStatistics(metrics.ProcessingTxCommit))
 			metrics.TrustBatchNum(f.batch.batchNumber - 1)
 		}
 
@@ -476,6 +476,7 @@ func (f *finalizer) halt(ctx context.Context, err error) {
 	if eventErr != nil {
 		log.Errorf("error storing finalizer halt event: %v", eventErr)
 	}
+	metrics.HaltCount()
 
 	for {
 		log.Errorf("fatal error: %s", err)
