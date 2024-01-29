@@ -980,19 +980,12 @@ func (e *EthEndpoints) UninstallFilter(filterID string) (interface{}, types.Erro
 // https://eth.wiki/json-rpc/API#eth_syncing
 func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		_, err := e.state.GetLastL2BlockNumber(ctx, dbTx)
-		if errors.Is(err, state.ErrStateNotSynchronized) {
-			return nil, types.NewRPCError(types.DefaultErrorCode, state.ErrStateNotSynchronized.Error())
-		} else if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get last block number from state", err, true)
-		}
-
 		syncInfo, err := e.state.GetSyncingInfo(ctx, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err, true)
 		}
 
-		if syncInfo.CurrentBlockNumber >= syncInfo.LastBlockNumberSeen {
+		if !syncInfo.IsSynchronizing {
 			return false, nil
 		}
 
@@ -1003,7 +996,8 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 		}{
 			S: types.ArgUint64(syncInfo.InitialSyncingBlock),
 			C: types.ArgUint64(syncInfo.CurrentBlockNumber),
-			H: types.ArgUint64(syncInfo.LastBlockNumberSeen),
+			// TODO: What to do, because we don't known the highest L2Block number in the network, just the batch number
+			H: types.ArgUint64(0),
 		}, nil
 	})
 }
