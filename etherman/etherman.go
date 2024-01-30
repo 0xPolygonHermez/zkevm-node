@@ -246,7 +246,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Get RollupID
 	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
-		log.Warnf("error rollupManager.RollupAddressToID(%s). Error: %w", l1Config.RollupManagerAddr, err)
+		log.Debugf("error rollupManager.RollupAddressToID(%s). Error: %w", l1Config.RollupManagerAddr, err)
 		// TODO return error after the upgrade
 	}
 	log.Debug("rollupID: ", rollupID)
@@ -1564,7 +1564,7 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 	var latestBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		log.Warn("error getting latestBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		log.Debug("error getting latestBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
 		latestBatchNum, err = etherMan.OldZkEVM.LastBatchSequenced(&bind.CallOpts{Pending: false})
 		if err != nil {
 			return latestBatchNum, err
@@ -1613,7 +1613,7 @@ func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
 	var lastVerifiedBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		log.Warn("error getting lastVerifiedBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		log.Debug("error getting lastVerifiedBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
 		lastVerifiedBatchNum, err = etherMan.OldZkEVM.LastVerifiedBatch(&bind.CallOpts{Pending: false})
 		if err != nil {
 			return lastVerifiedBatchNum, err
