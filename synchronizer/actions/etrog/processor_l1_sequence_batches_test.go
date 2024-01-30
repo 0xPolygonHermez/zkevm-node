@@ -153,13 +153,22 @@ func TestL1SequenceBatchesPermissionlessBatchSequencedThatAlreadyExistsMismatch(
 	require.NoError(t, err)
 }
 
+type CriticalErrorHandlerPanic struct {
+}
+
+func (c CriticalErrorHandlerPanic) CriticalError(ctx context.Context, err error) {
+	panic("CriticalError")
+}
+
 // CASE: A TRUSTED SYNCHRONIZER process a L1 sequenced batch that already is in state but it doesnt match with the trusted State
 // - Execute it
 // - Check if match state batch
 // - Don't match -> HALT
 func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *testing.T) {
 	mocks := createMocks(t)
-	sut := createSUT(mocks)
+	CriticalErrorHandlerPanic := CriticalErrorHandlerPanic{}
+	sut := NewProcessorL1SequenceBatches(mocks.State, mocks.Synchronizer,
+		mocks.TimeProvider, CriticalErrorHandlerPanic)
 	ctx := context.Background()
 	batch := newStateBatch(3)
 	l1InfoRoot := common.HexToHash(hashExamplesValues[0])
@@ -169,12 +178,9 @@ func TestL1SequenceBatchesTrustedBatchSequencedThatAlreadyExistsMismatch(t *test
 	executionResponse.NewStateRoot = common.HexToHash(hashExamplesValues[2]).Bytes()
 	expectationsForExecution(t, mocks, ctx, l1Block.SequencedBatches[1][0], l1Block.ReceivedAt, executionResponse)
 	mocks.State.EXPECT().AddAccumulatedInputHash(ctx, executionResponse.NewBatchNum, common.BytesToHash(executionResponse.NewAccInputHash), mocks.DbTx).Return(nil)
-	// Here it says that is a TRUSTED NODE
 	mocks.Synchronizer.EXPECT().IsTrustedSequencer().Return(true)
-	// Notice that don't  write any entry to `trusted_reorgs` table.
-	//mocks.State.EXPECT().AddTrustedReorg(ctx, mock.Anything, mocks.DbTx).Return(nil)
-	mocks.CriticalErrorHandler.EXPECT().CriticalError(mock.Anything, mock.Anything)
-	// CriticalError call in a real implementation is a blocking call, in the test is going to return and hit a panic next to the call
+
+	// CriticalError call in a real implementation is a blocking call, in the test is going to panic
 	assertPanic(t, func() { sut.Process(ctx, etherman.Order{Pos: 1}, l1Block, mocks.DbTx) }) //nolint
 }
 

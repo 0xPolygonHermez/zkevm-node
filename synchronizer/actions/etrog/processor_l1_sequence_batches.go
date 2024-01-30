@@ -383,8 +383,9 @@ func (p *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context,
 
 		if p.sync.IsTrustedSequencer() {
 			log.Errorf("TRUSTED REORG DETECTED! Batch: %d reson:%s", batch.BatchNumber, reason)
+			// Halt function never have to return! it must blocks the process
 			p.halt(ctx, fmt.Errorf("TRUSTED REORG DETECTED! Batch: %d", batch.BatchNumber))
-			panic("TRUSTED REORG DETECTED: halt function never have to finish! it blocks the process")
+			log.Errorf("CRITICAL!!!: Never have to execute this code. Halt function never have to return! it must blocks the process")
 		}
 		if !tBatch.WIP {
 			log.Warnf("missmatch in trusted state detected for Batch Number: %d. Reasons: %s", tBatch.BatchNumber, reason)
