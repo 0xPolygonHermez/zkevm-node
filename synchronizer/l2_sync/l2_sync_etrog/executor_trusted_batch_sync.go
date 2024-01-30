@@ -89,7 +89,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			return nil, ErrCriticalClosedBatchDontContainExpectedData
 		}
 	}
-
+	res := l2_shared.NewProcessResponse()
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
@@ -97,10 +97,10 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
+		data.StateBatch.WIP = false
+		res.UpdateCurrentBatch(data.StateBatch)
 	}
-	data.StateBatch.WIP = !data.BatchMustBeClosed
-	res := l2_shared.NewProcessResponse()
-	res.UpdateCurrentBatch(data.StateBatch)
+
 	return &res, nil
 }
 

@@ -256,3 +256,68 @@ func TestGetNextStatusUpdate(t *testing.T) {
 	require.Nil(t, res.LastTrustedBatches[0])
 	require.Equal(t, processBatchResp.ProcessBatchResponse.NewStateRoot, res.LastTrustedBatches[1].StateRoot)
 }
+
+func TestGetNextStatusUpdateNothing(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+
+	batch0 := state.Batch{
+		BatchNumber: 123,
+	}
+	batch1 := state.Batch{
+		BatchNumber: 122,
+	}
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{&batch0, &batch1},
+	}
+	ProcessResponse := l2_shared.NewProcessResponse()
+	newStatus, err := testData.sut.GetNextStatus(previousStatus, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, &previousStatus, newStatus)
+	// If batch is close move current batch to previous one
+	newStatus, err = testData.sut.GetNextStatus(previousStatus, &ProcessResponse, true, "test")
+	require.NoError(t, err)
+	require.Equal(t, &l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, &batch0},
+	}, newStatus)
+}
+
+func TestGetNextStatusDiscardCache(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	ProcessResponse.DiscardCache()
+	newStatus, err := testData.sut.GetNextStatus(l2_shared.TrustedState{}, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, (*l2_shared.TrustedState)(nil), newStatus)
+}
+
+func TestGetNextStatusUpdateCurrentBatch(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	batch := state.Batch{
+		BatchNumber: 123,
+	}
+	ProcessResponse.UpdateCurrentBatch(&batch)
+	newStatus, err := testData.sut.GetNextStatus(l2_shared.TrustedState{}, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, &l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{&batch, nil},
+	}, newStatus)
+}
+
+func TestGetNextStatusUpdateExecutionResult(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	batch := state.Batch{
+		BatchNumber: 123,
+	}
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, nil},
+	}
+
+	ProcessResponse.UpdateCurrentBatchWithExecutionResult(&batch, &state.ProcessBatchResponse{
+		NewStateRoot: common.HexToHash("0x123"),
+	})
+	newStatus, err := testData.sut.GetNextStatus(previousStatus, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x123"), newStatus.LastTrustedBatches[0].StateRoot)
+}
