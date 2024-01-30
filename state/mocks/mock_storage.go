@@ -2593,6 +2593,54 @@ func (_c *StorageMock_GetForkIDByBlockNumber_Call) RunAndReturn(run func(uint64)
 	return _c
 }
 
+// GetForkIDInMemory provides a mock function with given fields: forkId
+func (_m *StorageMock) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
+	ret := _m.Called(forkId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForkIDInMemory")
+	}
+
+	var r0 *state.ForkIDInterval
+	if rf, ok := ret.Get(0).(func(uint64) *state.ForkIDInterval); ok {
+		r0 = rf(forkId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ForkIDInterval)
+		}
+	}
+
+	return r0
+}
+
+// StorageMock_GetForkIDInMemory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForkIDInMemory'
+type StorageMock_GetForkIDInMemory_Call struct {
+	*mock.Call
+}
+
+// GetForkIDInMemory is a helper method to define mock.On call
+//   - forkId uint64
+func (_e *StorageMock_Expecter) GetForkIDInMemory(forkId interface{}) *StorageMock_GetForkIDInMemory_Call {
+	return &StorageMock_GetForkIDInMemory_Call{Call: _e.mock.On("GetForkIDInMemory", forkId)}
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) Run(run func(forkId uint64)) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint64))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) Return(_a0 *state.ForkIDInterval) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) RunAndReturn(run func(uint64) *state.ForkIDInterval) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetForkIDs provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error) {
 	ret := _m.Called(ctx, dbTx)

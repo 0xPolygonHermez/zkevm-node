@@ -75,19 +75,20 @@ func (s *TrustedBatchesRetrieve) CleanTrustedState() {
 }
 
 // SyncTrustedState sync trusted state from latestSyncedBatch to lastTrustedStateBatchNumber
-func (s *TrustedBatchesRetrieve) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
+func (s *TrustedBatchesRetrieve) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error {
 	log.Info("syncTrustedState: Getting trusted state info")
 	if latestSyncedBatch == 0 {
 		log.Info("syncTrustedState: latestSyncedBatch is 0, assuming first batch as 1")
 		latestSyncedBatch = 1
 	}
-	lastTrustedStateBatchNumber, err := s.zkEVMClient.BatchNumber(ctx)
+	lastTrustedStateBatchNumberSeen, err := s.zkEVMClient.BatchNumber(ctx)
 
 	if err != nil {
 		log.Warn("syncTrustedState: error getting last batchNumber from Trusted Node. Error: ", err)
 		return err
 	}
-	log.Infof("syncTrustedState: latestSyncedBatch:%d syncTrustedState:%d", latestSyncedBatch, lastTrustedStateBatchNumber)
+	lastTrustedStateBatchNumber := min(lastTrustedStateBatchNumberSeen, maximumBatchNumberToProcess)
+	log.Infof("syncTrustedState: latestSyncedBatch:%d syncTrustedState:%d (max Batch on network: %d)", latestSyncedBatch, lastTrustedStateBatchNumber, lastTrustedStateBatchNumberSeen)
 
 	if isSyncrhonizedTrustedState(lastTrustedStateBatchNumber, latestSyncedBatch, s.firstBatchNumberToSync) {
 		log.Info("syncTrustedState: Trusted state is synchronized")

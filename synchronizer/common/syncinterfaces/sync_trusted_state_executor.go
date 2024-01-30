@@ -15,8 +15,10 @@ var (
 // SyncTrustedStateExecutor is the interface that class that synchronize permissionless with a trusted node
 type SyncTrustedStateExecutor interface {
 	// SyncTrustedState syncs the trusted state with the permissionless state
+	//  maximumBatchToProcess: maximum Batchnumber of batches to process, after have to returns
 	// if returns error ErrMissingSyncFromL1 then must force a L1 sync
-	SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error
+	//
+	SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error
 	// CleanTrustedState clean cache of Batches and StateRoot
 	CleanTrustedState()
 }

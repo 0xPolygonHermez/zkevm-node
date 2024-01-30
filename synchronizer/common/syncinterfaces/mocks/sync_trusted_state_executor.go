@@ -53,17 +53,17 @@ func (_c *SyncTrustedStateExecutor_CleanTrustedState_Call) RunAndReturn(run func
 	return _c
 }
 
-// SyncTrustedState provides a mock function with given fields: ctx, latestSyncedBatch
-func (_m *SyncTrustedStateExecutor) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64) error {
-	ret := _m.Called(ctx, latestSyncedBatch)
+// SyncTrustedState provides a mock function with given fields: ctx, latestSyncedBatch, maximumBatchNumberToProcess
+func (_m *SyncTrustedStateExecutor) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error {
+	ret := _m.Called(ctx, latestSyncedBatch, maximumBatchNumberToProcess)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SyncTrustedState")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64) error); ok {
-		r0 = rf(ctx, latestSyncedBatch)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64) error); ok {
+		r0 = rf(ctx, latestSyncedBatch, maximumBatchNumberToProcess)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -79,13 +79,14 @@ type SyncTrustedStateExecutor_SyncTrustedState_Call struct {
 // SyncTrustedState is a helper method to define mock.On call
 //   - ctx context.Context
 //   - latestSyncedBatch uint64
-func (_e *SyncTrustedStateExecutor_Expecter) SyncTrustedState(ctx interface{}, latestSyncedBatch interface{}) *SyncTrustedStateExecutor_SyncTrustedState_Call {
-	return &SyncTrustedStateExecutor_SyncTrustedState_Call{Call: _e.mock.On("SyncTrustedState", ctx, latestSyncedBatch)}
+//   - maximumBatchNumberToProcess uint64
+func (_e *SyncTrustedStateExecutor_Expecter) SyncTrustedState(ctx interface{}, latestSyncedBatch interface{}, maximumBatchNumberToProcess interface{}) *SyncTrustedStateExecutor_SyncTrustedState_Call {
+	return &SyncTrustedStateExecutor_SyncTrustedState_Call{Call: _e.mock.On("SyncTrustedState", ctx, latestSyncedBatch, maximumBatchNumberToProcess)}
 }
 
-func (_c *SyncTrustedStateExecutor_SyncTrustedState_Call) Run(run func(ctx context.Context, latestSyncedBatch uint64)) *SyncTrustedStateExecutor_SyncTrustedState_Call {
+func (_c *SyncTrustedStateExecutor_SyncTrustedState_Call) Run(run func(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64)) *SyncTrustedStateExecutor_SyncTrustedState_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64))
+		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64))
 	})
 	return _c
 }
@@ -95,7 +96,7 @@ func (_c *SyncTrustedStateExecutor_SyncTrustedState_Call) Return(_a0 error) *Syn
 	return _c
 }
 
-func (_c *SyncTrustedStateExecutor_SyncTrustedState_Call) RunAndReturn(run func(context.Context, uint64) error) *SyncTrustedStateExecutor_SyncTrustedState_Call {
+func (_c *SyncTrustedStateExecutor_SyncTrustedState_Call) RunAndReturn(run func(context.Context, uint64, uint64) error) *SyncTrustedStateExecutor_SyncTrustedState_Call {
 	_c.Call.Return(run)
 	return _c
 }
