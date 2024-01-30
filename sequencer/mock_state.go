@@ -26,13 +26,13 @@ type StateMock struct {
 	mock.Mock
 }
 
-// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx
-func (_m *StateMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx
+func (_m *StateMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []state.StoreTxEGPData, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []common.Hash, []state.StoreTxEGPData, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}

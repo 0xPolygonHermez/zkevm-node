@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,67 +21,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// TestGetL2Hash computes the l2 hash of a transaction for testing purposes
-func TestGetL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
-	return getL2Hash(tx, sender)
-}
-
-// GetL2Hash computes the l2 hash of a transaction
-func GetL2Hash(tx types.Transaction) (common.Hash, error) {
-	sender, err := GetSender(tx)
-	if err != nil {
-		log.Debugf("error getting sender: %v", err)
-	}
-
-	return getL2Hash(tx, sender)
-}
-
-func getL2Hash(tx types.Transaction, sender common.Address) (common.Hash, error) {
-	var input string
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Nonce()))
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.GasPrice()))
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Gas()))
-	input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", tx.To())))
-	input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Value()))
-	if len(tx.Data()) > 0 {
-		input += formatL2TxHashParam(fmt.Sprintf("%x", tx.Data()))
-	}
-	if sender != ZeroAddress {
-		input += pad20Bytes(formatL2TxHashParam(fmt.Sprintf("%x", sender)))
-	}
-
-	h4Hash, err := merkletree.HashContractBytecode(common.Hex2Bytes(input))
-	if err != nil {
-		return common.Hash{}, err
-	}
-
-	return common.HexToHash(merkletree.H4ToString(h4Hash)), nil
-}
-
-// pad20Bytes pads the given address with 0s to make it 20 bytes long
-func pad20Bytes(address string) string {
-	const addressLength = 40
-
-	if len(address) < addressLength {
-		address = strings.Repeat("0", addressLength-len(address)) + address
-	}
-	return address
-}
-
-func formatL2TxHashParam(param string) string {
-	param = strings.TrimLeft(param, "0x")
-
-	if param == "00" || param == "" {
-		return "00"
-	}
-
-	if len(param)%2 != 0 {
-		param = "0" + param
-	}
-
-	return param
-}
 
 // GetSender gets the sender from the transaction's signature
 func GetSender(tx types.Transaction) (common.Address, error) {
@@ -246,9 +183,10 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			if txsEGPLog != nil {
 				storeTxsEGPData[0].EGPLog = txsEGPLog[i]
 			}
+			txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 			// Store L2 block and its transaction
-			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
+			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 				return err
 			}
 		}
@@ -280,9 +218,11 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	l2Header.GlobalExitRoot = l2Block.GlobalExitRoot
 	l2Header.BlockInfoRoot = l2Block.BlockInfoRoot
 
-	transactions := []*types.Transaction{}
-	storeTxsEGPData := []StoreTxEGPData{}
-	receipts := []*types.Receipt{}
+	numTxs := len(l2Block.TransactionResponses)
+	transactions := make([]*types.Transaction, 0, numTxs)
+	storeTxsEGPData := make([]StoreTxEGPData, 0, numTxs)
+	receipts := make([]*types.Receipt, 0, numTxs)
+	txsL2Hash := make([]common.Hash, 0, numTxs)
 
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
@@ -296,18 +236,22 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 		txResp := *txResponse
 		transactions = append(transactions, &txResp.Tx)
+		txsL2Hash = append(txsL2Hash, txResp.TxHashL2_V2)
 
-		storeTxsEGPData = append(storeTxsEGPData, StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)})
+		storeTxEGPData := StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(txResponse.EffectivePercentage)}
 		if txsEGPLog != nil {
-			storeTxsEGPData[i].EGPLog = txsEGPLog[i]
+			storeTxEGPData.EGPLog = txsEGPLog[i]
 		}
+
+		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
 
 		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
 		receipts = append(receipts, receipt)
 	}
 
 	// Create block to be able to calculate its hash
-	block := NewL2Block(l2Header, transactions, []*L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	block := NewL2Block(l2Header, transactions, []*L2Header{}, receipts, st)
 	block.ReceivedAt = time.Unix(int64(l2Block.Timestamp), 0)
 
 	for _, receipt := range receipts {
@@ -315,7 +259,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	}
 
 	// Store L2 block and its transactions
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 		return err
 	}
 
@@ -697,9 +641,10 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	receipt.BlockHash = l2Block.Hash()
 
 	storeTxsEGPData := []StoreTxEGPData{{EGPLog: egpLog, EffectivePercentage: uint8(processedTx.EffectivePercentage)}}
+	txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
 		return nil, err
 	}
 

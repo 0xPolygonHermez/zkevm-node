@@ -12,7 +12,7 @@ Note that sequencing and proving functionalities are not covered in this documen
 - A machine to run the zkEVM node with the following requirements:
   - Hardware: 32G RAM, 4 cores, 128G Disk with high IOPS (as the network is super young the current disk requirements are quite low, but they will increase over time. Also note that this requirement is true if the DBs run on the same machine, but it's recommended to run Postgres on dedicated infra). Currently ARM-based CPUs are not supported
   - Software: Ubuntu 22.04, Docker
-- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
+- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Sepolia for Cardona zkEVM testnet, Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
 
@@ -37,7 +37,7 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 ### Explained step by step:
 
-1. Define network: `ZKEVM_NET=testnet` or `ZKEVM_NET=mainnet`
+1. Define network: `ZKEVM_NET=cardona` or `ZKEVM_NET=testnet` or `ZKEVM_NET=mainnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using
@@ -57,10 +57,13 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
    3. zkevm-state-db
    4. zkevm-pool-db
    5. zkevm-prover
+10. If everything has gone as expected you should be able to run queries to the JSON RPC at `http://localhost:8545`. For instance you can run the following query that fetches the latest synchronized L2 block, if you call this every few seconds, you should see the number increasing: 
 
-If everything has gone as expected you should be able to run queries to the JSON RPC at `http://localhost:8545`. For instance you can run the following query that fetches the latest synchronized L2 block, if you call this every few seconds, you should see the number increasing:
+`curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}' http://localhost:8545` 
 
-`curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}' http://localhost:8545`
+11. Restart zkevm-rpc when the permission less node is full synced for first time (you could use the next endpoint of the rpc to check if the node is synced: `eth_syncing`): 
+
+`docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml restart zkevm-rpc`
 
 ## Troubleshooting
 

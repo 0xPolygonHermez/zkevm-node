@@ -338,7 +338,7 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, e
 	wg.Wait()
 
 	if foundAt != -1 {
-		log.Debugf("best fitting tx found: tx %s at index %d with gasPrice %d", tx.HashStr, foundAt, tx.GasPrice)
+		log.Debugf("best fitting tx %s found at index %d with gasPrice %d", tx.HashStr, foundAt, tx.GasPrice)
 		return tx, nil
 	} else {
 		return nil, ErrNoFittingTransaction
@@ -365,7 +365,7 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 			delete(w.pool, addrQueue.fromStr)
 		}
 	}
-	log.Debug("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
+	log.Debugf("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
 
 	return txs
 }

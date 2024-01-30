@@ -27,6 +27,8 @@ var (
 	ErrExecutorError = errors.New("executor error")
 	// ErrNoFittingTransaction happens when there is not a tx (from the txSortedList) that fits in the remaining batch resources
 	ErrNoFittingTransaction = errors.New("no fit transaction")
+	// ErrBatchResourceUnderFlow happens when there is batch resoure underflow after sustract the resources from a tx
+	ErrBatchResourceUnderFlow = errors.New("batch resource underflow")
 	// ErrTransactionsListEmpty happens when txSortedList is empty
 	ErrTransactionsListEmpty = errors.New("transactions list empty")
 )

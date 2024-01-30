@@ -305,7 +305,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool, includeEx
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
+		rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -329,7 +329,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 				UncleHash:  ethTypes.EmptyUncleHash,
 			})
 			l2Block := state.NewL2BlockWithHeader(l2Header)
-			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false, includeExtraInfo)
+			rpcBlock, err := types.NewBlock(ctx, e.state, nil, l2Block, nil, fullTx, false, includeExtraInfo, dbTx)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -359,7 +359,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
+		rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -563,7 +563,16 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, ind
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+		var l2Hash *common.Hash
+		if includeExtraInfo != nil && *includeExtraInfo {
+			l2h, err := e.state.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+			}
+			l2Hash = &l2h
+		}
+
+		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -596,7 +605,16 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNu
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+		var l2Hash *common.Hash
+		if includeExtraInfo != nil && *includeExtraInfo {
+			l2h, err := e.state.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+			}
+			l2Hash = &l2h
+		}
+
+		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -621,7 +639,16 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
 			}
 
-			res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+			var l2Hash *common.Hash
+			if includeExtraInfo != nil && *includeExtraInfo {
+				l2h, err := e.state.GetL2TxHashByTxHash(ctx, hash.Hash(), dbTx)
+				if err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+				}
+				l2Hash = &l2h
+			}
+
+			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -641,7 +668,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 		}
 		if poolTx.Status == pool.TxStatusPending {
 			tx = &poolTx.Transaction
-			res, err := types.NewTransaction(*tx, nil, false, includeExtraInfo)
+			res, err := types.NewTransaction(*tx, nil, false, nil)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -812,7 +839,7 @@ func (e *EthEndpoints) GetTransactionReceipt(hash types.ArgHash) (interface{}, t
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r, state.Ptr(false))
+		receipt, err := types.NewReceipt(*tx, r, nil)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}
@@ -1092,7 +1119,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	defer wg.Done()
 	start := time.Now()
 
-	b, err := types.NewBlock(state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false))
+	b, err := types.NewBlock(context.Background(), e.state, state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false), nil)
 	if err != nil {
 		log.Errorf("failed to build block response to subscription: %v", err)
 		return

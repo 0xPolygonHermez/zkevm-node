@@ -2,7 +2,6 @@ package sequencesender
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -44,15 +43,4 @@ type Config struct {
 	GasOffset uint64 `mapstructure:"GasOffset"`
 	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
 	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
-
-	// StreamClientCfg is the config for the stream client
-	StreamClient StreamClientCfg `mapstructure:"StreamClient"`
-}
-
-// StreamClientCfg contains the data streamer's configuration properties
-type StreamClientCfg struct {
-	// Datastream server to connect
-	Server string `mapstructure:"Server"`
-	// Log is the log configuration
-	Log log.Config `mapstructure:"Log"`
 }

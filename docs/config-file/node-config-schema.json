@@ -805,6 +805,11 @@
 							"additionalProperties": false,
 							"type": "object",
 							"description": "Log is the log configuration"
+						},
+						"UpgradeEtrogBatchNumber": {
+							"type": "integer",
+							"description": "UpgradeEtrogBatchNumber is the batch number of the upgrade etrog",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
@@ -903,55 +908,6 @@
 					"type": "integer",
 					"description": "MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx",
 					"default": 300
-				},
-				"StreamClient": {
-					"properties": {
-						"Server": {
-							"type": "string",
-							"description": "Datastream server to connect",
-							"default": ""
-						},
-						"Log": {
-							"properties": {
-								"Environment": {
-									"type": "string",
-									"enum": [
-										"production",
-										"development"
-									],
-									"description": "Environment defining the log format (\"production\" or \"development\").\nIn development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.\nCheck [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)",
-									"default": ""
-								},
-								"Level": {
-									"type": "string",
-									"enum": [
-										"debug",
-										"info",
-										"warn",
-										"error",
-										"dpanic",
-										"panic",
-										"fatal"
-									],
-									"description": "Level of log. As lower value more logs are going to be generated",
-									"default": ""
-								},
-								"Outputs": {
-									"items": {
-										"type": "string"
-									},
-									"type": "array",
-									"description": "Outputs"
-								}
-							},
-							"additionalProperties": false,
-							"type": "object",
-							"description": "Log is the log configuration"
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "StreamClientCfg is the config for the stream client"
 				}
 			},
 			"additionalProperties": false,

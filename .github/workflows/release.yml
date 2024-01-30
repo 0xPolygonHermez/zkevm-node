@@ -1,0 +1,75 @@
+name: release
+
+on:
+  push:
+    tags:
+    - 'v[0-9]+.[0-9]+.[0-9]+' # this action will only run on tags that follow semver
+jobs:
+  releaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+
+      - name: Get packr
+        run: go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_RELEASE }}
+
+      - name: Get tag
+        uses: olegtarasov/get-tag@v2.1.2
+        id: tagName
+
+      - name: Put cardona, testnet and mainnet artifacts into a single zip
+        run: |
+          # CARDONA
+          mkdir -p cardona/config/environments/cardona
+          mkdir -p cardona/db/scripts
+          cp config/environments/cardona/* cardona/config/environments/cardona
+          cp docker-compose.yml cardona
+          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/cardona/g' cardona/docker-compose.yml
+          cp db/scripts/init_prover_db.sql cardona/db/scripts
+          mv cardona/config/environments/cardona/example.env cardona
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" cardona/docker-compose.yml
+          zip -r cardona.zip cardona
+          # TESTNET
+          mkdir -p testnet/config/environments/testnet
+          mkdir -p testnet/db/scripts
+          cp config/environments/testnet/* testnet/config/environments/testnet
+          cp docker-compose.yml testnet
+          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/testnet/g' testnet/docker-compose.yml
+          cp db/scripts/init_prover_db.sql testnet/db/scripts
+          mv testnet/config/environments/testnet/example.env testnet
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" testnet/docker-compose.yml
+          zip -r testnet.zip testnet
+          # MAINNET
+          mkdir -p mainnet/config/environments/mainnet
+          mkdir -p mainnet/db/scripts
+          cp config/environments/mainnet/* mainnet/config/environments/mainnet
+          cp docker-compose.yml mainnet
+          sed -i 's/\/config\/environments\/${ZKEVM_NETWORK}/\/config\/environments\/mainnet/g' mainnet/docker-compose.yml
+          cp db/scripts/init_prover_db.sql mainnet/db/scripts
+          mv mainnet/config/environments/mainnet/example.env mainnet
+          sed -i -e "s/image: zkevm-node/image: hermeznetwork\/zkevm-node:$GIT_TAG_NAME/g" mainnet/docker-compose.yml
+          zip -r mainnet.zip mainnet
+
+      - name: Publish cardona, testnet and mainnet  zip into release
+        uses: AButler/upload-release-assets@v2.0
+        with:
+          files: 'cardona.zip;testnet.zip;mainnet.zip'
+          repo-token: ${{ secrets.TOKEN_RELEASE }}
+          release-tag: ${{ steps.tagName.outputs.tag }}
+        
