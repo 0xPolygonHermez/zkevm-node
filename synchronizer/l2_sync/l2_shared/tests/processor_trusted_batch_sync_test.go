@@ -287,7 +287,7 @@ func TestGetNextStatusDiscardCache(t *testing.T) {
 	ProcessResponse.DiscardCache()
 	newStatus, err := testData.sut.GetNextStatus(l2_shared.TrustedState{}, &ProcessResponse, false, "test")
 	require.NoError(t, err)
-	require.Equal(t, (*l2_shared.TrustedState)(nil), newStatus)
+	require.True(t, newStatus.IsEmpty())
 }
 
 func TestGetNextStatusUpdateCurrentBatch(t *testing.T) {
