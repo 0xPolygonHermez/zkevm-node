@@ -74,6 +74,10 @@ func (s *TrustedBatchesRetrieve) CleanTrustedState() {
 	s.TrustedStateMngr.Clear()
 }
 
+func (s *TrustedBatchesRetrieve) GetCachedBatch(batchNumber uint64) *state.Batch {
+	return s.TrustedStateMngr.Cache.GetOrDefault(batchNumber, nil)
+}
+
 // SyncTrustedState sync trusted state from latestSyncedBatch to lastTrustedStateBatchNumber
 func (s *TrustedBatchesRetrieve) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error {
 	log.Info("syncTrustedState: Getting trusted state info")

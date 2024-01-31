@@ -3,6 +3,8 @@ package syncinterfaces
 import (
 	"context"
 	"errors"
+
+	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
 var (
@@ -21,4 +23,6 @@ type SyncTrustedStateExecutor interface {
 	SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error
 	// CleanTrustedState clean cache of Batches and StateRoot
 	CleanTrustedState()
+	// Returns the cached data for a batch
+	GetCachedBatch(batchNumber uint64) *state.Batch
 }

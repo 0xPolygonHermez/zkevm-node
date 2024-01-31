@@ -67,6 +67,17 @@ func NewSyncTrustedStateExecutor(zkEVMClient zkEVMClientInterface, state syncTru
 		TrustedState: TrustedState{},
 	}
 }
+func (s *SyncTrustedBatchesAction) GetCachedBatch(batchNumber uint64) *state.Batch {
+	if s.TrustedState.LastTrustedBatches == nil {
+		return nil
+	}
+	for _, batch := range s.TrustedState.LastTrustedBatches {
+		if batch.BatchNumber == batchNumber {
+			return batch
+		}
+	}
+	return nil
+}
 
 // SyncTrustedState synchronizes information from the trusted sequencer
 // related to the trusted state when the node has all the information from
