@@ -187,7 +187,8 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	log.Info("Genesis root ", rootHex)
 
 	receipts := []*types.Receipt{}
-	l2Block := NewL2Block(header, []*types.Transaction{}, []*L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := NewL2Block(header, []*types.Transaction{}, []*L2Header{}, receipts, st)
 	l2Block.ReceivedAt = block.ReceivedAt
 
 	// Sanity check
