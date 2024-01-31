@@ -203,11 +203,16 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	log.Debugf("storing l2 block %d, txs %d, hash %s", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
+	prevL2BlockHash, err := s.GetL2BlockHashByNumber(ctx, l2Block.BlockNumber-1, dbTx)
+	if err != nil {
+		return err
+	}
+
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
-		ParentHash: l2Block.ParentHash,
+		ParentHash: prevL2BlockHash,
 		Coinbase:   l2Block.Coinbase,
-		Root:       l2Block.BlockHash, //BlockHash is the StateRoot in Etrog
+		Root:       l2Block.BlockHash, //BlockHash returned by the executor is the StateRoot in Etrog
 		GasUsed:    l2Block.GasUsed,
 		GasLimit:   s.cfg.MaxCumulativeGasUsed,
 		Time:       l2Block.Timestamp,
