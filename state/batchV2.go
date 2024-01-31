@@ -378,7 +378,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 	processed, err := s.processBatchV2(ctx, &processingCtx, caller, dbTx)
-	if err != nil && processed.ErrorRom == executor.RomError_ROM_ERROR_NO_ERROR{
+	if err != nil && processed.ErrorRom == executor.RomError_ROM_ERROR_NO_ERROR {
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
 	}
