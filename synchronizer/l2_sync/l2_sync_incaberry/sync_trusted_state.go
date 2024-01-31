@@ -67,6 +67,8 @@ func NewSyncTrustedStateExecutor(zkEVMClient zkEVMClientInterface, state syncTru
 		TrustedState: TrustedState{},
 	}
 }
+
+// GetCachedBatch implements syncinterfaces.SyncTrustedStateExecutor. Returns a cached batch
 func (s *SyncTrustedBatchesAction) GetCachedBatch(batchNumber uint64) *state.Batch {
 	if s.TrustedState.LastTrustedBatches == nil {
 		return nil

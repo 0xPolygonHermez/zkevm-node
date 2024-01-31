@@ -74,6 +74,7 @@ func (s *TrustedBatchesRetrieve) CleanTrustedState() {
 	s.TrustedStateMngr.Clear()
 }
 
+// GetCachedBatch implements syncinterfaces.SyncTrustedStateExecutor. Returns a cached batch
 func (s *TrustedBatchesRetrieve) GetCachedBatch(batchNumber uint64) *state.Batch {
 	return s.TrustedStateMngr.Cache.GetOrDefault(batchNumber, nil)
 }

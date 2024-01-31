@@ -65,6 +65,8 @@ func (s *SyncTrustedStateExecutorSelector) CleanTrustedState() {
 		s.executorEtrog.CleanTrustedState()
 	}
 }
+
+// GetCachedBatch implements syncinterfaces.SyncTrustedStateExecutor. Returns a cached batch
 func (s *SyncTrustedStateExecutorSelector) GetCachedBatch(batchNumber uint64) *state.Batch {
 	executor, _ := s.GetExecutor(batchNumber, 0)
 	return executor.GetCachedBatch(min(batchNumber))
