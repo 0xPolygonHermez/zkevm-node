@@ -392,7 +392,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
 	}
 
-	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError && processedBatch.RomError_V2 != nil {
+	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError && processedBatch.RomError_V2 == nil {
 		for _, blockResponse := range processedBatch.BlockResponses {
 			err = s.StoreL2Block(ctx, processingCtx.BatchNumber, blockResponse, nil, dbTx)
 			if err != nil {
