@@ -193,14 +193,10 @@ func (s *ProcessorTrustedBatchSync) GetNextStatus(status TrustedState, processBa
 			log.Warnf("%s error checking sanity of processBatchResp. Error: ", debugPrefix, err)
 		}
 	}
-	if processBatchResp != nil && !processBatchResp.ClearCache {
-		newStatus := updateStatus(status, processBatchResp, closedBatch)
-		log.Debugf("%s Batch synchronized, updated cache for next run", debugPrefix)
-		return &newStatus, nil
-	} else {
-		log.Debugf("%s Batch synchronized -> clear cache", debugPrefix)
-		return nil, nil
-	}
+
+	newStatus := updateStatus(status, processBatchResp, closedBatch)
+	log.Debugf("%s Batch synchronized, updated cache for next run", debugPrefix)
+	return &newStatus, nil
 }
 
 // ExecuteProcessBatch execute the batch and process it
@@ -239,6 +235,10 @@ func updateStatus(status TrustedState, response *ProcessResponse, closedBatch bo
 	if response == nil || response.ClearCache {
 		return res
 	}
+
+	res.LastTrustedBatches[0] = status.GetCurrentBatch()
+	res.LastTrustedBatches[1] = status.GetPreviousBatch()
+
 	if response.UpdateBatch != nil {
 		res.LastTrustedBatches[0] = response.UpdateBatch
 	}
