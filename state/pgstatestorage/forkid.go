@@ -148,3 +148,13 @@ func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	// If not found return the last fork id
 	return p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1].ForkId
 }
+
+// GetForkIDInMemory get the forkIDs stored in cache, or nil if not found
+func (p *PostgresStorage) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
+	for _, interval := range p.cfg.ForkIDIntervals {
+		if interval.ForkId == forkId {
+			return &interval
+		}
+	}
+	return nil
+}
