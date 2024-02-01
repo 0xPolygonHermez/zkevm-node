@@ -100,7 +100,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
 		log.Info("wait virtual state to be synced...")
-		time.Sleep(5 * time.Second)
+		time.Sleep(5 * time.Second) // nolint:gomnd
 		return
 	}
 
