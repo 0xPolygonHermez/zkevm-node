@@ -2320,6 +2320,64 @@ func (_c *StorageMock_GetExitRootByGlobalExitRoot_Call) RunAndReturn(run func(co
 	return _c
 }
 
+// GetFirstL2BlockNumberForBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StorageMock) GetFirstL2BlockNumberForBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFirstL2BlockNumberForBatchNumber")
+	}
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (uint64, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetFirstL2BlockNumberForBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFirstL2BlockNumberForBatchNumber'
+type StorageMock_GetFirstL2BlockNumberForBatchNumber_Call struct {
+	*mock.Call
+}
+
+// GetFirstL2BlockNumberForBatchNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetFirstL2BlockNumberForBatchNumber(ctx interface{}, batchNumber interface{}, dbTx interface{}) *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call {
+	return &StorageMock_GetFirstL2BlockNumberForBatchNumber_Call{Call: _e.mock.On("GetFirstL2BlockNumberForBatchNumber", ctx, batchNumber, dbTx)}
+}
+
+func (_c *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call) Return(_a0 uint64, _a1 error) *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (uint64, error)) *StorageMock_GetFirstL2BlockNumberForBatchNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetForcedBatch provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
 func (_m *StorageMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*state.ForcedBatch, error) {
 	ret := _m.Called(ctx, forcedBatchNumber, dbTx)
@@ -5699,23 +5757,23 @@ func (_c *StorageMock_GetStateRootByBatchNumber_Call) RunAndReturn(run func(cont
 	return _c
 }
 
-// GetSyncingInfo provides a mock function with given fields: ctx, dbTx
-func (_m *StorageMock) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.SyncingInfo, error) {
+// GetSyncInfoData provides a mock function with given fields: ctx, dbTx
+func (_m *StorageMock) GetSyncInfoData(ctx context.Context, dbTx pgx.Tx) (state.SyncInfoDataOnStorage, error) {
 	ret := _m.Called(ctx, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetSyncingInfo")
+		panic("no return value specified for GetSyncInfoData")
 	}
 
-	var r0 state.SyncingInfo
+	var r0 state.SyncInfoDataOnStorage
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (state.SyncingInfo, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (state.SyncInfoDataOnStorage, error)); ok {
 		return rf(ctx, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) state.SyncingInfo); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) state.SyncInfoDataOnStorage); ok {
 		r0 = rf(ctx, dbTx)
 	} else {
-		r0 = ret.Get(0).(state.SyncingInfo)
+		r0 = ret.Get(0).(state.SyncInfoDataOnStorage)
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
@@ -5727,31 +5785,31 @@ func (_m *StorageMock) GetSyncingInfo(ctx context.Context, dbTx pgx.Tx) (state.S
 	return r0, r1
 }
 
-// StorageMock_GetSyncingInfo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSyncingInfo'
-type StorageMock_GetSyncingInfo_Call struct {
+// StorageMock_GetSyncInfoData_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSyncInfoData'
+type StorageMock_GetSyncInfoData_Call struct {
 	*mock.Call
 }
 
-// GetSyncingInfo is a helper method to define mock.On call
+// GetSyncInfoData is a helper method to define mock.On call
 //   - ctx context.Context
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) GetSyncingInfo(ctx interface{}, dbTx interface{}) *StorageMock_GetSyncingInfo_Call {
-	return &StorageMock_GetSyncingInfo_Call{Call: _e.mock.On("GetSyncingInfo", ctx, dbTx)}
+func (_e *StorageMock_Expecter) GetSyncInfoData(ctx interface{}, dbTx interface{}) *StorageMock_GetSyncInfoData_Call {
+	return &StorageMock_GetSyncInfoData_Call{Call: _e.mock.On("GetSyncInfoData", ctx, dbTx)}
 }
 
-func (_c *StorageMock_GetSyncingInfo_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetSyncingInfo_Call {
+func (_c *StorageMock_GetSyncInfoData_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetSyncInfoData_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(context.Context), args[1].(pgx.Tx))
 	})
 	return _c
 }
 
-func (_c *StorageMock_GetSyncingInfo_Call) Return(_a0 state.SyncingInfo, _a1 error) *StorageMock_GetSyncingInfo_Call {
+func (_c *StorageMock_GetSyncInfoData_Call) Return(_a0 state.SyncInfoDataOnStorage, _a1 error) *StorageMock_GetSyncInfoData_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *StorageMock_GetSyncingInfo_Call) RunAndReturn(run func(context.Context, pgx.Tx) (state.SyncingInfo, error)) *StorageMock_GetSyncingInfo_Call {
+func (_c *StorageMock_GetSyncInfoData_Call) RunAndReturn(run func(context.Context, pgx.Tx) (state.SyncInfoDataOnStorage, error)) *StorageMock_GetSyncInfoData_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -2083,7 +2083,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 3, LastBlockNumberConsolidated: 3}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: true}, nil).
 					Once()
 			},
 		},
@@ -2109,7 +2109,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
@@ -2135,7 +2135,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
