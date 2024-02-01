@@ -216,6 +216,49 @@ func (m *Manager) SetForkID(blockNum uint64, forkID uint64) error {
 	return err
 }
 
+// AddInitialBatch sets the initial forkID in db for testing purposes
+func (m *Manager) AddInitialBatch(blockNum uint64) error {
+	dbTx, err := m.st.BeginStateTransaction(m.ctx)
+	if err != nil {
+		return err
+	}
+
+	b := state.ProcessingContext {
+		BatchNumber: 1,
+		Timestamp: time.Now(),
+	}
+	err = m.st.OpenBatch(m.ctx, b, dbTx)
+	if err != nil {
+		log.Error("Opening batch. Error: ", err)
+		return err
+	}
+	r := state.ProcessingReceipt {
+		BatchNumber: 1,
+	}
+	err = m.st.CloseBatch(m.ctx, r, dbTx)
+	if err != nil {
+		log.Error("Closing batch. Error: ", err)
+		return err
+	}
+	vb := state.VirtualBatch {
+		BatchNumber: 1,
+		BlockNumber: blockNum,
+	}
+	err = m.st.AddVirtualBatch(m.ctx, &vb, dbTx)
+	if err != nil {
+		log.Error("Virtualizing batch. Error: ", err)
+		return err
+	}
+
+
+	errCommit := dbTx.Commit(m.ctx)
+	if errCommit != nil {
+		return errCommit
+	}
+
+	return err
+}
+
 // ApplyL1Txs sends the given L1 txs, waits for them to be consolidated and
 // checks the final state.
 func ApplyL1Txs(ctx context.Context, txs []*types.Transaction, auth *bind.TransactOpts, client *ethclient.Client) error {
