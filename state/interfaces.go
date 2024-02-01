@@ -60,6 +60,7 @@ type storage interface {
 	GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	BatchNumberByL2BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error)
 	GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*L2Block, error)
+	GetL2BlockHashByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (common.Hash, error)
 	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]L2Block, error)
 	GetLastL2BlockCreatedAt(ctx context.Context, dbTx pgx.Tx) (*time.Time, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
@@ -151,4 +152,5 @@ type storage interface {
 	GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error)
 	GetSyncInfoData(ctx context.Context, dbTx pgx.Tx) (SyncInfoDataOnStorage, error)
 	GetFirstL2BlockNumberForBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (uint64, error)
+	GetForkIDInMemory(forkId uint64) *ForkIDInterval
 }

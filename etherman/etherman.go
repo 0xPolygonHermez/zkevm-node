@@ -246,8 +246,8 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Get RollupID
 	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
-		log.Errorf("error rollupManager.cRollupAddressToID(%s). Error: %w", l1Config.RollupManagerAddr, err)
-		return nil, err
+		log.Debugf("error rollupManager.RollupAddressToID(%s). Error: %w", l1Config.RollupManagerAddr, err)
+		// TODO return error after the upgrade
 	}
 	log.Debug("rollupID: ", rollupID)
 
@@ -667,6 +667,14 @@ func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, b
 	if etherMan.RollupID != addExistingRollup.RollupID {
 		return nil
 	}
+	// TODO Delete after upgrade Get RollupID
+	rollupID, err := etherMan.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, etherMan.SCAddresses[0])
+	if err != nil {
+		log.Error("error getting rollupID. Error: ", err)
+		return err
+	}
+	log.Debug("rollupID: ", rollupID)
+
 	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "")
 }
 
@@ -1553,11 +1561,27 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
+	var latestBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		return 0, err
+		log.Debug("error getting latestBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		latestBatchNum, err = etherMan.OldZkEVM.LastBatchSequenced(&bind.CallOpts{Pending: false})
+		if err != nil {
+			return latestBatchNum, err
+		}
+	} else {
+		latestBatchNum = rollupData.LastBatchSequenced
 	}
-	return rollupData.LastBatchSequenced, nil
+	return latestBatchNum, nil
+}
+
+// GetLatestBlockHeader gets the latest block header from the ethereum
+func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
+	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
+	if err != nil || header == nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // GetLatestBlockNumber gets the latest block number from the ethereum
@@ -1595,11 +1619,18 @@ func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, er
 
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
+	var lastVerifiedBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		return 0, err
+		log.Debug("error getting lastVerifiedBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		lastVerifiedBatchNum, err = etherMan.OldZkEVM.LastVerifiedBatch(&bind.CallOpts{Pending: false})
+		if err != nil {
+			return lastVerifiedBatchNum, err
+		}
+	} else {
+		lastVerifiedBatchNum = rollupData.LastVerifiedBatch
 	}
-	return rollupData.LastVerifiedBatch, nil
+	return lastVerifiedBatchNum, nil
 }
 
 // GetTx function get ethereum tx

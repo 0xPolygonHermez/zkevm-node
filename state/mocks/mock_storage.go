@@ -2651,6 +2651,54 @@ func (_c *StorageMock_GetForkIDByBlockNumber_Call) RunAndReturn(run func(uint64)
 	return _c
 }
 
+// GetForkIDInMemory provides a mock function with given fields: forkId
+func (_m *StorageMock) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
+	ret := _m.Called(forkId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForkIDInMemory")
+	}
+
+	var r0 *state.ForkIDInterval
+	if rf, ok := ret.Get(0).(func(uint64) *state.ForkIDInterval); ok {
+		r0 = rf(forkId)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ForkIDInterval)
+		}
+	}
+
+	return r0
+}
+
+// StorageMock_GetForkIDInMemory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForkIDInMemory'
+type StorageMock_GetForkIDInMemory_Call struct {
+	*mock.Call
+}
+
+// GetForkIDInMemory is a helper method to define mock.On call
+//   - forkId uint64
+func (_e *StorageMock_Expecter) GetForkIDInMemory(forkId interface{}) *StorageMock_GetForkIDInMemory_Call {
+	return &StorageMock_GetForkIDInMemory_Call{Call: _e.mock.On("GetForkIDInMemory", forkId)}
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) Run(run func(forkId uint64)) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint64))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) Return(_a0 *state.ForkIDInterval) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StorageMock_GetForkIDInMemory_Call) RunAndReturn(run func(uint64) *state.ForkIDInterval) *StorageMock_GetForkIDInMemory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetForkIDs provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -2942,6 +2990,66 @@ func (_c *StorageMock_GetL2BlockByNumber_Call) Return(_a0 *state.L2Block, _a1 er
 }
 
 func (_c *StorageMock_GetL2BlockByNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (*state.L2Block, error)) *StorageMock_GetL2BlockByNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetL2BlockHashByNumber provides a mock function with given fields: ctx, blockNumber, dbTx
+func (_m *StorageMock) GetL2BlockHashByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, blockNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2BlockHashByNumber")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, blockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, blockNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetL2BlockHashByNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL2BlockHashByNumber'
+type StorageMock_GetL2BlockHashByNumber_Call struct {
+	*mock.Call
+}
+
+// GetL2BlockHashByNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - blockNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetL2BlockHashByNumber(ctx interface{}, blockNumber interface{}, dbTx interface{}) *StorageMock_GetL2BlockHashByNumber_Call {
+	return &StorageMock_GetL2BlockHashByNumber_Call{Call: _e.mock.On("GetL2BlockHashByNumber", ctx, blockNumber, dbTx)}
+}
+
+func (_c *StorageMock_GetL2BlockHashByNumber_Call) Run(run func(ctx context.Context, blockNumber uint64, dbTx pgx.Tx)) *StorageMock_GetL2BlockHashByNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetL2BlockHashByNumber_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetL2BlockHashByNumber_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetL2BlockHashByNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (common.Hash, error)) *StorageMock_GetL2BlockHashByNumber_Call {
 	_c.Call.Return(run)
 	return _c
 }

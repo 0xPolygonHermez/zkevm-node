@@ -424,6 +424,27 @@ func (p *PostgresStorage) GetL2BlockHeaderByNumber(ctx context.Context, blockNum
 	return header, nil
 }
 
+// GetL2BlockHashByNumber gets the block hash by block number
+func (p *PostgresStorage) GetL2BlockHashByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	const getL2BlockHeaderByNumberSQL = "SELECT block_hash FROM state.l2block b WHERE b.block_num = $1"
+
+	blockHash := state.ZeroHash
+
+	var blockHashStr string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getL2BlockHeaderByNumberSQL, blockNumber).Scan(&blockHashStr)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return blockHash, state.ErrNotFound
+	} else if err != nil {
+		return blockHash, err
+	}
+
+	blockHash = common.HexToHash(blockHashStr)
+
+	return blockHash, nil
+}
+
 // GetL2BlockHashesSince gets the block hashes added since the provided date
 func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error) {
 	const getL2BlockHashesSinceSQL = "SELECT block_hash FROM state.l2block WHERE created_at >= $1"
