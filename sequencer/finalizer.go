@@ -282,7 +282,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			log.Debugf("processing tx %s", tx.HashStr)
 			showNotFoundTxLog = true
 
 			firstTxProcess := true

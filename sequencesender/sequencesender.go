@@ -51,9 +51,8 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	for {
-		s.tryToSendSequence(ctx, ticker)
+		s.tryToSendSequence(ctx)
 	}
 }
 
@@ -83,7 +82,7 @@ func (s *SequenceSender) marginTimeElapsed(ctx context.Context, l2BlockTimestamp
 	}
 }
 
-func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -100,8 +99,8 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	// Check if synchronizer is up to date
 	if !s.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		waitTick(ctx, ticker)
+		log.Info("wait virtual state to be synced...")
+		time.Sleep(5 * time.Second)
 		return
 	}
 
@@ -114,7 +113,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		} else {
 			log.Info("waiting for sequences to be worth sending to L1")
 		}
-		waitTick(ctx, ticker)
+		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 		return
 	}
 
@@ -258,14 +257,11 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		}
 
 		seq := types.Sequence{
-			GlobalExitRoot: batch.GlobalExitRoot,   //TODO: set empty for regular batches
-			Timestamp:      batch.Timestamp.Unix(), //TODO: set empty for regular batches
-			BatchL2Data:    batch.BatchL2Data,
-			BatchNumber:    batch.BatchNumber,
+			BatchL2Data: batch.BatchL2Data,
+			BatchNumber: batch.BatchNumber,
 		}
 
 		if batch.ForcedBatchNum != nil {
-			//TODO: Assign GER, timestamp(forcedAt) and l1block.parentHash to seq
 			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
@@ -407,38 +403,38 @@ func isDataForEthTxTooBig(err error) bool {
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 
-func waitTick(ctx context.Context, ticker *time.Ticker) {
-	select {
-	case <-ticker.C:
-		// nothing
-	case <-ctx.Done():
-		return
-	}
-}
-
 func (s *SequenceSender) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last isSynced batch, err: %v", err)
-		return false
-	}
-	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last batch num, err: %v", err)
-		return false
-	}
-	if lastBatchNum > lastSyncedBatchNum {
-		return true
-	}
-	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
-	if err != nil {
-		log.Errorf("failed to get last eth batch, err: %v", err)
-		return false
-	}
-	if lastSyncedBatchNum < lastEthBatchNum {
-		log.Infof("waiting for the state to be isSynced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
+		log.Warnf("failed to get last virtual batch number, err: %v", err)
 		return false
 	}
 
-	return true
+	lastTrustedBatchClosed, err := s.state.GetLastClosedBatch(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last trusted batch closed, err: %v", err)
+		return false
+	}
+
+	lastSCBatchNum, err := s.etherman.GetLatestBatchNumber()
+	if err != nil {
+		log.Warnf("failed to get from the SC last sequenced batch number, err: %v", err)
+		return false
+	}
+
+	if lastVirtualBatchNum < lastSCBatchNum {
+		log.Infof("waiting for the state to be synced, lastVirtualBatchNum: %d, lastSCBatchNum: %d", lastVirtualBatchNum, lastSCBatchNum)
+		return false
+	} else if lastVirtualBatchNum > lastSCBatchNum { // Sanity check: virtual batch number cannot be greater than last batch sequenced in the SC
+		log.Errorf("last virtual batch %d is greater than last SC sequenced batch %d", lastVirtualBatchNum, lastSCBatchNum)
+		return false
+	}
+
+	// At this point lastVirtualBatchNum = lastEthBatchNum. Check trusted batches
+	if lastTrustedBatchClosed.BatchNumber >= lastVirtualBatchNum {
+		return true
+	} else { // Sanity check: virtual batch number cannot be greater than last trusted batch closed
+		log.Errorf("last virtual batch %d is greater than last trusted batch %d", lastVirtualBatchNum, lastSCBatchNum)
+		return false
+	}
 }
