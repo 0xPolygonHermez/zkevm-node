@@ -26,3 +26,4 @@ gen mockpolygonrollupmanager
 gen mockverifier
 gen polygondatacommittee
 genNoBin dataavailabilityprotocol
+gen proxy

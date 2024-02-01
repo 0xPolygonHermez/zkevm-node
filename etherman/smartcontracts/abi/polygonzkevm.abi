@@ -72,7 +72,7 @@
     },
     {
         "inputs": [],
-        "name": "ForceBatchesDescentralized",
+        "name": "ForceBatchesDecentralized",
         "type": "error"
     },
     {
@@ -710,7 +710,7 @@
         "name": "dataAvailabilityProtocol",
         "outputs": [
             {
-                "internalType": "contract IPolygonDataAvailabilityProtocol",
+                "internalType": "contract IDataAvailabilityProtocol",
                 "name": "",
                 "type": "address"
             }
@@ -776,19 +776,6 @@
                 "internalType": "bytes32",
                 "name": "",
                 "type": "bytes32"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "gapLastTimestamp",
-        "outputs": [
-            {
-                "internalType": "uint64",
-                "name": "",
-                "type": "uint64"
             }
         ],
         "stateMutability": "view",
@@ -1155,7 +1142,7 @@
     {
         "inputs": [
             {
-                "internalType": "contract IPolygonDataAvailabilityProtocol",
+                "internalType": "contract IDataAvailabilityProtocol",
                 "name": "newDataAvailabilityProtocol",
                 "type": "address"
             }
@@ -1218,7 +1205,13 @@
         "type": "function"
     },
     {
-        "inputs": [],
+        "inputs": [
+            {
+                "internalType": "bool",
+                "name": "newIsSequenceWithDataAvailabilityAllowed",
+                "type": "bool"
+            }
+        ],
         "name": "switchSequenceWithDataAvailability",
         "outputs": [],
         "stateMutability": "nonpayable",

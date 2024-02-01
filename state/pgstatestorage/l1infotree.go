@@ -91,7 +91,7 @@ func (p *PostgresStorage) GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1I
 	e := p.getExecQuerier(dbTx)
 	err := e.QueryRow(ctx, getL1InfoRootSQL, l1InfoRoot).Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
 		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
-	if err != nil {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return entry, err
 	}
 	return entry, nil
@@ -106,7 +106,7 @@ func (p *PostgresStorage) GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTr
 	e := p.getExecQuerier(dbTx)
 	err := e.QueryRow(ctx, getL1InfoRootByIndexSQL, l1InfoTreeIndex).Scan(&entry.BlockNumber, &entry.Timestamp, &entry.MainnetExitRoot, &entry.RollupExitRoot, &entry.GlobalExitRoot.GlobalExitRoot,
 		&entry.PreviousBlockHash, &entry.L1InfoTreeRoot, &entry.L1InfoTreeIndex)
-	if err != nil {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return entry, err
 	}
 	return entry, nil

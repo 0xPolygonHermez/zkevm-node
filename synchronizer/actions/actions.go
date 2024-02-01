@@ -8,17 +8,17 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var (
+	// ErrInvalidParams is used when the object is not found
+	ErrInvalidParams = errors.New("invalid params")
+)
+
 // ForkIdType is the type of the forkId
 type ForkIdType uint64
 
 const (
 	// WildcardForkId It match for all forkIds
 	WildcardForkId ForkIdType = 0
-)
-
-var (
-	// ErrInvalidParams is used when the object is not found
-	ErrInvalidParams = errors.New("invalid params")
 )
 
 // L1EventProcessor is the interface for a processor of L1 events

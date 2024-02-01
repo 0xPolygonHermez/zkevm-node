@@ -32,7 +32,8 @@ type L1SyncMessage struct {
 }
 
 type l1ConsumerControl struct {
-	event eventEnum
+	event     eventEnum
+	parameter uint64
 }
 
 type eventEnum int8
@@ -49,6 +50,16 @@ func newL1SyncMessageControl(event eventEnum) *L1SyncMessage {
 		ctrlIsValid: true,
 		ctrl: l1ConsumerControl{
 			event: event,
+		},
+	}
+}
+func newL1SyncMessageControlWProducerIsFullySynced(lastBlock uint64) *L1SyncMessage {
+	return &L1SyncMessage{
+		dataIsValid: false,
+		ctrlIsValid: true,
+		ctrl: l1ConsumerControl{
+			event:     eventProducerIsFullySynced,
+			parameter: lastBlock,
 		},
 	}
 }
@@ -78,7 +89,7 @@ func (a eventEnum) String() string {
 }
 
 func (l *l1ConsumerControl) String() string {
-	return fmt.Sprintf("action:%s", l.event.String())
+	return fmt.Sprintf("action:%s param:%v", l.event.String(), l.parameter)
 }
 
 func (l *L1SyncMessage) toStringBrief() string {

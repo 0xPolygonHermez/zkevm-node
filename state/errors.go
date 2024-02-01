@@ -55,8 +55,6 @@ var (
 	ErrUnsupportedDuration = errors.New("unsupported time duration")
 	// ErrInvalidData is the error when the raw txs is unexpected
 	ErrInvalidData = errors.New("invalid data")
-	// ErrBatchResourceBytesUnderflow happens when the batch runs out of Bytes
-	ErrBatchResourceBytesUnderflow = NewBatchRemainingResourcesUnderflowError(nil, "Bytes")
 	// ErrInvalidBlockRange returned when the selected block range is invalid, generally
 	// because the toBlock is bigger than the fromBlock
 	ErrInvalidBlockRange = errors.New("invalid block range")
@@ -69,8 +67,6 @@ var (
 	// ErrMaxNativeBlockHashBlockRangeLimitExceeded returned when the range between block number range
 	// to filter native block hashes is bigger than the configured limit
 	ErrMaxNativeBlockHashBlockRangeLimitExceeded = errors.New("native block hashes are limited to a %v block range")
-
-	zkCounterErrPrefix = "ZKCounter: "
 )
 
 func constructErrorFromRevert(err error, returnValue []byte) error {
@@ -80,11 +76,6 @@ func constructErrorFromRevert(err error, returnValue []byte) error {
 	}
 
 	return fmt.Errorf("%w: %s", err, revertErrMsg)
-}
-
-// GetZKCounterError returns the error associated with the zkCounter
-func GetZKCounterError(name string) error {
-	return errors.New(zkCounterErrPrefix + name)
 }
 
 // BatchRemainingResourcesUnderflowError happens when the execution of a batch runs out of counters
@@ -98,16 +89,6 @@ type BatchRemainingResourcesUnderflowError struct {
 // Error returns the error message
 func (b BatchRemainingResourcesUnderflowError) Error() string {
 	return constructErrorMsg(b.ResourceName)
-}
-
-// NewBatchRemainingResourcesUnderflowError creates a new BatchRemainingResourcesUnderflowError
-func NewBatchRemainingResourcesUnderflowError(err error, resourceName string) error {
-	return &BatchRemainingResourcesUnderflowError{
-		Message:      constructErrorMsg(resourceName),
-		Code:         1,
-		Err:          err,
-		ResourceName: resourceName,
-	}
 }
 
 func constructErrorMsg(resourceName string) string {

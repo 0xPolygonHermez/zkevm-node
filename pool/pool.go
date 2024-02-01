@@ -83,7 +83,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
-		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice),
 	}
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
@@ -681,6 +681,21 @@ const (
 	txGas                 uint64 = 21000
 	txDataZeroGas         uint64 = 4
 )
+
+// CalculateEffectiveGasPrice calculates the final effective gas price for a tx
+func (p *Pool) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+}
+
+// CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
+func (p *Pool) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, effectiveGasPrice *big.Int) (uint8, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPricePercentage(gasPrice, effectiveGasPrice)
+}
+
+// EffectiveGasPriceEnabled returns if effective gas price calculation is enabled or not
+func (p *Pool) EffectiveGasPriceEnabled() bool {
+	return p.effectiveGasPrice.IsEnabled()
+}
 
 // IntrinsicGas computes the 'intrinsic gas' for a given transaction.
 func IntrinsicGas(tx types.Transaction) (uint64, error) {

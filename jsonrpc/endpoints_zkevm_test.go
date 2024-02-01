@@ -967,7 +967,7 @@ func TestGetBatchByNumber(t *testing.T) {
 					from, _ := state.GetSender(*tx)
 					V, R, S := tx.RawSignatureValues()
 
-					rpcReceipt, err := types.NewReceipt(*tx, receipt)
+					rpcReceipt, err := types.NewReceipt(*tx, receipt, state.Ptr(true))
 					require.NoError(t, err)
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
@@ -1458,8 +1458,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 		MixHash:         l2Block.MixDigest(),
 		Nonce:           rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
-		GlobalExitRoot:  l2Block.GlobalExitRoot(),
-		BlockInfoRoot:   l2Block.BlockInfoRoot(),
+		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
+		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
 		Uncles:          rpcUncles,
 		Transactions:    rpcTransactions,
 	}
@@ -1617,6 +1617,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				tc.ExpectedResult.Sha3Uncles = ethTypes.EmptyUncleHash
 				tc.ExpectedResult.Size = 501
 				tc.ExpectedResult.ExtraData = []byte{}
+				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
+				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
 				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
 				tc.ExpectedResult.Nonce = rpcBlockNonce
 
@@ -1930,7 +1932,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 		TxIndex:     state.Ptr(types.ArgUint64(0)),
 		ChainID:     types.ArgBig(*chainID),
 		Type:        0,
-		L2Hash:      l2Hash,
+		L2Hash:      state.Ptr(l2Hash),
 	}
 
 	testCases := []testCase{
@@ -2202,7 +2204,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 	l2Hash, err := state.GetL2Hash(*signedTx)
 	require.NoError(t, err)
 
-	log := &ethTypes.Log{}
+	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
 	logs := []*ethTypes.Log{log}
 
 	stateRoot := common.HexToHash("0x112233")
@@ -2233,7 +2235,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 		Logs:              receipt.Logs,
 		Status:            types.ArgUint64(receipt.Status),
 		TxHash:            receipt.TxHash,
-		TxL2Hash:          l2Hash,
+		TxL2Hash:          &l2Hash,
 		TxIndex:           types.ArgUint64(receipt.TransactionIndex),
 		BlockHash:         receipt.BlockHash,
 		BlockNumber:       types.ArgUint64(receipt.BlockNumber.Uint64()),
@@ -2412,9 +2414,37 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				require.NotNil(t, res.Result)
 				require.Nil(t, res.Error)
 
-				var result types.Transaction
+				var result types.Receipt
 				err = json.Unmarshal(res.Result, &result)
 				require.NoError(t, err)
+
+				assert.Equal(t, rpcReceipt.Root.String(), result.Root.String())
+				assert.Equal(t, rpcReceipt.CumulativeGasUsed, result.CumulativeGasUsed)
+				assert.Equal(t, rpcReceipt.LogsBloom, result.LogsBloom)
+				assert.Equal(t, len(rpcReceipt.Logs), len(result.Logs))
+				for i := 0; i < len(rpcReceipt.Logs); i++ {
+					assert.Equal(t, rpcReceipt.Logs[i].Address, result.Logs[i].Address)
+					assert.Equal(t, rpcReceipt.Logs[i].Topics, result.Logs[i].Topics)
+					assert.Equal(t, rpcReceipt.Logs[i].Data, result.Logs[i].Data)
+					assert.Equal(t, rpcReceipt.Logs[i].BlockNumber, result.Logs[i].BlockNumber)
+					assert.Equal(t, rpcReceipt.Logs[i].TxHash, result.Logs[i].TxHash)
+					assert.Equal(t, rpcReceipt.Logs[i].TxIndex, result.Logs[i].TxIndex)
+					assert.Equal(t, rpcReceipt.Logs[i].BlockHash, result.Logs[i].BlockHash)
+					assert.Equal(t, rpcReceipt.Logs[i].Index, result.Logs[i].Index)
+					assert.Equal(t, rpcReceipt.Logs[i].Removed, result.Logs[i].Removed)
+				}
+				assert.Equal(t, rpcReceipt.Status, result.Status)
+				assert.Equal(t, rpcReceipt.TxHash, result.TxHash)
+				assert.Equal(t, rpcReceipt.TxL2Hash, result.TxL2Hash)
+				assert.Equal(t, rpcReceipt.TxIndex, result.TxIndex)
+				assert.Equal(t, rpcReceipt.BlockHash, result.BlockHash)
+				assert.Equal(t, rpcReceipt.BlockNumber, result.BlockNumber)
+				assert.Equal(t, rpcReceipt.GasUsed, result.GasUsed)
+				assert.Equal(t, rpcReceipt.FromAddr, result.FromAddr)
+				assert.Equal(t, rpcReceipt.ToAddr, result.ToAddr)
+				assert.Equal(t, rpcReceipt.ContractAddress, result.ContractAddress)
+				assert.Equal(t, rpcReceipt.Type, result.Type)
+				assert.Equal(t, rpcReceipt.EffectiveGasPrice, result.EffectiveGasPrice)
 			}
 
 			if res.Error != nil || tc.ExpectedError != nil {
@@ -2531,14 +2561,14 @@ func TestGetExitRootsByGER(t *testing.T) {
 	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
-	c := client.NewClient(s.ServerURL)
+	zkEVMClient := client.NewClient(s.ServerURL)
 
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			tc := testCase
 			testCase.SetupMocks(s, m, &tc)
 
-			exitRoots, err := c.ExitRootsByGER(context.Background(), tc.GER)
+			exitRoots, err := zkEVMClient.ExitRootsByGER(context.Background(), tc.GER)
 			require.NoError(t, err)
 
 			if exitRoots != nil || tc.ExpectedResult != nil {
@@ -2546,6 +2576,84 @@ func TestGetExitRootsByGER(t *testing.T) {
 				assert.Equal(t, tc.ExpectedResult.Timestamp.Hex(), exitRoots.Timestamp.Hex())
 				assert.Equal(t, tc.ExpectedResult.MainnetExitRoot.String(), exitRoots.MainnetExitRoot.String())
 				assert.Equal(t, tc.ExpectedResult.RollupExitRoot.String(), exitRoots.RollupExitRoot.String())
+			}
+
+			if err != nil || tc.ExpectedError != nil {
+				rpcErr := err.(types.RPCError)
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, tc.ExpectedError.Error(), rpcErr.Error())
+			}
+		})
+	}
+}
+
+func TestGetLatestGlobalExitRoot(t *testing.T) {
+	type testCase struct {
+		Name           string
+		ExpectedResult *common.Hash
+		ExpectedError  types.Error
+		SetupMocks     func(*mocksWrapper, *testCase)
+	}
+
+	testCases := []testCase{
+		{
+			Name:           "failed to load GER from state",
+			ExpectedResult: nil,
+			ExpectedError:  types.NewRPCError(types.DefaultErrorCode, "couldn't load the last global exit root"),
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Rollback", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLatestBatchGlobalExitRoot", context.Background(), m.DbTx).
+					Return(nil, fmt.Errorf("failed to load GER from state")).
+					Once()
+			},
+		},
+		{
+			Name:           "Get latest GER successfully",
+			ExpectedResult: state.Ptr(common.HexToHash("0x1")),
+			ExpectedError:  nil,
+			SetupMocks: func(m *mocksWrapper, tc *testCase) {
+				m.DbTx.
+					On("Commit", context.Background()).
+					Return(nil).
+					Once()
+
+				m.State.
+					On("BeginStateTransaction", context.Background()).
+					Return(m.DbTx, nil).
+					Once()
+
+				m.State.
+					On("GetLatestBatchGlobalExitRoot", context.Background(), m.DbTx).
+					Return(common.HexToHash("0x1"), nil).
+					Once()
+			},
+		},
+	}
+
+	s, m, _ := newSequencerMockedServer(t)
+	defer s.Stop()
+
+	zkEVMClient := client.NewClient(s.ServerURL)
+
+	for _, testCase := range testCases {
+		t.Run(testCase.Name, func(t *testing.T) {
+			tc := testCase
+			testCase.SetupMocks(m, &tc)
+
+			ger, err := zkEVMClient.GetLatestGlobalExitRoot(context.Background())
+
+			if tc.ExpectedResult != nil {
+				assert.Equal(t, tc.ExpectedResult.String(), ger.String())
 			}
 
 			if err != nil || tc.ExpectedError != nil {

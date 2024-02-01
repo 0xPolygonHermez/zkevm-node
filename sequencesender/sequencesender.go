@@ -100,11 +100,67 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	// Send sequences to L1
 	sequenceCount := len(sequences)
-	log.Infof(
-		"sending sequences to L1. From batch %d to batch %d",
-		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
-	)
+	log.Infof("sending sequences to L1. From batch %d to batch %d", lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount))
 	metrics.SequencesSentToL1(float64(sequenceCount))
+
+	// Check if we need to wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
+	// Get last batch in the sequence
+	lastBatchNumInSequence := sequences[sequenceCount-1].BatchNumber
+
+	// Get L2 blocks for the last batch
+	lastBatchL2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, lastBatchNumInSequence, nil)
+	if err != nil {
+		log.Errorf("failed to get L2 blocks for batch %d, err: %v", lastBatchNumInSequence, err)
+		return
+	}
+
+	// Check there are L2 blocks for the last batch
+	if len(lastBatchL2Blocks) == 0 {
+		log.Errorf("no L2 blocks returned from the state for batch %d", lastBatchNumInSequence)
+		return
+	}
+
+	// Get timestamp of the last L2 block in the sequence
+	lastL2Block := lastBatchL2Blocks[len(lastBatchL2Blocks)-1]
+	lastL2BlockTimestamp := uint64(lastL2Block.ReceivedAt.Unix())
+
+	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
+
+	// Wait until L1 block timestamp is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
+	for {
+		// Get timestamp of the last L1 block
+		lastL1BlockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+		if err != nil {
+			log.Errorf("failed to get last L1 block timestamp, err: %v", err)
+			return
+		}
+
+		// Check the time difference between L2 and L1 block
+		var timeDiff int64
+		if lastL2BlockTimestamp >= lastL1BlockTimestamp {
+			//L2 block timestamp is above L1 block timestamp, negative timeDiff. We do in this way to avoid uint64 overflow
+			timeDiff = int64(-(lastL2BlockTimestamp - lastL1BlockTimestamp))
+		} else {
+			timeDiff = int64(lastL1BlockTimestamp - lastL2BlockTimestamp)
+		}
+
+		// Wait if the time difference is less than timeMargin (L1BlockTimestampMargin)
+		if timeDiff < timeMargin {
+			var waitTime int64
+			if timeDiff < 0 { //L2 block timestamp is above L1 block timestamp
+				waitTime = timeMargin + (-timeDiff)
+			} else {
+				waitTime = timeMargin - timeDiff
+			}
+			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			time.Sleep(time.Duration(waitTime) * time.Second)
+		} else {
+			log.Infof("sending sequences now, time difference between last L1 block (ts: %d) amd last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
+				lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			break
+		}
+	}
 
 	// add sequence to be monitored
 	dataAvailabilityMessage, err := s.da.PostSequence(ctx, sequences)

@@ -2,7 +2,9 @@ package dataavailability
 
 import (
 	"context"
+	"math/big"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -25,9 +27,17 @@ type SequenceSender interface {
 	// as expected by the contract
 	PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error)
 }
+
+// DABackender is the interface needed to implement in order to
+// integrate a DA service
 type DABackender interface {
 	BatchDataProvider
 	SequenceSender
 	// Init initializes the DABackend
 	Init() error
+}
+
+// ZKEVMClientTrustedBatchesGetter contains the methods required to interact with zkEVM-RPC
+type ZKEVMClientTrustedBatchesGetter interface {
+	BatchByNumber(ctx context.Context, number *big.Int) (*types.Batch, error)
 }
