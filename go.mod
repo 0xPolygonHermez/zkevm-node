@@ -38,7 +38,6 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
-	github.com/0xPolygon/agglayer v0.0.0-20240126091628-9016453dc02b // indirect
 	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
@@ -46,7 +45,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.12.1 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/bits-and-blooms/bitset v1.10.0 // indirect
+	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -69,7 +68,7 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/ethereum/c-kzg-4844 v0.4.0 // indirect
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gballet/go-libpcsclite v0.0.0-20190607065134-2772fd86a8ff // indirect
 	github.com/gballet/go-verkle v0.1.1-0.20231031103413-a67434b50f46 // indirect
 	github.com/getsentry/sentry-go v0.18.0 // indirect
@@ -171,7 +170,7 @@ require (
 )
 
 require (
-	github.com/0xPolygon/beethoven v0.0.0-20240112113018-0275d183b7bc
+	github.com/0xPolygon/agglayer v0.0.0-20240126091628-9016453dc02b
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.18.0
