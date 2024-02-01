@@ -1490,7 +1490,8 @@ func TestExecutorRevert(t *testing.T) {
 	transactions := []*types.Transaction{signedTx0, signedTx1}
 
 	// Create block to be able to calculate its hash
-	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, st)
 	l2Block.ReceivedAt = time.Now()
 
 	receipt.BlockHash = l2Block.Hash()
