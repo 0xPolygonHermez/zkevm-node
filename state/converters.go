@@ -17,6 +17,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	l2BlockGasLimitPreEtrog = uint64(30000000)
+)
+
 // TestConvertToProcessBatchResponse for test purposes
 func (s *State) TestConvertToProcessBatchResponse(batchResponse *executor.ProcessBatchResponse) (*ProcessBatchResponse, error) {
 	return s.convertToProcessBatchResponse(batchResponse)
@@ -181,6 +185,7 @@ func (s *State) convertToProcessBlockResponse(responses []*executor.ProcessTrans
 		}
 
 		blockResponse.TransactionResponses = append(blockResponse.TransactionResponses, txResponse)
+		blockResponse.GasLimit = l2BlockGasLimitPreEtrog
 		results = append(results, blockResponse)
 	}
 

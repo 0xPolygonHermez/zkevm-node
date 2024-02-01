@@ -18,7 +18,7 @@ Outputs = ["stderr"]
 		[State.Batch.Constraints]
 		MaxTxsPerBatch = 300
 		MaxBatchBytesSize = 120000
-		MaxCumulativeGasUsed = 30000000
+		MaxCumulativeGasUsed = 9223372036854775807
 		MaxKeccakHashes = 2145
 		MaxPoseidonHashes = 252357
 		MaxPoseidonPaddings = 135191
@@ -111,8 +111,8 @@ StateConsistencyCheckInterval = "5s"
 		ForcedBatchesCheckInterval = "10s"
 		L1InfoTreeL1BlockConfirmations = 0
 		L1InfoTreeCheckInterval = "10s"
-		BatchMaxDeltaTimestamp = "10s"
-		L2BlockMaxDeltaTimestamp = "2s"
+		BatchMaxDeltaTimestamp = "20s"
+		L2BlockMaxDeltaTimestamp = "4s"
 		ResourceExhaustedMarginPct = 10
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
@@ -122,8 +122,7 @@ StateConsistencyCheckInterval = "5s"
 		Filename = "/datastreamer/datastream.bin"
 		Version = 1
 		ChainID = 1337
-		Enabled = true
-		
+		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "15s"
