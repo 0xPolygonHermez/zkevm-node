@@ -64,7 +64,7 @@ func LaunchTestForcedBatchesVectorFilesGroup(t *testing.T, vectorFilesDir string
 				log.Info("###################")
 				genesisActions := vectors.GenerateGenesisActions(testCase.Genesis)
 				require.NoError(t, opsman.SetGenesis(genesisConfig.Genesis.BlockNumber, genesisActions))
-				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.BlockNumber, forkID6))
+				require.NoError(t, opsman.SetForkID(genesisConfig.Genesis.BlockNumber, state.FORKID_ETROG))
 				actualOldStateRoot, err := opsman.State().GetLastStateRoot(ctx, nil)
 				require.NoError(t, err)
 				require.NoError(t, opsman.Setup())
