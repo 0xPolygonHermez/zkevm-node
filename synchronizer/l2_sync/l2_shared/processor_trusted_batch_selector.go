@@ -1,5 +1,12 @@
 package l2_shared
 
+/*
+This class is a implementation of SyncTrustedStateExecutor that selects the executor to use.
+It's ready to switch between pre-etrog and etrog as soon as the forkid 7 is activated.
+
+When ForkId7 is activated, the executor will be switched to etrog for forkid7 batches.
+*/
+
 import (
 	"context"
 

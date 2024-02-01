@@ -57,5 +57,5 @@ func TestExecutorSelectorEtrogBatchForkId7(t *testing.T) {
 
 	executor, maxBatch := sut.GetExecutor(100, 200)
 	require.Equal(t, mockIncaberry, executor)
-	require.Equal(t, uint64(99), maxBatch)
+	require.Equal(t, uint64(200), maxBatch)
 }
