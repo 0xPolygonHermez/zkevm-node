@@ -64,16 +64,18 @@ type BatchConstraintsCfg struct {
 	MaxArithmetics       uint32 `mapstructure:"MaxArithmetics"`
 	MaxBinaries          uint32 `mapstructure:"MaxBinaries"`
 	MaxSteps             uint32 `mapstructure:"MaxSteps"`
+	MaxSHA256Hashes      uint32 `mapstructure:"MaxSHA256Hashes"`
 }
 
 // IsWithinConstraints checks if the counters are within the batch constraints
 func (c BatchConstraintsCfg) IsWithinConstraints(counters ZKCounters) bool {
-	return counters.CumulativeGasUsed <= c.MaxCumulativeGasUsed &&
+	return counters.GasUsed <= c.MaxCumulativeGasUsed &&
 		counters.UsedKeccakHashes <= c.MaxKeccakHashes &&
 		counters.UsedPoseidonHashes <= c.MaxPoseidonHashes &&
 		counters.UsedPoseidonPaddings <= c.MaxPoseidonPaddings &&
 		counters.UsedMemAligns <= c.MaxMemAligns &&
 		counters.UsedArithmetics <= c.MaxArithmetics &&
 		counters.UsedBinaries <= c.MaxBinaries &&
-		counters.UsedSteps <= c.MaxSteps
+		counters.UsedSteps <= c.MaxSteps &&
+		counters.UsedSha256Hashes_V2 <= c.MaxSHA256Hashes
 }

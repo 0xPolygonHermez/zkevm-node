@@ -126,7 +126,7 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 
 	output := fd.fv.Call(inArgs)
 	if err := getError(output[1]); err != nil {
-		log.Infof("failed call: [%v]%v. Params: %v", err.ErrorCode(), err.Error(), string(req.Params))
+		log.Debugf("failed call: [%v]%v. Params: %v", err.ErrorCode(), err.Error(), string(req.Params))
 		return types.NewResponse(req.Request, nil, err)
 	}
 
@@ -224,16 +224,14 @@ func (h *Handler) registerService(service Service) {
 func (h *Handler) getFnHandler(req types.Request) (*serviceData, *funcData, types.Error) {
 	methodNotFoundErrorMessage := fmt.Sprintf("the method %s does not exist/is not available", req.Method)
 
-	callName := strings.SplitN(req.Method, "_", 2) //nolint:gomnd
-	if len(callName) != 2 {                        //nolint:gomnd
+	serviceName, funcName, found := strings.Cut(req.Method, "_")
+	if !found {
 		return nil, nil, types.NewRPCError(types.NotFoundErrorCode, methodNotFoundErrorMessage)
 	}
 
-	serviceName, funcName := callName[0], callName[1]
-
 	service, ok := h.serviceMap[serviceName]
 	if !ok {
-		log.Infof("Method %s not found", req.Method)
+		log.Debugf("Method %s not found", req.Method)
 		return nil, nil, types.NewRPCError(types.NotFoundErrorCode, methodNotFoundErrorMessage)
 	}
 	fd, ok := service.funcMap[funcName]

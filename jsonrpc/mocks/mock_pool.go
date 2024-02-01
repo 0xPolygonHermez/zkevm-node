@@ -4,6 +4,7 @@ package mocks
 
 import (
 	context "context"
+	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
 
@@ -33,6 +34,56 @@ func (_m *PoolMock) AddTx(ctx context.Context, tx types.Transaction, ip string) 
 	}
 
 	return r0
+}
+
+// CalculateEffectiveGasPrice provides a mock function with given fields: rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice
+func (_m *PoolMock) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	ret := _m.Called(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+
+	var r0 *big.Int
+	var r1 error
+	if rf, ok := ret.Get(0).(func([]byte, *big.Int, uint64, uint64, uint64) (*big.Int, error)); ok {
+		return rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	}
+	if rf, ok := ret.Get(0).(func([]byte, *big.Int, uint64, uint64, uint64) *big.Int); ok {
+		r0 = rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*big.Int)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func([]byte, *big.Int, uint64, uint64, uint64) error); ok {
+		r1 = rf(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// CalculateEffectiveGasPricePercentage provides a mock function with given fields: gasPrice, effectiveGasPrice
+func (_m *PoolMock) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, effectiveGasPrice *big.Int) (uint8, error) {
+	ret := _m.Called(gasPrice, effectiveGasPrice)
+
+	var r0 uint8
+	var r1 error
+	if rf, ok := ret.Get(0).(func(*big.Int, *big.Int) (uint8, error)); ok {
+		return rf(gasPrice, effectiveGasPrice)
+	}
+	if rf, ok := ret.Get(0).(func(*big.Int, *big.Int) uint8); ok {
+		r0 = rf(gasPrice, effectiveGasPrice)
+	} else {
+		r0 = ret.Get(0).(uint8)
+	}
+
+	if rf, ok := ret.Get(1).(func(*big.Int, *big.Int) error); ok {
+		r1 = rf(gasPrice, effectiveGasPrice)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // CheckPolicy provides a mock function with given fields: ctx, policy, address
@@ -81,6 +132,20 @@ func (_m *PoolMock) CountPendingTransactions(ctx context.Context) (uint64, error
 	}
 
 	return r0, r1
+}
+
+// EffectiveGasPriceEnabled provides a mock function with given fields:
+func (_m *PoolMock) EffectiveGasPriceEnabled() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
 }
 
 // GetGasPrices provides a mock function with given fields: ctx
@@ -183,8 +248,34 @@ func (_m *PoolMock) GetPendingTxs(ctx context.Context, limit uint64) ([]pool.Tra
 	return r0, r1
 }
 
-// GetTxByHash provides a mock function with given fields: ctx, hash
-func (_m *PoolMock) GetTxByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+// GetTransactionByHash provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) GetTransactionByHash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
+	ret := _m.Called(ctx, hash)
+
+	var r0 *pool.Transaction
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*pool.Transaction, error)); ok {
+		return rf(ctx, hash)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *pool.Transaction); ok {
+		r0 = rf(ctx, hash)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*pool.Transaction)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+		r1 = rf(ctx, hash)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTransactionByL2Hash provides a mock function with given fields: ctx, hash
+func (_m *PoolMock) GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*pool.Transaction, error) {
 	ret := _m.Called(ctx, hash)
 
 	var r0 *pool.Transaction

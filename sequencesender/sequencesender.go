@@ -2,7 +2,6 @@ package sequencesender
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"time"
@@ -35,18 +34,18 @@ type SequenceSender struct {
 	ethTxManager ethTxManager
 	etherman     etherman
 	eventLog     *event.EventLog
-	privKey      *ecdsa.PrivateKey
+	da           dataAbilitier
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, da dataAbilitier) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:          cfg,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		eventLog:     eventLog,
-		privKey:      privKey,
+		da:           da,
 	}, nil
 }
 
@@ -101,19 +100,75 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	// Send sequences to L1
 	sequenceCount := len(sequences)
-	log.Infof(
-		"sending sequences to L1. From batch %d to batch %d",
-		lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount),
-	)
+	log.Infof("sending sequences to L1. From batch %d to batch %d", lastVirtualBatchNum+1, lastVirtualBatchNum+uint64(sequenceCount))
 	metrics.SequencesSentToL1(float64(sequenceCount))
 
-	// add sequence to be monitored
-	signaturesAndAddrs, err := s.getSignaturesAndAddrsFromDataCommittee(ctx, sequences)
+	// Check if we need to wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
+	// Get last batch in the sequence
+	lastBatchNumInSequence := sequences[sequenceCount-1].BatchNumber
+
+	// Get L2 blocks for the last batch
+	lastBatchL2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, lastBatchNumInSequence, nil)
 	if err != nil {
-		log.Error("error getting signatures and addresses from the data committee: ", err)
+		log.Errorf("failed to get L2 blocks for batch %d, err: %v", lastBatchNumInSequence, err)
 		return
 	}
-	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, signaturesAndAddrs)
+
+	// Check there are L2 blocks for the last batch
+	if len(lastBatchL2Blocks) == 0 {
+		log.Errorf("no L2 blocks returned from the state for batch %d", lastBatchNumInSequence)
+		return
+	}
+
+	// Get timestamp of the last L2 block in the sequence
+	lastL2Block := lastBatchL2Blocks[len(lastBatchL2Blocks)-1]
+	lastL2BlockTimestamp := uint64(lastL2Block.ReceivedAt.Unix())
+
+	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
+
+	// Wait until L1 block timestamp is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
+	for {
+		// Get timestamp of the last L1 block
+		lastL1BlockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+		if err != nil {
+			log.Errorf("failed to get last L1 block timestamp, err: %v", err)
+			return
+		}
+
+		// Check the time difference between L2 and L1 block
+		var timeDiff int64
+		if lastL2BlockTimestamp >= lastL1BlockTimestamp {
+			//L2 block timestamp is above L1 block timestamp, negative timeDiff. We do in this way to avoid uint64 overflow
+			timeDiff = int64(-(lastL2BlockTimestamp - lastL1BlockTimestamp))
+		} else {
+			timeDiff = int64(lastL1BlockTimestamp - lastL2BlockTimestamp)
+		}
+
+		// Wait if the time difference is less than timeMargin (L1BlockTimestampMargin)
+		if timeDiff < timeMargin {
+			var waitTime int64
+			if timeDiff < 0 { //L2 block timestamp is above L1 block timestamp
+				waitTime = timeMargin + (-timeDiff)
+			} else {
+				waitTime = timeMargin - timeDiff
+			}
+			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			time.Sleep(time.Duration(waitTime) * time.Second)
+		} else {
+			log.Infof("sending sequences now, time difference between last L1 block (ts: %d) amd last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
+				lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			break
+		}
+	}
+
+	// add sequence to be monitored
+	dataAvailabilityMessage, err := s.da.PostSequence(ctx, sequences)
+	if err != nil {
+		log.Error("error posting sequences to the data availability protocol: ", err)
+		return
+	}
+	to, data, err := s.etherman.BuildSequenceBatchesTxData(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -165,18 +220,28 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 		}
 
 		seq := types.Sequence{
-			GlobalExitRoot: batch.GlobalExitRoot,
-			Timestamp:      batch.Timestamp.Unix(),
+			GlobalExitRoot: batch.GlobalExitRoot,   //TODO: set empty for regular batches
+			Timestamp:      batch.Timestamp.Unix(), //TODO: set empty for regular batches
 			BatchL2Data:    batch.BatchL2Data,
 			BatchNumber:    batch.BatchNumber,
 		}
 
 		if batch.ForcedBatchNum != nil {
+			//TODO: Assign GER, timestamp(forcedAt) and l1block.parentHash to seq
 			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
 			}
+
+			// Get L1 block for the forced batch
+			fbL1Block, err := s.state.GetBlockByNumber(ctx, forcedBatch.BlockNumber, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			seq.GlobalExitRoot = forcedBatch.GlobalExitRoot
 			seq.ForcedBatchTimestamp = forcedBatch.ForcedAt.Unix()
+			seq.PrevBlockHash = fbL1Block.ParentHash
 		}
 
 		sequences = append(sequences, seq)

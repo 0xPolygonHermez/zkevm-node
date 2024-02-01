@@ -16,30 +16,6 @@ type EthermanMock struct {
 	mock.Mock
 }
 
-// GetLastBatchTimestamp provides a mock function with given fields:
-func (_m *EthermanMock) GetLastBatchTimestamp() (uint64, error) {
-	ret := _m.Called()
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func() (uint64, error)); ok {
-		return rf()
-	}
-	if rf, ok := ret.Get(0).(func() uint64); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetLatestBatchNumber provides a mock function with given fields:
 func (_m *EthermanMock) GetLatestBatchNumber() (uint64, error) {
 	ret := _m.Called()

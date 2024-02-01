@@ -38,7 +38,7 @@ type ethTxManager interface {
 // etherman contains the methods required to interact with ethereum
 type etherman interface {
 	GetLatestVerifiedBatchNum() (uint64, error)
-	BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs) (to *common.Address, data []byte, err error)
+	BuildTrustedVerifyBatchesTxData(lastVerifiedBatch, newVerifiedBatch uint64, inputs *ethmanTypes.FinalProofInputs, beneficiary common.Address) (to *common.Address, data []byte, err error)
 }
 
 // aggregatorTxProfitabilityChecker interface for different profitability
@@ -62,4 +62,9 @@ type stateInterface interface {
 	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
 	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
+	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (state.L1InfoTreeExitRootStorageEntry, error)
+	GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error)
+	GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VirtualBatch, error)
 }

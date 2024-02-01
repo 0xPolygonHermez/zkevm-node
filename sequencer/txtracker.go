@@ -25,6 +25,7 @@ type TxTracker struct {
 	IP                string    // IP of the tx sender
 	FailedReason      *string   // FailedReason is the reason why the tx failed, if it failed
 	EffectiveGasPrice *big.Int
+	EGPPercentage     byte
 	IsLastExecution   bool
 	EGPLog            state.EffectiveGasPriceLog
 	L1GasPrice        uint64
@@ -53,7 +54,7 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		GasPrice: tx.GasPrice(),
 		Cost:     tx.Cost(),
 		BatchResources: state.BatchResources{
-			Bytes:      tx.Size(),
+			Bytes:      uint64(len(rawTx)) + state.EfficiencyPercentageByteLength,
 			ZKCounters: counters,
 		},
 		RawTx:             rawTx,

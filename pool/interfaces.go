@@ -31,7 +31,8 @@ type storage interface {
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetTxs(ctx context.Context, filterStatus TxStatus, minGasPrice, limit uint64) ([]*Transaction, error)
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
-	GetTxByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
+	GetTransactionByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
+	GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*Transaction, error)
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
@@ -42,7 +43,7 @@ type storage interface {
 
 type stateInterface interface {
 	GetBalance(ctx context.Context, address common.Address, root common.Hash) (*big.Int, error)
-	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*types.Block, error)
+	GetLastL2Block(ctx context.Context, dbTx pgx.Tx) (*state.L2Block, error)
 	GetNonce(ctx context.Context, address common.Address, root common.Hash) (uint64, error)
 	GetTransactionByHash(ctx context.Context, transactionHash common.Hash, dbTx pgx.Tx) (*types.Transaction, error)
 	PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*state.ProcessBatchResponse, error)

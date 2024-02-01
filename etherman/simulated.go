@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/cdkdatacommittee"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockpolygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/mockverifier"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmbridge"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proxy"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,17 +24,10 @@ import (
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
-	etherman *Client,
-	ethBackend *backends.SimulatedBackend,
-	maticAddr common.Address,
-	br *polygonzkevmbridge.Polygonzkevmbridge,
-	da *cdkdatacommittee.Cdkdatacommittee,
-	err error,
-) {
+func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAvailabilityProvider) (etherman *Client, ethBackend *backends.SimulatedBackend, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge, err error) {
 	if auth == nil {
 		// read only client
-		return &Client{}, nil, common.Address{}, nil, nil, nil
+		return &Client{}, nil, common.Address{}, nil, nil
 	}
 	// 10000000 ETH in wei
 	balance, _ := new(big.Int).SetString("10000000000000000000000000", 10) //nolint:gomnd
@@ -42,107 +39,187 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts) (
 	}
 	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
 	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
+
 	// DAC Setup
-	dataCommitteeAddr, _, da, err := cdkdatacommittee.DeployCdkdatacommittee(auth, client)
+	daAddr, _, da, err := polygondatacommittee.DeployPolygondatacommittee(auth, client)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		return nil, nil, common.Address{}, nil, err
 	}
 	_, err = da.Initialize(auth)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		return nil, nil, common.Address{}, nil, err
 	}
 	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		return nil, nil, common.Address{}, nil, err
 	}
 
 	// Deploy contracts
-	const maticDecimalPlaces = 18
+	const polDecimalPlaces = 18
 	totalSupply, _ := new(big.Int).SetString("10000000000000000000000000000", 10) //nolint:gomnd
-	maticAddr, _, maticContract, err := matic.DeployMatic(auth, client, "Matic Token", "MATIC", maticDecimalPlaces, totalSupply)
+	polAddr, _, polContract, err := pol.DeployPol(auth, client, "Pol Token", "POL", polDecimalPlaces, totalSupply)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
 	rollupVerifierAddr, _, _, err := mockverifier.DeployMockverifier(auth, client)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		return nil, nil, common.Address{}, nil, err
 	}
 	nonce, err := client.PendingNonceAt(context.TODO(), auth.From)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
-	const posBridge = 1
+	const posBridge = 3
 	calculatedBridgeAddr := crypto.CreateAddress(auth.From, nonce+posBridge)
-	const posPoE = 2
-	calculatedPoEAddr := crypto.CreateAddress(auth.From, nonce+posPoE)
+	const posRollupManager = 4
+	calculatedRollupManagerAddr := crypto.CreateAddress(auth.From, nonce+posRollupManager)
 	genesis := common.HexToHash("0xfd3434cd8f67e59d73488a2b8da242dd1f02849ea5dd99f0ca22c836c3d5b4a9") // Random value. Needs to be different to 0x0
-	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedPoEAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedRollupManagerAddr, calculatedBridgeAddr)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
-	bridgeAddr, _, br, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
+	implementationBridgeAddr, _, _, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
-	}
-	poeAddr, _, poe, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, maticAddr, rollupVerifierAddr, bridgeAddr, dataCommitteeAddr, 1000, 1) //nolint
-	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
-	}
-	_, err = br.Initialize(auth, 0, exitManagerAddr, poeAddr)
-	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
 
-	poeParams := polygonzkevm.CDKValidiumInitializePackedParameters{
-		Admin:                    auth.From,
-		TrustedSequencer:         auth.From,
-		PendingStateTimeout:      10000, //nolint:gomnd
-		TrustedAggregator:        auth.From,
-		TrustedAggregatorTimeout: 10000, //nolint:gomnd
-	}
-	_, err = poe.Initialize(auth, poeParams, genesis, "http://localhost", "L2", "v1") //nolint:gomnd
+	implementationMockRollupManagerAddr, _, _, err := mockpolygonrollupmanager.DeployMockpolygonrollupmanager(auth, client, exitManagerAddr, polAddr, calculatedBridgeAddr)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
+	bridgeAddr, _, _, err := proxy.DeployProxy(auth, client, implementationBridgeAddr, implementationBridgeAddr, []byte{})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	mockRollupManagerAddr, _, _, err := proxy.DeployProxy(auth, client, implementationMockRollupManagerAddr, implementationMockRollupManagerAddr, []byte{})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	if calculatedRollupManagerAddr != mockRollupManagerAddr {
+		return nil, nil, common.Address{}, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
+			mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
+	}
+	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	mockRollupManager, err := mockpolygonrollupmanager.NewMockpolygonrollupmanager(mockRollupManagerAddr, client)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	br, err = polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, client)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = br.Initialize(auth, 0, common.Address{}, 0, exitManagerAddr, mockRollupManagerAddr, []byte{})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = mockRollupManager.Initialize(auth, auth.From, 10000, 10000, auth.From, auth.From, auth.From, common.Address{}, common.Address{}, 0, 0) //nolint:gomnd
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = mockRollupManager.AddNewRollupType(auth, initZkevmAddr, rollupVerifierAddr, 6, 0, genesis, "PolygonZkEvm Rollup") //nolint:gomnd
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	client.Commit()
+
+	rollUpTypeID, err := mockRollupManager.RollupTypeCount(&bind.CallOpts{Pending: false})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	var zkevmChainID uint64 = 100
+	_, err = mockRollupManager.CreateNewRollup(auth, rollUpTypeID, zkevmChainID, auth.From, auth.From, common.Address{}, "http://localhost", "PolygonZkEvm Rollup")
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	client.Commit()
+
+	rollupID, err := mockRollupManager.ChainIDToRollupID(&bind.CallOpts{Pending: false}, zkevmChainID)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	rollupData, err := mockRollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, rollupID)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	zkevmAddr := rollupData.RollupContract
 
 	if calculatedBridgeAddr != bridgeAddr {
-		return nil, nil, common.Address{}, nil, nil, fmt.Errorf("bridgeAddr (%s) is different from the expected contract address (%s)",
+		return nil, nil, common.Address{}, nil, fmt.Errorf("bridgeAddr (%s) is different from the expected contract address (%s)",
 			bridgeAddr.String(), calculatedBridgeAddr.String())
 	}
-	if calculatedPoEAddr != poeAddr {
-		return nil, nil, common.Address{}, nil, nil, fmt.Errorf("poeAddr (%s) is different from the expected contract address (%s)",
-			poeAddr.String(), calculatedPoEAddr.String())
+
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(mockRollupManagerAddr, client)
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
 
-	// Approve the bridge and poe to spend 10000 matic tokens.
+	trueZkevm, err := polygonzkevm.NewPolygonzkevm(zkevmAddr, client) //nolint
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+
+	// Approve the bridge and zkevm to spend 10000 pol tokens.
 	approvedAmount, _ := new(big.Int).SetString("10000000000000000000000", 10) //nolint:gomnd
-	_, err = maticContract.Approve(auth, bridgeAddr, approvedAmount)
+	_, err = polContract.Approve(auth, bridgeAddr, approvedAmount)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = maticContract.Approve(auth, poeAddr, approvedAmount)
+	_, err = polContract.Approve(auth, zkevmAddr, approvedAmount)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
-	_, err = poe.ActivateForceBatches(auth)
+
+	_, err = trueZkevm.SetDataAvailabilityProtocol(auth, daAddr)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
+	}
+	_, err = trueZkevm.SetForceBatchAddress(auth, common.Address{})
+	if err != nil {
+		log.Error("error: ", err)
+		return nil, nil, common.Address{}, nil, err
 	}
 
 	client.Commit()
 	c := &Client{
 		EthClient:             client,
-		ZkEVM:                 poe,
-		Matic:                 maticContract,
+		ZkEVM:                 trueZkevm,
+		RollupManager:         rollupManager,
+		Pol:                   polContract,
 		GlobalExitRootManager: globalExitRoot,
-		DataCommittee:         da,
-		SCAddresses:           []common.Address{poeAddr, exitManagerAddr},
+		RollupID:              rollupID,
+		SCAddresses:           []common.Address{zkevmAddr, mockRollupManagerAddr, exitManagerAddr},
 		auth:                  map[common.Address]bind.TransactOpts{},
 		cfg:                   cfg,
+		da:                    daBackend,
 	}
 	err = c.AddOrReplaceAuth(*auth)
 	if err != nil {
-		return nil, nil, common.Address{}, nil, nil, err
+		return nil, nil, common.Address{}, nil, err
 	}
-	return c, client, maticAddr, br, da, nil
+	return c, client, polAddr, br, nil
 }

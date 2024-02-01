@@ -7,25 +7,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	minGasPriceAllowed = 10
-)
-
 var (
 	egpCfg = EffectiveGasPriceCfg{
-		Enabled:                   true,
-		L1GasPriceFactor:          0.25,
-		ByteGasCost:               16,
-		ZeroByteGasCost:           4,
-		NetProfit:                 1,
-		BreakEvenFactor:           1.1,
-		FinalDeviationPct:         10,
-		L2GasPriceSuggesterFactor: 0.5,
+		Enabled:                     true,
+		L1GasPriceFactor:            0.25,
+		ByteGasCost:                 16,
+		ZeroByteGasCost:             4,
+		NetProfit:                   1,
+		BreakEvenFactor:             1.1,
+		FinalDeviationPct:           10,
+		EthTransferGasPrice:         0,
+		EthTransferL1GasPriceFactor: 0,
+		L2GasPriceSuggesterFactor:   0.5,
 	}
 )
 
 func TestCalculateEffectiveGasPricePercentage(t *testing.T) {
-	egp := NewEffectiveGasPrice(egpCfg, minGasPriceAllowed)
+	egp := NewEffectiveGasPrice(egpCfg)
 
 	testCases := []struct {
 		name          string
@@ -118,16 +116,18 @@ func TestCalculateEffectiveGasPricePercentage(t *testing.T) {
 }
 
 func TestCalculateBreakEvenGasPrice(t *testing.T) {
-	egp := NewEffectiveGasPrice(egpCfg, minGasPriceAllowed)
+	egp := NewEffectiveGasPrice(egpCfg)
 
 	testCases := []struct {
-		name          string
-		rawTx         []byte
-		txGasPrice    *big.Int
-		txGasUsed     uint64
-		l1GasPrice    uint64
-		expectedValue *big.Int
-		err           error
+		name                        string
+		rawTx                       []byte
+		txGasPrice                  *big.Int
+		txGasUsed                   uint64
+		l1GasPrice                  uint64
+		EthTransferGasPrice         uint64
+		EthTransferL1GasPriceFactor float64
+		expectedValue               *big.Int
+		err                         error
 	}{
 
 		{
@@ -136,7 +136,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(553),
+			expectedValue: new(big.Int).SetUint64(33),
 		},
 		{
 			name:          "Test l1GasPrice=0",
@@ -161,7 +161,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(633),
+			expectedValue: new(big.Int).SetUint64(113),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=10",
@@ -169,7 +169,7 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(573),
+			expectedValue: new(big.Int).SetUint64(53),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5",
@@ -177,15 +177,15 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 			txGasPrice:    new(big.Int).SetUint64(1000),
 			txGasUsed:     200,
 			l1GasPrice:    100,
-			expectedValue: new(big.Int).SetUint64(603),
+			expectedValue: new(big.Int).SetUint64(83),
 		},
 		{
-			name:          "Test tx len=10, zeroByte=5 minGasPrice",
+			name:          "Test breakEvenGasPrice = 0 must return 1",
 			rawTx:         []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
 			txGasPrice:    new(big.Int).SetUint64(1000),
-			txGasUsed:     200,
-			l1GasPrice:    10,
-			expectedValue: new(big.Int).SetUint64(67),
+			txGasUsed:     200000,
+			l1GasPrice:    1,
+			expectedValue: new(big.Int).SetUint64(1),
 		},
 	}
 
@@ -204,8 +204,63 @@ func TestCalculateBreakEvenGasPrice(t *testing.T) {
 	}
 }
 
+func TestEthTransferGasPrice(t *testing.T) {
+	testCases := []struct {
+		name                        string
+		rawTx                       []byte
+		txGasPrice                  *big.Int
+		txGasUsed                   uint64
+		l1GasPrice                  uint64
+		EthTransferGasPrice         uint64
+		EthTransferL1GasPriceFactor float64
+		expectedValue               *big.Int
+		err                         error
+	}{
+		{
+			name:                "Test set EthTransferGasPrice",
+			rawTx:               []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
+			txGasPrice:          new(big.Int).SetUint64(1000),
+			txGasUsed:           21000,
+			l1GasPrice:          10000,
+			EthTransferGasPrice: 2000,
+			expectedValue:       new(big.Int).SetUint64(2000),
+		},
+		{
+			name:                        "Test set EthTransferL1GasPriceFactor",
+			rawTx:                       []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
+			txGasPrice:                  new(big.Int).SetUint64(1000),
+			txGasUsed:                   21000,
+			l1GasPrice:                  10000,
+			EthTransferL1GasPriceFactor: 0.5,
+			expectedValue:               new(big.Int).SetUint64(5000),
+		},
+		{
+			name:                        "Test set No ETHTransfer",
+			rawTx:                       []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
+			txGasPrice:                  new(big.Int).SetUint64(1000),
+			txGasUsed:                   200,
+			l1GasPrice:                  100,
+			EthTransferL1GasPriceFactor: 0.5,
+			expectedValue:               new(big.Int).SetUint64(83),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			egpCfg.EthTransferGasPrice = tc.EthTransferGasPrice
+			egpCfg.EthTransferL1GasPriceFactor = tc.EthTransferL1GasPriceFactor
+
+			egp := NewEffectiveGasPrice(egpCfg)
+			actual, err := egp.CalculateBreakEvenGasPrice(tc.rawTx, tc.txGasPrice, tc.txGasUsed, tc.l1GasPrice)
+
+			assert.Equal(t, nil, err)
+			assert.Equal(t, tc.expectedValue, actual)
+		})
+	}
+}
+
 func TestCalculateEffectiveGasPrice(t *testing.T) {
-	egp := NewEffectiveGasPrice(egpCfg, minGasPriceAllowed)
+	egp := NewEffectiveGasPrice(egpCfg)
 
 	testCases := []struct {
 		name          string
@@ -224,7 +279,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    1000,
-			expectedValue: new(big.Int).SetUint64(633),
+			expectedValue: new(big.Int).SetUint64(113),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=10",
@@ -233,7 +288,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    500,
-			expectedValue: new(big.Int).SetUint64(573 * 2),
+			expectedValue: new(big.Int).SetUint64(53 * 2),
 		},
 		{
 			name:          "Test tx len=10, zeroByte=5",
@@ -242,16 +297,7 @@ func TestCalculateEffectiveGasPrice(t *testing.T) {
 			txGasUsed:     200,
 			l1GasPrice:    100,
 			l2GasPrice:    250,
-			expectedValue: new(big.Int).SetUint64(603 * 4),
-		},
-		{
-			name:          "Test tx len=10, zeroByte=5 minGasPrice",
-			rawTx:         []byte{1, 0, 2, 0, 3, 0, 4, 0, 5, 0},
-			txGasPrice:    new(big.Int).SetUint64(1000),
-			txGasUsed:     200,
-			l1GasPrice:    10,
-			l2GasPrice:    1100,
-			expectedValue: new(big.Int).SetUint64(67),
+			expectedValue: new(big.Int).SetUint64(83 * 4),
 		},
 	}
 

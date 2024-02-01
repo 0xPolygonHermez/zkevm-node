@@ -1,0 +1,239 @@
+[
+    {
+        "inputs": [],
+        "name": "CommitteeAddressDoesntExist",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "EmptyURLNotAllowed",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "TooManyRequiredSignatures",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "UnexpectedAddrsAndSignaturesSize",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "UnexpectedAddrsBytesLength",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "UnexpectedCommitteeHash",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "WrongAddrOrder",
+        "type": "error"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "bytes32",
+                "name": "committeeHash",
+                "type": "bytes32"
+            }
+        ],
+        "name": "CommitteeUpdated",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": false,
+                "internalType": "uint8",
+                "name": "version",
+                "type": "uint8"
+            }
+        ],
+        "name": "Initialized",
+        "type": "event"
+    },
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "previousOwner",
+                "type": "address"
+            },
+            {
+                "indexed": true,
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "OwnershipTransferred",
+        "type": "event"
+    },
+    {
+        "inputs": [],
+        "name": "committeeHash",
+        "outputs": [
+            {
+                "internalType": "bytes32",
+                "name": "",
+                "type": "bytes32"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getAmountOfMembers",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getProcotolName",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "initialize",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "members",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "url",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "addr",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "renounceOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "requiredAmountOfSignatures",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_requiredAmountOfSignatures",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string[]",
+                "name": "urls",
+                "type": "string[]"
+            },
+            {
+                "internalType": "bytes",
+                "name": "addrsBytes",
+                "type": "bytes"
+            }
+        ],
+        "name": "setupCommittee",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "transferOwnership",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "signedHash",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "bytes",
+                "name": "signaturesAndAddrs",
+                "type": "bytes"
+            }
+        ],
+        "name": "verifyMessage",
+        "outputs": [],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

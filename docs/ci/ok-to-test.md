@@ -29,7 +29,7 @@ Our setup relies on the existence of a repo secret called `PERSONAL_ACCESS_TOKEN
 with the value of a personal access token with repo access scope.
 
 ## How to add the ok-to-test functionality to an existing workflow
-In order to transform an existing wokflow into one that use the ok-to-test
+In order to transform an existing workflow into one that uses the ok-to-test
 functionality it should be changed like this:
 * Add the `repository_dispatch` entry like here https://github.com/0xPolygonHermez/zkevm-bridge-service/pull/148/files#diff-107e910e9f2ebfb9a741fa10b2aa7100cc1fc4f5f3aca2dfe78b905cbd73c0d2R9-R10
 * Duplicate the job, if it is called `build`, copy it to `from-fork-build` and

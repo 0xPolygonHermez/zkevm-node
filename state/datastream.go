@@ -3,10 +3,12 @@ package state
 import (
 	"context"
 	"encoding/binary"
+	"math/big"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/iden3/go-iden3-crypto/keccak256"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -25,6 +27,12 @@ const (
 	EntryTypeUpdateGER datastreamer.EntryType = 4
 	// BookMarkTypeL2Block represents a L2 block bookmark
 	BookMarkTypeL2Block byte = 0
+	// BookMarkTypeBatch represents a batch
+	BookMarkTypeBatch byte = 1
+	// SystemSC is the system smart contract address
+	SystemSC = "0x000000000000000000000000000000005ca1ab1e"
+	// posConstant is the constant used to compute the position of the intermediate state root
+	posConstant = 1
 )
 
 // DSBatch represents a data stream batch
@@ -50,6 +58,7 @@ type DSL2Block struct {
 	BatchNumber    uint64         // 8 bytes
 	L2BlockNumber  uint64         // 8 bytes
 	Timestamp      int64          // 8 bytes
+	L1BlockHash    common.Hash    // 32 bytes
 	GlobalExitRoot common.Hash    // 32 bytes
 	Coinbase       common.Address // 20 bytes
 	ForkID         uint16         // 2 bytes
@@ -62,6 +71,7 @@ type DSL2BlockStart struct {
 	BatchNumber    uint64         // 8 bytes
 	L2BlockNumber  uint64         // 8 bytes
 	Timestamp      int64          // 8 bytes
+	L1BlockHash    common.Hash    // 32 bytes
 	GlobalExitRoot common.Hash    // 32 bytes
 	Coinbase       common.Address // 20 bytes
 	ForkID         uint16         // 2 bytes
@@ -73,6 +83,7 @@ func (b DSL2BlockStart) Encode() []byte {
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.BatchNumber)
 	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
 	bytes = binary.LittleEndian.AppendUint64(bytes, uint64(b.Timestamp))
+	bytes = append(bytes, b.L1BlockHash.Bytes()...)
 	bytes = append(bytes, b.GlobalExitRoot.Bytes()...)
 	bytes = append(bytes, b.Coinbase.Bytes()...)
 	bytes = binary.LittleEndian.AppendUint16(bytes, b.ForkID)
@@ -84,26 +95,29 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 	b.BatchNumber = binary.LittleEndian.Uint64(data[0:8])
 	b.L2BlockNumber = binary.LittleEndian.Uint64(data[8:16])
 	b.Timestamp = int64(binary.LittleEndian.Uint64(data[16:24]))
-	b.GlobalExitRoot = common.BytesToHash(data[24:56])
-	b.Coinbase = common.BytesToAddress(data[56:76])
-	b.ForkID = binary.LittleEndian.Uint16(data[76:78])
+	b.L1BlockHash = common.BytesToHash(data[24:56])
+	b.GlobalExitRoot = common.BytesToHash(data[56:88])
+	b.Coinbase = common.BytesToAddress(data[88:108])
+	b.ForkID = binary.LittleEndian.Uint16(data[108:110])
 	return b
 }
 
 // DSL2Transaction represents a data stream L2 transaction
 type DSL2Transaction struct {
-	L2BlockNumber               uint64 // Not included in the encoded data
-	EffectiveGasPricePercentage uint8  // 1 byte
-	IsValid                     uint8  // 1 byte
-	EncodedLength               uint32 // 4 bytes
+	L2BlockNumber               uint64      // Not included in the encoded data
+	EffectiveGasPricePercentage uint8       // 1 byte
+	IsValid                     uint8       // 1 byte
+	StateRoot                   common.Hash // 32 bytes
+	EncodedLength               uint32      // 4 bytes
 	Encoded                     []byte
 }
 
 // Encode returns the encoded DSL2Transaction as a byte slice
 func (l DSL2Transaction) Encode() []byte {
 	bytes := make([]byte, 0)
-	bytes = append(bytes, byte(l.EffectiveGasPricePercentage))
-	bytes = append(bytes, byte(l.IsValid))
+	bytes = append(bytes, l.EffectiveGasPricePercentage)
+	bytes = append(bytes, l.IsValid)
+	bytes = append(bytes, l.StateRoot[:]...)
 	bytes = binary.LittleEndian.AppendUint32(bytes, l.EncodedLength)
 	bytes = append(bytes, l.Encoded...)
 	return bytes
@@ -111,10 +125,11 @@ func (l DSL2Transaction) Encode() []byte {
 
 // Decode decodes the DSL2Transaction from a byte slice
 func (l DSL2Transaction) Decode(data []byte) DSL2Transaction {
-	l.EffectiveGasPricePercentage = uint8(data[0])
-	l.IsValid = uint8(data[1])
-	l.EncodedLength = binary.LittleEndian.Uint32(data[2:6])
-	l.Encoded = data[6:]
+	l.EffectiveGasPricePercentage = data[0]
+	l.IsValid = data[1]
+	l.StateRoot = common.BytesToHash(data[2:34])
+	l.EncodedLength = binary.LittleEndian.Uint32(data[34:38])
+	l.Encoded = data[38:]
 	return l
 }
 
@@ -144,22 +159,22 @@ func (b DSL2BlockEnd) Decode(data []byte) DSL2BlockEnd {
 
 // DSBookMark represents a data stream bookmark
 type DSBookMark struct {
-	Type          byte
-	L2BlockNumber uint64
+	Type  byte   // 1 byte
+	Value uint64 // 8 bytes
 }
 
 // Encode returns the encoded DSBookMark as a byte slice
 func (b DSBookMark) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, b.Type)
-	bytes = binary.LittleEndian.AppendUint64(bytes, b.L2BlockNumber)
+	bytes = binary.LittleEndian.AppendUint64(bytes, b.Value)
 	return bytes
 }
 
 // Decode decodes the DSBookMark from a byte slice
 func (b DSBookMark) Decode(data []byte) DSBookMark {
-	b.Type = byte(data[0])
-	b.L2BlockNumber = binary.LittleEndian.Uint64(data[1:9])
+	b.Type = data[0]
+	b.Value = binary.LittleEndian.Uint64(data[1:9])
 	return b
 }
 
@@ -202,14 +217,20 @@ type DSState interface {
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*DSL2Block, error)
 	GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*DSL2Transaction, error)
+	GetStorageAt(ctx context.Context, address common.Address, position *big.Int, root common.Hash) (*big.Int, error)
+	GetLastL2BlockHeader(ctx context.Context, dbTx pgx.Tx) (*L2Header, error)
+	GetVirtualBatchParentHash(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error)
+	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
+	GetVirtualBatch(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*VirtualBatch, error)
 }
 
 // GenerateDataStreamerFile generates or resumes a data stream file
-func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool) error {
+func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.StreamServer, stateDB DSState, readWIPBatch bool, imStateRoots *map[uint64][]byte) error {
 	header := streamServer.GetHeader()
 
 	var currentBatchNumber uint64 = 0
-	var currentL2Block uint64 = 0
+	var lastAddedL2Block uint64 = 0
 
 	if header.TotalEntries == 0 {
 		// Get Genesis block
@@ -224,8 +245,18 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		}
 
 		bookMark := DSBookMark{
-			Type:          BookMarkTypeL2Block,
-			L2BlockNumber: genesisL2Block.L2BlockNumber,
+			Type:  BookMarkTypeBatch,
+			Value: genesisL2Block.BatchNumber,
+		}
+
+		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+		if err != nil {
+			return err
+		}
+
+		bookMark = DSBookMark{
+			Type:  BookMarkTypeL2Block,
+			Value: genesisL2Block.L2BlockNumber,
 		}
 
 		_, err = streamServer.AddStreamBookmark(bookMark.Encode())
@@ -264,6 +295,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		if err != nil {
 			return err
 		}
+		currentBatchNumber++
 	} else {
 		latestEntry, err := streamServer.GetEntry(header.TotalEntries - 1)
 		if err != nil {
@@ -276,13 +308,14 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		case EntryTypeUpdateGER:
 			log.Info("Latest entry type is UpdateGER")
 			currentBatchNumber = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
+			currentBatchNumber++
 		case EntryTypeL2BlockEnd:
 			log.Info("Latest entry type is L2BlockEnd")
-			currentL2Block = binary.LittleEndian.Uint64(latestEntry.Data[0:8])
+			currentL2BlockNumber := binary.LittleEndian.Uint64(latestEntry.Data[0:8])
 
 			bookMark := DSBookMark{
-				Type:          BookMarkTypeL2Block,
-				L2BlockNumber: currentL2Block,
+				Type:  BookMarkTypeL2Block,
+				Value: currentL2BlockNumber,
 			}
 
 			firstEntry, err := streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
@@ -290,11 +323,19 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 				return err
 			}
 			currentBatchNumber = binary.LittleEndian.Uint64(firstEntry.Data[0:8])
+		case EntryTypeBookMark:
+			log.Info("Latest entry type is BookMark")
+			bookMark := DSBookMark{}
+			bookMark = bookMark.Decode(latestEntry.Data)
+			if bookMark.Type == BookMarkTypeBatch {
+				currentBatchNumber = bookMark.Value
+			} else {
+				log.Fatalf("Latest entry type is an unexpected bookmark type: %v", bookMark.Type)
+			}
+		default:
+			log.Fatalf("Latest entry type is not am expected one: %v", latestEntry.Type)
 		}
 	}
-
-	log.Infof("Current Batch number: %d", currentBatchNumber)
-	log.Infof("Current L2 block number: %d", currentL2Block)
 
 	var entry uint64 = header.TotalEntries
 	var currentGER = common.Hash{}
@@ -303,16 +344,13 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 		entry--
 	}
 
-	// Start on the current batch number + 1
-	currentBatchNumber++
-
 	var err error
-
 	const limit = 10000
 
+	log.Infof("Current entry number: %d", entry)
+	log.Infof("Current batch number: %d", currentBatchNumber)
+
 	for err == nil {
-		log.Debugf("Current entry number: %d", entry)
-		log.Debugf("Current batch number: %d", currentBatchNumber)
 		// Get Next Batch
 		batches, err := stateDB.GetDSBatches(ctx, currentBatchNumber, currentBatchNumber+limit, readWIPBatch, nil)
 		if err != nil {
@@ -343,19 +381,38 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			}
 		}
 
-		// Gererate full batches
+		// Generate full batches
 		fullBatches := computeFullBatches(batches, l2Blocks, l2Txs)
-		log.Debugf("Full batches: %+v", fullBatches)
-
 		currentBatchNumber += limit
 
-		for _, batch := range fullBatches {
+		for b, batch := range fullBatches {
+			err = streamServer.StartAtomicOp()
+			if err != nil {
+				return err
+			}
+
+			bookMark := DSBookMark{
+				Type:  BookMarkTypeBatch,
+				Value: batch.BatchNumber,
+			}
+
+			missingBookMark := false
+			if b == 0 {
+				_, err = streamServer.GetBookmark(bookMark.Encode())
+				if err != nil {
+					missingBookMark = true
+				}
+			}
+
+			if missingBookMark {
+				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
+				if err != nil {
+					return err
+				}
+			}
+
 			if len(batch.L2Blocks) == 0 {
 				// Empty batch
-				// Is WIP Batch?
-				if batch.StateRoot == (common.Hash{}) {
-					continue
-				}
 				// Check if there is a GER update
 				if batch.GlobalExitRoot != currentGER && batch.GlobalExitRoot != (common.Hash{}) {
 					updateGer := DSUpdateGER{
@@ -367,74 +424,119 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 						StateRoot:      batch.StateRoot,
 					}
 
-					err = streamServer.StartAtomicOp()
+					_, err = streamServer.AddStreamEntry(EntryTypeUpdateGER, updateGer.Encode())
 					if err != nil {
 						return err
 					}
-
-					entry, err = streamServer.AddStreamEntry(EntryTypeUpdateGER, updateGer.Encode())
-					if err != nil {
-						return err
-					}
-
-					err = streamServer.CommitAtomicOp()
-					if err != nil {
-						return err
-					}
-
 					currentGER = batch.GlobalExitRoot
 				}
-				continue
-			}
+			} else {
+				for blockIndex, l2block := range batch.L2Blocks {
+					if l2block.L2BlockNumber <= lastAddedL2Block && lastAddedL2Block != 0 {
+						continue
+					} else {
+						lastAddedL2Block = l2block.L2BlockNumber
+					}
 
-			err = streamServer.StartAtomicOp()
-			if err != nil {
-				return err
-			}
+					l1BlockHash := common.Hash{}
 
-			for _, l2block := range batch.L2Blocks {
-				blockStart := DSL2BlockStart{
-					BatchNumber:    l2block.BatchNumber,
-					L2BlockNumber:  l2block.L2BlockNumber,
-					Timestamp:      l2block.Timestamp,
-					GlobalExitRoot: l2block.GlobalExitRoot,
-					Coinbase:       l2block.Coinbase,
-					ForkID:         l2block.ForkID,
-				}
+					// Get L1 block hash
+					if l2block.ForkID >= FORKID_ETROG {
+						isForcedBatch := false
+						batchRawData := &BatchRawV2{}
 
-				bookMark := DSBookMark{
-					Type:          BookMarkTypeL2Block,
-					L2BlockNumber: blockStart.L2BlockNumber,
-				}
+						if batch.BatchNumber == 1 || batch.ForcedBatchNum != nil {
+							isForcedBatch = true
+						} else {
+							batchRawData, err = DecodeBatchV2(batch.BatchL2Data)
+							if err != nil {
+								log.Errorf("Failed to decode batch data, err: %v", err)
+								return err
+							}
+						}
 
-				_, err = streamServer.AddStreamBookmark(bookMark.Encode())
-				if err != nil {
-					return err
-				}
+						if !isForcedBatch {
+							// Get current block by index
+							l2blockRaw := batchRawData.Blocks[blockIndex]
+							if l2blockRaw.IndexL1InfoTree != 0 {
+								l1InfoTreeExitRootStorageEntry, err := stateDB.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+								if err != nil {
+									return err
+								}
+								l1BlockHash = l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash
+							}
+						} else {
+							// Initial batch must be handled differently
+							if batch.BatchNumber == 1 {
+								l1BlockHash, err = stateDB.GetVirtualBatchParentHash(ctx, batch.BatchNumber, nil)
+								if err != nil {
+									return err
+								}
+							} else {
+								l1BlockHash, err = stateDB.GetForcedBatchParentHash(ctx, *batch.ForcedBatchNum, nil)
+								if err != nil {
+									return err
+								}
+							}
+						}
+					}
 
-				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
-				if err != nil {
-					return err
-				}
+					blockStart := DSL2BlockStart{
+						BatchNumber:    l2block.BatchNumber,
+						L2BlockNumber:  l2block.L2BlockNumber,
+						Timestamp:      l2block.Timestamp,
+						L1BlockHash:    l1BlockHash,
+						GlobalExitRoot: l2block.GlobalExitRoot,
+						Coinbase:       l2block.Coinbase,
+						ForkID:         l2block.ForkID,
+					}
 
-				for _, tx := range l2block.Txs {
-					entry, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
+					bookMark := DSBookMark{
+						Type:  BookMarkTypeL2Block,
+						Value: blockStart.L2BlockNumber,
+					}
+
+					_, err = streamServer.AddStreamBookmark(bookMark.Encode())
 					if err != nil {
 						return err
 					}
-				}
 
-				blockEnd := DSL2BlockEnd{
-					L2BlockNumber: l2block.L2BlockNumber,
-					BlockHash:     l2block.BlockHash,
-					StateRoot:     l2block.StateRoot,
-				}
+					_, err = streamServer.AddStreamEntry(EntryTypeL2BlockStart, blockStart.Encode())
+					if err != nil {
+						return err
+					}
 
-				_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
-				if err != nil {
-					return err
+					for _, tx := range l2block.Txs {
+						// Populate intermediate state root
+						if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
+							position := GetSystemSCPosition(l2block.L2BlockNumber)
+							imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2block.StateRoot)
+							if err != nil {
+								return err
+							}
+							tx.StateRoot = common.BigToHash(imStateRoot)
+						} else {
+							tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
+						}
+
+						_, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
+						if err != nil {
+							return err
+						}
+					}
+
+					blockEnd := DSL2BlockEnd{
+						L2BlockNumber: l2block.L2BlockNumber,
+						BlockHash:     l2block.BlockHash,
+						StateRoot:     l2block.StateRoot,
+					}
+
+					_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
+					if err != nil {
+						return err
+					}
+					currentGER = l2block.GlobalExitRoot
 				}
-				currentGER = l2block.GlobalExitRoot
 			}
 			// Commit at the end of each batch group
 			err = streamServer.CommitAtomicOp()
@@ -447,10 +549,27 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 	return err
 }
 
+// GetSystemSCPosition computes the position of the intermediate state root for the system smart contract
+func GetSystemSCPosition(blockNumber uint64) []byte {
+	v1 := big.NewInt(0).SetUint64(blockNumber).Bytes()
+	v2 := big.NewInt(0).SetUint64(uint64(posConstant)).Bytes()
+
+	// Add 0s to make v1 and v2 32 bytes long
+	for len(v1) < 32 {
+		v1 = append([]byte{0}, v1...)
+	}
+	for len(v2) < 32 {
+		v2 = append([]byte{0}, v2...)
+	}
+
+	return keccak256.Hash(v1, v2)
+}
+
 // computeFullBatches computes the full batches
 func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2Transaction) []*DSFullBatch {
-	currentL2Block := 0
+	prevL2BlockNumber := uint64(0)
 	currentL2Tx := 0
+	currentL2Block := uint64(0)
 
 	fullBatches := make([]*DSFullBatch, 0)
 
@@ -459,8 +578,13 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 			DSBatch: *batch,
 		}
 
-		for i := currentL2Block; i < len(l2Blocks); i++ {
+		for i := currentL2Block; i < uint64(len(l2Blocks)); i++ {
 			l2Block := l2Blocks[i]
+
+			if prevL2BlockNumber != 0 && l2Block.L2BlockNumber <= prevL2BlockNumber {
+				continue
+			}
+
 			if l2Block.BatchNumber == batch.BatchNumber {
 				fullBlock := DSL2FullBlock{
 					DSL2Block: *l2Block,
@@ -478,14 +602,12 @@ func computeFullBatches(batches []*DSBatch, l2Blocks []*DSL2Block, l2Txs []*DSL2
 				}
 
 				fullBatch.L2Blocks = append(fullBatch.L2Blocks, fullBlock)
+				prevL2BlockNumber = l2Block.L2BlockNumber
 				currentL2Block++
-			}
-
-			if l2Block.BatchNumber > batch.BatchNumber {
+			} else if l2Block.BatchNumber > batch.BatchNumber {
 				break
 			}
 		}
-
 		fullBatches = append(fullBatches, fullBatch)
 	}
 

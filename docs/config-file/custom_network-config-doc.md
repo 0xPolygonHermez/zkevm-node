@@ -87,13 +87,13 @@
 **Type:** : `object`
 **Description:** L1: configuration of the network
 
-| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                   |
-| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------- |
-| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                          |
-| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                          |
-| - [maticTokenAddress](#L1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract              |
-| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract    |
-| - [cdkDataCommitteeContract](#L1Config_cdkDataCommitteeContract )                   | No      | array of integer | No         | -          | Address of the data availability committee contract |
+| Property                                                                            | Pattern | Type             | Deprecated | Definition | Title/Description                                                          |
+| ----------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------- |
+| - [chainId](#L1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                 |
+| - [polygonZkEVMAddress](#L1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | ZkEVMAddr Address of the L1 contract polygonZkEVMAddress                   |
+| - [polygonRollupManagerAddress](#L1Config_polygonRollupManagerAddress )             | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
+| - [polTokenAddress](#L1Config_polTokenAddress )                                     | No      | array of integer | No         | -          | PolAddr Address of the L1 Pol token Contract                               |
+| - [polygonZkEVMGlobalExitRootAddress](#L1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract |
 
 ### <a name="L1Config_chainId"></a>4.1. `L1Config.chainId`
 
@@ -103,22 +103,22 @@
 ### <a name="L1Config_polygonZkEVMAddress"></a>4.2. `L1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 contract
+**Description:** ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
 
-### <a name="L1Config_maticTokenAddress"></a>4.3. `L1Config.maticTokenAddress`
-
-**Type:** : `array of integer`
-**Description:** Address of the L1 Matic token Contract
-
-### <a name="L1Config_polygonZkEVMGlobalExitRootAddress"></a>4.4. `L1Config.polygonZkEVMGlobalExitRootAddress`
+### <a name="L1Config_polygonRollupManagerAddress"></a>4.3. `L1Config.polygonRollupManagerAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 GlobalExitRootManager contract
+**Description:** RollupManagerAddr Address of the L1 contract
 
-### <a name="L1Config_cdkDataCommitteeContract"></a>4.5. `L1Config.cdkDataCommitteeContract`
+### <a name="L1Config_polTokenAddress"></a>4.4. `L1Config.polTokenAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the data availability committee contract
+**Description:** PolAddr Address of the L1 Pol token Contract
+
+### <a name="L1Config_polygonZkEVMGlobalExitRootAddress"></a>4.5. `L1Config.polygonZkEVMGlobalExitRootAddress`
+
+**Type:** : `array of integer`
+**Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 
 ----------------------------------------------------------------------------------------------------------------------------
 Generated using [json-schema-for-humans](https://github.com/coveooss/json-schema-for-humans)

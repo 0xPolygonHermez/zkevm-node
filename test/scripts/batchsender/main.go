@@ -111,7 +111,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		return err
 	}
 
-	ethMan, err := etherman.NewClient(cfg.Etherman, cfg.NetworkConfig.L1Config)
+	ethMan, err := etherman.NewClient(cfg.Etherman, cfg.NetworkConfig.L1Config, nil)
 	if err != nil {
 		return err
 	}
@@ -299,7 +299,7 @@ func sendBatches(cliCtx *cli.Context) error {
 								}
 							}
 						case etherman.TrustedVerifyBatchesSigHash():
-							vb, err := ethMan.ZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
+							vb, err := ethMan.ZkEVM.ParseVerifyBatches(vLog)
 							if err != nil {
 								return err
 							}

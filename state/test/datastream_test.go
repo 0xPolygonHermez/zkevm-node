@@ -1,7 +1,9 @@
 package test
 
 import (
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,29 +15,35 @@ func TestL2BlockStartEncode(t *testing.T) {
 		BatchNumber:    1,                           // 8 bytes
 		L2BlockNumber:  2,                           // 8 bytes
 		Timestamp:      3,                           // 8 bytes
-		GlobalExitRoot: common.HexToHash("0x04"),    // 32 bytes
-		Coinbase:       common.HexToAddress("0x05"), // 20 bytes
+		L1BlockHash:    common.HexToHash("0x04"),    // 32 bytes
+		GlobalExitRoot: common.HexToHash("0x05"),    // 32 bytes
+		Coinbase:       common.HexToAddress("0x06"), // 20 bytes
 		ForkID:         5,
 	}
 
 	encoded := l2BlockStart.Encode()
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0,
+	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0,
+		2, 0, 0, 0, 0, 0, 0, 0,
+		3, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0}
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
+		5, 0}
 
 	assert.Equal(t, expected, encoded)
 }
 
 func TestL2TransactionEncode(t *testing.T) {
 	l2Transaction := state.DSL2Transaction{
-		EffectiveGasPricePercentage: 128,                   // 1 byte
-		IsValid:                     1,                     // 1 byte
-		EncodedLength:               5,                     // 4 bytes
-		Encoded:                     []byte{1, 2, 3, 4, 5}, // 5 bytes
+		EffectiveGasPricePercentage: 128,                          // 1 byte
+		IsValid:                     1,                            // 1 byte
+		StateRoot:                   common.HexToHash("0x010203"), // 32 bytes
+		EncodedLength:               5,                            // 4 bytes
+		Encoded:                     []byte{1, 2, 3, 4, 5},        // 5 bytes
 	}
 
 	encoded := l2Transaction.Encode()
-	expected := []byte{128, 1, 5, 0, 0, 0, 1, 2, 3, 4, 5}
+	expected := []byte{128, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 0, 0, 1, 2, 3, 4, 5}
 	assert.Equal(t, expected, encoded)
 }
 
@@ -52,4 +60,16 @@ func TestL2BlockEndEncode(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3}
 
 	assert.Equal(t, expected, encoded)
+}
+
+func TestCalculateSCPosition(t *testing.T) {
+	a := time.Now()
+	blockNumber := uint64(2934867)
+	expected := common.HexToHash("0xaa93c484856be45716623765b429a967296594ca362e61e91d671fb422e0f744")
+	position := state.GetSystemSCPosition(blockNumber)
+	assert.Equal(t, expected, common.BytesToHash(position))
+	b := time.Now()
+
+	c := b.Sub(a)
+	fmt.Println(c)
 }
