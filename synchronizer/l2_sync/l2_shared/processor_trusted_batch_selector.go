@@ -10,6 +10,7 @@ When ForkId7 is activated, the executor will be switched to etrog for forkid7 ba
 import (
 	"context"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 )
@@ -44,13 +45,18 @@ func NewSyncTrustedStateExecutorSelector(
 func (s *SyncTrustedStateExecutorSelector) GetExecutor(latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) (syncinterfaces.SyncTrustedStateExecutor, uint64) {
 	fork := s.state.GetForkIDInMemory(etrogForkId)
 	if fork == nil {
+		log.Debugf("ForkId7 not activated yet, using pre-etrog executor")
 		return s.executorPreEtrog, maximumBatchNumberToProcess
 	}
 
 	if latestSyncedBatch+1 >= fork.FromBatchNumber {
+		log.Debugf("ForkId7 activated, batch:%d -> etrog executor", latestSyncedBatch)
 		return s.executorEtrog, maximumBatchNumberToProcess
 	}
-	return s.executorPreEtrog, min(maximumBatchNumberToProcess, fork.FromBatchNumber-1)
+	maxCapped := min(maximumBatchNumberToProcess, fork.FromBatchNumber-1)
+	log.Debugf("ForkId7 activated, batch:%d -> pre-etrog executor (maxBatch from:%d to %d)",
+		latestSyncedBatch, maximumBatchNumberToProcess, maxCapped)
+	return s.executorPreEtrog, maxCapped
 }
 
 // SyncTrustedState syncs the trusted state with the permissionless state. In this case
@@ -58,6 +64,8 @@ func (s *SyncTrustedStateExecutorSelector) GetExecutor(latestSyncedBatch uint64,
 func (s *SyncTrustedStateExecutorSelector) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error {
 	executor, maxBatchNumber := s.GetExecutor(latestSyncedBatch, maximumBatchNumberToProcess)
 	if executor == nil {
+		log.Warnf("No executor selected, skipping SyncTrustedState: latestSyncedBatch:%d, maximumBatchNumberToProcess:%d",
+			latestSyncedBatch, maximumBatchNumberToProcess)
 		return nil
 	}
 	return executor.SyncTrustedState(ctx, latestSyncedBatch, maxBatchNumber)
