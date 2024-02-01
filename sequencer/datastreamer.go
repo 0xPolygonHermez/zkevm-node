@@ -4,21 +4,22 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 )
 
-func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.ProcessBlockResponse) error {
+func (f *finalizer) DSSendL2Block(batchNumber uint64, blockResponse *state.ProcessBlockResponse, l1InfoTreeIndex uint32) error {
 	forkID := f.stateIntf.GetForkIDByBatchNumber(batchNumber)
 
 	// Send data to streamer
 	if f.streamServer != nil {
 		l2Block := state.DSL2Block{
-			BatchNumber:    batchNumber,
-			L2BlockNumber:  blockResponse.BlockNumber,
-			Timestamp:      int64(blockResponse.Timestamp),
-			L1BlockHash:    blockResponse.BlockHashL1,
-			GlobalExitRoot: blockResponse.GlobalExitRoot,
-			Coinbase:       f.sequencerAddress,
-			ForkID:         uint16(forkID),
-			BlockHash:      blockResponse.BlockHash,
-			StateRoot:      blockResponse.BlockHash, //From etrog, the blockhash is the block root
+			BatchNumber:     batchNumber,
+			L2BlockNumber:   blockResponse.BlockNumber,
+			Timestamp:       int64(blockResponse.Timestamp),
+			L1InfoTreeIndex: l1InfoTreeIndex,
+			L1BlockHash:     blockResponse.BlockHashL1,
+			GlobalExitRoot:  blockResponse.GlobalExitRoot,
+			Coinbase:        f.sequencerAddress,
+			ForkID:          uint16(forkID),
+			BlockHash:       blockResponse.BlockHash,
+			StateRoot:       blockResponse.BlockHash, //From etrog, the blockhash is the block root
 		}
 
 		l2Transactions := []state.DSL2Transaction{}

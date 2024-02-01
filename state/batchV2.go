@@ -378,7 +378,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 	processed, err := s.processBatchV2(ctx, &processingCtx, caller, dbTx)
-	if err != nil {
+	if err != nil && processed.ErrorRom == executor.RomError_ROM_ERROR_NO_ERROR {
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
 	}
@@ -392,7 +392,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
 	}
 
-	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError {
+	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError && processedBatch.RomError_V2 == nil {
 		for _, blockResponse := range processedBatch.BlockResponses {
 			err = s.StoreL2Block(ctx, processingCtx.BatchNumber, blockResponse, nil, dbTx)
 			if err != nil {
@@ -408,4 +408,15 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		AccInputHash:  processedBatch.NewAccInputHash,
 		BatchL2Data:   *BatchL2Data,
 	}, dbTx)
+}
+
+// BuildChangeL2Block returns a changeL2Block tx to use in the BatchL2Data
+func (p *State) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
+	l2block := ChangeL2BlockHeader{
+		DeltaTimestamp:  deltaTimestamp,
+		IndexL1InfoTree: l1InfoTreeIndex,
+	}
+	var data []byte
+	data = l2block.Encode(data)
+	return data
 }

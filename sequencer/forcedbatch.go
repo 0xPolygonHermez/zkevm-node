@@ -195,7 +195,7 @@ func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchR
 		}
 
 		// Send L2 block to data streamer
-		err = f.DSSendL2Block(batchResponse.NewBatchNumber, forcedL2BlockResponse)
+		err = f.DSSendL2Block(batchResponse.NewBatchNumber, forcedL2BlockResponse, 0)
 		if err != nil {
 			//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
 			log.Errorf("error sending L2 block %d to data streamer, error: %v", forcedL2BlockResponse.BlockNumber, err)

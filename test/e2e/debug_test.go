@@ -396,24 +396,48 @@ func TestDebugTraceTransaction(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
-				require.NoError(t, err)
+				var receipt *ethTypes.Receipt
+				var signedTx *ethTypes.Transaction
+				forceTxIndexDifferentFromZero := tcIdx%2 == 0
+				for {
+					log.Debugf("forceTxIndexDifferentFromZero: %v", forceTxIndexDifferentFromZero)
+					var err error
+					if forceTxIndexDifferentFromZero {
+						// send eth transfers txs to make the trace tx to not be the index 0 in the block
+						sendEthTransfersWithoutWaiting(t, ctx, ethereumClient, auth, common.HexToAddress(operations.DefaultSequencerAddress), big.NewInt(1), 3)
+					}
 
-				balance, err := ethereumClient.BalanceAt(ctx, auth.From, nil)
-				require.NoError(t, err)
-
-				log.Debugf("%s balance of %v: %v", debugID, auth.From, balance.String())
-
-				err = ethereumClient.SendTransaction(ctx, signedTx)
-				require.NoError(t, err)
-
-				log.Debugf("%s tx sent: %v", debugID, signedTx.Hash().String())
-
-				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
-				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+					signedTx, err = tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 					require.NoError(t, err)
-				}
 
+					balance, err := ethereumClient.BalanceAt(ctx, auth.From, nil)
+					require.NoError(t, err)
+
+					log.Debugf("%s balance of %v: %v", debugID, auth.From, balance.String())
+
+					err = ethereumClient.SendTransaction(ctx, signedTx)
+					require.NoError(t, err)
+
+					log.Debugf("%s tx sent: %v", debugID, signedTx.Hash().String())
+
+					err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+					if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+						require.NoError(t, err)
+					}
+
+					if forceTxIndexDifferentFromZero {
+						receipt, err = ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
+						require.NoError(t, err)
+						if receipt.TransactionIndex != 0 {
+							log.Debugf("tx receipt has tx index %v, accepted", receipt.TransactionIndex)
+							break
+						} else {
+							log.Debugf("tx receipt has tx index 0, retrying")
+						}
+					} else {
+						break
+					}
+				}
 				debugOptions := map[string]interface{}{
 					"disableStorage":   false,
 					"disableStack":     false,
@@ -425,7 +449,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
-				log.Debugf("%s response:%s", debugID, string(response.Result))
+				// log.Debugf("%s response:%s", debugID, string(response.Result))
 
 				resultForTx := convertJson(t, response.Result, debugID)
 				results[network.Name] = resultForTx

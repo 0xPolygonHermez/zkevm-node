@@ -31,6 +31,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/contracts/bin/Revert2"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -848,4 +849,37 @@ func createDeployCreate0SignedTx(t *testing.T, ctx context.Context, auth *bind.T
 	})
 
 	return auth.Signer(auth.From, tx)
+}
+
+func sendEthTransfersWithoutWaiting(t *testing.T, ctx context.Context, client *ethclient.Client, auth *bind.TransactOpts, to common.Address, value *big.Int, howMany int) {
+	nonce, err := client.PendingNonceAt(ctx, auth.From)
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	gas, err := client.EstimateGas(ctx, ethereum.CallMsg{
+		From:     auth.From,
+		To:       &auth.From,
+		GasPrice: gasPrice,
+		Value:    value,
+	})
+	require.NoError(t, err)
+
+	for i := 0; i < howMany; i++ {
+		tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+			To:       &to,
+			Nonce:    nonce + uint64(i),
+			GasPrice: gasPrice,
+			Value:    value,
+			Gas:      gas,
+		})
+
+		signedTx, err := auth.Signer(auth.From, tx)
+		require.NoError(t, err)
+
+		err = client.SendTransaction(ctx, signedTx)
+		require.NoError(t, err)
+		log.Debugf("sending eth transfer: %v", signedTx.Hash().String())
+	}
 }

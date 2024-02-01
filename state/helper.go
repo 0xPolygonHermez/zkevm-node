@@ -39,7 +39,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 	var batchL2Data []byte
 
 	for i, tx := range txs {
-		txData, err := prepareRPLTxData(tx)
+		txData, err := prepareRLPTxData(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -57,7 +57,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 	return batchL2Data, nil
 }
 
-func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
+func prepareRLPTxData(tx types.Transaction) ([]byte, error) {
 	v, r, s := tx.RawSignatureValues()
 	sign := 1 - (v.Uint64() & 1)
 
@@ -99,7 +99,7 @@ func EncodeTransactionsWithoutEffectivePercentage(txs []types.Transaction) ([]by
 	var batchL2Data []byte
 
 	for _, tx := range txs {
-		txData, err := prepareRPLTxData(tx)
+		txData, err := prepareRLPTxData(tx)
 		if err != nil {
 			return nil, err
 		}

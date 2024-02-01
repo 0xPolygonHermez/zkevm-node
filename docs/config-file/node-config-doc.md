@@ -1992,14 +1992,15 @@ SequentialProcessL2Block=true
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
 
-| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
-| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
-| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
-| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
-| - [Version](#Sequencer_StreamServer_Version )   | No      | integer | No         | -          | Version of the binary data file                       |
-| - [ChainID](#Sequencer_StreamServer_ChainID )   | No      | integer | No         | -          | ChainID is the chain ID                               |
-| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
-| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
+| Property                                                                      | Pattern | Type    | Deprecated | Definition | Title/Description                                                |
+| ----------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )                                       | No      | integer | No         | -          | Port to listen on                                                |
+| - [Filename](#Sequencer_StreamServer_Filename )                               | No      | string  | No         | -          | Filename of the binary data file                                 |
+| - [Version](#Sequencer_StreamServer_Version )                                 | No      | integer | No         | -          | Version of the binary data file                                  |
+| - [ChainID](#Sequencer_StreamServer_ChainID )                                 | No      | integer | No         | -          | ChainID is the chain ID                                          |
+| - [Enabled](#Sequencer_StreamServer_Enabled )                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer            |
+| - [Log](#Sequencer_StreamServer_Log )                                         | No      | object  | No         | -          | Log is the log configuration                                     |
+| - [UpgradeEtrogBatchNumber](#Sequencer_StreamServer_UpgradeEtrogBatchNumber ) | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the batch number of the upgrade etrog |
 
 #### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
 
@@ -2122,6 +2123,20 @@ Must be one of:
 ##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.6.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
+
+#### <a name="Sequencer_StreamServer_UpgradeEtrogBatchNumber"></a>10.8.7. `Sequencer.StreamServer.UpgradeEtrogBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+UpgradeEtrogBatchNumber=0
+```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 

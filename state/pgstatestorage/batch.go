@@ -2,7 +2,6 @@ package pgstatestorage
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -934,25 +933,6 @@ func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context,
 		return 0, err
 	}
 	return blockNum, nil
-}
-
-// BuildChangeL2Block returns a changeL2Block tx to use in the BatchL2Data
-func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
-	changeL2BlockMark := []byte{0x0B}
-	changeL2Block := []byte{}
-
-	// changeL2Block transaction mark
-	changeL2Block = append(changeL2Block, changeL2BlockMark...)
-	// changeL2Block deltaTimeStamp
-	deltaTimestampBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
-	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
-	// changeL2Block l1InfoTreeIndexBytes
-	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, l1InfoTreeIndex)
-	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
-
-	return changeL2Block
 }
 
 // GetRawBatchTimestamps returns the timestamp of the batch with the given number.
