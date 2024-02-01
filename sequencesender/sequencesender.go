@@ -423,7 +423,7 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 	}
 
 	if lastVirtualBatchNum < lastSCBatchNum {
-		log.Infof("waiting for the state to be synced, lastVirtualBatchNum: %d, lastSCBatchNum: %d", lastVirtualBatchNum, lastSCBatchNum)
+		log.Infof("waiting for the state to be synced, last virtual batch: %d, last SC sequenced batch: %d", lastVirtualBatchNum, lastSCBatchNum)
 		return false
 	} else if lastVirtualBatchNum > lastSCBatchNum { // Sanity check: virtual batch number cannot be greater than last batch sequenced in the SC
 		log.Errorf("last virtual batch %d is greater than last SC sequenced batch %d", lastVirtualBatchNum, lastSCBatchNum)
@@ -434,7 +434,7 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 	if lastTrustedBatchClosed.BatchNumber >= lastVirtualBatchNum {
 		return true
 	} else { // Sanity check: virtual batch number cannot be greater than last trusted batch closed
-		log.Errorf("last virtual batch %d is greater than last trusted batch %d", lastVirtualBatchNum, lastSCBatchNum)
+		log.Errorf("last virtual batch %d is greater than last trusted batch %d", lastVirtualBatchNum, lastTrustedBatchClosed.BatchNumber)
 		return false
 	}
 }
