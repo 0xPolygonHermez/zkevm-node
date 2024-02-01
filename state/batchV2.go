@@ -378,7 +378,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 	processed, err := s.processBatchV2(ctx, &processingCtx, caller, dbTx)
-	if err != nil {
+	if err != nil && processed.ErrorRom == executor.RomError_ROM_ERROR_NO_ERROR {
 		log.Errorf("%s error processBatchV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err
 	}
@@ -392,7 +392,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		log.Errorf("%s error isRomOOCError: %v", debugPrefix, err)
 	}
 
-	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError {
+	if len(processedBatch.BlockResponses) > 0 && !processedBatch.IsRomOOCError && processedBatch.RomError_V2 == nil {
 		for _, blockResponse := range processedBatch.BlockResponses {
 			err = s.StoreL2Block(ctx, processingCtx.BatchNumber, blockResponse, nil, dbTx)
 			if err != nil {
