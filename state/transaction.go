@@ -160,7 +160,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				Coinbase:   processingContext.Coinbase,
 				Root:       processedTx.StateRoot,
 				GasUsed:    processedTx.GasUsed,
-				GasLimit:   s.cfg.MaxCumulativeGasUsed,
+				GasLimit:   processedBlock.GasLimit,
 				Time:       uint64(processingContext.Timestamp.Unix()),
 			})
 			header.GlobalExitRoot = processedBlock.GlobalExitRoot
@@ -215,7 +215,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		Coinbase:   l2Block.Coinbase,
 		Root:       l2Block.BlockHash, //BlockHash returned by the executor is the StateRoot in Etrog
 		GasUsed:    l2Block.GasUsed,
-		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		GasLimit:   l2Block.GasLimit,
 		Time:       l2Block.Timestamp,
 	}
 
@@ -707,7 +707,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 	nonce := loadedNonce.Uint64()
 
-	highEnd := s.cfg.MaxCumulativeGasUsed
+	highEnd := MaxTxGasLimit
 
 	// if gas price is set, set the highEnd to the max amount
 	// of the account afford
