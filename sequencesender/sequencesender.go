@@ -426,7 +426,7 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 		log.Infof("waiting for the state to be synced, last virtual batch: %d, last SC sequenced batch: %d", lastVirtualBatchNum, lastSCBatchNum)
 		return false
 	} else if lastVirtualBatchNum > lastSCBatchNum { // Sanity check: virtual batch number cannot be greater than last batch sequenced in the SC
-		log.Errorf("last virtual batch %d is greater than last SC sequenced batch %d", lastVirtualBatchNum, lastSCBatchNum)
+		s.halt(ctx, fmt.Errorf("last virtual batch %d is greater than last SC sequenced batch %d", lastVirtualBatchNum, lastSCBatchNum))
 		return false
 	}
 
@@ -434,7 +434,29 @@ func (s *SequenceSender) isSynced(ctx context.Context) bool {
 	if lastTrustedBatchClosed.BatchNumber >= lastVirtualBatchNum {
 		return true
 	} else { // Sanity check: virtual batch number cannot be greater than last trusted batch closed
-		log.Errorf("last virtual batch %d is greater than last trusted batch %d", lastVirtualBatchNum, lastTrustedBatchClosed.BatchNumber)
+		s.halt(ctx, fmt.Errorf("last virtual batch %d is greater than last trusted batch closed %d", lastVirtualBatchNum, lastTrustedBatchClosed.BatchNumber))
 		return false
+	}
+}
+
+// halt halts the SequenceSender
+func (s *SequenceSender) halt(ctx context.Context, err error) {
+	event := &event.Event{
+		ReceivedAt:  time.Now(),
+		Source:      event.Source_Node,
+		Component:   event.Component_Sequence_Sender,
+		Level:       event.Level_Critical,
+		EventID:     event.EventID_FinalizerHalt,
+		Description: fmt.Sprintf("SequenceSender halted due to error, error: %s", err),
+	}
+
+	eventErr := s.eventLog.LogEvent(ctx, event)
+	if eventErr != nil {
+		log.Errorf("error storing SequenceSender halt event, error: %v", eventErr)
+	}
+
+	log.Errorf("halting SequenceSender, fatal error: %v", err)
+	for {
+		time.Sleep(300 * time.Second) //nolint:gomnd
 	}
 }
