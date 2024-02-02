@@ -707,7 +707,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 	nonce := loadedNonce.Uint64()
 
-	highEnd := l2BlockGasLimitPreEtrog
+	highEnd := MaxTxGasLimit
 
 	// if gas price is set, set the highEnd to the max amount
 	// of the account afford

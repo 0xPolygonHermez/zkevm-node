@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	l2BlockGasLimitPreEtrog = uint64(30000000)
+	MaxTxGasLimit = uint64(30000000)
 )
 
 // TestConvertToProcessBatchResponse for test purposes
@@ -185,7 +185,7 @@ func (s *State) convertToProcessBlockResponse(responses []*executor.ProcessTrans
 		}
 
 		blockResponse.TransactionResponses = append(blockResponse.TransactionResponses, txResponse)
-		blockResponse.GasLimit = l2BlockGasLimitPreEtrog
+		blockResponse.GasLimit = MaxTxGasLimit
 		results = append(results, blockResponse)
 	}
 
