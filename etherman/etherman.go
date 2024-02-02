@@ -1826,6 +1826,10 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 	return *auth, nil
 }
 
+func (etherMan *Client) GetRollupId() uint32 {
+	return etherMan.RollupID
+}
+
 // GetDAProtocolAddr returns the address of the data availability protocol
 func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
 	return etherMan.ZkEVM.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})

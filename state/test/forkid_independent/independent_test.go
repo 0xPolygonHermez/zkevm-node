@@ -645,7 +645,8 @@ func TestAddGetL2Block(t *testing.T) {
 	receipts := []*types.Receipt{receipt}
 
 	// Create block to be able to calculate its hash
-	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, st)
 	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()

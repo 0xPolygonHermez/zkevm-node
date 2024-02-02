@@ -251,6 +251,7 @@ func TestSequenceForceBatchesEvent(t *testing.T) {
 	_, err = etherman.ZkEVM.ForceBatch(auth, data, amount)
 	require.NoError(t, err)
 	ethBackend.Commit()
+	ethBackend.Commit()
 
 	err = ethBackend.AdjustTime((24*7 + 1) * time.Hour)
 	require.NoError(t, err)
@@ -347,15 +348,15 @@ func TestGasPrice(t *testing.T) {
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
 	ctx := context.Background()
 
-	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
-	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(1448795322), nil)
+	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(1448795321), nil)
 	gp := etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625003), gp)
+	assert.Equal(t, big.NewInt(1448795322), gp)
 
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, ethGasStationM}
 
 	gp = etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625002), gp)
+	assert.Equal(t, big.NewInt(1448795321), gp)
 }
 
 func TestErrorEthGasStationPrice(t *testing.T) {
@@ -372,9 +373,9 @@ func TestErrorEthGasStationPrice(t *testing.T) {
 	etherscanM := new(etherscanMock)
 	etherman.GasProviders.Providers = []ethereum.GasPricer{etherman.EthClient, etherscanM, ethGasStationM}
 
-	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625003), nil)
+	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(1448795322), nil)
 	gp = etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625003), gp)
+	assert.Equal(t, big.NewInt(1448795322), gp)
 }
 
 func TestErrorEtherScanPrice(t *testing.T) {
@@ -386,9 +387,9 @@ func TestErrorEtherScanPrice(t *testing.T) {
 	ctx := context.Background()
 
 	etherscanM.On("SuggestGasPrice", ctx).Return(big.NewInt(0), fmt.Errorf("error getting gasPrice from etherscan"))
-	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(765625002), nil)
+	ethGasStationM.On("SuggestGasPrice", ctx).Return(big.NewInt(1448795321), nil)
 	gp := etherman.GetL1GasPrice(ctx)
-	assert.Equal(t, big.NewInt(765625002), gp)
+	assert.Equal(t, big.NewInt(1448795321), gp)
 }
 
 func TestGetForks(t *testing.T) {

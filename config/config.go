@@ -2,10 +2,13 @@ package config
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -21,6 +24,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v2"
@@ -182,4 +186,20 @@ func Load(ctx *cli.Context, loadNetworkConfig bool) (*Config, error) {
 		cfg.loadNetworkConfig(ctx)
 	}
 	return cfg, nil
+}
+
+// NewKeyFromKeystore creates a private key from a keystore file
+func NewKeyFromKeystore(cfg types.KeystoreFileConfig) (*ecdsa.PrivateKey, error) {
+	if cfg.Path == "" && cfg.Password == "" {
+		return nil, nil
+	}
+	keystoreEncrypted, err := os.ReadFile(filepath.Clean(cfg.Path))
+	if err != nil {
+		return nil, err
+	}
+	key, err := keystore.DecryptKey(keystoreEncrypted, cfg.Password)
+	if err != nil {
+		return nil, err
+	}
+	return key.PrivateKey, nil
 }

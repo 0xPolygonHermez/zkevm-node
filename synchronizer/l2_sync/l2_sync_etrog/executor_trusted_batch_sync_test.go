@@ -130,13 +130,14 @@ func newData() l2_shared.ProcessData {
 
 func TestNothingProcessDontCloseBatch(t *testing.T) {
 	testData := newTestData(t)
+
 	// Arrange
 	data := l2_shared.ProcessData{
 		BatchNumber:       123,
 		Mode:              l2_shared.NothingProcessMode,
 		BatchMustBeClosed: false,
 		DebugPrefix:       "test",
-		StateBatch:        &state.Batch{},
+		StateBatch:        &state.Batch{WIP: true},
 		TrustedBatch:      &types.Batch{},
 	}
 

@@ -8,6 +8,15 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 )
 
+type SettlementBackend string
+
+const (
+	// To define the agglayer service for settlement
+	AggLayer SettlementBackend = "agglayer"
+	// To define the direct settlement to L1
+	L1 SettlementBackend = "l1"
+)
+
 // TokenAmountWithDecimals is a wrapper type that parses token amount with decimals to big int
 type TokenAmountWithDecimals struct {
 	*big.Int `validate:"required"`
@@ -85,6 +94,18 @@ type Config struct {
 	// gas offset: 100
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
+
+	// SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the AggLayer service.
+	SettlementBackend SettlementBackend `mapstructure:"SettlementBackend"`
+
+	// AggLayerTxTimeout is the interval time to wait for a tx to be mined from the agglayer
+	AggLayerTxTimeout types.Duration `mapstructure:"AggLayerTxTimeout"`
+
+	// AggLayerURL url of the agglayer service
+	AggLayerURL string `mapstructure:"AggLayerURL"`
+
+	// SequencerPrivateKey Private key of the trusted sequencer
+	SequencerPrivateKey types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`
 
 	// UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog
 	UpgradeEtrogBatchNumber uint64 `mapstructure:"UpgradeEtrogBatchNumber"`
