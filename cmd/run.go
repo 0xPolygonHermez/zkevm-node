@@ -300,7 +300,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
 			}
 		}
-		log.Debug("trustedSequencerURL ", trustedSequencerURL)
+		log.Info("trustedSequencerURL ", trustedSequencerURL)
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
