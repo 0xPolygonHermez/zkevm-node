@@ -20,9 +20,22 @@ type WorkerMock struct {
 	mock.Mock
 }
 
-// AddForcedTx provides a mock function with given fields: txHash, addr
-func (_m *WorkerMock) AddForcedTx(txHash common.Hash, addr common.Address) {
-	_m.Called(txHash, addr)
+// AddForcedTx provides a mock function with given fields: ctx, txHash, addr
+func (_m *WorkerMock) AddForcedTx(ctx context.Context, txHash common.Hash, addr common.Address) error {
+	ret := _m.Called(ctx, txHash, addr)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddForcedTx")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, common.Address) error); ok {
+		r0 = rf(ctx, txHash, addr)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
 }
 
 // AddPendingTxToStore provides a mock function with given fields: txHash, addr

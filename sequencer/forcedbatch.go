@@ -129,21 +129,21 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		return rollbackOnError(fmt.Errorf("error closing state batch %d for forced batch %d, error: %v", newBatchNumber, forcedBatch.ForcedBatchNumber, err))
 	}
 
+	if len(batchResponse.BlockResponses) > 0 && !batchResponse.IsRomOOCError {
+		err = f.handleProcessForcedBatchResponse(ctx, newBatchNumber, batchResponse, dbTx)
+		return rollbackOnError(fmt.Errorf("error when handling batch response for forced batch %d, error: %v", forcedBatch.ForcedBatchNumber, err))
+	}
+
 	err = dbTx.Commit(ctx)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("error when commit dbTx when processing forced batch %d, error: %v", forcedBatch.ForcedBatchNumber, err))
-	}
-
-	if len(batchResponse.BlockResponses) > 0 && !batchResponse.IsRomOOCError {
-		err = f.handleProcessForcedBatchResponse(ctx, batchResponse, dbTx)
-		return rollbackOnError(fmt.Errorf("error when handling batch response for forced batch %d, error: %v", forcedBatch.ForcedBatchNumber, err))
 	}
 
 	return newBatchNumber, batchResponse.NewStateRoot, nil
 }
 
 // addForcedTxToWorker adds the txs of the forced batch to the worker
-func (f *finalizer) addForcedTxToWorker(forcedBatchResponse *state.ProcessBatchResponse) {
+func (f *finalizer) addForcedTxToWorker(ctx context.Context, forcedBatchResponse *state.ProcessBatchResponse) {
 	for _, blockResponse := range forcedBatchResponse.BlockResponses {
 		for _, txResponse := range blockResponse.TransactionResponses {
 			from, err := state.GetSender(txResponse.Tx)
@@ -151,14 +151,18 @@ func (f *finalizer) addForcedTxToWorker(forcedBatchResponse *state.ProcessBatchR
 				log.Warnf("failed to get sender for tx %s, error: %v", txResponse.TxHash, err)
 				continue
 			}
-			f.workerIntf.AddForcedTx(txResponse.TxHash, from)
+			err = f.workerIntf.AddForcedTx(ctx, txResponse.TxHash, from)
+			if err != nil {
+				log.Warnf("failed to add forced tx %s to the worker, error: %v", txResponse.TxHash, err)
+				continue
+			}
 		}
 	}
 }
 
 // handleProcessForcedTxsResponse handles the block/transactions responses for the processed forced batch.
-func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchResponse *state.ProcessBatchResponse, dbTx pgx.Tx) error {
-	f.addForcedTxToWorker(batchResponse)
+func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, newBatchNumber uint64, batchResponse *state.ProcessBatchResponse, dbTx pgx.Tx) error {
+	f.addForcedTxToWorker(ctx, batchResponse)
 
 	f.updateFlushIDs(batchResponse.FlushID, batchResponse.StoredFlushID)
 
@@ -177,7 +181,7 @@ func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchR
 	// process L2 blocks responses for the forced batch
 	for _, forcedL2BlockResponse := range batchResponse.BlockResponses {
 		// Store forced L2 blocks in the state
-		err := f.stateIntf.StoreL2Block(ctx, batchResponse.NewBatchNumber, forcedL2BlockResponse, nil, dbTx)
+		err := f.stateIntf.StoreL2Block(ctx, newBatchNumber, forcedL2BlockResponse, nil, dbTx)
 		if err != nil {
 			return fmt.Errorf("database error on storing L2 block %d, error: %v", forcedL2BlockResponse.BlockNumber, err)
 		}
@@ -195,7 +199,7 @@ func (f *finalizer) handleProcessForcedBatchResponse(ctx context.Context, batchR
 		}
 
 		// Send L2 block to data streamer
-		err = f.DSSendL2Block(batchResponse.NewBatchNumber, forcedL2BlockResponse, 0)
+		err = f.DSSendL2Block(newBatchNumber, forcedL2BlockResponse, 0)
 		if err != nil {
 			//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
 			log.Errorf("error sending L2 block %d to data streamer, error: %v", forcedL2BlockResponse.BlockNumber, err)

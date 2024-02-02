@@ -111,6 +111,6 @@ type workerInterface interface {
 	AddPendingTxToStore(txHash common.Hash, addr common.Address)
 	DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
-	AddForcedTx(txHash common.Hash, addr common.Address)
+	AddForcedTx(ctx context.Context, txHash common.Hash, addr common.Address) error
 	DeleteForcedTx(txHash common.Hash, addr common.Address)
 }

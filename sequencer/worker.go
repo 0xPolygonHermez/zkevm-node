@@ -63,23 +63,11 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
 		w.workerMutex.Unlock()
 
-		root, err := w.state.GetLastStateRoot(ctx, nil)
+		nonce, balance, err := w.getAddrData(ctx, tx.From)
+
 		if err != nil {
-			dropReason = fmt.Errorf("error getting last state root from hashdb service, error: %v", err)
-			log.Error(dropReason)
-			return nil, dropReason
-		}
-		nonce, err := w.state.GetNonceByStateRoot(ctx, tx.From, root)
-		if err != nil {
-			dropReason = fmt.Errorf("error getting nonce for address %s from hashdb service, error: %v", tx.From, err)
-			log.Error(dropReason)
-			return nil, dropReason
-		}
-		balance, err := w.state.GetBalanceByStateRoot(ctx, tx.From, root)
-		if err != nil {
-			dropReason = fmt.Errorf("error getting balance for address %s from hashdb service, error: %v", tx.From, err)
-			log.Error(dropReason)
-			return nil, dropReason
+			log.Error(err)
+			return nil, err
 		}
 
 		addr = newAddrQueue(tx.From, nonce.Uint64(), balance)
@@ -117,6 +105,23 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 
 	w.workerMutex.Unlock()
 	return repTx, nil
+}
+
+func (w *Worker) getAddrData(ctx context.Context, from common.Address) (*big.Int, *big.Int, error) {
+	root, err := w.state.GetLastStateRoot(ctx, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting last state root from hashdb service, error: %v", err)
+	}
+	nonce, err := w.state.GetNonceByStateRoot(ctx, from, root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting nonce for address %s from hashdb service, error: %v", from, err)
+	}
+	balance, err := w.state.GetBalanceByStateRoot(ctx, from, root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting balance for address %s from hashdb service, error: %v", from, err)
+	}
+
+	return nonce, balance, nil
 }
 
 func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, fromBalance *big.Int) (*TxTracker, *TxTracker, []*TxTracker) {
@@ -258,17 +263,33 @@ func (w *Worker) AddPendingTxToStore(txHash common.Hash, addr common.Address) {
 }
 
 // AddForcedTx adds a forced tx to the addrQueue
-func (w *Worker) AddForcedTx(txHash common.Hash, addr common.Address) {
+func (w *Worker) AddForcedTx(ctx context.Context, txHash common.Hash, addr common.Address) error {
 	w.workerMutex.Lock()
 	defer w.workerMutex.Unlock()
 
 	addrQueue, found := w.pool[addr.String()]
+	if !found {
+		// Unlock the worker to let execute other worker functions while creating the new AddrQueue
+		w.workerMutex.Unlock()
 
-	if found {
-		addrQueue.addForcedTx(txHash)
-	} else {
-		log.Warnf("addrQueue %s not found", addr.String())
+		nonce, balance, err := w.getAddrData(ctx, addr)
+
+		if err != nil {
+			return err
+		}
+
+		addrQueue = newAddrQueue(addr, nonce.Uint64(), balance)
+
+		// Lock again the worker
+		w.workerMutex.Lock()
+
+		w.pool[addr.String()] = addrQueue
+		log.Debugf("new addrQueue %s created (nonce: %d, balance: %d)", addr, nonce, balance)
 	}
+
+	addrQueue.addForcedTx(txHash)
+
+	return nil
 }
 
 // DeletePendingTxToStore delete a tx from the addrQueue list of pending txs to store in the DB (trusted state)
