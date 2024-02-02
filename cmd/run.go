@@ -12,10 +12,12 @@ import (
 	"runtime"
 	"time"
 
+	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/config/apollo"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -149,6 +151,13 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.ProfilingEnabled {
 		go startProfilingHttpServer(c.Metrics)
 	}
+	// Read configure from apollo
+	apolloClient := apollo.NewClient(c)
+	if apolloClient.LoadConfig() {
+		log.Info("apollo config loaded")
+	}
+
+	pool.SetL2BridgeAddr(c.NetworkConfig.L2BridgeAddr)
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:
@@ -186,7 +195,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, c.State.Batch.Constraints, l2ChainID, st, eventLog)
 			}
-			seqSender := createSequenceSender(*c, poolInstance, ethTxManagerStorage, st, eventLog)
+			seqSender := createSequenceSenderX1(*c, poolInstance, ethTxManagerStorage, st, eventLog)
 			go seqSender.Start(cliCtx.Context)
 		case RPC:
 			ev.Component = event.Component_RPC
@@ -317,7 +326,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 	etm := ethtxmanager.New(cfg.EthTxManager, etherman, ethTxManagerStorage, st)
 	sy, err := synchronizer.NewSynchronizer(
 		cfg.IsTrustedSequencer, etherman, etherManForL1, st, pool, etm,
-		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, cfg.Log.Environment == "development",
+		zkEVMClient, eventLog, cfg.NetworkConfig.Genesis, cfg.Synchronizer, &dataCommitteeClient.ClientFactory{}, cfg.Log.Environment == "development",
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -385,7 +394,7 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 			Service: &jsonrpc.Web3Endpoints{},
 		})
 	}
-
+	jsonrpc.InitRateLimit(c.RPC.RateLimit)
 	if err := jsonrpc.NewServer(c.RPC, chainID, pool, st, storage, services).Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -404,6 +413,7 @@ func createSequencer(cfg config.Config, pool *pool.Pool, st *state.State, eventL
 	return seq
 }
 
+// nolint:unused
 func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
@@ -420,7 +430,7 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 
 	ethTxManager := ethtxmanager.New(cfg.EthTxManager, etherman, etmStorage, st)
 
-	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog)
+	seqSender, err := sequencesender.New(cfg.SequenceSender, st, etherman, ethTxManager, eventLog, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -513,7 +523,7 @@ func createEthTxManager(cfg config.Config, etmStorage *ethtxmanager.PostgresStor
 	}
 
 	for _, privateKey := range cfg.EthTxManager.PrivateKeys {
-		_, err := etherman.LoadAuthFromKeyStore(privateKey.Path, privateKey.Password)
+		_, _, err := etherman.LoadAuthFromKeyStoreX1(privateKey.Path, privateKey.Password)
 		if err != nil {
 			log.Fatal(err)
 		}

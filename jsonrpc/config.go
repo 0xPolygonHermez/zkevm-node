@@ -62,6 +62,33 @@ type Config struct {
 	// EnableHttpLog allows the user to enable or disable the logs related to the HTTP
 	// requests to be captured by the server.
 	EnableHttpLog bool `mapstructure:"EnableHttpLog"`
+	// EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
+	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
+
+	// Nacos configuration
+	Nacos NacosConfig `mapstructure:"Nacos"`
+
+	// NacosWs configuration
+	NacosWs NacosConfig `mapstructure:"NacosWs"`
+
+	// GasLimitFactor is used to multiply the suggested gas provided by the network
+	// in order to allow a enough gas to be set for all the transactions default value is 1.
+	//
+	// ex:
+	// suggested gas limit: 100
+	// GasLimitFactor: 1
+	// gas limit = 100
+	//
+	// suggested gas limit: 100
+	// GasLimitFactor: 1.1
+	// gas limit = 110
+	GasLimitFactor float64 `mapstructure:"GasLimitFactor"`
+
+	// DisableAPIs disable some API
+	DisableAPIs []string `mapstructure:"DisableAPIs"`
+
+	// RateLimit enable rate limit
+	RateLimit RateLimitConfig `mapstructure:"RateLimit"`
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support
@@ -77,4 +104,19 @@ type WebSocketsConfig struct {
 
 	// ReadLimit defines the maximum size of a message read from the client (in bytes)
 	ReadLimit int64 `mapstructure:"ReadLimit"`
+}
+
+// NacosConfig has parameters to config the nacos client
+type NacosConfig struct {
+	// URLs nacos server urls for discovery service of rest api, url is separated by ","
+	URLs string `mapstructure:"URLs"`
+
+	// NamespaceId nacos namepace id for discovery service of rest api
+	NamespaceId string `mapstructure:"NamespaceId"`
+
+	// ApplicationName rest application name in  nacos
+	ApplicationName string `mapstructure:"ApplicationName"`
+
+	// ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker
+	ExternalListenAddr string `mapstructure:"ExternalListenAddr"`
 }

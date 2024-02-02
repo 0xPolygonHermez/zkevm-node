@@ -617,7 +617,9 @@ func TestDebugTraceBlock(t *testing.T) {
 				err = json.Unmarshal(result, &resultTransactions)
 				require.NoError(t, err)
 
+				log.Debugf("resultTransactions count [%d]", len(resultTransactions))
 				for transactionIndex := range referenceTransactions {
+					log.Debugf("test[%s] transactionIndex=%d", tc.name, transactionIndex)
 					referenceTransactionMap := referenceTransactions[transactionIndex].(map[string]interface{})
 					referenceResultMap := referenceTransactionMap["result"].(map[string]interface{})
 					referenceStructLogsMap := referenceResultMap["structLogs"].([]interface{})

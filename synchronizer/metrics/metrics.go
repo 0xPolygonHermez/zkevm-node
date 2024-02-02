@@ -80,7 +80,9 @@ func Register() {
 		},
 	}
 
+	metrics.RegisterGauges(gauge...)
 	metrics.RegisterHistograms(histograms...)
+	metrics.RegisterCounters(counters...)
 }
 
 // InitializationTime observes the time initializing the synchronizer on the histogram.

@@ -63,6 +63,7 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 // Start stars the dbManager routines
 func (d *dbManager) Start() {
 	go d.loadFromPool()
+	go d.countPendingTx()
 	go func() {
 		for {
 			time.Sleep(d.cfg.L2ReorgRetrievalInterval.Duration)
@@ -168,6 +169,7 @@ func (d *dbManager) sendDataToStreamer() {
 		l2Transactions := fullL2Block.Txs
 
 		if d.streamServer != nil {
+			log.Infof("Sending data to streamer for l2block %v, start.", l2Block.L2BlockNumber)
 			err = d.streamServer.StartAtomicOp()
 			if err != nil {
 				log.Errorf("failed to start atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
@@ -233,12 +235,13 @@ func (d *dbManager) sendDataToStreamer() {
 				log.Errorf("failed to commit atomic op for l2block %v: %v ", l2Block.L2BlockNumber, err)
 				continue
 			}
+			log.Infof("Sending data to streamer for l2block %v, end.", l2Block.L2BlockNumber)
 		}
 	}
 }
 
 func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
-	txTracker, err := d.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
+	txTracker, err := d.worker.NewTxTracker(tx, tx.ZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}
@@ -358,6 +361,8 @@ func (d *dbManager) StoreProcessedTxAndDeleteFromPool(ctx context.Context, tx tr
 			DSL2Block: l2Block,
 			Txs:       []state.DSL2Transaction{l2Transaction},
 		}
+
+		log.Infof("Send data to stream successfully tx: %v for batch: %v, block: %v", tx.response.TxHash.String(), tx.batchNumber, l2Block.L2BlockNumber)
 	}
 
 	return nil

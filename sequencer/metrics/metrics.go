@@ -102,8 +102,11 @@ func Register() {
 	}
 
 	metrics.RegisterCounters(counters...)
+	metrics.RegisterCounters(countersX1...)
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterGauges(gauges...)
+	metrics.RegisterGauges(gaugesX1...)
+	metrics.RegisterGaugeVecs(gaugeVecs...)
 	metrics.RegisterHistograms(histograms...)
 }
 

@@ -55,8 +55,7 @@ func Register() {
 				Help: "[JSONRPC] number of requests handled",
 			},
 			Labels: []string{requestHandledTypeLabelName},
-		},
-	}
+		}}
 
 	start := 0.1
 	width := 0.1
@@ -70,7 +69,9 @@ func Register() {
 	}
 
 	metrics.RegisterCounterVecs(counterVecs...)
+	metrics.RegisterCounterVecs(counterVecsX1...)
 	metrics.RegisterHistograms(histograms...)
+	metrics.RegisterHistogramVecs(histogramVecs...)
 }
 
 // CountConn increments the connection counter vector by one for the

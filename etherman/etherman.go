@@ -2,6 +2,7 @@ package etherman
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/matic"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
@@ -125,6 +127,8 @@ type L1Config struct {
 	MaticAddr common.Address `json:"maticTokenAddress"`
 	// Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
+	// Address of the data availability committee contract
+	DataCommitteeAddr common.Address `json:"dataCommitteeContract"`
 }
 
 type externalGasProviders struct {
@@ -138,6 +142,7 @@ type Client struct {
 	ZkEVM                 *polygonzkevm.Polygonzkevm
 	GlobalExitRootManager *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	Matic                 *matic.Matic
+	DataCommittee         *datacommittee.Datacommittee
 	SCAddresses           []common.Address
 
 	GasProviders externalGasProviders
@@ -168,6 +173,12 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	dataCommittee, err := datacommittee.NewDatacommittee(l1Config.DataCommitteeAddr, ethClient)
+	if err != nil {
+		return nil, err
+	}
+
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -188,6 +199,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		ZkEVM:                 poe,
 		Matic:                 matic,
 		GlobalExitRootManager: globalExitRoot,
+		DataCommittee:         dataCommittee,
 		SCAddresses:           scAddresses,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: cfg.MultiGasProvider,
@@ -565,7 +577,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		batches = append(batches, batch)
 	}
 
-	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase)
+	tx, err := etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, nil)
 	if err != nil {
 		if parsedErr, ok := tryParseError(err); ok {
 			err = parsedErr
@@ -809,6 +821,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			Coinbase:              coinbase,
 			PolygonZkEVMBatchData: seq,
 		}
+		log.Infof("decodeSequences txs len:%d, tx hash:%s", len(seq.Transactions), hex.EncodeToString(seq.TransactionsHash[:]))
 	}
 
 	return sequencedBatches, nil

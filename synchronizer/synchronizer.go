@@ -1,6 +1,7 @@
 package synchronizer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
@@ -64,8 +66,11 @@ type ClientSynchronizer struct {
 	// later the value is checked to be the same (in function checkFlushID)
 	proverID string
 	// Previous value returned by state.GetStoredFlushID, is used for decide if write a log or not
-	previousExecutorFlushID uint64
-	l1SyncOrchestration     *l1SyncOrchestration
+	previousExecutorFlushID    uint64
+	committeeMembers           []etherman.DataCommitteeMember
+	selectedCommitteeMember    int
+	dataCommitteeClientFactory client.ClientFactoryInterface
+	l1SyncOrchestration        *l1SyncOrchestration
 }
 
 // NewSynchronizer creates and initializes an instance of Synchronizer
@@ -79,27 +84,28 @@ func NewSynchronizer(
 	zkEVMClient zkEVMClientInterface,
 	eventLog *event.EventLog,
 	genesis state.Genesis,
-	cfg Config,
+	cfg Config, clientFactory client.ClientFactoryInterface,
 	runInDevelopmentMode bool) (Synchronizer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Register()
 
 	res := &ClientSynchronizer{
-		isTrustedSequencer:      isTrustedSequencer,
-		state:                   st,
-		etherMan:                ethMan,
-		etherManForL1:           etherManForL1,
-		pool:                    pool,
-		ctx:                     ctx,
-		cancelCtx:               cancel,
-		ethTxManager:            ethTxManager,
-		zkEVMClient:             zkEVMClient,
-		eventLog:                eventLog,
-		genesis:                 genesis,
-		cfg:                     cfg,
-		proverID:                "",
-		previousExecutorFlushID: 0,
-		l1SyncOrchestration:     nil,
+		isTrustedSequencer:         isTrustedSequencer,
+		state:                      st,
+		etherMan:                   ethMan,
+		etherManForL1:              etherManForL1,
+		pool:                       pool,
+		ctx:                        ctx,
+		cancelCtx:                  cancel,
+		ethTxManager:               ethTxManager,
+		zkEVMClient:                zkEVMClient,
+		eventLog:                   eventLog,
+		genesis:                    genesis,
+		cfg:                        cfg,
+		proverID:                   "",
+		previousExecutorFlushID:    0,
+		dataCommitteeClientFactory: clientFactory,
+		l1SyncOrchestration:        nil,
 	}
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -114,8 +120,8 @@ func NewSynchronizer(
 	default:
 		log.Fatalf("L1SynchronizationMode is not valid. Valid values are: %s, %s", ParallelMode, SequentialMode)
 	}
-
-	return res, nil
+	err := res.loadCommittee()
+	return res, err
 }
 
 var waitDuration = time.Duration(0)
@@ -884,12 +890,29 @@ func (s *ClientSynchronizer) processForkID(forkID etherman.ForkID, blockNumber u
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
 
+func isZeroByteArray(bytesArray [32]byte) bool {
+	var zero = [32]byte{}
+	return bytes.Equal(bytesArray[:], zero[:])
+}
+
 func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.SequencedBatch, blockNumber uint64, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
+		var batchL2Data []byte
+		log.Infof("sbatch.Transactions len:%d, txs hash:%s", len(sbatch.Transactions), hex.EncodeToString(sbatch.TransactionsHash[:]))
+		var err error
+		if len(sbatch.Transactions) > 0 || (len(sbatch.Transactions) == 0 && isZeroByteArray(sbatch.TransactionsHash)) {
+			batchL2Data = sbatch.Transactions
+		} else {
+			batchL2Data, err = s.getBatchL2Data(sbatch.BatchNumber, sbatch.TransactionsHash)
+			if err != nil {
+				return err
+			}
+		}
+
 		virtualBatch := state.VirtualBatch{
 			BatchNumber:   sbatch.BatchNumber,
 			TxHash:        sbatch.TxHash,
@@ -902,7 +925,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			GlobalExitRoot: sbatch.GlobalExitRoot,
 			Timestamp:      time.Unix(int64(sbatch.Timestamp), 0),
 			Coinbase:       sbatch.Coinbase,
-			BatchL2Data:    sbatch.Transactions,
+			BatchL2Data:    batchL2Data,
 		}
 		// ForcedBatch must be processed
 		if sbatch.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
@@ -929,9 +952,9 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			}
 			if uint64(forcedBatches[0].ForcedAt.Unix()) != sbatch.MinForcedTimestamp ||
 				forcedBatches[0].GlobalExitRoot != sbatch.GlobalExitRoot ||
-				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(sbatch.Transactions) {
+				common.Bytes2Hex(forcedBatches[0].RawTxsData) != common.Bytes2Hex(batchL2Data) {
 				log.Warnf("ForcedBatch stored: %+v. RawTxsData: %s", forcedBatches, common.Bytes2Hex(forcedBatches[0].RawTxsData))
-				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(sbatch.Transactions))
+				log.Warnf("ForcedBatch sequenced received: %+v. RawTxsData: %s", sbatch, common.Bytes2Hex(batchL2Data))
 				log.Errorf("error: forcedBatch received doesn't match with the next expected forcedBatch stored in db. Expected: %+v, Synced: %+v", forcedBatches, sbatch)
 				rollbackErr := dbTx.Rollback(s.ctx)
 				if rollbackErr != nil {
@@ -1083,6 +1106,7 @@ func (s *ClientSynchronizer) processSequenceBatches(sequencedBatches []etherman.
 			log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, blockNumber, err)
 			return err
 		}
+		metrics.VirtualBatchNum(virtualBatch.BatchNumber)
 	}
 	// Insert the sequence to allow the aggregator verify the sequence batches
 	seq := state.Sequence{
@@ -1344,6 +1368,7 @@ func (s *ClientSynchronizer) processTrustedVerifyBatches(lastVerifiedBatch ether
 			log.Errorf("error storing the verifiedB in processTrustedVerifyBatches. BlockNumber: %d, error: %v", lastVerifiedBatch.BlockNumber, err)
 			return err
 		}
+		metrics.VerifiedBatchNum(verifiedB.BatchNumber)
 	}
 	return nil
 }
@@ -1814,6 +1839,7 @@ func (s *ClientSynchronizer) halt(ctx context.Context, err error) {
 	if eventErr != nil {
 		log.Errorf("error storing Synchronizer halt event: %v", eventErr)
 	}
+	metrics.HaltCount()
 
 	for {
 		log.Errorf("fatal error: %s", err)

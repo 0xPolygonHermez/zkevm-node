@@ -192,7 +192,22 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		} else if err != nil {
 			return nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
-		return hex.EncodeUint64(gasEstimation), nil
+		gasEstimationWithFactor := gasEstimation
+		var gasLimitFactor float64
+
+		if getApolloConfig().Enable() {
+			getApolloConfig().RLock()
+			gasLimitFactor = getApolloConfig().GasLimitFactor
+			getApolloConfig().RUnlock()
+		} else {
+			gasLimitFactor = e.cfg.GasLimitFactor
+		}
+
+		if gasLimitFactor > 0 {
+			gasEstimationWithFactor = uint64(float64(gasEstimation) * gasLimitFactor)
+		}
+
+		return hex.EncodeUint64(gasEstimationWithFactor), nil
 	})
 }
 
@@ -477,11 +492,20 @@ func (e *EthEndpoints) GetFilterLogs(filterID string) (interface{}, types.Error)
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if filter.FromBlock == nil {
+			bn := types.LatestBlockNumber
+			filter.FromBlock = &bn
+		}
+
 		return e.internalGetLogs(ctx, dbTx, filter)
 	})
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
+	if e.isDisabled("eth_getLogs") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
+
 	fromBlockNumber, toBlockNumber, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, dbTx)
 	if rpcErr != nil {
 		return nil, rpcErr
@@ -813,6 +837,9 @@ func (e *EthEndpoints) NewBlockFilter() (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newBlockFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
+	if e.isDisabled("eth_newBlockFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	id, err := e.storage.NewBlockFilter(wsConn)
 	if err != nil {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new block filter", err, true)
@@ -832,6 +859,9 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *concurrentWsConn, filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
+	if e.isDisabled("eth_newFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
 	if filter.ShouldFilterByBlockRange() {
 		_, _, rpcErr := filter.GetNumericBlockNumbers(ctx, e.cfg, e.state, e.etherman, nil)
 		if rpcErr != nil {
@@ -858,13 +888,17 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 
 // internal
 func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
-	return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
-	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
-	// if err != nil {
-	// 	return rpcErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err)
-	// }
-
-	// return id, nil
+	if e.isDisabled("eth_newPendingTransactionFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
+	if !e.cfg.EnablePendingTransactionFilter {
+		return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
+	}
+	id, err := e.storage.NewPendingTransactionFilter(wsConn)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err, true)
+	}
+	return id, nil
 }
 
 // SendRawTransaction has two different ways to handle new transactions:

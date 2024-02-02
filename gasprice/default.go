@@ -33,6 +33,10 @@ func newDefaultGasPriceSuggester(ctx context.Context, cfg Config, pool poolInter
 
 // UpdateGasPriceAvg not needed for default strategy.
 func (d *DefaultGasPricer) UpdateGasPriceAvg() {
+	if getApolloConfig().Enable() {
+		d.cfg = getApolloConfig().get()
+	}
+
 	err := d.pool.SetGasPrices(d.ctx, d.cfg.DefaultGasPriceWei, d.l1GasPrice)
 	if err != nil {
 		panic(fmt.Errorf("failed to set default gas price, err: %v", err))

@@ -151,6 +151,113 @@
 					"type": "integer",
 					"description": "MaxGasPriceLimit helps avoiding transactions to be sent over an specified\ngas price amount, default value is 0, which means no limit.\nIf the gas price provided by the network and adjusted by the GasPriceMarginFactor\nis greater than this configuration, transaction will have its gas price set to\nthe value configured in this config as the limit.\n\nex:\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 150\ntx gas price = 120\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 110\ntx gas price = 110",
 					"default": 0
+				},
+				"CustodialAssets": {
+					"properties": {
+						"Enable": {
+							"type": "boolean",
+							"description": "Enable is the flag to enable the custodial assets",
+							"default": false
+						},
+						"URL": {
+							"type": "string",
+							"description": "URL is the url to sign the custodial assets",
+							"default": "http://localhost:8080"
+						},
+						"Symbol": {
+							"type": "integer",
+							"description": "Symbol is the symbol of the network, 2 prd, 2882 devnet",
+							"default": 2882
+						},
+						"SequencerAddr": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "SequencerAddr is the address of the sequencer",
+							"default": "0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"
+						},
+						"AggregatorAddr": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "AggregatorAddr is the address of the aggregator",
+							"default": "0x66e39a1e507af777e8c385e2d91559e20e306303"
+						},
+						"WaitResultTimeout": {
+							"type": "string",
+							"title": "Duration",
+							"description": "WaitResultTimeout is the timeout to wait for the result of the custodial assets",
+							"default": "2m0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"OperateTypeSeq": {
+							"type": "integer",
+							"description": "OperateTypeSeq is the operate type of the custodial assets for the sequencer",
+							"default": 1
+						},
+						"OperateTypeAgg": {
+							"type": "integer",
+							"description": "OperateTypeAgg is the operate type of the custodial assets for the aggregator",
+							"default": 2
+						},
+						"ProjectSymbol": {
+							"type": "integer",
+							"description": "ProjectSymbol is the project symbol of the custodial assets",
+							"default": 3011
+						},
+						"OperateSymbol": {
+							"type": "integer",
+							"description": "OperateSymbol is the operate symbol of the custodial assets",
+							"default": 2
+						},
+						"SysFrom": {
+							"type": "integer",
+							"description": "SysFrom is the sys from of the custodial assets",
+							"default": 3
+						},
+						"UserID": {
+							"type": "integer",
+							"description": "UserID is the user id of the custodial assets",
+							"default": 0
+						},
+						"OperateAmount": {
+							"type": "integer",
+							"description": "OperateAmount is the operate amount of the custodial assets",
+							"default": 0
+						},
+						"RequestSignURI": {
+							"type": "string",
+							"description": "RequestSignURI is the request sign uri of the custodial assets",
+							"default": "/priapi/v1/assetonchain/ecology/ecologyOperate"
+						},
+						"QuerySignURI": {
+							"type": "string",
+							"description": "QuerySignURI is the query sign uri of the custodial assets",
+							"default": "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"
+						},
+						"AccessKey": {
+							"type": "string",
+							"description": "AccessKey is the access key of the custodial assets",
+							"default": ""
+						},
+						"SecretKey": {
+							"type": "string",
+							"description": "SecretKey is the secret key of the custodial assets",
+							"default": ""
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "CustodialAssets is the configuration for the custodial assets"
 				}
 			},
 			"additionalProperties": false,
@@ -159,6 +266,11 @@
 		},
 		"Pool": {
 			"properties": {
+				"FreeClaimGasLimit": {
+					"type": "integer",
+					"description": "FreeClaimGasLimit is the max gas allowed use to do a free claim",
+					"default": 150000
+				},
 				"IntervalToRefreshBlockedAddresses": {
 					"type": "string",
 					"title": "Duration",
@@ -209,7 +321,7 @@
 						"Host": {
 							"type": "string",
 							"description": "Host address of database",
-							"default": "zkevm-pool-db"
+							"default": "x1-pool-db"
 						},
 						"Port": {
 							"type": "string",
@@ -265,6 +377,16 @@
 					"type": "integer",
 					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
 					"default": 1024
+				},
+				"FreeGasAddress": {
+					"items": {
+						"type": "string"
+					},
+					"type": "array",
+					"description": "FreeGasAddress is the default free gas address",
+					"default": [
+						"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+					]
 				},
 				"EffectiveGasPrice": {
 					"properties": {
@@ -440,6 +562,132 @@
 					"type": "boolean",
 					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
 					"default": true
+				},
+				"EnablePendingTransactionFilter": {
+					"type": "boolean",
+					"description": "EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction",
+					"default": false
+				},
+				"Nacos": {
+					"properties": {
+						"URLs": {
+							"type": "string",
+							"description": "URLs nacos server urls for discovery service of rest api, url is separated by \",\"",
+							"default": ""
+						},
+						"NamespaceId": {
+							"type": "string",
+							"description": "NamespaceId nacos namepace id for discovery service of rest api",
+							"default": ""
+						},
+						"ApplicationName": {
+							"type": "string",
+							"description": "ApplicationName rest application name in  nacos",
+							"default": ""
+						},
+						"ExternalListenAddr": {
+							"type": "string",
+							"description": "ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker",
+							"default": ""
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "Nacos configuration"
+				},
+				"NacosWs": {
+					"properties": {
+						"URLs": {
+							"type": "string",
+							"description": "URLs nacos server urls for discovery service of rest api, url is separated by \",\"",
+							"default": ""
+						},
+						"NamespaceId": {
+							"type": "string",
+							"description": "NamespaceId nacos namepace id for discovery service of rest api",
+							"default": ""
+						},
+						"ApplicationName": {
+							"type": "string",
+							"description": "ApplicationName rest application name in  nacos",
+							"default": ""
+						},
+						"ExternalListenAddr": {
+							"type": "string",
+							"description": "ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker",
+							"default": ""
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "NacosWs configuration"
+				},
+				"GasLimitFactor": {
+					"type": "number",
+					"description": "GasLimitFactor is used to multiply the suggested gas provided by the network\nin order to allow a enough gas to be set for all the transactions default value is 1.\n\nex:\nsuggested gas limit: 100\nGasLimitFactor: 1\ngas limit = 100\n\nsuggested gas limit: 100\nGasLimitFactor: 1.1\ngas limit = 110",
+					"default": 1
+				},
+				"DisableAPIs": {
+					"items": {
+						"type": "string"
+					},
+					"type": "array",
+					"description": "DisableAPIs disable some API",
+					"default": []
+				},
+				"RateLimit": {
+					"properties": {
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled defines if the rate limit is enabled or disabled",
+							"default": false
+						},
+						"RateLimitApis": {
+							"items": {
+								"type": "string"
+							},
+							"type": "array",
+							"description": "RateLimitApis defines the apis that need to be rate limited",
+							"default": []
+						},
+						"RateLimitCount": {
+							"type": "integer",
+							"description": "RateLimitBurst defines the maximum burst size of requests",
+							"default": 100
+						},
+						"RateLimitDuration": {
+							"type": "integer",
+							"description": "RateLimitDuration defines the time window for the rate limit",
+							"default": 1
+						},
+						"SpecialApis": {
+							"items": {
+								"properties": {
+									"Api": {
+										"type": "string",
+										"description": "Api defines the api that need to be rate limited"
+									},
+									"Count": {
+										"type": "integer",
+										"description": "Count defines the maximum burst size of requests"
+									},
+									"Duration": {
+										"type": "integer",
+										"description": "Duration defines the time window for the rate limit"
+									}
+								},
+								"additionalProperties": false,
+								"type": "object",
+								"description": "RateLimitItem defines the special rate limit for some apis"
+							},
+							"type": "array",
+							"description": "SpecialApis defines the apis that need to be rate limited with special rate limit",
+							"default": []
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "RateLimit enable rate limit"
 				}
 			},
 			"additionalProperties": false,
@@ -724,6 +972,16 @@
 							"type": "boolean",
 							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
+						},
+						"FullBatchSleepDuration": {
+							"type": "string",
+							"title": "Duration",
+							"description": "FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration",
+							"default": "0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
 						}
 					},
 					"additionalProperties": false,
@@ -840,8 +1098,13 @@
 				},
 				"MaxTxSizeForL1": {
 					"type": "integer",
-					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not.",
-					"default": 131072
+					"description": "// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\n// non-trivial consequences: larger transactions than 128KB are significantly harder and\n// more expensive to propagate; larger transactions also take more resources\n// to validate whether they fit into the pool or not.",
+					"default": 0
+				},
+				"MaxBatchesForL1": {
+					"type": "integer",
+					"description": "MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx",
+					"default": 10
 				},
 				"SenderAddress": {
 					"items": {
@@ -867,6 +1130,23 @@
 						"Path": {
 							"type": "string",
 							"description": "Path is the file path for the key store file",
+							"default": ""
+						},
+						"Password": {
+							"type": "string",
+							"description": "Password is the password to decrypt the key store file",
+							"default": ""
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
+				},
+				"DAPermitApiPrivateKey": {
+					"properties": {
+						"Path": {
+							"type": "string",
+							"description": "Path is the file path for the key store file",
 							"default": "/pk/sequencer.keystore"
 						},
 						"Password": {
@@ -877,12 +1157,17 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
+					"description": "DAPermitApiPrivateKey defines all the key store files that are going\nto sign batches for DA service"
 				},
 				"ForkUpgradeBatchNumber": {
 					"type": "integer",
 					"description": "Batch number where there is a forkid change (fork upgrade)",
 					"default": 0
+				},
+				"UseValidium": {
+					"type": "boolean",
+					"description": "UseValidium is a flag to enable/disable the use of validium",
+					"default": true
 				},
 				"GasOffset": {
 					"type": "integer",
@@ -1032,6 +1317,15 @@
 							"maxItems": 20,
 							"minItems": 20,
 							"description": "Address of the L1 GlobalExitRootManager contract"
+						},
+						"dataCommitteeContract": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "Address of the data availability committee contract"
 						}
 					},
 					"additionalProperties": false,
@@ -1175,6 +1469,57 @@
 						"300ms"
 					]
 				},
+				"KafkaURL": {
+					"type": "string",
+					"default": ""
+				},
+				"Topic": {
+					"type": "string",
+					"default": ""
+				},
+				"GroupID": {
+					"type": "string",
+					"default": ""
+				},
+				"Username": {
+					"type": "string",
+					"default": ""
+				},
+				"Password": {
+					"type": "string",
+					"default": ""
+				},
+				"RootCAPath": {
+					"type": "string",
+					"default": ""
+				},
+				"L1CoinId": {
+					"type": "integer",
+					"default": 0
+				},
+				"L2CoinId": {
+					"type": "integer",
+					"default": 0
+				},
+				"DefaultL1CoinPrice": {
+					"type": "number",
+					"description": "DefaultL1CoinPrice is the L1 token's coin price",
+					"default": 0
+				},
+				"DefaultL2CoinPrice": {
+					"type": "number",
+					"description": "DefaultL2CoinPrice is the native token's coin price",
+					"default": 0
+				},
+				"GasPriceUsdt": {
+					"type": "number",
+					"default": 0
+				},
+				"EnableFollowerAdjustByL2L1Price": {
+					"type": "boolean",
+					"description": "EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy",
+					"default": false
+				},
 				"Factor": {
 					"type": "number",
 					"default": 0.15
@@ -1188,7 +1533,7 @@
 			"properties": {
 				"URI": {
 					"type": "string",
-					"default": "zkevm-prover:50071"
+					"default": "x1-prover:50071"
 				},
 				"MaxResourceExhaustedAttempts": {
 					"type": "integer",
@@ -1219,7 +1564,7 @@
 				"URI": {
 					"type": "string",
 					"description": "URI is the server URI.",
-					"default": "zkevm-prover:50061"
+					"default": "x1-prover:50061"
 				}
 			},
 			"additionalProperties": false,
@@ -1332,7 +1677,7 @@
 				"Host": {
 					"type": "string",
 					"description": "Host address of database",
-					"default": "zkevm-state-db"
+					"default": "x1-state-db"
 				},
 				"Port": {
 					"type": "string",
@@ -1437,7 +1782,7 @@
 						"Host": {
 							"type": "string",
 							"description": "Host address of database",
-							"default": "zkevm-state-db"
+							"default": "x1-state-db"
 						},
 						"Port": {
 							"type": "string",
@@ -1531,6 +1876,29 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "State service configuration"
+		},
+		"Apollo": {
+			"properties": {
+				"Enable": {
+					"type": "boolean",
+					"default": false
+				},
+				"IP": {
+					"type": "string",
+					"default": ""
+				},
+				"AppID": {
+					"type": "string",
+					"default": ""
+				},
+				"NamespaceName": {
+					"type": "string",
+					"default": ""
+				}
+			},
+			"additionalProperties": false,
+			"type": "object",
+			"description": "Apollo configuration"
 		}
 	},
 	"additionalProperties": false,

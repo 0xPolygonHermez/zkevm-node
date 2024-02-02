@@ -33,14 +33,17 @@ const (
 
 // Public shared
 const (
-	DefaultSequencerAddress             = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-	DefaultSequencerPrivateKey          = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-	DefaultSequencerBalance             = 400000
-	DefaultMaxCumulativeGasUsed         = 800000
-	DefaultL1ZkEVMSmartContract         = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
-	DefaultL1NetworkURL                 = "http://localhost:8545"
-	DefaultL1NetworkWebSocketURL        = "ws://localhost:8546"
-	DefaultL1ChainID             uint64 = 1337
+	DefaultSequencerAddress               = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	DefaultSequencerPrivateKey            = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+	DefaultSequencerBalance               = 400000
+	DefaultMaxCumulativeGasUsed           = 800000
+	DefaultL1DataCommitteeContract        = "0x6Ae5b0863dBF3477335c0102DBF432aFf04ceb22"
+	DefaultL1ZkEVMSmartContract           = "0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C"
+	DefaultL1NetworkURL                   = "http://localhost:8545"
+	DefaultL1NetworkWebSocketURL          = "ws://localhost:8546"
+	DefaultL1ChainID               uint64 = 1337
+	DefaultL1AdminAddress                 = "0x2ecf31ece36ccac2d3222a303b1409233ecbb225"
+	DefaultL1AdminPrivateKey              = "0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38"
 
 	DefaultL2NetworkURL                 = "http://localhost:8123"
 	PermissionlessL2NetworkURL          = "http://localhost:8125"
@@ -51,7 +54,8 @@ const (
 
 	DefaultWaitPeriodSendSequence                          = "15s"
 	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
-	DefaultMaxTxSizeForL1                           uint64 = 131072
+	MaxBatchesForL1                                 uint64 = 10
+	MaxTxSizeForL1                                  uint64 = 131072
 )
 
 var (
@@ -68,6 +72,7 @@ var (
 type SequenceSenderConfig struct {
 	WaitPeriodSendSequence                   string
 	LastBatchVirtualizationTimeMaxWaitPeriod string
+	MaxBatchesForL1                          uint64
 	MaxTxSizeForL1                           uint64
 	SenderAddress                            string
 	PrivateKey                               string
@@ -242,6 +247,13 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 		}
 	}
 	waitToBeMined := confirmationLevel != PoolConfirmationLevel
+	var initialNonce uint64
+	if waitToBeMined {
+		initialNonce, err = client.NonceAt(ctx, auth.From, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
 	sentTxs, err := applyTxs(ctx, txs, auth, client, waitToBeMined)
 	if err != nil {
 		return nil, err
@@ -251,7 +263,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 	}
 
 	l2BlockNumbers := make([]*big.Int, 0, len(sentTxs))
-	for _, tx := range sentTxs {
+	for i, tx := range sentTxs {
 		// check transaction nonce against transaction reported L2 block number
 		receipt, err := client.TransactionReceipt(ctx, tx.Hash())
 		if err != nil {
@@ -260,7 +272,7 @@ func ApplyL2Txs(ctx context.Context, txs []*types.Transaction, auth *bind.Transa
 
 		// get L2 block number
 		l2BlockNumbers = append(l2BlockNumbers, receipt.BlockNumber)
-		expectedNonce := receipt.BlockNumber.Uint64() - 1 + 8 //nolint:gomnd
+		expectedNonce := initialNonce + uint64(i)
 		if tx.Nonce() != expectedNonce {
 			return nil, fmt.Errorf("mismatching nonce for tx %v: want %d, got %d\n", tx.Hash(), expectedNonce, tx.Nonce())
 		}
@@ -520,6 +532,26 @@ func (m *Manager) StartTrustedAndPermissionlessNode() error {
 	return StartComponent("permissionless", nodeUpCondition)
 }
 
+// StartDACDB starts the data availability node DB
+func (m *Manager) StartDACDB() error {
+	return StartComponent("dac-db", func() (bool, error) { return true, nil })
+}
+
+// StopDACDB stops the data availability node DB
+func (m *Manager) StopDACDB() error {
+	return StopComponent("dac-db")
+}
+
+// StartPermissionlessNodeForcedToSYncThroughDAC starts a permissionless node that is froced to sync through the DAC
+func (m *Manager) StartPermissionlessNodeForcedToSYncThroughDAC() error {
+	return StartComponent("permissionless-dac", func() (bool, error) { return true, nil })
+}
+
+// StopPermissionlessNodeForcedToSYncThroughDAC stops the permissionless node that is froced to sync through the DAC
+func (m *Manager) StopPermissionlessNodeForcedToSYncThroughDAC() error {
+	return StopComponent("permissionless-dac")
+}
+
 // ApproveMatic runs the approving matic command
 func ApproveMatic() error {
 	return StartComponent("approve-matic")
@@ -595,7 +627,8 @@ func GetDefaultOperationsConfig() *Config {
 		SequenceSender: &SequenceSenderConfig{
 			WaitPeriodSendSequence:                   DefaultWaitPeriodSendSequence,
 			LastBatchVirtualizationTimeMaxWaitPeriod: DefaultWaitPeriodSendSequence,
-			MaxTxSizeForL1:                           DefaultMaxTxSizeForL1,
+			MaxBatchesForL1:                          MaxBatchesForL1,
+			MaxTxSizeForL1:                           MaxTxSizeForL1,
 			SenderAddress:                            DefaultSequencerAddress,
 			PrivateKey:                               DefaultSequencerPrivateKey},
 	}

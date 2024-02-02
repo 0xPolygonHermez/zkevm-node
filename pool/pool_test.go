@@ -301,6 +301,7 @@ func Test_AddTx_OversizedData(t *testing.T) {
 
 	const chainID = 2576980377
 	p := pool.NewPool(cfg, bc, s, st, chainID, eventLog)
+	pool.SetL2BridgeAddr(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"))
 
 	b := make([]byte, cfg.MaxTxBytesSize+1)
 	to := common.HexToAddress(operations.DefaultSequencerAddress)
@@ -750,6 +751,7 @@ func Test_SetAndGetGasPrice(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	p := pool.NewPool(cfg, bc, s, nil, chainID.Uint64(), eventLog)
+	pool.SetL2BridgeAddr(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"))
 
 	nBig, err := rand.Int(rand.Reader, big.NewInt(0).SetUint64(math.MaxUint64))
 	require.NoError(t, err)
@@ -775,6 +777,7 @@ func TestDeleteGasPricesHistoryOlderThan(t *testing.T) {
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	p := pool.NewPool(cfg, bc, s, nil, chainID.Uint64(), eventLog)
+	pool.SetL2BridgeAddr(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"))
 
 	ctx := context.Background()
 
@@ -1960,6 +1963,7 @@ func setupPool(t *testing.T, cfg pool.Config, constraintsCfg state.BatchConstrai
 	err := s.SetGasPrices(ctx, gasPrice.Uint64(), l1GasPrice.Uint64())
 	require.NoError(t, err)
 	p := pool.NewPool(cfg, constraintsCfg, s, st, chainID, eventLog)
+	pool.SetL2BridgeAddr(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"))
 	p.StartPollingMinSuggestedGasPrice(ctx)
 	return p
 }

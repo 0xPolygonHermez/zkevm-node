@@ -24,6 +24,7 @@ type txPool interface {
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error)
+	CountPendingTransactions(ctx context.Context) (uint64, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error
 	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
@@ -35,12 +36,14 @@ type txPool interface {
 // etherman contains the methods required to interact with ethereum.
 type etherman interface {
 	EstimateGasSequenceBatches(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address) (*types.Transaction, error)
+	EstimateGasSequenceBatchesX1(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error)
 	GetSendSequenceFee(numBatches uint64) (*big.Int, error)
 	TrustedSequencer() (common.Address, error)
 	GetLatestBatchNumber() (uint64, error)
 	GetLastBatchTimestamp() (uint64, error)
 	GetLatestBlockTimestamp(ctx context.Context) (uint64, error)
 	BuildSequenceBatchesTxData(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address) (to *common.Address, data []byte, err error)
+	BuildSequenceBatchesTxDataX1(sender common.Address, sequences []ethmanTypes.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (to *common.Address, data []byte, err error)
 	GetLatestBlockNumber(ctx context.Context) (uint64, error)
 }
 
@@ -99,7 +102,7 @@ type workerInterface interface {
 	AddPendingTxToStore(txHash common.Hash, addr common.Address)
 	DeletePendingTxToStore(txHash common.Hash, addr common.Address)
 	HandleL2Reorg(txHashes []common.Hash)
-	NewTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
+	NewTxTracker(tx pool.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error)
 	AddForcedTx(txHash common.Hash, addr common.Address)
 	DeleteForcedTx(txHash common.Hash, addr common.Address)
 }

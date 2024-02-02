@@ -212,6 +212,7 @@ type TraceConfig struct {
 	EnableReturnData bool
 	Tracer           *string
 	TracerConfig     json.RawMessage
+	Limit            int
 }
 
 // IsDefaultTracer returns true when no custom tracer is set

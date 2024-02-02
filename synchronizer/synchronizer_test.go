@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,12 +27,13 @@ const (
 )
 
 type mocks struct {
-	Etherman     *ethermanMock
-	State        *stateMock
-	Pool         *poolMock
-	EthTxManager *ethTxManagerMock
-	DbTx         *dbTxMock
-	ZKEVMClient  *zkEVMClientMock
+	Etherman                   *ethermanMock
+	State                      *stateMock
+	Pool                       *poolMock
+	EthTxManager               *ethTxManagerMock
+	DbTx                       *dbTxMock
+	ZKEVMClient                *zkEVMClientMock
+	DataCommitteeClientFactory *dataCommitteeClientFactoryMock
 	//EventLog     *eventLogMock
 }
 
@@ -41,7 +43,10 @@ type mocks struct {
 func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, nil, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -68,7 +73,10 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
+	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, nil, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
 	require.EqualValues(t, true, ok, "Can't convert to underlaying struct the interface of syncronizer")
@@ -105,7 +113,10 @@ func TestForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(&etherman.DataCommittee{}, nil)
+	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, nil, false)
 	require.NoError(t, err)
 
 	// state preparation
@@ -172,13 +183,14 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			t := time.Now()
+			txs := []byte{}
 			sequencedBatch := etherman.SequencedBatch{
 				BatchNumber:   uint64(2),
 				Coinbase:      common.HexToAddress("0x222"),
 				SequencerAddr: common.HexToAddress("0x00"),
 				TxHash:        common.HexToHash("0x333"),
 				PolygonZkEVMBatchData: polygonzkevm.PolygonZkEVMBatchData{
-					Transactions:       []byte{},
+					TransactionsHash:   crypto.Keccak256Hash(txs),
 					GlobalExitRoot:     [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32},
 					Timestamp:          uint64(t.Unix()),
 					MinForcedTimestamp: 1000, //ForcedBatch
@@ -190,7 +202,7 @@ func TestForcedBatch(t *testing.T) {
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
 				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
+				RawTxsData:        txs,
 				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
@@ -242,13 +254,17 @@ func TestForcedBatch(t *testing.T) {
 				On("AddBlock", ctx, stateBlock, m.DbTx).
 				Return(nil).
 				Once()
+			m.State.
+				On("GetBatchL2DataByNumber", ctx, uint64(2), nil).
+				Return(txs, nil).
+				Once()
 
 			fb := []state.ForcedBatch{{
 				BlockNumber:       lastBlock.BlockNumber,
 				ForcedBatchNumber: 1,
 				Sequencer:         sequencedBatch.Coinbase,
 				GlobalExitRoot:    sequencedBatch.GlobalExitRoot,
-				RawTxsData:        sequencedBatch.Transactions,
+				RawTxsData:        []byte{},
 				ForcedAt:          time.Unix(int64(sequencedBatch.MinForcedTimestamp), 0),
 			}}
 
@@ -263,7 +279,7 @@ func TestForcedBatch(t *testing.T) {
 				Once()
 
 			trustedBatch := &state.Batch{
-				BatchL2Data:    sequencedBatch.Transactions,
+				BatchL2Data:    txs,
 				GlobalExitRoot: sequencedBatch.GlobalExitRoot,
 				Timestamp:      time.Unix(int64(sequencedBatch.Timestamp), 0),
 				Coinbase:       sequencedBatch.Coinbase,
@@ -352,7 +368,10 @@ func TestSequenceForcedBatch(t *testing.T) {
 		ZKEVMClient: newZkEVMClientMock(t),
 	}
 	ethermanForL1 := []EthermanInterface{m.Etherman}
-	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
+	m.Etherman.
+		On("GetCurrentDataCommittee").
+		Return(nil, nil)
+	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, nil, false)
 	require.NoError(t, err)
 
 	// state preparation
@@ -771,4 +790,12 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		On("Commit", mock.Anything).
 		Return(nil).
 		Once()
+}
+
+func TestSsZeroByteArray(t *testing.T) {
+	var hash1 [32]byte
+	assert.Equal(t, isZeroByteArray(hash1), true)
+
+	hash2 := [32]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	assert.Equal(t, isZeroByteArray(hash2), false)
 }

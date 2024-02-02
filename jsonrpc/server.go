@@ -95,6 +95,7 @@ func NewServer(
 // Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
 	metrics.Register()
+	s.registerNacos()
 
 	if s.config.WebSockets.Enabled {
 		go s.startWS()
@@ -294,12 +295,20 @@ func (s *Server) isSingleRequest(data []byte) (bool, error) {
 }
 
 func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
+	st := time.Now()
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
 		handleInvalidRequest(w, err, http.StatusBadRequest)
 		return 0
 	}
+
+	if !methodRateLimitAllow(request.Method) {
+		handleInvalidRequest(w, errors.New("server is too busy"), http.StatusTooManyRequests)
+		return 0
+	}
+	defer metrics.RequestMethodCount(request.Method)
+	defer metrics.RequestMethodDuration(request.Method, st)
 	req := handleRequest{Request: request, HttpRequest: httpRequest}
 	response := s.handler.Handle(req)
 
@@ -319,7 +328,20 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	// Checking if batch requests are enabled
-	if !s.config.BatchRequestsEnabled {
+	var batchRequestEnable bool
+	var batchRequestLimit uint
+	// if apollo is enabled, get the config from apollo
+	if getApolloConfig().Enable() {
+		getApolloConfig().RLock()
+		batchRequestEnable = getApolloConfig().BatchRequestsEnabled
+		batchRequestLimit = getApolloConfig().BatchRequestsLimit
+		getApolloConfig().RUnlock()
+	} else {
+		batchRequestEnable = s.config.BatchRequestsEnabled
+		batchRequestLimit = s.config.BatchRequestsLimit
+	}
+
+	if !batchRequestEnable {
 		handleInvalidRequest(w, types.ErrBatchRequestsDisabled, http.StatusBadRequest)
 		return 0
 	}
@@ -332,8 +354,8 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	}
 
 	// Checking if batch requests limit is exceeded
-	if s.config.BatchRequestsLimit > 0 {
-		if len(requests) > int(s.config.BatchRequestsLimit) {
+	if batchRequestLimit > 0 {
+		if len(requests) > int(batchRequestLimit) {
 			handleInvalidRequest(w, types.ErrBatchRequestsLimitExceeded, http.StatusRequestEntityTooLarge)
 			return 0
 		}
@@ -342,9 +364,16 @@ func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWr
 	responses := make([]types.Response, 0, len(requests))
 
 	for _, request := range requests {
+		if !methodRateLimitAllow(request.Method) {
+			responses = append(responses, types.NewResponse(request, nil, types.NewRPCError(types.InvalidParamsErrorCode, "server is too busy")))
+			continue
+		}
+		st := time.Now()
+		metrics.RequestMethodCount(request.Method)
 		req := handleRequest{Request: request, HttpRequest: httpRequest}
 		response := s.handler.Handle(req)
 		responses = append(responses, response)
+		metrics.RequestMethodDuration(request.Method, st)
 	}
 
 	respBytes, _ := json.Marshal(responses)

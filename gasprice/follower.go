@@ -12,10 +12,11 @@ import (
 
 // FollowerGasPrice struct.
 type FollowerGasPrice struct {
-	cfg  Config
-	pool poolInterface
-	ctx  context.Context
-	eth  ethermanInterface
+	cfg      Config
+	pool     poolInterface
+	ctx      context.Context
+	eth      ethermanInterface
+	kafkaPrc *KafkaProcessor
 }
 
 // newFollowerGasPriceSuggester inits l2 follower gas price suggester which is based on the l1 gas price.
@@ -26,12 +27,19 @@ func newFollowerGasPriceSuggester(ctx context.Context, cfg Config, pool poolInte
 		ctx:  ctx,
 		eth:  ethMan,
 	}
+	if cfg.EnableFollowerAdjustByL2L1Price {
+		gps.kafkaPrc = newKafkaProcessor(cfg, ctx)
+	}
 	gps.UpdateGasPriceAvg()
 	return gps
 }
 
 // UpdateGasPriceAvg updates the gas price.
 func (f *FollowerGasPrice) UpdateGasPriceAvg() {
+	if getApolloConfig().Enable() {
+		f.cfg = getApolloConfig().get()
+	}
+
 	ctx := context.Background()
 	// Get L1 gasprice
 	l1GasPrice := f.eth.GetL1GasPrice(f.ctx)
@@ -43,6 +51,17 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	// Apply factor to calculate l2 gasPrice
 	factor := big.NewFloat(0).SetFloat64(f.cfg.Factor)
 	res := new(big.Float).Mul(factor, big.NewFloat(0).SetInt(l1GasPrice))
+
+	// convert the eth gas price to okb gas price
+	if f.cfg.EnableFollowerAdjustByL2L1Price {
+		l1CoinPrice, l2CoinPrice := f.kafkaPrc.GetL1L2CoinPrice()
+		if l1CoinPrice < minCoinPrice || l2CoinPrice < minCoinPrice {
+			log.Warn("the L1 or L2 native coin price too small...")
+			return
+		}
+		res = new(big.Float).Mul(big.NewFloat(0).SetFloat64(l1CoinPrice/l2CoinPrice), res)
+		log.Debug("L2 pre gas price value: ", res.String(), ". L1 coin price: ", l1CoinPrice, ". L2 coin price: ", l2CoinPrice)
+	}
 
 	// Store l2 gasPrice calculated
 	result := new(big.Int)
@@ -73,6 +92,7 @@ func (f *FollowerGasPrice) UpdateGasPriceAvg() {
 	}
 	log.Debug("Storing truncated L2 gas price: ", truncateValue)
 	if truncateValue != nil {
+		log.Infof("Set gas prices, L1: %v, L2: %v", l1GasPrice.Uint64(), truncateValue.Uint64())
 		err := f.pool.SetGasPrices(ctx, truncateValue.Uint64(), l1GasPrice.Uint64())
 		if err != nil {
 			log.Errorf("failed to update gas price in poolDB, err: %v", err)

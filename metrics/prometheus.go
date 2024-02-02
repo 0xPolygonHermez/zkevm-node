@@ -13,6 +13,7 @@ var (
 	storageMutex  sync.RWMutex
 	registerer    prometheus.Registerer
 	gauges        map[string]prometheus.Gauge
+	gaugeVecs     map[string]*prometheus.GaugeVec
 	counters      map[string]prometheus.Counter
 	counterVecs   map[string]*prometheus.CounterVec
 	histograms    map[string]prometheus.Histogram
@@ -40,6 +41,7 @@ func Init() {
 		storageMutex = sync.RWMutex{}
 		registerer = prometheus.DefaultRegisterer
 		gauges = make(map[string]prometheus.Gauge)
+		gaugeVecs = make(map[string]*prometheus.GaugeVec)
 		counters = make(map[string]prometheus.Counter)
 		counterVecs = make(map[string]*prometheus.CounterVec)
 		histograms = make(map[string]prometheus.Histogram)

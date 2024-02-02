@@ -16,7 +16,7 @@ Outputs = ["stderr"]
 	User = "state_user"
 	Password = "state_password"
 	Name = "state_db"
-	Host = "zkevm-state-db"
+	Host = "x1-state-db"
 	Port = "5432"
 	EnableLog = false	
 	MaxConns = 200
@@ -34,6 +34,7 @@ Outputs = ["stderr"]
 		MaxSteps = 7570538
 
 [Pool]
+FreeClaimGasLimit = 150000
 IntervalToRefreshBlockedAddresses = "5m"
 IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
@@ -43,6 +44,7 @@ MinAllowedGasPriceInterval = "5m"
 PollMinAllowedGasPriceInterval = "15s"
 AccountQueue = 64
 GlobalQueue = 1024
+FreeGasAddress = ["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
     [Pool.EffectiveGasPrice]
 	Enabled = false
 	L1GasPriceFactor = 0.25
@@ -56,7 +58,7 @@ GlobalQueue = 1024
 	User = "pool_user"
 	Password = "pool_password"
 	Name = "pool_db"
-	Host = "zkevm-pool-db"
+	Host = "x1-pool-db"
 	Port = "5432"
 	EnableLog = false
 	MaxConns = 200
@@ -74,6 +76,22 @@ WaitTxToBeMined = "2m"
 ForcedGas = 0
 GasPriceMarginFactor = 1
 MaxGasPriceLimit = 0
+	[EthTxManager.CustodialAssets]
+		Enable = false
+		URL = "http://localhost:8080"
+		Symbol = 2882
+		SequencerAddr = "0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"
+		AggregatorAddr = "0x66e39a1e507af777e8c385e2d91559e20e306303"
+		WaitResultTimeout = "2m"
+		OperateTypeSeq = 1
+		OperateTypeAgg = 2
+		ProjectSymbol = 3011
+		OperateSymbol = 2
+		SysFrom = 3
+		UserID = 0
+		OperateAmount = 0
+		RequestSignURI = "/priapi/v1/assetonchain/ecology/ecologyOperate"
+		QuerySignURI = "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"
 
 [RPC]
 Host = "0.0.0.0"
@@ -89,6 +107,14 @@ MaxLogsCount = 10000
 MaxLogsBlockRange = 10000
 MaxNativeBlockHashBlockRange = 60000
 EnableHttpLog = true
+GasLimitFactor = 1
+DisableAPIs = []
+	[RPC.RateLimit]
+		Enabled = false
+		RateLimitApis = []
+		RateLimitCount = 100
+		RateLimitDuration = 1
+		SpecialApis = []
 	[RPC.WebSockets]
 		Enabled = true
 		Host = "0.0.0.0"
@@ -133,6 +159,7 @@ MaxTxLifetime = "3h"
 		TimestampResolution = "10s"
 		StopSequencerOnBatchNum = 0
 		SequentialReprocessFullBatch = false
+		FullBatchSleepDuration = "0s"
 	[Sequencer.DBManager]
 		PoolRetrievalInterval = "500ms"
 		L2ReorgRetrievalInterval = "5s"
@@ -144,9 +171,10 @@ MaxTxLifetime = "3h"
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
-MaxTxSizeForL1 = 131072
+MaxBatchesForL1 = 10
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
-PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+DAPermitApiPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+UseValidium = true
 GasOffset = 80000
 
 [Aggregator]
@@ -171,10 +199,10 @@ CleanHistoryPeriod = "1h"
 CleanHistoryTimeRetention = "5m"
 
 [MTClient]
-URI = "zkevm-prover:50061"
+URI = "x1-prover:50061"
 
 [Executor]
-URI = "zkevm-prover:50071"
+URI = "x1-prover:50071"
 MaxResourceExhaustedAttempts = 3
 WaitOnResourceExhaustion = "1s"
 MaxGRPCMessageSize = 100000000
@@ -188,7 +216,7 @@ Enabled = false
 User = "prover_user"
 Password = "prover_pass"
 Name = "prover_db"
-Host = "zkevm-state-db"
+Host = "x1-state-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200

@@ -3,6 +3,7 @@ package setup
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"testing"
 	"time"
@@ -81,6 +82,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	eventLog := event.NewEventLog(event.Config{}, eventStorage)
 
 	pl := pool.NewPool(config, bc, s, st, params.ChainID, eventLog)
+	pool.SetL2BridgeAddr(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"))
 
 	// Print Info before send
 	senderBalance, err := client.BalanceAt(ctx, auth.From, nil)

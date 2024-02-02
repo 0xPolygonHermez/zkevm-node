@@ -4,9 +4,9 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // TxTracker is a struct that contains all the tx data needed to be managed by the worker
@@ -32,7 +32,8 @@ type TxTracker struct {
 }
 
 // newTxTracker creates and inti a TxTracker
-func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+func newTxTracker(ptx pool.Transaction, counters state.ZKCounters, ip string) (*TxTracker, error) {
+	tx := ptx.Transaction
 	addr, err := state.GetSender(tx)
 	if err != nil {
 		return nil, err

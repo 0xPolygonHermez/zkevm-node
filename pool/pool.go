@@ -34,6 +34,11 @@ var (
 	ErrEffectiveGasPriceGasPriceTooLow = errors.New("effective gas price: gas price too low")
 )
 
+const (
+	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
+	BridgeClaimMethodSignature = "0x2cffd02e"
+)
+
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -85,6 +90,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		gasPricesMux:            new(sync.RWMutex),
 		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
 	}
+
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
@@ -171,7 +177,7 @@ func (p *Pool) StartPollingMinSuggestedGasPrice(ctx context.Context) {
 
 // AddTx adds a transaction to the pool with the pending state
 func (p *Pool) AddTx(ctx context.Context, tx types.Transaction, ip string) error {
-	poolTx := NewTransaction(tx, ip, false)
+	poolTx := NewTransaction(tx, ip, false, p)
 	if err := p.validateTx(ctx, *poolTx); err != nil {
 		return err
 	}
@@ -237,7 +243,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		return err
 	}
 
-	poolTx := NewTransaction(tx, ip, isWIP)
+	poolTx := NewTransaction(tx, ip, isWIP, p)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
@@ -496,14 +502,14 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// Reject transactions with a gas price lower than the minimum gas price
-	p.minSuggestedGasPriceMux.RLock()
-	gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
-	if gasPriceCmp == -1 {
-		log.Debugf("low gas price: minSuggestedGasPrice %v got %v", p.minSuggestedGasPrice, poolTx.GasPrice())
-	}
-	p.minSuggestedGasPriceMux.RUnlock()
-	if gasPriceCmp == -1 {
-		return ErrGasPrice
+	if !contains(p.cfg.FreeGasAddress, from) || !poolTx.IsClaims {
+		p.minSuggestedGasPriceMux.RLock()
+		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
+			log.Debugf("low gas price: minSuggestedGasPrice %v got %v", p.minSuggestedGasPrice, poolTx.GasPrice())
+			return ErrGasPrice
+		}
 	}
 
 	// Transactor should have enough funds to cover the costs
@@ -563,6 +569,15 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	return nil
+}
+
+func contains(s []string, ele common.Address) bool {
+	for _, e := range s {
+		if common.HexToAddress(e) == ele {
+			return true
+		}
+	}
+	return false
 }
 
 // pollMinSuggestedGasPrice polls the minimum L2 gas price since the previous

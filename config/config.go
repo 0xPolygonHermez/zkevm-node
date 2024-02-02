@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator"
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
@@ -117,6 +118,8 @@ type Config struct {
 	HashDB db.Config
 	// State service configuration
 	State state.Config
+	// Apollo configuration
+	Apollo types.ApolloConfig
 }
 
 // Default parses the default configuration values.

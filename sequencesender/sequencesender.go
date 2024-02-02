@@ -2,6 +2,7 @@ package sequencesender
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"time"
@@ -32,6 +33,7 @@ var (
 // SequenceSender represents a sequence sender
 type SequenceSender struct {
 	cfg          Config
+	privKey      *ecdsa.PrivateKey
 	state        stateInterface
 	ethTxManager ethTxManager
 	etherman     etherman
@@ -39,13 +41,14 @@ type SequenceSender struct {
 }
 
 // New inits sequence sender
-func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog) (*SequenceSender, error) {
+func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManager, eventLog *event.EventLog, privKey *ecdsa.PrivateKey) (*SequenceSender, error) {
 	return &SequenceSender{
 		cfg:          cfg,
 		state:        state,
 		etherman:     etherman,
 		ethTxManager: manager,
 		eventLog:     eventLog,
+		privKey:      privKey,
 	}, nil
 }
 
@@ -53,10 +56,11 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 func (s *SequenceSender) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	for {
-		s.tryToSendSequence(ctx, ticker)
+		s.tryToSendSequenceX1(ctx, ticker)
 	}
 }
 
+// nolint:unused
 func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
 	retry := false
 	// process monitored sequences before starting a next cycle
@@ -126,6 +130,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
+// nolint:unused
 func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
