@@ -119,15 +119,8 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
-	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
-	if err != nil {
-		log.Fatal("error getting forkIDs. Error: ", err)
-	}
-	st.UpdateForkIDIntervalsInMemory(forkIDIntervals)
+	st, currentForkID := newState(cliCtx.Context, c, etherman, l2ChainID, stateSqlDB, eventLog, needsExecutor, needsStateTree, false)
 
-	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
-	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
 	c.Aggregator.ChainID = l2ChainID
 	c.Sequencer.StreamServer.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
@@ -212,6 +205,7 @@ func start(cliCtx *cli.Context) error {
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
+			st, _ := newState(cliCtx.Context, c, etherman, l2ChainID, stateSqlDB, eventLog, needsExecutor, needsStateTree, true)
 			go runJSONRPCServer(*c, etherman, l2ChainID, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			ev.Component = event.Component_Synchronizer
@@ -459,7 +453,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
+func newState(ctx context.Context, c *config.Config, etherman *etherman.Client, l2ChainID uint64, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree, avoidForkIDInMemory bool) (*state.State, uint64) {
 	stateDb := pgstatestorage.NewPostgresStorage(c.State, sqlDB)
 
 	// Executor
@@ -478,7 +472,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed:         c.State.Batch.Constraints.MaxCumulativeGasUsed,
 		ChainID:                      l2ChainID,
-		ForkIDIntervals:              forkIDIntervals,
+		ForkIDIntervals:              []state.ForkIDInterval{},
 		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
 		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
@@ -486,6 +480,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxLogsCount:                 c.RPC.MaxLogsCount,
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
+		AvoidForkIDInMemory:          avoidForkIDInMemory,
 	}
 	allLeaves, err := stateDb.GetAllL1InfoRootEntries(ctx, nil)
 	if err != nil {
@@ -501,7 +496,17 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	}
 
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, mt)
-	return st
+
+	forkIDIntervals, err := forkIDIntervals(ctx, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
+	if err != nil {
+		log.Fatal("error getting forkIDs. Error: ", err)
+	}
+	st.UpdateForkIDIntervalsInMemory(forkIDIntervals)
+
+	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
+	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
+
+	return st, currentForkID
 }
 
 func createPool(cfgPool pool.Config, constraintsCfg state.BatchConstraintsCfg, l2ChainID uint64, st *state.State, eventLog *event.EventLog) *pool.Pool {
