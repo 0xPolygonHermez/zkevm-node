@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	// MaxTxGasLimit is the gas limit allowed per tx in a batch
 	MaxTxGasLimit = uint64(30000000)
 )
 
