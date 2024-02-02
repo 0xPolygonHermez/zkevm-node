@@ -27,6 +27,7 @@ type txPool interface {
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
 	GetL1AndL2GasPrice() (uint64, uint64)
+	GetEarliestProcessedTx(ctx context.Context) (common.Hash, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
