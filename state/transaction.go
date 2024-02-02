@@ -707,10 +707,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 	nonce := loadedNonce.Uint64()
 
-	highEnd := s.cfg.MaxCumulativeGasUsed
-	if forkID < FORKID_ETROG {
-		highEnd = l2BlockGasLimitPreEtrog
-	}
+	highEnd := l2BlockGasLimitPreEtrog
 
 	// if gas price is set, set the highEnd to the max amount
 	// of the account afford
