@@ -111,7 +111,7 @@ func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
 		const query = `
 			SELECT fork_id
 			  FROM state.fork_id
-			 WHERE block_num < $1
+			 WHERE block_num <= $1
 			 ORDER BY fork_id DESC
 			 LIMIT 1`
 		q := p.getExecQuerier(nil)
@@ -136,7 +136,7 @@ func (p *PostgresStorage) GetForkIDByBlockNumberInMemory(blockNumber uint64) uin
 	for _, index := range sortIndexForForkdIDSortedByBlockNumber(p.cfg.ForkIDIntervals) {
 		// reverse travesal
 		interval := p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1-index]
-		if blockNumber > interval.BlockNumber {
+		if blockNumber >= interval.BlockNumber {
 			return interval.ForkId
 		}
 	}
