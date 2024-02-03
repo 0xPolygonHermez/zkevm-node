@@ -81,9 +81,11 @@ func (p *PostgresStorage) AddForkIDInterval(ctx context.Context, newForkID state
 		var forkIDs []state.ForkIDInterval
 		forkIDs = oldForkIDs
 		// Check to detect forkID inconsistencies
-		if forkIDs[len(forkIDs)-1].ForkId+1 != newForkID.ForkId {
-			log.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
-			return fmt.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+		if forkIDs[len(forkIDs)-1].ForkId >= newForkID.ForkId {
+			errMsg := "error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d"
+			err := fmt.Errorf(errMsg, forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+			log.Errorf(err.Error())
+			return err
 		}
 		forkIDs[len(forkIDs)-1].ToBatchNumber = newForkID.FromBatchNumber - 1
 		err := p.UpdateForkID(ctx, forkIDs[len(forkIDs)-1], dbTx)
@@ -109,7 +111,7 @@ func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
 		const query = `
 			SELECT fork_id
 			  FROM state.fork_id
-			 WHERE block_num < $1
+			 WHERE block_num <= $1
 			 ORDER BY fork_id DESC
 			 LIMIT 1`
 		q := p.getExecQuerier(nil)
@@ -134,7 +136,7 @@ func (p *PostgresStorage) GetForkIDByBlockNumberInMemory(blockNumber uint64) uin
 	for _, index := range sortIndexForForkdIDSortedByBlockNumber(p.cfg.ForkIDIntervals) {
 		// reverse travesal
 		interval := p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1-index]
-		if blockNumber > interval.BlockNumber {
+		if blockNumber >= interval.BlockNumber {
 			return interval.ForkId
 		}
 	}
