@@ -54,16 +54,25 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "Address of the L1 contract"
+					"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 				},
-				"maticTokenAddress": {
+				"polygonRollupManagerAddress": {
 					"items": {
 						"type": "integer"
 					},
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "Address of the L1 Matic token Contract"
+					"description": "RollupManagerAddr Address of the L1 contract"
+				},
+				"polTokenAddress": {
+					"items": {
+						"type": "integer"
+					},
+					"type": "array",
+					"maxItems": 20,
+					"minItems": 20,
+					"description": "PolAddr Address of the L1 Pol token Contract"
 				},
 				"polygonZkEVMGlobalExitRootAddress": {
 					"items": {
@@ -72,16 +81,7 @@
 					"type": "array",
 					"maxItems": 20,
 					"minItems": 20,
-					"description": "Address of the L1 GlobalExitRootManager contract"
-				},
-				"dataCommitteeContract": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "Address of the data availability committee contract"
+					"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 				}
 			},
 			"additionalProperties": false,

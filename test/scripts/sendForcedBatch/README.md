@@ -1,5 +1,5 @@
 
 Command:
 ```
-go run main.go send --url http://localhost:8545 --smc 0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C
+go run main.go send --url http://localhost:8545 --zkevm 0x8dAF17A20c9DBA35f005b6324F493785D239719d --rollupmanager 0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e
 ```

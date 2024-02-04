@@ -64,3 +64,27 @@ func (e *EventLog) LogExecutorError(ctx context.Context, responseError executor.
 		}
 	}
 }
+
+// LogExecutorErrorV2 is used to store Executor error for runtime debugging
+func (e *EventLog) LogExecutorErrorV2(ctx context.Context, responseError executor.ExecutorError, processBatchRequest *executor.ProcessBatchRequestV2) {
+	timestamp := time.Now()
+	log.Errorf("error found in the executor: %v at %v", responseError, timestamp)
+	payload, err := json.Marshal(processBatchRequest)
+	if err != nil {
+		log.Errorf("error marshaling payload: %v", err)
+	} else {
+		event := &Event{
+			ReceivedAt:  timestamp,
+			Source:      Source_Node,
+			Component:   Component_Executor,
+			Level:       Level_Error,
+			EventID:     EventID_ExecutorError,
+			Description: responseError.String(),
+			Json:        string(payload),
+		}
+		err = e.storage.LogEvent(ctx, event)
+		if err != nil {
+			log.Errorf("error storing event: %v", err)
+		}
+	}
+}

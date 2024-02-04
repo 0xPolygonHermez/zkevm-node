@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +14,18 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+func TestCardona(t *testing.T) {
+	cfg := Config{}
+	fs := flag.NewFlagSet("", flag.ExitOnError)
+	fs.String(FlagNetwork, string(cardona), string(cardona))
+	err := fs.Set(FlagNetwork, string(cardona))
+	require.NoError(t, err)
+	app := cli.NewApp()
+	ctx := cli.NewContext(app, fs, nil)
+
+	log.Info("flag=", ctx.String(FlagNetwork))
+	cfg.loadNetworkConfig(ctx)
+}
 func TestLoadCustomNetworkConfig(t *testing.T) {
 	tcs := []struct {
 		description      string
@@ -28,7 +41,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 				"l1Config" : {
 					"chainId": 420,
 					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
-					"maticTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
+					"polTokenAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 					"polygonZkEVMGlobalExitRootAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4"
 				},
 				"genesis": [
@@ -66,22 +79,19 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 							"0x0000000000000000000000000000000000000000000000000000000000000000": "0x01"
 						}
 					}
-				],
-				"maxCumulativeGasUsed": 300000
+				]
 			}`,
 			expectedConfig: NetworkConfig{
-				L2GlobalExitRootManagerAddr: common.HexToAddress("0xae4bb80be56b819606589de61d5ec3b522eeb032"),
-				L2BridgeAddr:                common.HexToAddress("0x9d98deabc42dd696deb9e40b4f1cab7ddbf55988"),
 				L1Config: etherman.L1Config{
 					L1ChainID:                 420,
 					ZkEVMAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
-					MaticAddr:                 common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
+					PolAddr:                   common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 				},
 				Genesis: state.Genesis{
-					Root:            common.HexToHash("0xBEEF"),
-					GenesisBlockNum: 69,
-					GenesisActions: []*state.GenesisAction{
+					Root:        common.HexToHash("0xBEEF"),
+					BlockNumber: 69,
+					Actions: []*state.GenesisAction{
 						{
 							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
 							Type:    int(merkletree.LeafTypeNonce),
@@ -160,12 +170,11 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
       "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
       "balance": "3000000000000000000000"
     }
-  ],
-  "maxCumulativeGasUsed": 123456
+  ]
 }`,
 			expectedConfig: NetworkConfig{
 				Genesis: state.Genesis{
-					GenesisActions: []*state.GenesisAction{
+					Actions: []*state.GenesisAction{
 						{
 							Address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
 							Type:    int(merkletree.LeafTypeBalance),

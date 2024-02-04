@@ -22,9 +22,10 @@ var forkID uint64 = 5
 
 func TestGetBatchL2DataWithoutCommittee(t *testing.T) {
 	m := mocks{
-		State:       newStateMock(t),
-		ZKEVMClient: newZkEVMClientMock(t),
-		Etherman:    newEthermanMock(t),
+		//TODO
+		//State:       newStateMock(t),
+		//ZKEVMClient: newZkEVMClientMock(t),
+		//Etherman:    newEthermanMock(t),
 	}
 
 	ctx := context.Background()
@@ -319,10 +320,11 @@ func TestGetBatchL2DataWithoutCommittee(t *testing.T) {
 }
 
 func TestGetBatchL2DataWithCommittee(t *testing.T) {
+	// TODO
 	m := mocks{
-		State:                      newStateMock(t),
-		ZKEVMClient:                newZkEVMClientMock(t),
-		Etherman:                   newEthermanMock(t),
+		//State:                      newStateMock(t),
+		//ZKEVMClient:                newZkEVMClientMock(t),
+		//Etherman:                   newEthermanMock(t),
 		DataCommitteeClientFactory: newDataCommitteeClientFactoryMock(t),
 	}
 

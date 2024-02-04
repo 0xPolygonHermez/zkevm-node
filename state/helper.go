@@ -8,12 +8,13 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
-	forkID5      = 5
 	double       = 2
 	ether155V    = 27
 	etherPre155V = 35
@@ -44,7 +45,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 		}
 		batchL2Data = append(batchL2Data, txData...)
 
-		if forkID >= forkID5 {
+		if forkID >= FORKID_DRAGONFRUIT {
 			effectivePercentageAsHex, err := hex.DecodeHex(fmt.Sprintf("%x", effectivePercentages[i]))
 			if err != nil {
 				return nil, err
@@ -153,8 +154,8 @@ func EncodeUnsignedTransaction(tx types.Transaction, chainID uint64, forcedNonce
 	newSPadded := fmt.Sprintf("%064s", s.Text(hex.Base))
 	newVPadded := fmt.Sprintf("%02s", newV.Text(hex.Base))
 	effectivePercentageAsHex := fmt.Sprintf("%x", MaxEffectivePercentage)
-	// Only add EffectiveGasprice if forkID is equal or higher than 5
-	if forkID < forkID5 {
+	// Only add EffectiveGasprice if forkID is equal or higher than DRAGONFRUIT_FORKID
+	if forkID < FORKID_DRAGONFRUIT {
 		effectivePercentageAsHex = ""
 	}
 	txData, err := hex.DecodeString(hex.EncodeToString(txCodedRlp) + newRPadded + newSPadded + newVPadded + effectivePercentageAsHex)
@@ -186,7 +187,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 			log.Debugf("error num < c0 : %d, %d", num, c0)
 			return []types.Transaction{}, txsData, []uint8{}, ErrInvalidData
 		}
-		length := uint64(num - c0)
+		length := num - c0
 		if length > shortRlp { // If rlp is bigger than length 55
 			// n is the length of the rlp data without the header (1 byte) for example "0xf7"
 			if (pos + 1 + num - f7) > txDataLength {
@@ -207,7 +208,7 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 
 		endPos := pos + length + rLength + sLength + vLength + headerByteLength
 
-		if forkID >= forkID5 {
+		if forkID >= FORKID_DRAGONFRUIT {
 			endPos += EfficiencyPercentageByteLength
 		}
 
@@ -236,9 +237,9 @@ func DecodeTxs(txsData []byte, forkID uint64) ([]types.Transaction, []byte, []ui
 		sData := txsData[dataStart+rLength : dataStart+rLength+sLength]
 		vData := txsData[dataStart+rLength+sLength : dataStart+rLength+sLength+vLength]
 
-		if forkID >= forkID5 {
+		if forkID >= FORKID_DRAGONFRUIT {
 			efficiencyPercentage := txsData[dataStart+rLength+sLength+vLength : endPos]
-			efficiencyPercentages = append(efficiencyPercentages, uint8(efficiencyPercentage[0]))
+			efficiencyPercentages = append(efficiencyPercentages, efficiencyPercentage[0])
 		}
 
 		pos = endPos
@@ -277,7 +278,8 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 	return tx, nil
 }
 
-func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse) *types.Receipt {
+// GenerateReceipt generates a receipt from a processed transaction
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
 		PostState:         processedTx.StateRoot.Bytes(),
@@ -285,7 +287,7 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
 		TxHash:            processedTx.Tx.Hash(),
-		TransactionIndex:  0,
+		TransactionIndex:  txIndex,
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
 	}
@@ -316,29 +318,6 @@ func generateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 	return receipt
 }
 
-func toPostgresInterval(duration string) (string, error) {
-	unit := duration[len(duration)-1]
-	var pgUnit string
-
-	switch unit {
-	case 's':
-		pgUnit = "second"
-	case 'm':
-		pgUnit = "minute"
-	case 'h':
-		pgUnit = "hour"
-	default:
-		return "", ErrUnsupportedDuration
-	}
-
-	isMoreThanOne := duration[0] != '1' || len(duration) > 2 //nolint:gomnd
-	if isMoreThanOne {
-		pgUnit = pgUnit + "s"
-	}
-
-	return fmt.Sprintf("%s %s", duration[:len(duration)-1], pgUnit), nil
-}
-
 // IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
 // V field is either 27 or 28
 func IsPreEIP155Tx(tx types.Transaction) bool {
@@ -363,4 +342,16 @@ func CheckLogOrder(logs []*types.Log) bool {
 		}
 	}
 	return true
+}
+
+// Ptr returns a pointer for any instance
+func Ptr[T any](v T) *T {
+	return &v
+}
+
+// HashByteArray returns the hash of the given byte array
+func HashByteArray(data []byte) common.Hash {
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write(data)
+	return common.BytesToHash(sha.Sum(nil))
 }

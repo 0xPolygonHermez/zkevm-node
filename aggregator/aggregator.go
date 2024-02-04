@@ -19,6 +19,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/encoding"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -268,7 +269,7 @@ func (a *Aggregator) sendFinalProof() {
 
 			// add batch verification to be monitored
 			sender := common.HexToAddress(a.cfg.SenderAddress)
-			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs)
+			to, data, err := a.Ethman.BuildTrustedVerifyBatchesTxData(proof.BatchNumber-1, proof.BatchNumberFinal, &inputs, sender)
 			if err != nil {
 				log.Errorf("Error estimating batch verification to add to eth tx manager: %v", err)
 				a.handleFailureToAddVerifyBatchToBeMonitored(ctx, proof)
@@ -766,7 +767,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 
 	log.Info("Checking profitability to aggregate batch")
 
-	// pass matic collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
+	// pass pol collateral as zero here, bcs in smart contract fee for aggregator is not defined yet
 	isProfitable, err := a.ProfitabilityChecker.IsProfitable(ctx, big.NewInt(0))
 	if err != nil {
 		log.Errorf("Failed to check aggregator profitability, err: %v", err)
@@ -774,7 +775,7 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 	}
 
 	if !isProfitable {
-		log.Infof("Batch is not profitable, matic collateral %d", big.NewInt(0))
+		log.Infof("Batch is not profitable, pol collateral %d", big.NewInt(0))
 		return nil, nil, err
 	}
 
@@ -977,24 +978,131 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		return nil, fmt.Errorf("failed to get previous batch, err: %v", err)
 	}
 
+	isForcedBatch := false
+	batchRawData := &state.BatchRawV2{}
+	if batchToVerify.BatchNumber == 1 || batchToVerify.ForcedBatchNum != nil || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
+		isForcedBatch = true
+	} else {
+		batchRawData, err = state.DecodeBatchV2(batchToVerify.BatchL2Data)
+		if err != nil {
+			log.Errorf("Failed to decode batch data, err: %v", err)
+			return nil, err
+		}
+	}
+
+	l1InfoTreeData := map[uint32]*prover.L1Data{}
+	vb, err := a.State.GetVirtualBatch(ctx, batchToVerify.BatchNumber, nil)
+	if err != nil {
+		log.Errorf("Failed getting virtualBatch %d, err: %v", batchToVerify.BatchNumber, err)
+		return nil, err
+	}
+	l1InfoRoot := vb.L1InfoRoot
+	forcedBlockhashL1 := common.Hash{}
+
+	if !isForcedBatch {
+		tree, err := l1infotree.NewL1InfoTree(32, [][32]byte{}) // nolint:gomnd
+		if err != nil {
+			return nil, err
+		}
+		leaves, err := a.State.GetLeafsByL1InfoRoot(ctx, *l1InfoRoot, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		aLeaves := make([][32]byte, len(leaves))
+		for i, leaf := range leaves {
+			aLeaves[i] = l1infotree.HashLeafData(leaf.GlobalExitRoot.GlobalExitRoot, leaf.PreviousBlockHash, uint64(leaf.Timestamp.Unix()))
+		}
+
+		for _, l2blockRaw := range batchRawData.Blocks {
+			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
+			if !contained && l2blockRaw.IndexL1InfoTree != 0 {
+				l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+				if err != nil {
+					return nil, err
+				}
+
+				// Calculate smt proof
+				smtProof, calculatedL1InfoRoot, err := tree.ComputeMerkleProof(l2blockRaw.IndexL1InfoTree, aLeaves)
+				if err != nil {
+					return nil, err
+				}
+				if l1InfoRoot != nil && *l1InfoRoot != calculatedL1InfoRoot {
+					for i, l := range aLeaves {
+						log.Info("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
+					}
+					for i, s := range smtProof {
+						log.Info("smtProof[%d]: %s", i, common.Bytes2Hex(s[:]))
+					}
+					return nil, fmt.Errorf("error: l1InfoRoot mismatch. L1InfoRoot: %s, calculatedL1InfoRoot: %s. l1InfoTreeIndex: %d", l1InfoRoot.String(), calculatedL1InfoRoot.String(), l2blockRaw.IndexL1InfoTree)
+				}
+
+				protoProof := make([][]byte, len(smtProof))
+				for i, proof := range smtProof {
+					tmpProof := proof
+					protoProof[i] = tmpProof[:]
+				}
+
+				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = &prover.L1Data{
+					GlobalExitRoot: l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.GlobalExitRoot.Bytes(),
+					BlockhashL1:    l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.PreviousBlockHash.Bytes(),
+					MinTimestamp:   uint32(l1InfoTreeExitRootStorageEntry.L1InfoTreeLeaf.GlobalExitRoot.Timestamp.Unix()),
+					SmtProof:       protoProof,
+				}
+			}
+		}
+	} else {
+		// Initial batch must be handled differently
+		if batchToVerify.BatchNumber == 1 || batchToVerify.BatchNumber == a.cfg.UpgradeEtrogBatchNumber {
+			forcedBlockhashL1, err = a.State.GetVirtualBatchParentHash(ctx, batchToVerify.BatchNumber, nil)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			forcedBlockhashL1, err = a.State.GetForcedBatchParentHash(ctx, *batchToVerify.ForcedBatchNum, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	inputProver := &prover.InputProver{
 		PublicInputs: &prover.PublicInputs{
-			OldStateRoot:    previousBatch.StateRoot.Bytes(),
-			OldAccInputHash: previousBatch.AccInputHash.Bytes(),
-			OldBatchNum:     previousBatch.BatchNumber,
-			ChainId:         a.cfg.ChainID,
-			ForkId:          a.cfg.ForkId,
-			BatchL2Data:     batchToVerify.BatchL2Data,
-			GlobalExitRoot:  batchToVerify.GlobalExitRoot.Bytes(),
-			EthTimestamp:    uint64(batchToVerify.Timestamp.Unix()),
-			SequencerAddr:   batchToVerify.Coinbase.String(),
-			AggregatorAddr:  a.cfg.SenderAddress,
+			OldStateRoot:      previousBatch.StateRoot.Bytes(),
+			OldAccInputHash:   previousBatch.AccInputHash.Bytes(),
+			OldBatchNum:       previousBatch.BatchNumber,
+			ChainId:           a.cfg.ChainID,
+			ForkId:            a.cfg.ForkId,
+			BatchL2Data:       batchToVerify.BatchL2Data,
+			L1InfoRoot:        l1InfoRoot.Bytes(),
+			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()),
+			SequencerAddr:     batchToVerify.Coinbase.String(),
+			AggregatorAddr:    a.cfg.SenderAddress,
+			L1InfoTreeData:    l1InfoTreeData,
+			ForcedBlockhashL1: forcedBlockhashL1.Bytes(),
 		},
 		Db:                map[string]string{},
 		ContractsBytecode: map[string]string{},
 	}
 
+	printInputProver(inputProver)
+
 	return inputProver, nil
+}
+
+func printInputProver(inputProver *prover.InputProver) {
+	log.Debugf("OldStateRoot: %v", common.BytesToHash(inputProver.PublicInputs.OldStateRoot))
+	log.Debugf("OldAccInputHash: %v", common.BytesToHash(inputProver.PublicInputs.OldAccInputHash))
+	log.Debugf("OldBatchNum: %v", inputProver.PublicInputs.OldBatchNum)
+	log.Debugf("ChainId: %v", inputProver.PublicInputs.ChainId)
+	log.Debugf("ForkId: %v", inputProver.PublicInputs.ForkId)
+	log.Debugf("BatchL2Data: %v", common.Bytes2Hex(inputProver.PublicInputs.BatchL2Data))
+	log.Debugf("L1InfoRoot: %v", common.BytesToHash(inputProver.PublicInputs.L1InfoRoot))
+	log.Debugf("TimestampLimit: %v", inputProver.PublicInputs.TimestampLimit)
+	log.Debugf("SequencerAddr: %v", inputProver.PublicInputs.SequencerAddr)
+	log.Debugf("AggregatorAddr: %v", inputProver.PublicInputs.AggregatorAddr)
+	log.Debugf("L1InfoTreeData: %+v", inputProver.PublicInputs.L1InfoTreeData)
+	log.Debugf("ForcedBlockhashL1: %v", common.Bytes2Hex(inputProver.PublicInputs.ForcedBlockhashL1))
 }
 
 // healthChecker will provide an implementation of the HealthCheck interface.

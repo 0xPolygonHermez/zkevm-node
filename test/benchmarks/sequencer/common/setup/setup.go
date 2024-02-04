@@ -40,6 +40,7 @@ var (
 		MaxArithmetics:       236585,
 		MaxBinaries:          473170,
 		MaxSteps:             7570538,
+		MaxSHA256Hashes:      1596,
 	}
 )
 
@@ -114,7 +115,7 @@ func Environment(ctx context.Context, b *testing.B) (*operations.Manager, *ethcl
 	return opsman, client, pl, auth
 }
 
-// Components runs the network container, starts synchronizer and JSON-RPC components, and approves matic
+// Components runs the network container, starts synchronizer and JSON-RPC components, and approves pol
 func Components(opsman *operations.Manager) error {
 	// Run network container
 	err := opsman.StartNetwork()
@@ -122,8 +123,8 @@ func Components(opsman *operations.Manager) error {
 		return err
 	}
 
-	// Approve matic
-	err = operations.ApproveMatic()
+	// Approve pol
+	err = operations.ApprovePol()
 	if err != nil {
 		return err
 	}

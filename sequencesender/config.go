@@ -12,15 +12,16 @@ type Config struct {
 	WaitPeriodSendSequence types.Duration `mapstructure:"WaitPeriodSendSequence"`
 	// LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent
 	LastBatchVirtualizationTimeMaxWaitPeriod types.Duration `mapstructure:"LastBatchVirtualizationTimeMaxWaitPeriod"`
-	// // MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
-	// // non-trivial consequences: larger transactions than 128KB are significantly harder and
-	// // more expensive to propagate; larger transactions also take more resources
-	// // to validate whether they fit into the pool or not.
+	// L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before
+	// to send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater
+	L1BlockTimestampMargin types.Duration `mapstructure:"L1BlockTimestampMargin"`
+	// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
+	// non-trivial consequences: larger transactions than 128KB are significantly harder and
+	// more expensive to propagate; larger transactions also take more resources
+	// to validate whether they fit into the pool or not.
 	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
-
 	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
 	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
-
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress common.Address

@@ -2,11 +2,11 @@ package state
 
 import (
 	"encoding/json"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/instrumentation"
 	"github.com/ethereum/go-ethereum/common"
@@ -15,24 +15,41 @@ import (
 
 // ProcessRequest represents the request of a batch process.
 type ProcessRequest struct {
-	BatchNumber     uint64
-	GlobalExitRoot  common.Hash
-	OldStateRoot    common.Hash
-	OldAccInputHash common.Hash
-	Transactions    []byte
-	Coinbase        common.Address
-	Timestamp       time.Time
-	Caller          metrics.CallerLabel
+	BatchNumber               uint64
+	GlobalExitRoot_V1         common.Hash
+	L1InfoRoot_V2             common.Hash
+	L1InfoTreeData_V2         map[uint32]L1DataV2
+	OldStateRoot              common.Hash
+	OldAccInputHash           common.Hash
+	Transactions              []byte
+	Coinbase                  common.Address
+	ForcedBlockHashL1         common.Hash
+	Timestamp_V1              time.Time
+	TimestampLimit_V2         uint64
+	Caller                    metrics.CallerLabel
+	SkipFirstChangeL2Block_V2 bool
+	SkipWriteBlockInfoRoot_V2 bool
+	SkipVerifyL1InfoRoot_V2   bool
+	ForkID                    uint64
+}
+
+// L1DataV2 represents the L1InfoTree data used in ProcessRequest.L1InfoTreeData_V2 parameter
+type L1DataV2 struct {
+	GlobalExitRoot common.Hash
+	BlockHashL1    common.Hash
+	MinTimestamp   uint64
+	SmtProof       [][]byte
 }
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot         common.Hash
-	NewAccInputHash      common.Hash
-	NewLocalExitRoot     common.Hash
-	NewBatchNumber       uint64
-	UsedZkCounters       ZKCounters
-	Responses            []*ProcessTransactionResponse
+	NewStateRoot     common.Hash
+	NewAccInputHash  common.Hash
+	NewLocalExitRoot common.Hash
+	NewBatchNumber   uint64
+	UsedZkCounters   ZKCounters
+	// TransactionResponses_V1 []*ProcessTransactionResponse
+	BlockResponses       []*ProcessBlockResponse
 	ExecutorError        error
 	ReadWriteAddresses   map[common.Address]*InfoReadWrite
 	IsRomLevelError      bool
@@ -41,12 +58,37 @@ type ProcessBatchResponse struct {
 	FlushID              uint64
 	StoredFlushID        uint64
 	ProverID             string
+	GasUsed_V2           uint64
+	SMTKeys_V2           []merkletree.Key
+	ProgramKeys_V2       []merkletree.Key
+	ForkID               uint64
+	InvalidBatch_V2      bool
+	RomError_V2          error
+}
+
+// ProcessBlockResponse represents the response of a block
+type ProcessBlockResponse struct {
+	ParentHash           common.Hash
+	Coinbase             common.Address
+	GasLimit             uint64
+	BlockNumber          uint64
+	Timestamp            uint64
+	GlobalExitRoot       common.Hash
+	BlockHashL1          common.Hash
+	GasUsed              uint64
+	BlockInfoRoot        common.Hash
+	BlockHash            common.Hash
+	TransactionResponses []*ProcessTransactionResponse
+	Logs                 []*types.Log
+	RomError_V2          error
 }
 
 // ProcessTransactionResponse represents the response of a tx process.
 type ProcessTransactionResponse struct {
 	// TxHash is the hash of the transaction
 	TxHash common.Hash
+	// TxHashL2_V2 is the hash of the transaction in the L2
+	TxHashL2_V2 common.Hash
 	// Type indicates legacy transaction
 	// It will be always 0 (legacy) in the executor
 	Type uint32
@@ -70,10 +112,8 @@ type ProcessTransactionResponse struct {
 	ChangesStateRoot bool
 	// Tx is the whole transaction object
 	Tx types.Transaction
-	// ExecutionTrace contains the traces produced in the execution
-	ExecutionTrace []instrumentation.StructLog
-	// CallTrace contains the call trace.
-	CallTrace instrumentation.ExecutorTrace
+	// FullTrace contains the call trace.
+	FullTrace instrumentation.FullTrace
 	// EffectiveGasPrice effective gas price used for the tx
 	EffectiveGasPrice string
 	//EffectivePercentage effective percentage used for the tx
@@ -112,7 +152,7 @@ type StoreTxEGPData struct {
 
 // ZKCounters counters for the tx
 type ZKCounters struct {
-	CumulativeGasUsed    uint64
+	GasUsed              uint64
 	UsedKeccakHashes     uint32
 	UsedPoseidonHashes   uint32
 	UsedPoseidonPaddings uint32
@@ -120,11 +160,12 @@ type ZKCounters struct {
 	UsedArithmetics      uint32
 	UsedBinaries         uint32
 	UsedSteps            uint32
+	UsedSha256Hashes_V2  uint32
 }
 
 // SumUp sum ups zk counters with passed tx zk counters
 func (z *ZKCounters) SumUp(other ZKCounters) {
-	z.CumulativeGasUsed += other.CumulativeGasUsed
+	z.GasUsed += other.GasUsed
 	z.UsedKeccakHashes += other.UsedKeccakHashes
 	z.UsedPoseidonHashes += other.UsedPoseidonHashes
 	z.UsedPoseidonPaddings += other.UsedPoseidonPaddings
@@ -132,37 +173,41 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.UsedArithmetics += other.UsedArithmetics
 	z.UsedBinaries += other.UsedBinaries
 	z.UsedSteps += other.UsedSteps
+	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
 }
 
-// Sub subtract zk counters with passed zk counters (not safe)
-func (z *ZKCounters) Sub(other ZKCounters) error {
+// Sub subtract zk counters with passed zk counters (not safe). if there is a counter underflow it returns true and the name of the counter that caused the overflow
+func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
 	// ZKCounters
-	if other.CumulativeGasUsed > z.CumulativeGasUsed {
-		return GetZKCounterError("CumulativeGasUsed")
+	if other.GasUsed > z.GasUsed {
+		return true, "CumulativeGas"
 	}
 	if other.UsedKeccakHashes > z.UsedKeccakHashes {
-		return GetZKCounterError("UsedKeccakHashes")
+		return true, "KeccakHashes"
 	}
 	if other.UsedPoseidonHashes > z.UsedPoseidonHashes {
-		return GetZKCounterError("UsedPoseidonHashes")
+		return true, "PoseidonHashes"
 	}
 	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
-		return fmt.Errorf("underflow ZKCounter: UsedPoseidonPaddings")
+		return true, "PoseidonPaddings"
 	}
 	if other.UsedMemAligns > z.UsedMemAligns {
-		return GetZKCounterError("UsedMemAligns")
+		return true, "UsedMemAligns"
 	}
 	if other.UsedArithmetics > z.UsedArithmetics {
-		return GetZKCounterError("UsedArithmetics")
+		return true, "UsedArithmetics"
 	}
 	if other.UsedBinaries > z.UsedBinaries {
-		return GetZKCounterError("UsedBinaries")
+		return true, "UsedBinaries"
 	}
 	if other.UsedSteps > z.UsedSteps {
-		return GetZKCounterError("UsedSteps")
+		return true, "UsedSteps"
+	}
+	if other.UsedSha256Hashes_V2 > z.UsedSha256Hashes_V2 {
+		return true, "UsedSha256Hashes_V2"
 	}
 
-	z.CumulativeGasUsed -= other.CumulativeGasUsed
+	z.GasUsed -= other.GasUsed
 	z.UsedKeccakHashes -= other.UsedKeccakHashes
 	z.UsedPoseidonHashes -= other.UsedPoseidonHashes
 	z.UsedPoseidonPaddings -= other.UsedPoseidonPaddings
@@ -170,8 +215,9 @@ func (z *ZKCounters) Sub(other ZKCounters) error {
 	z.UsedArithmetics -= other.UsedArithmetics
 	z.UsedBinaries -= other.UsedBinaries
 	z.UsedSteps -= other.UsedSteps
+	z.UsedSha256Hashes_V2 -= other.UsedSha256Hashes_V2
 
-	return nil
+	return false, ""
 }
 
 // BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
@@ -180,21 +226,27 @@ type BatchResources struct {
 	Bytes      uint64
 }
 
-// Sub subtracts the batch resources from other
-func (r *BatchResources) Sub(other BatchResources) error {
+// Sub subtracts the batch resources from other. if there is a resource underflow it returns true and the name of the resource that caused the overflow
+func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 	// Bytes
 	if other.Bytes > r.Bytes {
-		return ErrBatchResourceBytesUnderflow
+		return true, "Bytes"
 	}
 	bytesBackup := r.Bytes
 	r.Bytes -= other.Bytes
-	err := r.ZKCounters.Sub(other.ZKCounters)
-	if err != nil {
+	exhausted, resourceName := r.ZKCounters.Sub(other.ZKCounters)
+	if exhausted {
 		r.Bytes = bytesBackup
-		return NewBatchRemainingResourcesUnderflowError(err, err.Error())
+		return exhausted, resourceName
 	}
 
-	return err
+	return false, ""
+}
+
+// SumUp sum ups the batch resources from other
+func (r *BatchResources) SumUp(other BatchResources) {
+	r.Bytes += other.Bytes
+	r.ZKCounters.SumUp(other.ZKCounters)
 }
 
 // InfoReadWrite has information about modified addresses during the execution
@@ -260,15 +312,5 @@ func HexToAddressPtr(hex string) *common.Address {
 // HexToHashPtr create a hash from a hex and returns its pointer
 func HexToHashPtr(hex string) *common.Hash {
 	h := common.HexToHash(hex)
-	return &h
-}
-
-// AddressPtr returns a pointer to the provided address
-func AddressPtr(i common.Address) *common.Address {
-	return &i
-}
-
-// HashPtr returns a pointer to the provided hash
-func HashPtr(h common.Hash) *common.Hash {
 	return &h
 }

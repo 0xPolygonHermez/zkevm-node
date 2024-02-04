@@ -27,7 +27,6 @@
 | - [EventLog](#EventLog )                             | No      | object  | No         | -          | Configuration of the event database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | - [HashDB](#HashDB )                                 | No      | object  | No         | -          | Configuration of the hash database connection                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | - [State](#State )                                   | No      | object  | No         | -          | State service configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| - [Apollo](#Apollo )                                 | No      | object  | No         | -          | Apollo configuration                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
 ## <a name="IsTrustedSequencer"></a>1. `IsTrustedSequencer`
 
@@ -248,7 +247,6 @@ Url=""
 | - [ForcedGas](#EthTxManager_ForcedGas )                         | No      | integer         | No         | -          | ForcedGas is the amount of gas to be forced in case of gas estimation error                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | - [GasPriceMarginFactor](#EthTxManager_GasPriceMarginFactor )   | No      | number          | No         | -          | GasPriceMarginFactor is used to multiply the suggested gas price provided by the network<br />in order to allow a different gas price to be set for all the transactions and making it<br />easier to have the txs prioritized in the pool, default value is 1.<br /><br />ex:<br />suggested gas price: 100<br />GasPriceMarginFactor: 1<br />gas price = 100<br /><br />suggested gas price: 100<br />GasPriceMarginFactor: 1.1<br />gas price = 110                                                                                                                                                                                              |
 | - [MaxGasPriceLimit](#EthTxManager_MaxGasPriceLimit )           | No      | integer         | No         | -          | MaxGasPriceLimit helps avoiding transactions to be sent over an specified<br />gas price amount, default value is 0, which means no limit.<br />If the gas price provided by the network and adjusted by the GasPriceMarginFactor<br />is greater than this configuration, transaction will have its gas price set to<br />the value configured in this config as the limit.<br /><br />ex:<br /><br />suggested gas price: 100<br />gas price margin factor: 20%<br />max gas price limit: 150<br />tx gas price = 120<br /><br />suggested gas price: 100<br />gas price margin factor: 20%<br />max gas price limit: 110<br />tx gas price = 110 |
-| - [CustodialAssets](#EthTxManager_CustodialAssets )             | No      | object          | No         | -          | CustodialAssets is the configuration for the custodial assets                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 ### <a name="EthTxManager_FrequencyToMonitorTxs"></a>6.1. `EthTxManager.FrequencyToMonitorTxs`
 
@@ -409,318 +407,27 @@ tx gas price = 110
 MaxGasPriceLimit=0
 ```
 
-### <a name="EthTxManager_CustodialAssets"></a>6.7. `[EthTxManager.CustodialAssets]`
-
-**Type:** : `object`
-**Description:** CustodialAssets is the configuration for the custodial assets
-
-| Property                                                                | Pattern | Type             | Deprecated | Definition | Title/Description                                                             |
-| ----------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------- |
-| - [Enable](#EthTxManager_CustodialAssets_Enable )                       | No      | boolean          | No         | -          | Enable is the flag to enable the custodial assets                             |
-| - [URL](#EthTxManager_CustodialAssets_URL )                             | No      | string           | No         | -          | URL is the url to sign the custodial assets                                   |
-| - [Symbol](#EthTxManager_CustodialAssets_Symbol )                       | No      | integer          | No         | -          | Symbol is the symbol of the network, 2 prd, 2882 devnet                       |
-| - [SequencerAddr](#EthTxManager_CustodialAssets_SequencerAddr )         | No      | array of integer | No         | -          | SequencerAddr is the address of the sequencer                                 |
-| - [AggregatorAddr](#EthTxManager_CustodialAssets_AggregatorAddr )       | No      | array of integer | No         | -          | AggregatorAddr is the address of the aggregator                               |
-| - [WaitResultTimeout](#EthTxManager_CustodialAssets_WaitResultTimeout ) | No      | string           | No         | -          | Duration                                                                      |
-| - [OperateTypeSeq](#EthTxManager_CustodialAssets_OperateTypeSeq )       | No      | integer          | No         | -          | OperateTypeSeq is the operate type of the custodial assets for the sequencer  |
-| - [OperateTypeAgg](#EthTxManager_CustodialAssets_OperateTypeAgg )       | No      | integer          | No         | -          | OperateTypeAgg is the operate type of the custodial assets for the aggregator |
-| - [ProjectSymbol](#EthTxManager_CustodialAssets_ProjectSymbol )         | No      | integer          | No         | -          | ProjectSymbol is the project symbol of the custodial assets                   |
-| - [OperateSymbol](#EthTxManager_CustodialAssets_OperateSymbol )         | No      | integer          | No         | -          | OperateSymbol is the operate symbol of the custodial assets                   |
-| - [SysFrom](#EthTxManager_CustodialAssets_SysFrom )                     | No      | integer          | No         | -          | SysFrom is the sys from of the custodial assets                               |
-| - [UserID](#EthTxManager_CustodialAssets_UserID )                       | No      | integer          | No         | -          | UserID is the user id of the custodial assets                                 |
-| - [OperateAmount](#EthTxManager_CustodialAssets_OperateAmount )         | No      | integer          | No         | -          | OperateAmount is the operate amount of the custodial assets                   |
-| - [RequestSignURI](#EthTxManager_CustodialAssets_RequestSignURI )       | No      | string           | No         | -          | RequestSignURI is the request sign uri of the custodial assets                |
-| - [QuerySignURI](#EthTxManager_CustodialAssets_QuerySignURI )           | No      | string           | No         | -          | QuerySignURI is the query sign uri of the custodial assets                    |
-| - [AccessKey](#EthTxManager_CustodialAssets_AccessKey )                 | No      | string           | No         | -          | AccessKey is the access key of the custodial assets                           |
-| - [SecretKey](#EthTxManager_CustodialAssets_SecretKey )                 | No      | string           | No         | -          | SecretKey is the secret key of the custodial assets                           |
-
-#### <a name="EthTxManager_CustodialAssets_Enable"></a>6.7.1. `EthTxManager.CustodialAssets.Enable`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** Enable is the flag to enable the custodial assets
-
-**Example setting the default value** (false):
-```
-[EthTxManager.CustodialAssets]
-Enable=false
-```
-
-#### <a name="EthTxManager_CustodialAssets_URL"></a>6.7.2. `EthTxManager.CustodialAssets.URL`
-
-**Type:** : `string`
-
-**Default:** `"http://localhost:8080"`
-
-**Description:** URL is the url to sign the custodial assets
-
-**Example setting the default value** ("http://localhost:8080"):
-```
-[EthTxManager.CustodialAssets]
-URL="http://localhost:8080"
-```
-
-#### <a name="EthTxManager_CustodialAssets_Symbol"></a>6.7.3. `EthTxManager.CustodialAssets.Symbol`
-
-**Type:** : `integer`
-
-**Default:** `2882`
-
-**Description:** Symbol is the symbol of the network, 2 prd, 2882 devnet
-
-**Example setting the default value** (2882):
-```
-[EthTxManager.CustodialAssets]
-Symbol=2882
-```
-
-#### <a name="EthTxManager_CustodialAssets_SequencerAddr"></a>6.7.4. `EthTxManager.CustodialAssets.SequencerAddr`
-
-**Type:** : `array of integer`
-
-**Default:** `"0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"`
-
-**Description:** SequencerAddr is the address of the sequencer
-
-**Example setting the default value** ("0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"):
-```
-[EthTxManager.CustodialAssets]
-SequencerAddr="0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"
-```
-
-#### <a name="EthTxManager_CustodialAssets_AggregatorAddr"></a>6.7.5. `EthTxManager.CustodialAssets.AggregatorAddr`
-
-**Type:** : `array of integer`
-
-**Default:** `"0x66e39a1e507af777e8c385e2d91559e20e306303"`
-
-**Description:** AggregatorAddr is the address of the aggregator
-
-**Example setting the default value** ("0x66e39a1e507af777e8c385e2d91559e20e306303"):
-```
-[EthTxManager.CustodialAssets]
-AggregatorAddr="0x66e39a1e507af777e8c385e2d91559e20e306303"
-```
-
-#### <a name="EthTxManager_CustodialAssets_WaitResultTimeout"></a>6.7.6. `EthTxManager.CustodialAssets.WaitResultTimeout`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"2m0s"`
-
-**Description:** WaitResultTimeout is the timeout to wait for the result of the custodial assets
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("2m0s"):
-```
-[EthTxManager.CustodialAssets]
-WaitResultTimeout="2m0s"
-```
-
-#### <a name="EthTxManager_CustodialAssets_OperateTypeSeq"></a>6.7.7. `EthTxManager.CustodialAssets.OperateTypeSeq`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** OperateTypeSeq is the operate type of the custodial assets for the sequencer
-
-**Example setting the default value** (1):
-```
-[EthTxManager.CustodialAssets]
-OperateTypeSeq=1
-```
-
-#### <a name="EthTxManager_CustodialAssets_OperateTypeAgg"></a>6.7.8. `EthTxManager.CustodialAssets.OperateTypeAgg`
-
-**Type:** : `integer`
-
-**Default:** `2`
-
-**Description:** OperateTypeAgg is the operate type of the custodial assets for the aggregator
-
-**Example setting the default value** (2):
-```
-[EthTxManager.CustodialAssets]
-OperateTypeAgg=2
-```
-
-#### <a name="EthTxManager_CustodialAssets_ProjectSymbol"></a>6.7.9. `EthTxManager.CustodialAssets.ProjectSymbol`
-
-**Type:** : `integer`
-
-**Default:** `3011`
-
-**Description:** ProjectSymbol is the project symbol of the custodial assets
-
-**Example setting the default value** (3011):
-```
-[EthTxManager.CustodialAssets]
-ProjectSymbol=3011
-```
-
-#### <a name="EthTxManager_CustodialAssets_OperateSymbol"></a>6.7.10. `EthTxManager.CustodialAssets.OperateSymbol`
-
-**Type:** : `integer`
-
-**Default:** `2`
-
-**Description:** OperateSymbol is the operate symbol of the custodial assets
-
-**Example setting the default value** (2):
-```
-[EthTxManager.CustodialAssets]
-OperateSymbol=2
-```
-
-#### <a name="EthTxManager_CustodialAssets_SysFrom"></a>6.7.11. `EthTxManager.CustodialAssets.SysFrom`
-
-**Type:** : `integer`
-
-**Default:** `3`
-
-**Description:** SysFrom is the sys from of the custodial assets
-
-**Example setting the default value** (3):
-```
-[EthTxManager.CustodialAssets]
-SysFrom=3
-```
-
-#### <a name="EthTxManager_CustodialAssets_UserID"></a>6.7.12. `EthTxManager.CustodialAssets.UserID`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Description:** UserID is the user id of the custodial assets
-
-**Example setting the default value** (0):
-```
-[EthTxManager.CustodialAssets]
-UserID=0
-```
-
-#### <a name="EthTxManager_CustodialAssets_OperateAmount"></a>6.7.13. `EthTxManager.CustodialAssets.OperateAmount`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Description:** OperateAmount is the operate amount of the custodial assets
-
-**Example setting the default value** (0):
-```
-[EthTxManager.CustodialAssets]
-OperateAmount=0
-```
-
-#### <a name="EthTxManager_CustodialAssets_RequestSignURI"></a>6.7.14. `EthTxManager.CustodialAssets.RequestSignURI`
-
-**Type:** : `string`
-
-**Default:** `"/priapi/v1/assetonchain/ecology/ecologyOperate"`
-
-**Description:** RequestSignURI is the request sign uri of the custodial assets
-
-**Example setting the default value** ("/priapi/v1/assetonchain/ecology/ecologyOperate"):
-```
-[EthTxManager.CustodialAssets]
-RequestSignURI="/priapi/v1/assetonchain/ecology/ecologyOperate"
-```
-
-#### <a name="EthTxManager_CustodialAssets_QuerySignURI"></a>6.7.15. `EthTxManager.CustodialAssets.QuerySignURI`
-
-**Type:** : `string`
-
-**Default:** `"/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"`
-
-**Description:** QuerySignURI is the query sign uri of the custodial assets
-
-**Example setting the default value** ("/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"):
-```
-[EthTxManager.CustodialAssets]
-QuerySignURI="/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"
-```
-
-#### <a name="EthTxManager_CustodialAssets_AccessKey"></a>6.7.16. `EthTxManager.CustodialAssets.AccessKey`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** AccessKey is the access key of the custodial assets
-
-**Example setting the default value** (""):
-```
-[EthTxManager.CustodialAssets]
-AccessKey=""
-```
-
-#### <a name="EthTxManager_CustodialAssets_SecretKey"></a>6.7.17. `EthTxManager.CustodialAssets.SecretKey`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** SecretKey is the secret key of the custodial assets
-
-**Example setting the default value** (""):
-```
-[EthTxManager.CustodialAssets]
-SecretKey=""
-```
-
 ## <a name="Pool"></a>7. `[Pool]`
 
 **Type:** : `object`
 **Description:** Pool service configuration
 
-| Property                                                                        | Pattern | Type            | Deprecated | Definition | Title/Description                                                                                    |
-| ------------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
-| - [FreeClaimGasLimit](#Pool_FreeClaimGasLimit )                                 | No      | integer         | No         | -          | FreeClaimGasLimit is the max gas allowed use to do a free claim                                      |
-| - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string          | No         | -          | Duration                                                                                             |
-| - [IntervalToRefreshGasPrices](#Pool_IntervalToRefreshGasPrices )               | No      | string          | No         | -          | Duration                                                                                             |
-| - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer         | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                                             |
-| - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer         | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes                       |
-| - [DB](#Pool_DB )                                                               | No      | object          | No         | -          | DB is the database configuration                                                                     |
-| - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer         | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
-| - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string          | No         | -          | Duration                                                                                             |
-| - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string          | No         | -          | Duration                                                                                             |
-| - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer         | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
-| - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer         | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
-| - [FreeGasAddress](#Pool_FreeGasAddress )                                       | No      | array of string | No         | -          | FreeGasAddress is the default free gas address                                                       |
-| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object          | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
-| - [ForkID](#Pool_ForkID )                                                       | No      | integer         | No         | -          | ForkID is the current fork ID of the chain                                                           |
+| Property                                                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                    |
+| ------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------- |
+| - [IntervalToRefreshBlockedAddresses](#Pool_IntervalToRefreshBlockedAddresses ) | No      | string  | No         | -          | Duration                                                                                             |
+| - [IntervalToRefreshGasPrices](#Pool_IntervalToRefreshGasPrices )               | No      | string  | No         | -          | Duration                                                                                             |
+| - [MaxTxBytesSize](#Pool_MaxTxBytesSize )                                       | No      | integer | No         | -          | MaxTxBytesSize is the max size of a transaction in bytes                                             |
+| - [MaxTxDataBytesSize](#Pool_MaxTxDataBytesSize )                               | No      | integer | No         | -          | MaxTxDataBytesSize is the max size of the data field of a transaction in bytes                       |
+| - [DB](#Pool_DB )                                                               | No      | object  | No         | -          | DB is the database configuration                                                                     |
+| - [DefaultMinGasPriceAllowed](#Pool_DefaultMinGasPriceAllowed )                 | No      | integer | No         | -          | DefaultMinGasPriceAllowed is the default min gas price to suggest                                    |
+| - [MinAllowedGasPriceInterval](#Pool_MinAllowedGasPriceInterval )               | No      | string  | No         | -          | Duration                                                                                             |
+| - [PollMinAllowedGasPriceInterval](#Pool_PollMinAllowedGasPriceInterval )       | No      | string  | No         | -          | Duration                                                                                             |
+| - [AccountQueue](#Pool_AccountQueue )                                           | No      | integer | No         | -          | AccountQueue represents the maximum number of non-executable transaction slots permitted per account |
+| - [GlobalQueue](#Pool_GlobalQueue )                                             | No      | integer | No         | -          | GlobalQueue represents the maximum number of non-executable transaction slots for all accounts       |
+| - [EffectiveGasPrice](#Pool_EffectiveGasPrice )                                 | No      | object  | No         | -          | EffectiveGasPrice is the config for the effective gas price calculation                              |
+| - [ForkID](#Pool_ForkID )                                                       | No      | integer | No         | -          | ForkID is the current fork ID of the chain                                                           |
 
-### <a name="Pool_FreeClaimGasLimit"></a>7.1. `Pool.FreeClaimGasLimit`
-
-**Type:** : `integer`
-
-**Default:** `150000`
-
-**Description:** FreeClaimGasLimit is the max gas allowed use to do a free claim
-
-**Example setting the default value** (150000):
-```
-[Pool]
-FreeClaimGasLimit=150000
-```
-
-### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>7.2. `Pool.IntervalToRefreshBlockedAddresses`
+### <a name="Pool_IntervalToRefreshBlockedAddresses"></a>7.1. `Pool.IntervalToRefreshBlockedAddresses`
 
 **Title:** Duration
 
@@ -747,7 +454,7 @@ blocked address list from db to memory
 IntervalToRefreshBlockedAddresses="5m0s"
 ```
 
-### <a name="Pool_IntervalToRefreshGasPrices"></a>7.3. `Pool.IntervalToRefreshGasPrices`
+### <a name="Pool_IntervalToRefreshGasPrices"></a>7.2. `Pool.IntervalToRefreshGasPrices`
 
 **Title:** Duration
 
@@ -773,7 +480,7 @@ IntervalToRefreshBlockedAddresses="5m0s"
 IntervalToRefreshGasPrices="5s"
 ```
 
-### <a name="Pool_MaxTxBytesSize"></a>7.4. `Pool.MaxTxBytesSize`
+### <a name="Pool_MaxTxBytesSize"></a>7.3. `Pool.MaxTxBytesSize`
 
 **Type:** : `integer`
 
@@ -787,7 +494,7 @@ IntervalToRefreshGasPrices="5s"
 MaxTxBytesSize=100132
 ```
 
-### <a name="Pool_MaxTxDataBytesSize"></a>7.5. `Pool.MaxTxDataBytesSize`
+### <a name="Pool_MaxTxDataBytesSize"></a>7.4. `Pool.MaxTxDataBytesSize`
 
 **Type:** : `integer`
 
@@ -801,7 +508,7 @@ MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000
 ```
 
-### <a name="Pool_DB"></a>7.6. `[Pool.DB]`
+### <a name="Pool_DB"></a>7.5. `[Pool.DB]`
 
 **Type:** : `object`
 **Description:** DB is the database configuration
@@ -816,7 +523,7 @@ MaxTxDataBytesSize=100000
 | - [EnableLog](#Pool_DB_EnableLog ) | No      | boolean | No         | -          | EnableLog                                                  |
 | - [MaxConns](#Pool_DB_MaxConns )   | No      | integer | No         | -          | MaxConns is the maximum number of connections in the pool. |
 
-#### <a name="Pool_DB_Name"></a>7.6.1. `Pool.DB.Name`
+#### <a name="Pool_DB_Name"></a>7.5.1. `Pool.DB.Name`
 
 **Type:** : `string`
 
@@ -830,7 +537,7 @@ MaxTxDataBytesSize=100000
 Name="pool_db"
 ```
 
-#### <a name="Pool_DB_User"></a>7.6.2. `Pool.DB.User`
+#### <a name="Pool_DB_User"></a>7.5.2. `Pool.DB.User`
 
 **Type:** : `string`
 
@@ -844,7 +551,7 @@ Name="pool_db"
 User="pool_user"
 ```
 
-#### <a name="Pool_DB_Password"></a>7.6.3. `Pool.DB.Password`
+#### <a name="Pool_DB_Password"></a>7.5.3. `Pool.DB.Password`
 
 **Type:** : `string`
 
@@ -858,21 +565,21 @@ User="pool_user"
 Password="pool_password"
 ```
 
-#### <a name="Pool_DB_Host"></a>7.6.4. `Pool.DB.Host`
+#### <a name="Pool_DB_Host"></a>7.5.4. `Pool.DB.Host`
 
 **Type:** : `string`
 
-**Default:** `"x1-pool-db"`
+**Default:** `"zkevm-pool-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("x1-pool-db"):
+**Example setting the default value** ("zkevm-pool-db"):
 ```
 [Pool.DB]
-Host="x1-pool-db"
+Host="zkevm-pool-db"
 ```
 
-#### <a name="Pool_DB_Port"></a>7.6.5. `Pool.DB.Port`
+#### <a name="Pool_DB_Port"></a>7.5.5. `Pool.DB.Port`
 
 **Type:** : `string`
 
@@ -886,7 +593,7 @@ Host="x1-pool-db"
 Port="5432"
 ```
 
-#### <a name="Pool_DB_EnableLog"></a>7.6.6. `Pool.DB.EnableLog`
+#### <a name="Pool_DB_EnableLog"></a>7.5.6. `Pool.DB.EnableLog`
 
 **Type:** : `boolean`
 
@@ -900,7 +607,7 @@ Port="5432"
 EnableLog=false
 ```
 
-#### <a name="Pool_DB_MaxConns"></a>7.6.7. `Pool.DB.MaxConns`
+#### <a name="Pool_DB_MaxConns"></a>7.5.7. `Pool.DB.MaxConns`
 
 **Type:** : `integer`
 
@@ -914,7 +621,7 @@ EnableLog=false
 MaxConns=200
 ```
 
-### <a name="Pool_DefaultMinGasPriceAllowed"></a>7.7. `Pool.DefaultMinGasPriceAllowed`
+### <a name="Pool_DefaultMinGasPriceAllowed"></a>7.6. `Pool.DefaultMinGasPriceAllowed`
 
 **Type:** : `integer`
 
@@ -928,7 +635,7 @@ MaxConns=200
 DefaultMinGasPriceAllowed=1000000000
 ```
 
-### <a name="Pool_MinAllowedGasPriceInterval"></a>7.8. `Pool.MinAllowedGasPriceInterval`
+### <a name="Pool_MinAllowedGasPriceInterval"></a>7.7. `Pool.MinAllowedGasPriceInterval`
 
 **Title:** Duration
 
@@ -954,7 +661,7 @@ DefaultMinGasPriceAllowed=1000000000
 MinAllowedGasPriceInterval="5m0s"
 ```
 
-### <a name="Pool_PollMinAllowedGasPriceInterval"></a>7.9. `Pool.PollMinAllowedGasPriceInterval`
+### <a name="Pool_PollMinAllowedGasPriceInterval"></a>7.8. `Pool.PollMinAllowedGasPriceInterval`
 
 **Title:** Duration
 
@@ -980,7 +687,7 @@ MinAllowedGasPriceInterval="5m0s"
 PollMinAllowedGasPriceInterval="15s"
 ```
 
-### <a name="Pool_AccountQueue"></a>7.10. `Pool.AccountQueue`
+### <a name="Pool_AccountQueue"></a>7.9. `Pool.AccountQueue`
 
 **Type:** : `integer`
 
@@ -994,7 +701,7 @@ PollMinAllowedGasPriceInterval="15s"
 AccountQueue=64
 ```
 
-### <a name="Pool_GlobalQueue"></a>7.11. `Pool.GlobalQueue`
+### <a name="Pool_GlobalQueue"></a>7.10. `Pool.GlobalQueue`
 
 **Type:** : `integer`
 
@@ -1008,37 +715,25 @@ AccountQueue=64
 GlobalQueue=1024
 ```
 
-### <a name="Pool_FreeGasAddress"></a>7.12. `Pool.FreeGasAddress`
-
-**Type:** : `array of string`
-
-**Default:** `["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]`
-
-**Description:** FreeGasAddress is the default free gas address
-
-**Example setting the default value** (["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]):
-```
-[Pool]
-FreeGasAddress=["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
-```
-
-### <a name="Pool_EffectiveGasPrice"></a>7.13. `[Pool.EffectiveGasPrice]`
+### <a name="Pool_EffectiveGasPrice"></a>7.11. `[Pool.EffectiveGasPrice]`
 
 **Type:** : `object`
 **Description:** EffectiveGasPrice is the config for the effective gas price calculation
 
-| Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                                     | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                                                                                          |
-| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )                   | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                                                                                     |
-| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )                             | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                                                                                                   |
-| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )                     | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                                                                                                   |
-| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                                 | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                                                                                          |
-| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )                     | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx                                                                         |
-| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct )                 | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                                                                                        |
-| - [L2GasPriceSuggesterFactor](#Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor ) | No      | number  | No         | -          | L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the<br />calculations when the effective gas price is disabled (testing/metrics purposes) |
+| Property                                                                              | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| - [Enabled](#Pool_EffectiveGasPrice_Enabled )                                         | No      | boolean | No         | -          | Enabled is a flag to enable/disable the effective gas price                                                                                                                                                                                                                                                              |
+| - [L1GasPriceFactor](#Pool_EffectiveGasPrice_L1GasPriceFactor )                       | No      | number  | No         | -          | L1GasPriceFactor is the percentage of the L1 gas price that will be used as the L2 min gas price                                                                                                                                                                                                                         |
+| - [ByteGasCost](#Pool_EffectiveGasPrice_ByteGasCost )                                 | No      | integer | No         | -          | ByteGasCost is the gas cost per byte that is not 0                                                                                                                                                                                                                                                                       |
+| - [ZeroByteGasCost](#Pool_EffectiveGasPrice_ZeroByteGasCost )                         | No      | integer | No         | -          | ZeroByteGasCost is the gas cost per byte that is 0                                                                                                                                                                                                                                                                       |
+| - [NetProfit](#Pool_EffectiveGasPrice_NetProfit )                                     | No      | number  | No         | -          | NetProfit is the profit margin to apply to the calculated breakEvenGasPrice                                                                                                                                                                                                                                              |
+| - [BreakEvenFactor](#Pool_EffectiveGasPrice_BreakEvenFactor )                         | No      | number  | No         | -          | BreakEvenFactor is the factor to apply to the calculated breakevenGasPrice when comparing it with the gasPriceSigned of a tx                                                                                                                                                                                             |
+| - [FinalDeviationPct](#Pool_EffectiveGasPrice_FinalDeviationPct )                     | No      | integer | No         | -          | FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation                                                                                                                                                                                                                            |
+| - [EthTransferGasPrice](#Pool_EffectiveGasPrice_EthTransferGasPrice )                 | No      | integer | No         | -          | EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)<br />Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error                    |
+| - [EthTransferL1GasPriceFactor](#Pool_EffectiveGasPrice_EthTransferL1GasPriceFactor ) | No      | number  | No         | -          | EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)<br />Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error |
+| - [L2GasPriceSuggesterFactor](#Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor )     | No      | number  | No         | -          | L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the<br />calculations when the effective gas price is disabled (testing/metrics purposes)                                                                                                                     |
 
-#### <a name="Pool_EffectiveGasPrice_Enabled"></a>7.13.1. `Pool.EffectiveGasPrice.Enabled`
+#### <a name="Pool_EffectiveGasPrice_Enabled"></a>7.11.1. `Pool.EffectiveGasPrice.Enabled`
 
 **Type:** : `boolean`
 
@@ -1052,7 +747,7 @@ FreeGasAddress=["0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"]
 Enabled=false
 ```
 
-#### <a name="Pool_EffectiveGasPrice_L1GasPriceFactor"></a>7.13.2. `Pool.EffectiveGasPrice.L1GasPriceFactor`
+#### <a name="Pool_EffectiveGasPrice_L1GasPriceFactor"></a>7.11.2. `Pool.EffectiveGasPrice.L1GasPriceFactor`
 
 **Type:** : `number`
 
@@ -1066,7 +761,7 @@ Enabled=false
 L1GasPriceFactor=0.25
 ```
 
-#### <a name="Pool_EffectiveGasPrice_ByteGasCost"></a>7.13.3. `Pool.EffectiveGasPrice.ByteGasCost`
+#### <a name="Pool_EffectiveGasPrice_ByteGasCost"></a>7.11.3. `Pool.EffectiveGasPrice.ByteGasCost`
 
 **Type:** : `integer`
 
@@ -1080,7 +775,7 @@ L1GasPriceFactor=0.25
 ByteGasCost=16
 ```
 
-#### <a name="Pool_EffectiveGasPrice_ZeroByteGasCost"></a>7.13.4. `Pool.EffectiveGasPrice.ZeroByteGasCost`
+#### <a name="Pool_EffectiveGasPrice_ZeroByteGasCost"></a>7.11.4. `Pool.EffectiveGasPrice.ZeroByteGasCost`
 
 **Type:** : `integer`
 
@@ -1094,7 +789,7 @@ ByteGasCost=16
 ZeroByteGasCost=4
 ```
 
-#### <a name="Pool_EffectiveGasPrice_NetProfit"></a>7.13.5. `Pool.EffectiveGasPrice.NetProfit`
+#### <a name="Pool_EffectiveGasPrice_NetProfit"></a>7.11.5. `Pool.EffectiveGasPrice.NetProfit`
 
 **Type:** : `number`
 
@@ -1108,7 +803,7 @@ ZeroByteGasCost=4
 NetProfit=1
 ```
 
-#### <a name="Pool_EffectiveGasPrice_BreakEvenFactor"></a>7.13.6. `Pool.EffectiveGasPrice.BreakEvenFactor`
+#### <a name="Pool_EffectiveGasPrice_BreakEvenFactor"></a>7.11.6. `Pool.EffectiveGasPrice.BreakEvenFactor`
 
 **Type:** : `number`
 
@@ -1122,7 +817,7 @@ NetProfit=1
 BreakEvenFactor=1.1
 ```
 
-#### <a name="Pool_EffectiveGasPrice_FinalDeviationPct"></a>7.13.7. `Pool.EffectiveGasPrice.FinalDeviationPct`
+#### <a name="Pool_EffectiveGasPrice_FinalDeviationPct"></a>7.11.7. `Pool.EffectiveGasPrice.FinalDeviationPct`
 
 **Type:** : `integer`
 
@@ -1136,7 +831,37 @@ BreakEvenFactor=1.1
 FinalDeviationPct=10
 ```
 
-#### <a name="Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor"></a>7.13.8. `Pool.EffectiveGasPrice.L2GasPriceSuggesterFactor`
+#### <a name="Pool_EffectiveGasPrice_EthTransferGasPrice"></a>7.11.8. `Pool.EffectiveGasPrice.EthTransferGasPrice`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)
+Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error
+
+**Example setting the default value** (0):
+```
+[Pool.EffectiveGasPrice]
+EthTransferGasPrice=0
+```
+
+#### <a name="Pool_EffectiveGasPrice_EthTransferL1GasPriceFactor"></a>7.11.9. `Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor`
+
+**Type:** : `number`
+
+**Default:** `0`
+
+**Description:** EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)
+Only one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error
+
+**Example setting the default value** (0):
+```
+[Pool.EffectiveGasPrice]
+EthTransferL1GasPriceFactor=0
+```
+
+#### <a name="Pool_EffectiveGasPrice_L2GasPriceSuggesterFactor"></a>7.11.10. `Pool.EffectiveGasPrice.L2GasPriceSuggesterFactor`
 
 **Type:** : `number`
 
@@ -1151,7 +876,7 @@ calculations when the effective gas price is disabled (testing/metrics purposes)
 L2GasPriceSuggesterFactor=0.5
 ```
 
-### <a name="Pool_ForkID"></a>7.14. `Pool.ForkID`
+### <a name="Pool_ForkID"></a>7.12. `Pool.ForkID`
 
 **Type:** : `integer`
 
@@ -1170,30 +895,24 @@ ForkID=0
 **Type:** : `object`
 **Description:** Configuration for RPC service. THis one offers a extended Ethereum JSON-RPC API interface to interact with the node
 
-| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                                                  |
-| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Host](#RPC_Host )                                                         | No      | string           | No         | -          | Host defines the network adapter that will be used to serve the HTTP requests                                                                                                                                                                                                                                                                      |
-| - [Port](#RPC_Port )                                                         | No      | integer          | No         | -          | Port defines the port to serve the endpoints via HTTP                                                                                                                                                                                                                                                                                              |
-| - [ReadTimeout](#RPC_ReadTimeout )                                           | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                           |
-| - [WriteTimeout](#RPC_WriteTimeout )                                         | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                           |
-| - [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number           | No         | -          | MaxRequestsPerIPAndSecond defines how much requests a single IP can<br />send within a single second                                                                                                                                                                                                                                               |
-| - [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string           | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node                                                                                                                                                                                                                                                |
-| - [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer          | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                                                                                                                                                                                                                                              |
-| - [WebSockets](#RPC_WebSockets )                                             | No      | object           | No         | -          | WebSockets configuration                                                                                                                                                                                                                                                                                                                           |
-| - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean          | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                                                                                                                                                                                  |
-| - [BatchRequestsEnabled](#RPC_BatchRequestsEnabled )                         | No      | boolean          | No         | -          | BatchRequestsEnabled defines if the Batch requests are enabled or disabled                                                                                                                                                                                                                                                                         |
-| - [BatchRequestsLimit](#RPC_BatchRequestsLimit )                             | No      | integer          | No         | -          | BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request                                                                                                                                                                                                                                                  |
-| - [L2Coinbase](#RPC_L2Coinbase )                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                                                      |
-| - [MaxLogsCount](#RPC_MaxLogsCount )                                         | No      | integer          | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                                                                                                                                                                                   |
-| - [MaxLogsBlockRange](#RPC_MaxLogsBlockRange )                               | No      | integer          | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                                                                                                                                                                                    |
-| - [MaxNativeBlockHashBlockRange](#RPC_MaxNativeBlockHashBlockRange )         | No      | integer          | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit                                                                                                                                                              |
-| - [EnableHttpLog](#RPC_EnableHttpLog )                                       | No      | boolean          | No         | -          | EnableHttpLog allows the user to enable or disable the logs related to the HTTP<br />requests to be captured by the server.                                                                                                                                                                                                                        |
-| - [EnablePendingTransactionFilter](#RPC_EnablePendingTransactionFilter )     | No      | boolean          | No         | -          | EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction                                                                                                                                                                                                                                    |
-| - [Nacos](#RPC_Nacos )                                                       | No      | object           | No         | -          | Nacos configuration                                                                                                                                                                                                                                                                                                                                |
-| - [NacosWs](#RPC_NacosWs )                                                   | No      | object           | No         | -          | NacosWs configuration                                                                                                                                                                                                                                                                                                                              |
-| - [GasLimitFactor](#RPC_GasLimitFactor )                                     | No      | number           | No         | -          | GasLimitFactor is used to multiply the suggested gas provided by the network<br />in order to allow a enough gas to be set for all the transactions default value is 1.<br /><br />ex:<br />suggested gas limit: 100<br />GasLimitFactor: 1<br />gas limit = 100<br /><br />suggested gas limit: 100<br />GasLimitFactor: 1.1<br />gas limit = 110 |
-| - [DisableAPIs](#RPC_DisableAPIs )                                           | No      | array of string  | No         | -          | DisableAPIs disable some API                                                                                                                                                                                                                                                                                                                       |
-| - [RateLimit](#RPC_RateLimit )                                               | No      | object           | No         | -          | RateLimit enable rate limit                                                                                                                                                                                                                                                                                                                        |
+| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                     |
+| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Host](#RPC_Host )                                                         | No      | string           | No         | -          | Host defines the network adapter that will be used to serve the HTTP requests                                                                                                         |
+| - [Port](#RPC_Port )                                                         | No      | integer          | No         | -          | Port defines the port to serve the endpoints via HTTP                                                                                                                                 |
+| - [ReadTimeout](#RPC_ReadTimeout )                                           | No      | string           | No         | -          | Duration                                                                                                                                                                              |
+| - [WriteTimeout](#RPC_WriteTimeout )                                         | No      | string           | No         | -          | Duration                                                                                                                                                                              |
+| - [MaxRequestsPerIPAndSecond](#RPC_MaxRequestsPerIPAndSecond )               | No      | number           | No         | -          | MaxRequestsPerIPAndSecond defines how much requests a single IP can<br />send within a single second                                                                                  |
+| - [SequencerNodeURI](#RPC_SequencerNodeURI )                                 | No      | string           | No         | -          | SequencerNodeURI is used allow Non-Sequencer nodes<br />to relay transactions to the Sequencer node                                                                                   |
+| - [MaxCumulativeGasUsed](#RPC_MaxCumulativeGasUsed )                         | No      | integer          | No         | -          | MaxCumulativeGasUsed is the max gas allowed per batch                                                                                                                                 |
+| - [WebSockets](#RPC_WebSockets )                                             | No      | object           | No         | -          | WebSockets configuration                                                                                                                                                              |
+| - [EnableL2SuggestedGasPricePolling](#RPC_EnableL2SuggestedGasPricePolling ) | No      | boolean          | No         | -          | EnableL2SuggestedGasPricePolling enables polling of the L2 gas price to block tx in the RPC with lower gas price.                                                                     |
+| - [BatchRequestsEnabled](#RPC_BatchRequestsEnabled )                         | No      | boolean          | No         | -          | BatchRequestsEnabled defines if the Batch requests are enabled or disabled                                                                                                            |
+| - [BatchRequestsLimit](#RPC_BatchRequestsLimit )                             | No      | integer          | No         | -          | BatchRequestsLimit defines the limit of requests that can be incorporated into each batch request                                                                                     |
+| - [L2Coinbase](#RPC_L2Coinbase )                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                         |
+| - [MaxLogsCount](#RPC_MaxLogsCount )                                         | No      | integer          | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                      |
+| - [MaxLogsBlockRange](#RPC_MaxLogsBlockRange )                               | No      | integer          | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
+| - [MaxNativeBlockHashBlockRange](#RPC_MaxNativeBlockHashBlockRange )         | No      | integer          | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
+| - [EnableHttpLog](#RPC_EnableHttpLog )                                       | No      | boolean          | No         | -          | EnableHttpLog allows the user to enable or disable the logs related to the HTTP<br />requests to be captured by the server.                                                           |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -1496,315 +1215,6 @@ requests to be captured by the server.
 EnableHttpLog=true
 ```
 
-### <a name="RPC_EnablePendingTransactionFilter"></a>8.17. `RPC.EnablePendingTransactionFilter`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
-
-**Example setting the default value** (false):
-```
-[RPC]
-EnablePendingTransactionFilter=false
-```
-
-### <a name="RPC_Nacos"></a>8.18. `[RPC.Nacos]`
-
-**Type:** : `object`
-**Description:** Nacos configuration
-
-| Property                                               | Pattern | Type   | Deprecated | Definition | Title/Description                                                                          |
-| ------------------------------------------------------ | ------- | ------ | ---------- | ---------- | ------------------------------------------------------------------------------------------ |
-| - [URLs](#RPC_Nacos_URLs )                             | No      | string | No         | -          | URLs nacos server urls for discovery service of rest api, url is separated by ","          |
-| - [NamespaceId](#RPC_Nacos_NamespaceId )               | No      | string | No         | -          | NamespaceId nacos namepace id for discovery service of rest api                            |
-| - [ApplicationName](#RPC_Nacos_ApplicationName )       | No      | string | No         | -          | ApplicationName rest application name in  nacos                                            |
-| - [ExternalListenAddr](#RPC_Nacos_ExternalListenAddr ) | No      | string | No         | -          | ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker |
-
-#### <a name="RPC_Nacos_URLs"></a>8.18.1. `RPC.Nacos.URLs`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** URLs nacos server urls for discovery service of rest api, url is separated by ","
-
-**Example setting the default value** (""):
-```
-[RPC.Nacos]
-URLs=""
-```
-
-#### <a name="RPC_Nacos_NamespaceId"></a>8.18.2. `RPC.Nacos.NamespaceId`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** NamespaceId nacos namepace id for discovery service of rest api
-
-**Example setting the default value** (""):
-```
-[RPC.Nacos]
-NamespaceId=""
-```
-
-#### <a name="RPC_Nacos_ApplicationName"></a>8.18.3. `RPC.Nacos.ApplicationName`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** ApplicationName rest application name in  nacos
-
-**Example setting the default value** (""):
-```
-[RPC.Nacos]
-ApplicationName=""
-```
-
-#### <a name="RPC_Nacos_ExternalListenAddr"></a>8.18.4. `RPC.Nacos.ExternalListenAddr`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker
-
-**Example setting the default value** (""):
-```
-[RPC.Nacos]
-ExternalListenAddr=""
-```
-
-### <a name="RPC_NacosWs"></a>8.19. `[RPC.NacosWs]`
-
-**Type:** : `object`
-**Description:** NacosWs configuration
-
-| Property                                                 | Pattern | Type   | Deprecated | Definition | Title/Description                                                                          |
-| -------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------------------------------------------ |
-| - [URLs](#RPC_NacosWs_URLs )                             | No      | string | No         | -          | URLs nacos server urls for discovery service of rest api, url is separated by ","          |
-| - [NamespaceId](#RPC_NacosWs_NamespaceId )               | No      | string | No         | -          | NamespaceId nacos namepace id for discovery service of rest api                            |
-| - [ApplicationName](#RPC_NacosWs_ApplicationName )       | No      | string | No         | -          | ApplicationName rest application name in  nacos                                            |
-| - [ExternalListenAddr](#RPC_NacosWs_ExternalListenAddr ) | No      | string | No         | -          | ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker |
-
-#### <a name="RPC_NacosWs_URLs"></a>8.19.1. `RPC.NacosWs.URLs`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** URLs nacos server urls for discovery service of rest api, url is separated by ","
-
-**Example setting the default value** (""):
-```
-[RPC.NacosWs]
-URLs=""
-```
-
-#### <a name="RPC_NacosWs_NamespaceId"></a>8.19.2. `RPC.NacosWs.NamespaceId`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** NamespaceId nacos namepace id for discovery service of rest api
-
-**Example setting the default value** (""):
-```
-[RPC.NacosWs]
-NamespaceId=""
-```
-
-#### <a name="RPC_NacosWs_ApplicationName"></a>8.19.3. `RPC.NacosWs.ApplicationName`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** ApplicationName rest application name in  nacos
-
-**Example setting the default value** (""):
-```
-[RPC.NacosWs]
-ApplicationName=""
-```
-
-#### <a name="RPC_NacosWs_ExternalListenAddr"></a>8.19.4. `RPC.NacosWs.ExternalListenAddr`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker
-
-**Example setting the default value** (""):
-```
-[RPC.NacosWs]
-ExternalListenAddr=""
-```
-
-### <a name="RPC_GasLimitFactor"></a>8.20. `RPC.GasLimitFactor`
-
-**Type:** : `number`
-
-**Default:** `1`
-
-**Description:** GasLimitFactor is used to multiply the suggested gas provided by the network
-in order to allow a enough gas to be set for all the transactions default value is 1.
-
-ex:
-suggested gas limit: 100
-GasLimitFactor: 1
-gas limit = 100
-
-suggested gas limit: 100
-GasLimitFactor: 1.1
-gas limit = 110
-
-**Example setting the default value** (1):
-```
-[RPC]
-GasLimitFactor=1
-```
-
-### <a name="RPC_DisableAPIs"></a>8.21. `RPC.DisableAPIs`
-
-**Type:** : `array of string`
-
-**Default:** `[]`
-
-**Description:** DisableAPIs disable some API
-
-**Example setting the default value** ([]):
-```
-[RPC]
-DisableAPIs=[]
-```
-
-### <a name="RPC_RateLimit"></a>8.22. `[RPC.RateLimit]`
-
-**Type:** : `object`
-**Description:** RateLimit enable rate limit
-
-| Property                                                 | Pattern | Type            | Deprecated | Definition | Title/Description                                                                 |
-| -------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------------- |
-| - [Enabled](#RPC_RateLimit_Enabled )                     | No      | boolean         | No         | -          | Enabled defines if the rate limit is enabled or disabled                          |
-| - [RateLimitApis](#RPC_RateLimit_RateLimitApis )         | No      | array of string | No         | -          | RateLimitApis defines the apis that need to be rate limited                       |
-| - [RateLimitCount](#RPC_RateLimit_RateLimitCount )       | No      | integer         | No         | -          | RateLimitBurst defines the maximum burst size of requests                         |
-| - [RateLimitDuration](#RPC_RateLimit_RateLimitDuration ) | No      | integer         | No         | -          | RateLimitDuration defines the time window for the rate limit                      |
-| - [SpecialApis](#RPC_RateLimit_SpecialApis )             | No      | array of object | No         | -          | SpecialApis defines the apis that need to be rate limited with special rate limit |
-
-#### <a name="RPC_RateLimit_Enabled"></a>8.22.1. `RPC.RateLimit.Enabled`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** Enabled defines if the rate limit is enabled or disabled
-
-**Example setting the default value** (false):
-```
-[RPC.RateLimit]
-Enabled=false
-```
-
-#### <a name="RPC_RateLimit_RateLimitApis"></a>8.22.2. `RPC.RateLimit.RateLimitApis`
-
-**Type:** : `array of string`
-
-**Default:** `[]`
-
-**Description:** RateLimitApis defines the apis that need to be rate limited
-
-**Example setting the default value** ([]):
-```
-[RPC.RateLimit]
-RateLimitApis=[]
-```
-
-#### <a name="RPC_RateLimit_RateLimitCount"></a>8.22.3. `RPC.RateLimit.RateLimitCount`
-
-**Type:** : `integer`
-
-**Default:** `100`
-
-**Description:** RateLimitBurst defines the maximum burst size of requests
-
-**Example setting the default value** (100):
-```
-[RPC.RateLimit]
-RateLimitCount=100
-```
-
-#### <a name="RPC_RateLimit_RateLimitDuration"></a>8.22.4. `RPC.RateLimit.RateLimitDuration`
-
-**Type:** : `integer`
-
-**Default:** `1`
-
-**Description:** RateLimitDuration defines the time window for the rate limit
-
-**Example setting the default value** (1):
-```
-[RPC.RateLimit]
-RateLimitDuration=1
-```
-
-#### <a name="RPC_RateLimit_SpecialApis"></a>8.22.5. `RPC.RateLimit.SpecialApis`
-
-**Type:** : `array of object`
-
-**Default:** `[]`
-
-**Description:** SpecialApis defines the apis that need to be rate limited with special rate limit
-
-**Example setting the default value** ([]):
-```
-[RPC.RateLimit]
-SpecialApis=[]
-```
-
-|                      | Array restrictions |
-| -------------------- | ------------------ |
-| **Min items**        | N/A                |
-| **Max items**        | N/A                |
-| **Items unicity**    | False              |
-| **Additional items** | False              |
-| **Tuple validation** | See below          |
-
-| Each item of this array must be                       | Description                                                |
-| ----------------------------------------------------- | ---------------------------------------------------------- |
-| [SpecialApis items](#RPC_RateLimit_SpecialApis_items) | RateLimitItem defines the special rate limit for some apis |
-
-##### <a name="autogenerated_heading_3"></a>8.22.5.1. [RPC.RateLimit.SpecialApis.SpecialApis items]
-
-**Type:** : `object`
-**Description:** RateLimitItem defines the special rate limit for some apis
-
-| Property                                                 | Pattern | Type    | Deprecated | Definition | Title/Description                                   |
-| -------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------- |
-| - [Api](#RPC_RateLimit_SpecialApis_items_Api )           | No      | string  | No         | -          | Api defines the api that need to be rate limited    |
-| - [Count](#RPC_RateLimit_SpecialApis_items_Count )       | No      | integer | No         | -          | Count defines the maximum burst size of requests    |
-| - [Duration](#RPC_RateLimit_SpecialApis_items_Duration ) | No      | integer | No         | -          | Duration defines the time window for the rate limit |
-
-##### <a name="RPC_RateLimit_SpecialApis_items_Api"></a>8.22.5.1.1. `RPC.RateLimit.SpecialApis.SpecialApis items.Api`
-
-**Type:** : `string`
-**Description:** Api defines the api that need to be rate limited
-
-##### <a name="RPC_RateLimit_SpecialApis_items_Count"></a>8.22.5.1.2. `RPC.RateLimit.SpecialApis.SpecialApis items.Count`
-
-**Type:** : `integer`
-**Description:** Count defines the maximum burst size of requests
-
-##### <a name="RPC_RateLimit_SpecialApis_items_Duration"></a>8.22.5.1.3. `RPC.RateLimit.SpecialApis.SpecialApis items.Duration`
-
-**Type:** : `integer`
-**Description:** Duration defines the time window for the rate limit
-
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
 
 **Type:** : `object`
@@ -1877,16 +1287,16 @@ TrustedSequencerURL=""
 
 **Type:** : `enum (of string)`
 
-**Default:** `"sequential"`
+**Default:** `"parallel"`
 
 **Description:** L1SynchronizationMode define how to synchronize with L1:
 - parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data
 - sequential: Request data to L1 and execute
 
-**Example setting the default value** ("sequential"):
+**Example setting the default value** ("parallel"):
 ```
 [Synchronizer]
-L1SynchronizationMode="sequential"
+L1SynchronizationMode="parallel"
 ```
 
 Must be one of:
@@ -2159,59 +1569,32 @@ FallbackToSequentialModeOnSynchronized=false
 **Type:** : `object`
 **Description:** Configuration of the sequencer service
 
-| Property                                                                     | Pattern | Type    | Deprecated | Definition | Title/Description                                                                            |
-| ---------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------- |
-| - [WaitPeriodPoolIsEmpty](#Sequencer_WaitPeriodPoolIsEmpty )                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [BlocksAmountForTxsToBeDeleted](#Sequencer_BlocksAmountForTxsToBeDeleted ) | No      | integer | No         | -          | BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool |
-| - [FrequencyToCheckTxsForDelete](#Sequencer_FrequencyToCheckTxsForDelete )   | No      | string  | No         | -          | Duration                                                                                     |
-| - [TxLifetimeCheckTimeout](#Sequencer_TxLifetimeCheckTimeout )               | No      | string  | No         | -          | Duration                                                                                     |
-| - [MaxTxLifetime](#Sequencer_MaxTxLifetime )                                 | No      | string  | No         | -          | Duration                                                                                     |
-| - [Finalizer](#Sequencer_Finalizer )                                         | No      | object  | No         | -          | Finalizer's specific config properties                                                       |
-| - [DBManager](#Sequencer_DBManager )                                         | No      | object  | No         | -          | DBManager's specific config properties                                                       |
-| - [StreamServer](#Sequencer_StreamServer )                                   | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                          |
+| Property                                                                             | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                |
+| ------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------ |
+| - [DeletePoolTxsL1BlockConfirmations](#Sequencer_DeletePoolTxsL1BlockConfirmations ) | No      | integer | No         | -          | DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool |
+| - [DeletePoolTxsCheckInterval](#Sequencer_DeletePoolTxsCheckInterval )               | No      | string  | No         | -          | Duration                                                                                         |
+| - [TxLifetimeCheckInterval](#Sequencer_TxLifetimeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                         |
+| - [TxLifetimeMax](#Sequencer_TxLifetimeMax )                                         | No      | string  | No         | -          | Duration                                                                                         |
+| - [LoadPoolTxsCheckInterval](#Sequencer_LoadPoolTxsCheckInterval )                   | No      | string  | No         | -          | Duration                                                                                         |
+| - [StateConsistencyCheckInterval](#Sequencer_StateConsistencyCheckInterval )         | No      | string  | No         | -          | Duration                                                                                         |
+| - [Finalizer](#Sequencer_Finalizer )                                                 | No      | object  | No         | -          | Finalizer's specific config properties                                                           |
+| - [StreamServer](#Sequencer_StreamServer )                                           | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                              |
 
-### <a name="Sequencer_WaitPeriodPoolIsEmpty"></a>10.1. `Sequencer.WaitPeriodPoolIsEmpty`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"1s"`
-
-**Description:** WaitPeriodPoolIsEmpty is the time the sequencer waits until
-trying to add new txs to the state
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("1s"):
-```
-[Sequencer]
-WaitPeriodPoolIsEmpty="1s"
-```
-
-### <a name="Sequencer_BlocksAmountForTxsToBeDeleted"></a>10.2. `Sequencer.BlocksAmountForTxsToBeDeleted`
+### <a name="Sequencer_DeletePoolTxsL1BlockConfirmations"></a>10.1. `Sequencer.DeletePoolTxsL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `100`
 
-**Description:** BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
+**Description:** DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool
 
 **Example setting the default value** (100):
 ```
 [Sequencer]
-BlocksAmountForTxsToBeDeleted=100
+DeletePoolTxsL1BlockConfirmations=100
 ```
 
-### <a name="Sequencer_FrequencyToCheckTxsForDelete"></a>10.3. `Sequencer.FrequencyToCheckTxsForDelete`
+### <a name="Sequencer_DeletePoolTxsCheckInterval"></a>10.2. `Sequencer.DeletePoolTxsCheckInterval`
 
 **Title:** Duration
 
@@ -2219,7 +1602,7 @@ BlocksAmountForTxsToBeDeleted=100
 
 **Default:** `"12h0m0s"`
 
-**Description:** FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
+**Description:** DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting
 
 **Examples:** 
 
@@ -2234,10 +1617,10 @@ BlocksAmountForTxsToBeDeleted=100
 **Example setting the default value** ("12h0m0s"):
 ```
 [Sequencer]
-FrequencyToCheckTxsForDelete="12h0m0s"
+DeletePoolTxsCheckInterval="12h0m0s"
 ```
 
-### <a name="Sequencer_TxLifetimeCheckTimeout"></a>10.4. `Sequencer.TxLifetimeCheckTimeout`
+### <a name="Sequencer_TxLifetimeCheckInterval"></a>10.3. `Sequencer.TxLifetimeCheckInterval`
 
 **Title:** Duration
 
@@ -2245,7 +1628,7 @@ FrequencyToCheckTxsForDelete="12h0m0s"
 
 **Default:** `"10m0s"`
 
-**Description:** TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
+**Description:** TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime
 
 **Examples:** 
 
@@ -2260,10 +1643,10 @@ FrequencyToCheckTxsForDelete="12h0m0s"
 **Example setting the default value** ("10m0s"):
 ```
 [Sequencer]
-TxLifetimeCheckTimeout="10m0s"
+TxLifetimeCheckInterval="10m0s"
 ```
 
-### <a name="Sequencer_MaxTxLifetime"></a>10.5. `Sequencer.MaxTxLifetime`
+### <a name="Sequencer_TxLifetimeMax"></a>10.4. `Sequencer.TxLifetimeMax`
 
 **Title:** Duration
 
@@ -2271,7 +1654,7 @@ TxLifetimeCheckTimeout="10m0s"
 
 **Default:** `"3h0m0s"`
 
-**Description:** MaxTxLifetime is the time a tx can be in the sequencer/worker memory
+**Description:** TxLifetimeMax is the time a tx can be in the sequencer/worker memory
 
 **Examples:** 
 
@@ -2286,31 +1669,36 @@ TxLifetimeCheckTimeout="10m0s"
 **Example setting the default value** ("3h0m0s"):
 ```
 [Sequencer]
-MaxTxLifetime="3h0m0s"
+TxLifetimeMax="3h0m0s"
 ```
 
-### <a name="Sequencer_Finalizer"></a>10.6. `[Sequencer.Finalizer]`
+### <a name="Sequencer_LoadPoolTxsCheckInterval"></a>10.5. `Sequencer.LoadPoolTxsCheckInterval`
 
-**Type:** : `object`
-**Description:** Finalizer's specific config properties
+**Title:** Duration
 
-| Property                                                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [GERDeadlineTimeout](#Sequencer_Finalizer_GERDeadlineTimeout )                                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ForcedBatchDeadlineTimeout](#Sequencer_Finalizer_ForcedBatchDeadlineTimeout )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [SleepDuration](#Sequencer_Finalizer_SleepDuration )                                                                         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ResourcePercentageToCloseBatch](#Sequencer_Finalizer_ResourcePercentageToCloseBatch )                                       | No      | integer | No         | -          | ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed                                                                                                    |
-| - [GERFinalityNumberOfBlocks](#Sequencer_Finalizer_GERFinalityNumberOfBlocks )                                                 | No      | integer | No         | -          | GERFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                            |
-| - [ClosingSignalsManagerWaitForCheckingL1Timeout](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout )         | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ClosingSignalsManagerWaitForCheckingGER](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ClosingSignalsManagerWaitForCheckingForcedBatches](#Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches ) | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [ForcedBatchesFinalityNumberOfBlocks](#Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks )                             | No      | integer | No         | -          | ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final                                                                                                                                  |
-| - [TimestampResolution](#Sequencer_Finalizer_TimestampResolution )                                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
-| - [StopSequencerOnBatchNum](#Sequencer_Finalizer_StopSequencerOnBatchNum )                                                     | No      | integer | No         | -          | StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number |
-| - [SequentialReprocessFullBatch](#Sequencer_Finalizer_SequentialReprocessFullBatch )                                           | No      | boolean | No         | -          | SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                      |
-| - [FullBatchSleepDuration](#Sequencer_Finalizer_FullBatchSleepDuration )                                                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                       |
+**Type:** : `string`
 
-#### <a name="Sequencer_Finalizer_GERDeadlineTimeout"></a>10.6.1. `Sequencer.Finalizer.GERDeadlineTimeout`
+**Default:** `"500ms"`
+
+**Description:** LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("500ms"):
+```
+[Sequencer]
+LoadPoolTxsCheckInterval="500ms"
+```
+
+### <a name="Sequencer_StateConsistencyCheckInterval"></a>10.6. `Sequencer.StateConsistencyCheckInterval`
 
 **Title:** Duration
 
@@ -2318,7 +1706,7 @@ MaxTxLifetime="3h0m0s"
 
 **Default:** `"5s"`
 
-**Description:** GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
+**Description:** StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened
 
 **Examples:** 
 
@@ -2332,11 +1720,31 @@ MaxTxLifetime="3h0m0s"
 
 **Example setting the default value** ("5s"):
 ```
-[Sequencer.Finalizer]
-GERDeadlineTimeout="5s"
+[Sequencer]
+StateConsistencyCheckInterval="5s"
 ```
 
-#### <a name="Sequencer_Finalizer_ForcedBatchDeadlineTimeout"></a>10.6.2. `Sequencer.Finalizer.ForcedBatchDeadlineTimeout`
+### <a name="Sequencer_Finalizer"></a>10.7. `[Sequencer.Finalizer]`
+
+**Type:** : `object`
+**Description:** Finalizer's specific config properties
+
+| Property                                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [ForcedBatchesTimeout](#Sequencer_Finalizer_ForcedBatchesTimeout )                           | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [NewTxsWaitInterval](#Sequencer_Finalizer_NewTxsWaitInterval )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [ResourceExhaustedMarginPct](#Sequencer_Finalizer_ResourceExhaustedMarginPct )               | No      | integer | No         | -          | ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed                                                                                                       |
+| - [ForcedBatchesL1BlockConfirmations](#Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations ) | No      | integer | No         | -          | ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final                                                                                                                                   |
+| - [L1InfoTreeL1BlockConfirmations](#Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations )       | No      | integer | No         | -          | L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final                                                                                                                               |
+| - [ForcedBatchesCheckInterval](#Sequencer_Finalizer_ForcedBatchesCheckInterval )               | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [L1InfoTreeCheckInterval](#Sequencer_Finalizer_L1InfoTreeCheckInterval )                     | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [BatchMaxDeltaTimestamp](#Sequencer_Finalizer_BatchMaxDeltaTimestamp )                       | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [L2BlockMaxDeltaTimestamp](#Sequencer_Finalizer_L2BlockMaxDeltaTimestamp )                   | No      | string  | No         | -          | Duration                                                                                                                                                                                                      |
+| - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.<br />The Sequencer will halt after it closes the batch equal to this number |
+| - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                       |
+| - [SequentialProcessL2Block](#Sequencer_Finalizer_SequentialProcessL2Block )                   | No      | boolean | No         | -          | SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead<br />in the processPendingL2Blocks go func                                              |
+
+#### <a name="Sequencer_Finalizer_ForcedBatchesTimeout"></a>10.7.1. `Sequencer.Finalizer.ForcedBatchesTimeout`
 
 **Title:** Duration
 
@@ -2344,7 +1752,7 @@ GERDeadlineTimeout="5s"
 
 **Default:** `"1m0s"`
 
-**Description:** ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+**Description:** ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
 
 **Examples:** 
 
@@ -2359,10 +1767,10 @@ GERDeadlineTimeout="5s"
 **Example setting the default value** ("1m0s"):
 ```
 [Sequencer.Finalizer]
-ForcedBatchDeadlineTimeout="1m0s"
+ForcedBatchesTimeout="1m0s"
 ```
 
-#### <a name="Sequencer_Finalizer_SleepDuration"></a>10.6.3. `Sequencer.Finalizer.SleepDuration`
+#### <a name="Sequencer_Finalizer_NewTxsWaitInterval"></a>10.7.2. `Sequencer.Finalizer.NewTxsWaitInterval`
 
 **Title:** Duration
 
@@ -2370,7 +1778,7 @@ ForcedBatchDeadlineTimeout="1m0s"
 
 **Default:** `"100ms"`
 
-**Description:** SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+**Description:** NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
 
 **Examples:** 
 
@@ -2385,130 +1793,52 @@ ForcedBatchDeadlineTimeout="1m0s"
 **Example setting the default value** ("100ms"):
 ```
 [Sequencer.Finalizer]
-SleepDuration="100ms"
+NewTxsWaitInterval="100ms"
 ```
 
-#### <a name="Sequencer_Finalizer_ResourcePercentageToCloseBatch"></a>10.6.4. `Sequencer.Finalizer.ResourcePercentageToCloseBatch`
+#### <a name="Sequencer_Finalizer_ResourceExhaustedMarginPct"></a>10.7.3. `Sequencer.Finalizer.ResourceExhaustedMarginPct`
 
 **Type:** : `integer`
 
 **Default:** `10`
 
-**Description:** ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
+**Description:** ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed
 
 **Example setting the default value** (10):
 ```
 [Sequencer.Finalizer]
-ResourcePercentageToCloseBatch=10
+ResourceExhaustedMarginPct=10
 ```
 
-#### <a name="Sequencer_Finalizer_GERFinalityNumberOfBlocks"></a>10.6.5. `Sequencer.Finalizer.GERFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_ForcedBatchesL1BlockConfirmations"></a>10.7.4. `Sequencer.Finalizer.ForcedBatchesL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `64`
 
-**Description:** GERFinalityNumberOfBlocks is number of blocks to consider GER final
+**Description:** ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final
 
 **Example setting the default value** (64):
 ```
 [Sequencer.Finalizer]
-GERFinalityNumberOfBlocks=64
+ForcedBatchesL1BlockConfirmations=64
 ```
 
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingL1Timeout"></a>10.6.6. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingL1Timeout="10s"
-```
-
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingGER"></a>10.6.7. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingGER="10s"
-```
-
-#### <a name="Sequencer_Finalizer_ClosingSignalsManagerWaitForCheckingForcedBatches"></a>10.6.8. `Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"10s"`
-
-**Description:** ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("10s"):
-```
-[Sequencer.Finalizer]
-ClosingSignalsManagerWaitForCheckingForcedBatches="10s"
-```
-
-#### <a name="Sequencer_Finalizer_ForcedBatchesFinalityNumberOfBlocks"></a>10.6.9. `Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks`
+#### <a name="Sequencer_Finalizer_L1InfoTreeL1BlockConfirmations"></a>10.7.5. `Sequencer.Finalizer.L1InfoTreeL1BlockConfirmations`
 
 **Type:** : `integer`
 
 **Default:** `64`
 
-**Description:** ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
+**Description:** L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final
 
 **Example setting the default value** (64):
 ```
 [Sequencer.Finalizer]
-ForcedBatchesFinalityNumberOfBlocks=64
+L1InfoTreeL1BlockConfirmations=64
 ```
 
-#### <a name="Sequencer_Finalizer_TimestampResolution"></a>10.6.10. `Sequencer.Finalizer.TimestampResolution`
+#### <a name="Sequencer_Finalizer_ForcedBatchesCheckInterval"></a>10.7.6. `Sequencer.Finalizer.ForcedBatchesCheckInterval`
 
 **Title:** Duration
 
@@ -2516,7 +1846,7 @@ ForcedBatchesFinalityNumberOfBlocks=64
 
 **Default:** `"10s"`
 
-**Description:** TimestampResolution is the resolution of the timestamp used to close a batch
+**Description:** ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation
 
 **Examples:** 
 
@@ -2531,120 +1861,130 @@ ForcedBatchesFinalityNumberOfBlocks=64
 **Example setting the default value** ("10s"):
 ```
 [Sequencer.Finalizer]
-TimestampResolution="10s"
+ForcedBatchesCheckInterval="10s"
 ```
 
-#### <a name="Sequencer_Finalizer_StopSequencerOnBatchNum"></a>10.6.11. `Sequencer.Finalizer.StopSequencerOnBatchNum`
+#### <a name="Sequencer_Finalizer_L1InfoTreeCheckInterval"></a>10.7.7. `Sequencer.Finalizer.L1InfoTreeCheckInterval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+L1InfoTreeCheckInterval="10s"
+```
+
+#### <a name="Sequencer_Finalizer_BatchMaxDeltaTimestamp"></a>10.7.8. `Sequencer.Finalizer.BatchMaxDeltaTimestamp`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"10s"`
+
+**Description:** BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("10s"):
+```
+[Sequencer.Finalizer]
+BatchMaxDeltaTimestamp="10s"
+```
+
+#### <a name="Sequencer_Finalizer_L2BlockMaxDeltaTimestamp"></a>10.7.9. `Sequencer.Finalizer.L2BlockMaxDeltaTimestamp`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"3s"`
+
+**Description:** L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("3s"):
+```
+[Sequencer.Finalizer]
+L2BlockMaxDeltaTimestamp="3s"
+```
+
+#### <a name="Sequencer_Finalizer_HaltOnBatchNumber"></a>10.7.10. `Sequencer.Finalizer.HaltOnBatchNumber`
 
 **Type:** : `integer`
 
 **Default:** `0`
 
-**Description:** StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
+**Description:** HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.
+The Sequencer will halt after it closes the batch equal to this number
 
 **Example setting the default value** (0):
 ```
 [Sequencer.Finalizer]
-StopSequencerOnBatchNum=0
+HaltOnBatchNumber=0
 ```
 
-#### <a name="Sequencer_Finalizer_SequentialReprocessFullBatch"></a>10.6.12. `Sequencer.Finalizer.SequentialReprocessFullBatch`
+#### <a name="Sequencer_Finalizer_SequentialBatchSanityCheck"></a>10.7.11. `Sequencer.Finalizer.SequentialBatchSanityCheck`
 
 **Type:** : `boolean`
 
 **Default:** `false`
 
-**Description:** SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+**Description:** SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a
 sequential way (instead than in parallel)
 
 **Example setting the default value** (false):
 ```
 [Sequencer.Finalizer]
-SequentialReprocessFullBatch=false
+SequentialBatchSanityCheck=false
 ```
 
-#### <a name="Sequencer_Finalizer_FullBatchSleepDuration"></a>10.6.13. `Sequencer.Finalizer.FullBatchSleepDuration`
+#### <a name="Sequencer_Finalizer_SequentialProcessL2Block"></a>10.7.12. `Sequencer.Finalizer.SequentialProcessL2Block`
 
-**Title:** Duration
+**Type:** : `boolean`
 
-**Type:** : `string`
+**Default:** `true`
 
-**Default:** `"0s"`
+**Description:** SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead
+in the processPendingL2Blocks go func
 
-**Description:** FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("0s"):
+**Example setting the default value** (true):
 ```
 [Sequencer.Finalizer]
-FullBatchSleepDuration="0s"
-```
-
-### <a name="Sequencer_DBManager"></a>10.7. `[Sequencer.DBManager]`
-
-**Type:** : `object`
-**Description:** DBManager's specific config properties
-
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
-
-#### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"500ms"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("500ms"):
-```
-[Sequencer.DBManager]
-PoolRetrievalInterval="500ms"
-```
-
-#### <a name="Sequencer_DBManager_L2ReorgRetrievalInterval"></a>10.7.2. `Sequencer.DBManager.L2ReorgRetrievalInterval`
-
-**Title:** Duration
-
-**Type:** : `string`
-
-**Default:** `"5s"`
-
-**Examples:** 
-
-```json
-"1m"
-```
-
-```json
-"300ms"
-```
-
-**Example setting the default value** ("5s"):
-```
-[Sequencer.DBManager]
-L2ReorgRetrievalInterval="5s"
+SequentialProcessL2Block=true
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
@@ -2652,12 +1992,15 @@ L2ReorgRetrievalInterval="5s"
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
 
-| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
-| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
-| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
-| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
-| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
-| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
+| Property                                                                      | Pattern | Type    | Deprecated | Definition | Title/Description                                                |
+| ----------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )                                       | No      | integer | No         | -          | Port to listen on                                                |
+| - [Filename](#Sequencer_StreamServer_Filename )                               | No      | string  | No         | -          | Filename of the binary data file                                 |
+| - [Version](#Sequencer_StreamServer_Version )                                 | No      | integer | No         | -          | Version of the binary data file                                  |
+| - [ChainID](#Sequencer_StreamServer_ChainID )                                 | No      | integer | No         | -          | ChainID is the chain ID                                          |
+| - [Enabled](#Sequencer_StreamServer_Enabled )                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer            |
+| - [Log](#Sequencer_StreamServer_Log )                                         | No      | object  | No         | -          | Log is the log configuration                                     |
+| - [UpgradeEtrogBatchNumber](#Sequencer_StreamServer_UpgradeEtrogBatchNumber ) | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the batch number of the upgrade etrog |
 
 #### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
 
@@ -2687,7 +2030,35 @@ Port=0
 Filename=""
 ```
 
-#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.3. `Sequencer.StreamServer.Enabled`
+#### <a name="Sequencer_StreamServer_Version"></a>10.8.3. `Sequencer.StreamServer.Version`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Version of the binary data file
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+Version=0
+```
+
+#### <a name="Sequencer_StreamServer_ChainID"></a>10.8.4. `Sequencer.StreamServer.ChainID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ChainID is the chain ID
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+ChainID=0
+```
+
+#### <a name="Sequencer_StreamServer_Enabled"></a>10.8.5. `Sequencer.StreamServer.Enabled`
 
 **Type:** : `boolean`
 
@@ -2701,7 +2072,7 @@ Filename=""
 Enabled=false
 ```
 
-#### <a name="Sequencer_StreamServer_Log"></a>10.8.4. `[Sequencer.StreamServer.Log]`
+#### <a name="Sequencer_StreamServer_Log"></a>10.8.6. `[Sequencer.StreamServer.Log]`
 
 **Type:** : `object`
 **Description:** Log is the log configuration
@@ -2712,7 +2083,7 @@ Enabled=false
 | - [Level](#Sequencer_StreamServer_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
 | - [Outputs](#Sequencer_StreamServer_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
 
-##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.4.1. `Sequencer.StreamServer.Log.Environment`
+##### <a name="Sequencer_StreamServer_Log_Environment"></a>10.8.6.1. `Sequencer.StreamServer.Log.Environment`
 
 **Type:** : `enum (of string)`
 
@@ -2728,7 +2099,7 @@ Must be one of:
 * "production"
 * "development"
 
-##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.4.2. `Sequencer.StreamServer.Log.Level`
+##### <a name="Sequencer_StreamServer_Log_Level"></a>10.8.6.2. `Sequencer.StreamServer.Log.Level`
 
 **Type:** : `enum (of string)`
 
@@ -2749,9 +2120,23 @@ Must be one of:
 * "panic"
 * "fatal"
 
-##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.4.3. `Sequencer.StreamServer.Log.Outputs`
+##### <a name="Sequencer_StreamServer_Log_Outputs"></a>10.8.6.3. `Sequencer.StreamServer.Log.Outputs`
 
 **Type:** : `array of string`
+
+#### <a name="Sequencer_StreamServer_UpgradeEtrogBatchNumber"></a>10.8.7. `Sequencer.StreamServer.UpgradeEtrogBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+UpgradeEtrogBatchNumber=0
+```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
@@ -2762,14 +2147,12 @@ Must be one of:
 | ------------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | - [WaitPeriodSendSequence](#SequenceSender_WaitPeriodSendSequence )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | - [LastBatchVirtualizationTimeMaxWaitPeriod](#SequenceSender_LastBatchVirtualizationTimeMaxWaitPeriod ) | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | // MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />// non-trivial consequences: larger transactions than 128KB are significantly harder and<br />// more expensive to propagate; larger transactions also take more resources<br />// to validate whether they fit into the pool or not.                                                                                                |
-| - [MaxBatchesForL1](#SequenceSender_MaxBatchesForL1 )                                                   | No      | integer          | No         | -          | MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx                                                                                                                                                                                                                                                                                                                                            |
+| - [L1BlockTimestampMargin](#SequenceSender_L1BlockTimestampMargin )                                     | No      | string           | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| - [MaxTxSizeForL1](#SequenceSender_MaxTxSizeForL1 )                                                     | No      | integer          | No         | -          | MaxTxSizeForL1 is the maximum size a single transaction can have. This field has<br />non-trivial consequences: larger transactions than 128KB are significantly harder and<br />more expensive to propagate; larger transactions also take more resources<br />to validate whether they fit into the pool or not.                                                                                                            |
 | - [SenderAddress](#SequenceSender_SenderAddress )                                                       | No      | array of integer | No         | -          | SenderAddress defines which private key the eth tx manager needs to use<br />to sign the L1 txs                                                                                                                                                                                                                                                                                                                               |
 | - [L2Coinbase](#SequenceSender_L2Coinbase )                                                             | No      | array of integer | No         | -          | L2Coinbase defines which address is going to receive the fees                                                                                                                                                                                                                                                                                                                                                                 |
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                             |
-| - [DAPermitApiPrivateKey](#SequenceSender_DAPermitApiPrivateKey )                                       | No      | object           | No         | -          | DAPermitApiPrivateKey defines all the key store files that are going<br />to sign batches for DA service                                                                                                                                                                                                                                                                                                                      |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                                                                                                                                    |
-| - [UseValidium](#SequenceSender_UseValidium )                                                           | No      | boolean          | No         | -          | UseValidium is a flag to enable/disable the use of validium                                                                                                                                                                                                                                                                                                                                                                   |
 | - [GasOffset](#SequenceSender_GasOffset )                                                               | No      | integer          | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
@@ -2825,35 +2208,48 @@ WaitPeriodSendSequence="5s"
 LastBatchVirtualizationTimeMaxWaitPeriod="5s"
 ```
 
-### <a name="SequenceSender_MaxTxSizeForL1"></a>11.3. `SequenceSender.MaxTxSizeForL1`
+### <a name="SequenceSender_L1BlockTimestampMargin"></a>11.3. `SequenceSender.L1BlockTimestampMargin`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"30s"`
+
+**Description:** L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before
+to send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("30s"):
+```
+[SequenceSender]
+L1BlockTimestampMargin="30s"
+```
+
+### <a name="SequenceSender_MaxTxSizeForL1"></a>11.4. `SequenceSender.MaxTxSizeForL1`
 
 **Type:** : `integer`
 
-**Default:** `0`
+**Default:** `131072`
 
-**Description:** // MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
-// non-trivial consequences: larger transactions than 128KB are significantly harder and
-// more expensive to propagate; larger transactions also take more resources
-// to validate whether they fit into the pool or not.
+**Description:** MaxTxSizeForL1 is the maximum size a single transaction can have. This field has
+non-trivial consequences: larger transactions than 128KB are significantly harder and
+more expensive to propagate; larger transactions also take more resources
+to validate whether they fit into the pool or not.
 
-**Example setting the default value** (0):
+**Example setting the default value** (131072):
 ```
 [SequenceSender]
-MaxTxSizeForL1=0
-```
-
-### <a name="SequenceSender_MaxBatchesForL1"></a>11.4. `SequenceSender.MaxBatchesForL1`
-
-**Type:** : `integer`
-
-**Default:** `10`
-
-**Description:** MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
-
-**Example setting the default value** (10):
-```
-[SequenceSender]
-MaxBatchesForL1=10
+MaxTxSizeForL1=131072
 ```
 
 ### <a name="SequenceSender_SenderAddress"></a>11.5. `SequenceSender.SenderAddress`
@@ -2891,56 +2287,17 @@ to be read in order to provide the private keys to sign the L1 txs
 
 **Type:** : `string`
 
-**Default:** `""`
-
-**Description:** Path is the file path for the key store file
-
-**Example setting the default value** (""):
-```
-[SequenceSender.PrivateKey]
-Path=""
-```
-
-#### <a name="SequenceSender_PrivateKey_Password"></a>11.7.2. `SequenceSender.PrivateKey.Password`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** Password is the password to decrypt the key store file
-
-**Example setting the default value** (""):
-```
-[SequenceSender.PrivateKey]
-Password=""
-```
-
-### <a name="SequenceSender_DAPermitApiPrivateKey"></a>11.8. `[SequenceSender.DAPermitApiPrivateKey]`
-
-**Type:** : `object`
-**Description:** DAPermitApiPrivateKey defines all the key store files that are going
-to sign batches for DA service
-
-| Property                                                      | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
-| ------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
-| - [Path](#SequenceSender_DAPermitApiPrivateKey_Path )         | No      | string | No         | -          | Path is the file path for the key store file           |
-| - [Password](#SequenceSender_DAPermitApiPrivateKey_Password ) | No      | string | No         | -          | Password is the password to decrypt the key store file |
-
-#### <a name="SequenceSender_DAPermitApiPrivateKey_Path"></a>11.8.1. `SequenceSender.DAPermitApiPrivateKey.Path`
-
-**Type:** : `string`
-
 **Default:** `"/pk/sequencer.keystore"`
 
 **Description:** Path is the file path for the key store file
 
 **Example setting the default value** ("/pk/sequencer.keystore"):
 ```
-[SequenceSender.DAPermitApiPrivateKey]
+[SequenceSender.PrivateKey]
 Path="/pk/sequencer.keystore"
 ```
 
-#### <a name="SequenceSender_DAPermitApiPrivateKey_Password"></a>11.8.2. `SequenceSender.DAPermitApiPrivateKey.Password`
+#### <a name="SequenceSender_PrivateKey_Password"></a>11.7.2. `SequenceSender.PrivateKey.Password`
 
 **Type:** : `string`
 
@@ -2950,11 +2307,11 @@ Path="/pk/sequencer.keystore"
 
 **Example setting the default value** ("testonly"):
 ```
-[SequenceSender.DAPermitApiPrivateKey]
+[SequenceSender.PrivateKey]
 Password="testonly"
 ```
 
-### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.9. `SequenceSender.ForkUpgradeBatchNumber`
+### <a name="SequenceSender_ForkUpgradeBatchNumber"></a>11.8. `SequenceSender.ForkUpgradeBatchNumber`
 
 **Type:** : `integer`
 
@@ -2968,21 +2325,7 @@ Password="testonly"
 ForkUpgradeBatchNumber=0
 ```
 
-### <a name="SequenceSender_UseValidium"></a>11.10. `SequenceSender.UseValidium`
-
-**Type:** : `boolean`
-
-**Default:** `true`
-
-**Description:** UseValidium is a flag to enable/disable the use of validium
-
-**Example setting the default value** (true):
-```
-[SequenceSender]
-UseValidium=true
-```
-
-### <a name="SequenceSender_GasOffset"></a>11.11. `SequenceSender.GasOffset`
+### <a name="SequenceSender_GasOffset"></a>11.9. `SequenceSender.GasOffset`
 
 **Type:** : `integer`
 
@@ -3026,6 +2369,7 @@ GasOffset=80000
 | - [CleanupLockedProofsInterval](#Aggregator_CleanupLockedProofsInterval )                           | No      | string  | No         | -          | Duration                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.                                                                                                                                                                                                                                                           |
 | - [GasOffset](#Aggregator_GasOffset )                                                               | No      | integer | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
+| - [UpgradeEtrogBatchNumber](#Aggregator_UpgradeEtrogBatchNumber )                                   | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog                                                                                                                                                                                                                                                                                                                                             |
 
 ### <a name="Aggregator_Host"></a>12.1. `Aggregator.Host`
 
@@ -3289,30 +2633,42 @@ final gas: 1100
 GasOffset=0
 ```
 
+### <a name="Aggregator_UpgradeEtrogBatchNumber"></a>12.15. `Aggregator.UpgradeEtrogBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog
+
+**Example setting the default value** (0):
+```
+[Aggregator]
+UpgradeEtrogBatchNumber=0
+```
+
 ## <a name="NetworkConfig"></a>13. `[NetworkConfig]`
 
 **Type:** : `object`
 **Description:** Configuration of the genesis of the network. This is used to known the initial state of the network
 
-| Property                                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                   |
-| ---------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------- |
-| - [l1Config](#NetworkConfig_l1Config )                                       | No      | object           | No         | -          | L1: Configuration related to L1                                                     |
-| - [L2GlobalExitRootManagerAddr](#NetworkConfig_L2GlobalExitRootManagerAddr ) | No      | array of integer | No         | -          | DEPRECATED L2: address of the \`PolygonZkEVMGlobalExitRootL2 proxy\` smart contract |
-| - [L2BridgeAddr](#NetworkConfig_L2BridgeAddr )                               | No      | array of integer | No         | -          | L2: address of the \`PolygonZkEVMBridge proxy\` smart contract                      |
-| - [Genesis](#NetworkConfig_Genesis )                                         | No      | object           | No         | -          | L1: Genesis of the rollup, first block number and root                              |
+| Property                               | Pattern | Type   | Deprecated | Definition | Title/Description                                      |
+| -------------------------------------- | ------- | ------ | ---------- | ---------- | ------------------------------------------------------ |
+| - [l1Config](#NetworkConfig_l1Config ) | No      | object | No         | -          | L1: Configuration related to L1                        |
+| - [Genesis](#NetworkConfig_Genesis )   | No      | object | No         | -          | L1: Genesis of the rollup, first block number and root |
 
 ### <a name="NetworkConfig_l1Config"></a>13.1. `[NetworkConfig.l1Config]`
 
 **Type:** : `object`
 **Description:** L1: Configuration related to L1
 
-| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                   |
-| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------- |
-| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                          |
-| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | Address of the L1 contract                          |
-| - [maticTokenAddress](#NetworkConfig_l1Config_maticTokenAddress )                                 | No      | array of integer | No         | -          | Address of the L1 Matic token Contract              |
-| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | Address of the L1 GlobalExitRootManager contract    |
-| - [dataCommitteeContract](#NetworkConfig_l1Config_dataCommitteeContract )                         | No      | array of integer | No         | -          | Address of the data availability committee contract |
+| Property                                                                                          | Pattern | Type             | Deprecated | Definition | Title/Description                                                          |
+| ------------------------------------------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | -------------------------------------------------------------------------- |
+| - [chainId](#NetworkConfig_l1Config_chainId )                                                     | No      | integer          | No         | -          | Chain ID of the L1 network                                                 |
+| - [polygonZkEVMAddress](#NetworkConfig_l1Config_polygonZkEVMAddress )                             | No      | array of integer | No         | -          | ZkEVMAddr Address of the L1 contract polygonZkEVMAddress                   |
+| - [polygonRollupManagerAddress](#NetworkConfig_l1Config_polygonRollupManagerAddress )             | No      | array of integer | No         | -          | RollupManagerAddr Address of the L1 contract                               |
+| - [polTokenAddress](#NetworkConfig_l1Config_polTokenAddress )                                     | No      | array of integer | No         | -          | PolAddr Address of the L1 Pol token Contract                               |
+| - [polygonZkEVMGlobalExitRootAddress](#NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress ) | No      | array of integer | No         | -          | GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract |
 
 #### <a name="NetworkConfig_l1Config_chainId"></a>13.1.1. `NetworkConfig.l1Config.chainId`
 
@@ -3331,67 +2687,57 @@ chainId=0
 #### <a name="NetworkConfig_l1Config_polygonZkEVMAddress"></a>13.1.2. `NetworkConfig.l1Config.polygonZkEVMAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 contract
+**Description:** ZkEVMAddr Address of the L1 contract polygonZkEVMAddress
 
-#### <a name="NetworkConfig_l1Config_maticTokenAddress"></a>13.1.3. `NetworkConfig.l1Config.maticTokenAddress`
-
-**Type:** : `array of integer`
-**Description:** Address of the L1 Matic token Contract
-
-#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.4. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
+#### <a name="NetworkConfig_l1Config_polygonRollupManagerAddress"></a>13.1.3. `NetworkConfig.l1Config.polygonRollupManagerAddress`
 
 **Type:** : `array of integer`
-**Description:** Address of the L1 GlobalExitRootManager contract
+**Description:** RollupManagerAddr Address of the L1 contract
 
-#### <a name="NetworkConfig_l1Config_dataCommitteeContract"></a>13.1.5. `NetworkConfig.l1Config.dataCommitteeContract`
-
-**Type:** : `array of integer`
-**Description:** Address of the data availability committee contract
-
-### <a name="NetworkConfig_L2GlobalExitRootManagerAddr"></a>13.2. `NetworkConfig.L2GlobalExitRootManagerAddr`
+#### <a name="NetworkConfig_l1Config_polTokenAddress"></a>13.1.4. `NetworkConfig.l1Config.polTokenAddress`
 
 **Type:** : `array of integer`
-**Description:** DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract
+**Description:** PolAddr Address of the L1 Pol token Contract
 
-### <a name="NetworkConfig_L2BridgeAddr"></a>13.3. `NetworkConfig.L2BridgeAddr`
+#### <a name="NetworkConfig_l1Config_polygonZkEVMGlobalExitRootAddress"></a>13.1.5. `NetworkConfig.l1Config.polygonZkEVMGlobalExitRootAddress`
 
 **Type:** : `array of integer`
-**Description:** L2: address of the `PolygonZkEVMBridge proxy` smart contract
+**Description:** GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 
-### <a name="NetworkConfig_Genesis"></a>13.4. `[NetworkConfig.Genesis]`
+### <a name="NetworkConfig_Genesis"></a>13.2. `[NetworkConfig.Genesis]`
 
 **Type:** : `object`
 **Description:** L1: Genesis of the rollup, first block number and root
 
-| Property                                                     | Pattern | Type             | Deprecated | Definition | Title/Description                                                                 |
-| ------------------------------------------------------------ | ------- | ---------------- | ---------- | ---------- | --------------------------------------------------------------------------------- |
-| - [GenesisBlockNum](#NetworkConfig_Genesis_GenesisBlockNum ) | No      | integer          | No         | -          | GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1 |
-| - [Root](#NetworkConfig_Genesis_Root )                       | No      | array of integer | No         | -          | Root hash of the genesis block                                                    |
-| - [GenesisActions](#NetworkConfig_Genesis_GenesisActions )   | No      | array of object  | No         | -          | Contracts to be deployed to L2                                                    |
+| Property                                             | Pattern | Type             | Deprecated | Definition | Title/Description                                                             |
+| ---------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------- |
+| - [BlockNumber](#NetworkConfig_Genesis_BlockNumber ) | No      | integer          | No         | -          | BlockNumber is the block number where the polygonZKEVM smc was deployed on L1 |
+| - [Root](#NetworkConfig_Genesis_Root )               | No      | array of integer | No         | -          | Root hash of the genesis block                                                |
+| - [Actions](#NetworkConfig_Genesis_Actions )         | No      | array of object  | No         | -          | Actions is the data to populate into the state trie                           |
 
-#### <a name="NetworkConfig_Genesis_GenesisBlockNum"></a>13.4.1. `NetworkConfig.Genesis.GenesisBlockNum`
+#### <a name="NetworkConfig_Genesis_BlockNumber"></a>13.2.1. `NetworkConfig.Genesis.BlockNumber`
 
 **Type:** : `integer`
 
 **Default:** `0`
 
-**Description:** GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1
+**Description:** BlockNumber is the block number where the polygonZKEVM smc was deployed on L1
 
 **Example setting the default value** (0):
 ```
 [NetworkConfig.Genesis]
-GenesisBlockNum=0
+BlockNumber=0
 ```
 
-#### <a name="NetworkConfig_Genesis_Root"></a>13.4.2. `NetworkConfig.Genesis.Root`
+#### <a name="NetworkConfig_Genesis_Root"></a>13.2.2. `NetworkConfig.Genesis.Root`
 
 **Type:** : `array of integer`
 **Description:** Root hash of the genesis block
 
-#### <a name="NetworkConfig_Genesis_GenesisActions"></a>13.4.3. `NetworkConfig.Genesis.GenesisActions`
+#### <a name="NetworkConfig_Genesis_Actions"></a>13.2.3. `NetworkConfig.Genesis.Actions`
 
 **Type:** : `array of object`
-**Description:** Contracts to be deployed to L2
+**Description:** Actions is the data to populate into the state trie
 
 |                      | Array restrictions |
 | -------------------- | ------------------ |
@@ -3401,50 +2747,50 @@ GenesisBlockNum=0
 | **Additional items** | False              |
 | **Tuple validation** | See below          |
 
-| Each item of this array must be                                     | Description                                                               |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [GenesisActions items](#NetworkConfig_Genesis_GenesisActions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
+| Each item of this array must be                       | Description                                                               |
+| ----------------------------------------------------- | ------------------------------------------------------------------------- |
+| [Actions items](#NetworkConfig_Genesis_Actions_items) | GenesisAction represents one of the values set on the SMT during genesis. |
 
-##### <a name="autogenerated_heading_4"></a>13.4.3.1. [NetworkConfig.Genesis.GenesisActions.GenesisActions items]
+##### <a name="autogenerated_heading_3"></a>13.2.3.1. [NetworkConfig.Genesis.Actions.Actions items]
 
 **Type:** : `object`
 **Description:** GenesisAction represents one of the values set on the SMT during genesis.
 
-| Property                                                                          | Pattern | Type    | Deprecated | Definition | Title/Description |
-| --------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [address](#NetworkConfig_Genesis_GenesisActions_items_address )                 | No      | string  | No         | -          | -                 |
-| - [type](#NetworkConfig_Genesis_GenesisActions_items_type )                       | No      | integer | No         | -          | -                 |
-| - [storagePosition](#NetworkConfig_Genesis_GenesisActions_items_storagePosition ) | No      | string  | No         | -          | -                 |
-| - [bytecode](#NetworkConfig_Genesis_GenesisActions_items_bytecode )               | No      | string  | No         | -          | -                 |
-| - [key](#NetworkConfig_Genesis_GenesisActions_items_key )                         | No      | string  | No         | -          | -                 |
-| - [value](#NetworkConfig_Genesis_GenesisActions_items_value )                     | No      | string  | No         | -          | -                 |
-| - [root](#NetworkConfig_Genesis_GenesisActions_items_root )                       | No      | string  | No         | -          | -                 |
+| Property                                                                   | Pattern | Type    | Deprecated | Definition | Title/Description |
+| -------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [address](#NetworkConfig_Genesis_Actions_items_address )                 | No      | string  | No         | -          | -                 |
+| - [type](#NetworkConfig_Genesis_Actions_items_type )                       | No      | integer | No         | -          | -                 |
+| - [storagePosition](#NetworkConfig_Genesis_Actions_items_storagePosition ) | No      | string  | No         | -          | -                 |
+| - [bytecode](#NetworkConfig_Genesis_Actions_items_bytecode )               | No      | string  | No         | -          | -                 |
+| - [key](#NetworkConfig_Genesis_Actions_items_key )                         | No      | string  | No         | -          | -                 |
+| - [value](#NetworkConfig_Genesis_Actions_items_value )                     | No      | string  | No         | -          | -                 |
+| - [root](#NetworkConfig_Genesis_Actions_items_root )                       | No      | string  | No         | -          | -                 |
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_address"></a>13.4.3.1.1. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.address`
+##### <a name="NetworkConfig_Genesis_Actions_items_address"></a>13.2.3.1.1. `NetworkConfig.Genesis.Actions.Actions items.address`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_type"></a>13.4.3.1.2. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.type`
+##### <a name="NetworkConfig_Genesis_Actions_items_type"></a>13.2.3.1.2. `NetworkConfig.Genesis.Actions.Actions items.type`
 
 **Type:** : `integer`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_storagePosition"></a>13.4.3.1.3. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.storagePosition`
+##### <a name="NetworkConfig_Genesis_Actions_items_storagePosition"></a>13.2.3.1.3. `NetworkConfig.Genesis.Actions.Actions items.storagePosition`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_bytecode"></a>13.4.3.1.4. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.bytecode`
+##### <a name="NetworkConfig_Genesis_Actions_items_bytecode"></a>13.2.3.1.4. `NetworkConfig.Genesis.Actions.Actions items.bytecode`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_key"></a>13.4.3.1.5. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.key`
+##### <a name="NetworkConfig_Genesis_Actions_items_key"></a>13.2.3.1.5. `NetworkConfig.Genesis.Actions.Actions items.key`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_value"></a>13.4.3.1.6. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.value`
+##### <a name="NetworkConfig_Genesis_Actions_items_value"></a>13.2.3.1.6. `NetworkConfig.Genesis.Actions.Actions items.value`
 
 **Type:** : `string`
 
-##### <a name="NetworkConfig_Genesis_GenesisActions_items_root"></a>13.4.3.1.7. `NetworkConfig.Genesis.GenesisActions.GenesisActions items.root`
+##### <a name="NetworkConfig_Genesis_Actions_items_root"></a>13.2.3.1.7. `NetworkConfig.Genesis.Actions.Actions items.root`
 
 **Type:** : `string`
 
@@ -3453,31 +2799,19 @@ GenesisBlockNum=0
 **Type:** : `object`
 **Description:** Configuration of the gas price suggester service
 
-| Property                                                                                   | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                        |
-| ------------------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Type](#L2GasPriceSuggester_Type )                                                       | No      | string  | No         | -          | -                                                                                                                                        |
-| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )                           | No      | integer | No         | -          | DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer. |
-| - [MaxGasPriceWei](#L2GasPriceSuggester_MaxGasPriceWei )                                   | No      | integer | No         | -          | MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.                |
-| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                               | No      | object  | No         | -          | -                                                                                                                                        |
-| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                                         | No      | object  | No         | -          | -                                                                                                                                        |
-| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                                         | No      | integer | No         | -          | -                                                                                                                                        |
-| - [Percentile](#L2GasPriceSuggester_Percentile )                                           | No      | integer | No         | -          | -                                                                                                                                        |
-| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                                       | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )                           | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention )             | No      | string  | No         | -          | Duration                                                                                                                                 |
-| - [KafkaURL](#L2GasPriceSuggester_KafkaURL )                                               | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Topic](#L2GasPriceSuggester_Topic )                                                     | No      | string  | No         | -          | -                                                                                                                                        |
-| - [GroupID](#L2GasPriceSuggester_GroupID )                                                 | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Username](#L2GasPriceSuggester_Username )                                               | No      | string  | No         | -          | -                                                                                                                                        |
-| - [Password](#L2GasPriceSuggester_Password )                                               | No      | string  | No         | -          | -                                                                                                                                        |
-| - [RootCAPath](#L2GasPriceSuggester_RootCAPath )                                           | No      | string  | No         | -          | -                                                                                                                                        |
-| - [L1CoinId](#L2GasPriceSuggester_L1CoinId )                                               | No      | integer | No         | -          | -                                                                                                                                        |
-| - [L2CoinId](#L2GasPriceSuggester_L2CoinId )                                               | No      | integer | No         | -          | -                                                                                                                                        |
-| - [DefaultL1CoinPrice](#L2GasPriceSuggester_DefaultL1CoinPrice )                           | No      | number  | No         | -          | DefaultL1CoinPrice is the L1 token's coin price                                                                                          |
-| - [DefaultL2CoinPrice](#L2GasPriceSuggester_DefaultL2CoinPrice )                           | No      | number  | No         | -          | DefaultL2CoinPrice is the native token's coin price                                                                                      |
-| - [GasPriceUsdt](#L2GasPriceSuggester_GasPriceUsdt )                                       | No      | number  | No         | -          | -                                                                                                                                        |
-| - [EnableFollowerAdjustByL2L1Price](#L2GasPriceSuggester_EnableFollowerAdjustByL2L1Price ) | No      | boolean | No         | -          | EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy                      |
-| - [Factor](#L2GasPriceSuggester_Factor )                                                   | No      | number  | No         | -          | -                                                                                                                                        |
+| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                        |
+| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| - [Type](#L2GasPriceSuggester_Type )                                           | No      | string  | No         | -          | -                                                                                                                                        |
+| - [DefaultGasPriceWei](#L2GasPriceSuggester_DefaultGasPriceWei )               | No      | integer | No         | -          | DefaultGasPriceWei is used to set the gas price to be used by the default gas pricer or as minimim gas price by the follower gas pricer. |
+| - [MaxGasPriceWei](#L2GasPriceSuggester_MaxGasPriceWei )                       | No      | integer | No         | -          | MaxGasPriceWei is used to limit the gas price returned by the follower gas pricer to a maximum value. It is ignored if 0.                |
+| - [MaxPrice](#L2GasPriceSuggester_MaxPrice )                                   | No      | object  | No         | -          | -                                                                                                                                        |
+| - [IgnorePrice](#L2GasPriceSuggester_IgnorePrice )                             | No      | object  | No         | -          | -                                                                                                                                        |
+| - [CheckBlocks](#L2GasPriceSuggester_CheckBlocks )                             | No      | integer | No         | -          | -                                                                                                                                        |
+| - [Percentile](#L2GasPriceSuggester_Percentile )                               | No      | integer | No         | -          | -                                                                                                                                        |
+| - [UpdatePeriod](#L2GasPriceSuggester_UpdatePeriod )                           | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryPeriod](#L2GasPriceSuggester_CleanHistoryPeriod )               | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [CleanHistoryTimeRetention](#L2GasPriceSuggester_CleanHistoryTimeRetention ) | No      | string  | No         | -          | Duration                                                                                                                                 |
+| - [Factor](#L2GasPriceSuggester_Factor )                                       | No      | number  | No         | -          | -                                                                                                                                        |
 
 ### <a name="L2GasPriceSuggester_Type"></a>14.1. `L2GasPriceSuggester.Type`
 
@@ -3623,157 +2957,7 @@ CleanHistoryPeriod="1h0m0s"
 CleanHistoryTimeRetention="5m0s"
 ```
 
-### <a name="L2GasPriceSuggester_KafkaURL"></a>14.11. `L2GasPriceSuggester.KafkaURL`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-KafkaURL=""
-```
-
-### <a name="L2GasPriceSuggester_Topic"></a>14.12. `L2GasPriceSuggester.Topic`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-Topic=""
-```
-
-### <a name="L2GasPriceSuggester_GroupID"></a>14.13. `L2GasPriceSuggester.GroupID`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-GroupID=""
-```
-
-### <a name="L2GasPriceSuggester_Username"></a>14.14. `L2GasPriceSuggester.Username`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-Username=""
-```
-
-### <a name="L2GasPriceSuggester_Password"></a>14.15. `L2GasPriceSuggester.Password`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-Password=""
-```
-
-### <a name="L2GasPriceSuggester_RootCAPath"></a>14.16. `L2GasPriceSuggester.RootCAPath`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[L2GasPriceSuggester]
-RootCAPath=""
-```
-
-### <a name="L2GasPriceSuggester_L1CoinId"></a>14.17. `L2GasPriceSuggester.L1CoinId`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[L2GasPriceSuggester]
-L1CoinId=0
-```
-
-### <a name="L2GasPriceSuggester_L2CoinId"></a>14.18. `L2GasPriceSuggester.L2CoinId`
-
-**Type:** : `integer`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[L2GasPriceSuggester]
-L2CoinId=0
-```
-
-### <a name="L2GasPriceSuggester_DefaultL1CoinPrice"></a>14.19. `L2GasPriceSuggester.DefaultL1CoinPrice`
-
-**Type:** : `number`
-
-**Default:** `0`
-
-**Description:** DefaultL1CoinPrice is the L1 token's coin price
-
-**Example setting the default value** (0):
-```
-[L2GasPriceSuggester]
-DefaultL1CoinPrice=0
-```
-
-### <a name="L2GasPriceSuggester_DefaultL2CoinPrice"></a>14.20. `L2GasPriceSuggester.DefaultL2CoinPrice`
-
-**Type:** : `number`
-
-**Default:** `0`
-
-**Description:** DefaultL2CoinPrice is the native token's coin price
-
-**Example setting the default value** (0):
-```
-[L2GasPriceSuggester]
-DefaultL2CoinPrice=0
-```
-
-### <a name="L2GasPriceSuggester_GasPriceUsdt"></a>14.21. `L2GasPriceSuggester.GasPriceUsdt`
-
-**Type:** : `number`
-
-**Default:** `0`
-
-**Example setting the default value** (0):
-```
-[L2GasPriceSuggester]
-GasPriceUsdt=0
-```
-
-### <a name="L2GasPriceSuggester_EnableFollowerAdjustByL2L1Price"></a>14.22. `L2GasPriceSuggester.EnableFollowerAdjustByL2L1Price`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Description:** EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy
-
-**Example setting the default value** (false):
-```
-[L2GasPriceSuggester]
-EnableFollowerAdjustByL2L1Price=false
-```
-
-### <a name="L2GasPriceSuggester_Factor"></a>14.23. `L2GasPriceSuggester.Factor`
+### <a name="L2GasPriceSuggester_Factor"></a>14.11. `L2GasPriceSuggester.Factor`
 
 **Type:** : `number`
 
@@ -3801,12 +2985,12 @@ Factor=0.15
 
 **Type:** : `string`
 
-**Default:** `"x1-prover:50071"`
+**Default:** `"zkevm-prover:50071"`
 
-**Example setting the default value** ("x1-prover:50071"):
+**Example setting the default value** ("zkevm-prover:50071"):
 ```
 [Executor]
-URI="x1-prover:50071"
+URI="zkevm-prover:50071"
 ```
 
 ### <a name="Executor_MaxResourceExhaustedAttempts"></a>15.2. `Executor.MaxResourceExhaustedAttempts`
@@ -3874,14 +3058,14 @@ MaxGRPCMessageSize=100000000
 
 **Type:** : `string`
 
-**Default:** `"x1-prover:50061"`
+**Default:** `"zkevm-prover:50061"`
 
 **Description:** URI is the server URI.
 
-**Example setting the default value** ("x1-prover:50061"):
+**Example setting the default value** ("zkevm-prover:50061"):
 ```
 [MTClient]
-URI="x1-prover:50061"
+URI="zkevm-prover:50061"
 ```
 
 ## <a name="Metrics"></a>17. `[Metrics]`
@@ -4165,14 +3349,14 @@ Password="prover_pass"
 
 **Type:** : `string`
 
-**Default:** `"x1-state-db"`
+**Default:** `"zkevm-state-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("x1-state-db"):
+**Example setting the default value** ("zkevm-state-db"):
 ```
 [HashDB]
-Host="x1-state-db"
+Host="zkevm-state-db"
 ```
 
 ### <a name="HashDB_Port"></a>19.5. `HashDB.Port`
@@ -4282,7 +3466,7 @@ ChainID=0
 | ----------------------------------------------------- | ------------------------------------ |
 | [ForkIDIntervals items](#State_ForkIDIntervals_items) | ForkIDInterval is a fork id interval |
 
-#### <a name="autogenerated_heading_5"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
+#### <a name="autogenerated_heading_4"></a>20.3.1. [State.ForkIDIntervals.ForkIDIntervals items]
 
 **Type:** : `object`
 **Description:** ForkIDInterval is a fork id interval
@@ -4444,14 +3628,14 @@ Password="state_password"
 
 **Type:** : `string`
 
-**Default:** `"x1-state-db"`
+**Default:** `"zkevm-state-db"`
 
 **Description:** Host address of database
 
-**Example setting the default value** ("x1-state-db"):
+**Example setting the default value** ("zkevm-state-db"):
 ```
 [State.DB]
-Host="x1-state-db"
+Host="zkevm-state-db"
 ```
 
 #### <a name="State_DB_Port"></a>20.8.5. `State.DB.Port`
@@ -4521,6 +3705,7 @@ MaxConns=200
 | - [MaxArithmetics](#State_Batch_Constraints_MaxArithmetics )             | No      | integer | No         | -          | -                 |
 | - [MaxBinaries](#State_Batch_Constraints_MaxBinaries )                   | No      | integer | No         | -          | -                 |
 | - [MaxSteps](#State_Batch_Constraints_MaxSteps )                         | No      | integer | No         | -          | -                 |
+| - [MaxSHA256Hashes](#State_Batch_Constraints_MaxSHA256Hashes )           | No      | integer | No         | -          | -                 |
 
 ##### <a name="State_Batch_Constraints_MaxTxsPerBatch"></a>20.9.1.1. `State.Batch.Constraints.MaxTxsPerBatch`
 
@@ -4642,6 +3827,18 @@ MaxBinaries=473170
 MaxSteps=7570538
 ```
 
+##### <a name="State_Batch_Constraints_MaxSHA256Hashes"></a>20.9.1.11. `State.Batch.Constraints.MaxSHA256Hashes`
+
+**Type:** : `integer`
+
+**Default:** `1596`
+
+**Example setting the default value** (1596):
+```
+[State.Batch.Constraints]
+MaxSHA256Hashes=1596
+```
+
 ### <a name="State_MaxLogsCount"></a>20.10. `State.MaxLogsCount`
 
 **Type:** : `integer`
@@ -4685,66 +3882,6 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [State]
 MaxNativeBlockHashBlockRange=0
-```
-
-## <a name="Apollo"></a>21. `[Apollo]`
-
-**Type:** : `object`
-**Description:** Apollo configuration
-
-| Property                                  | Pattern | Type    | Deprecated | Definition | Title/Description |
-| ----------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
-| - [Enable](#Apollo_Enable )               | No      | boolean | No         | -          | -                 |
-| - [IP](#Apollo_IP )                       | No      | string  | No         | -          | -                 |
-| - [AppID](#Apollo_AppID )                 | No      | string  | No         | -          | -                 |
-| - [NamespaceName](#Apollo_NamespaceName ) | No      | string  | No         | -          | -                 |
-
-### <a name="Apollo_Enable"></a>21.1. `Apollo.Enable`
-
-**Type:** : `boolean`
-
-**Default:** `false`
-
-**Example setting the default value** (false):
-```
-[Apollo]
-Enable=false
-```
-
-### <a name="Apollo_IP"></a>21.2. `Apollo.IP`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Apollo]
-IP=""
-```
-
-### <a name="Apollo_AppID"></a>21.3. `Apollo.AppID`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Apollo]
-AppID=""
-```
-
-### <a name="Apollo_NamespaceName"></a>21.4. `Apollo.NamespaceName`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Example setting the default value** (""):
-```
-[Apollo]
-NamespaceName=""
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

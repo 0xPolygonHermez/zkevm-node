@@ -24,6 +24,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
 	ctx := context.Background()
 	defer func() { require.NoError(t, operations.TeardownPermissionless()) }()
 	err := operations.Teardown()
@@ -34,6 +35,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, opsman.SetupWithPermissionless())
 	require.NoError(t, opsman.StopEthTxSender())
+	opsman.ShowDockerLogs()
 	time.Sleep(5 * time.Second)
 
 	// Step 1:
@@ -74,7 +76,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 		nonceToBeUsedForNextTx += 1
 	}
 	log.Infof("sending %d txs and waiting until added in the permissionless RPC trusted state")
-	l2BlockNumbersStep1, err := operations.ApplyL2Txs(ctx, txsStep1, auth, client, operations.TrustedConfirmationLevel)
+	_, err = operations.ApplyL2Txs(ctx, txsStep1, auth, client, operations.TrustedConfirmationLevel)
 	require.NoError(t, err)
 
 	// Step 2
@@ -89,7 +91,7 @@ func TestPermissionlessJRPC(t *testing.T) {
 		txsStep2 = append(txsStep2, tx)
 		nonceToBeUsedForNextTx += 1
 	}
-	log.Infof("sending %d txs and waiting until added into the trusted sequencer pool")
+	log.Infof("sending %d txs and waiting until added into the trusted sequencer pool", nTxsStep2)
 	_, err = operations.ApplyL2Txs(ctx, txsStep2, auth, client, operations.PoolConfirmationLevel)
 	require.NoError(t, err)
 	actualNonce, err := client.PendingNonceAt(ctx, auth.From)
@@ -102,11 +104,19 @@ func TestPermissionlessJRPC(t *testing.T) {
 	require.NoError(t, opsman.StartEthTxSender())
 	require.NoError(t, opsman.StartSequenceSender())
 
-	lastL2BlockNumberStep1 := l2BlockNumbersStep1[len(l2BlockNumbersStep1)-1]
-	lastL2BlockNumberStep2 := lastL2BlockNumberStep1.Add(
-		lastL2BlockNumberStep1,
-		big.NewInt(int64(nTxsStep2)),
-	)
+	// Get the receipt of last tx to known the L2 block number
+	signedTx, err := auth.Signer(auth.From, txsStep2[len(txsStep2)-1])
+	require.NoError(t, err)
+	timeoutForTxReceipt := 2 * time.Minute //nolint:gomnd
+	log.Infof("Getting tx receipt for last new tx [%s]to know the L2 block number (tout=%s)", signedTx.Hash(), timeoutForTxReceipt)
+	receipt, err := operations.WaitTxReceipt(ctx, signedTx.Hash(), timeoutForTxReceipt, client)
+	if err != nil {
+		log.Errorf("error waiting tx %s to be mined: %w", signedTx.Hash(), err)
+		opsman.ShowDockerLogs()
+	}
+	require.NoError(t, err)
+	lastL2BlockNumberStep2 := receipt.BlockNumber
+	log.Infof("waiting until L2 block %v is virtualized", lastL2BlockNumberStep2)
 	err = operations.WaitL2BlockToBeVirtualizedCustomRPC(
 		lastL2BlockNumberStep2, 4*time.Minute, //nolint:gomnd
 		operations.PermissionlessL2NetworkURL,
@@ -122,9 +132,22 @@ func TestPermissionlessJRPC(t *testing.T) {
 		MaxConns:  4,
 	})
 	require.NoError(t, err)
-	const isThereL2ReorgQuery = "SELECT COUNT(*) > 0 FROM state.trusted_reorg;"
+	const isThereL2ReorgQuery = "SELECT COUNT(*) FROM state.trusted_reorg;"
 	row := sqlDB.QueryRow(context.Background(), isThereL2ReorgQuery)
-	isThereL2Reorg := true
-	require.NoError(t, row.Scan(&isThereL2Reorg))
-	require.False(t, isThereL2Reorg)
+	nReorgs := 0
+	require.NoError(t, row.Scan(&nReorgs))
+	if nReorgs > 0 {
+		log.Infof("There was an L2 reorg (%d)", nReorgs)
+		const reorgQuery = "SELECT batch_num, reason FROM state.trusted_reorg;"
+		rows, err := sqlDB.Query(context.Background(), reorgQuery)
+		require.NoError(t, err)
+		for rows.Next() {
+			var batchNum uint64
+			var reason string
+			require.NoError(t, rows.Scan(&batchNum, &reason))
+			log.Infof("Batch: %v was reorged because: %v", batchNum, reason)
+		}
+
+	}
+	require.Equal(t, 0, nReorgs)
 }

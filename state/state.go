@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -30,17 +31,18 @@ var (
 // State is an implementation of the state
 type State struct {
 	cfg Config
-	*PostgresStorage
+	storage
 	executorClient executor.ExecutorServiceClient
 	tree           *merkletree.StateTree
 	eventLog       *event.EventLog
+	l1InfoTree     *l1infotree.L1InfoTree
 
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage *PostgresStorage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog) *State {
+func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog, mt *l1infotree.L1InfoTree) *State {
 	var once sync.Once
 	once.Do(func() {
 		metrics.Register()
@@ -48,12 +50,13 @@ func NewState(cfg Config, storage *PostgresStorage, executorClient executor.Exec
 
 	state := &State{
 		cfg:                     cfg,
-		PostgresStorage:         storage,
+		storage:                 storage,
 		executorClient:          executorClient,
 		tree:                    stateTree,
 		eventLog:                eventLog,
 		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
+		l1InfoTree:              mt,
 	}
 
 	return state
@@ -139,11 +142,11 @@ func (s *State) GetTree() *merkletree.StateTree {
 }
 
 // FlushMerkleTree persists updates in the Merkle tree
-func (s *State) FlushMerkleTree(ctx context.Context) error {
+func (s *State) FlushMerkleTree(ctx context.Context, newStateRoot common.Hash) error {
 	if s.tree == nil {
 		return ErrStateTreeNil
 	}
-	return s.tree.Flush(ctx, "")
+	return s.tree.Flush(ctx, newStateRoot, "")
 }
 
 // GetStoredFlushID returns the stored flush ID and Prover ID

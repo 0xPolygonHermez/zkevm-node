@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,9 +42,9 @@ func (key contextKey) String() string {
 }
 
 type sequenceBatchesArgs struct {
-	Batches            []polygonzkevm.PolygonZkEVMBatchData `json:"batches"`
-	L2Coinbase         common.Address                       `json:"l2Coinbase"`
-	SignaturesAndAddrs []byte                               `json:"signaturesAndAddrs"`
+	Batches            []oldpolygonzkevm.PolygonZkEVMBatchData `json:"batches"`
+	L2Coinbase         common.Address                          `json:"l2Coinbase"`
+	SignaturesAndAddrs []byte                                  `json:"signaturesAndAddrs"`
 }
 
 type verifyBatchesTrustedAggregatorArgs struct {
@@ -163,7 +163,7 @@ func (c *Client) unpackVerifyBatchesTrustedAggregatorTx(tx *types.Transaction) (
 
 func unpack(data []byte) (map[string]interface{}, error) {
 	// load contract ABI
-	zkAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	zkAbi, err := abi.JSON(strings.NewReader(oldpolygonzkevm.PolygonzkevmABI))
 	if err != nil {
 		return nil, errLoadAbi
 	}

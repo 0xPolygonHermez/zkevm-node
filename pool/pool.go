@@ -34,11 +34,6 @@ var (
 	ErrEffectiveGasPriceGasPriceTooLow = errors.New("effective gas price: gas price too low")
 )
 
-const (
-	// BridgeClaimMethodSignature for tracking BridgeClaimMethodSignature method
-	BridgeClaimMethodSignature = "0x2cffd02e"
-)
-
 // Pool is an implementation of the Pool interface
 // that uses a postgres database to store the data
 type Pool struct {
@@ -60,8 +55,8 @@ type Pool struct {
 type preExecutionResponse struct {
 	usedZkCounters       state.ZKCounters
 	isExecutorLevelError bool
-	isOOC                bool
-	isOOG                bool
+	OOCError             error
+	OOGError             error
 	isReverted           bool
 	txResponse           *state.ProcessTransactionResponse
 }
@@ -88,9 +83,8 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
-		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice),
 	}
-
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
 		for {
@@ -199,7 +193,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		return err
 	}
 
-	if preExecutionResponse.isOOC {
+	if preExecutionResponse.OOCError != nil {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			IPAddress:   ip,
@@ -215,8 +209,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 			log.Errorf("error adding event: %v", err)
 		}
 		// Do not add tx to the pool
-		return ErrOutOfCounters
-	} else if preExecutionResponse.isOOG {
+		return fmt.Errorf("failed to add tx to the pool: %w", preExecutionResponse.OOCError)
+	} else if preExecutionResponse.OOGError != nil {
 		event := &event.Event{
 			ReceivedAt:  time.Now(),
 			IPAddress:   ip,
@@ -251,8 +245,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 
 // ValidateBreakEvenGasPrice validates the effective gas price
 func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transaction, preExecutionGasUsed uint64, gasPrices GasPrices) error {
-	// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
-	txGasPrice, _ := p.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice(), gasPrices.L1GasPrice, gasPrices.L2GasPrice)
+	// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price and l2 gas price
+	txGasPrice, l2GasPrice := p.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice(), gasPrices.L1GasPrice, gasPrices.L2GasPrice)
 
 	breakEvenGasPrice, err := p.effectiveGasPrice.CalculateBreakEvenGasPrice(tx.Data(), txGasPrice, preExecutionGasUsed, gasPrices.L1GasPrice)
 	if err != nil {
@@ -273,9 +267,9 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 	tmpFactor.Int(breakEvenGasPriceWithFactor)
 
 	if breakEvenGasPriceWithFactor.Cmp(txGasPrice) == 1 { // breakEvenGasPriceWithMargin > txGasPrice
-		// check against L2GasPrice now
-		L2GasPrice := big.NewInt(0).SetUint64(gasPrices.L2GasPrice)
-		if txGasPrice.Cmp(L2GasPrice) == -1 { // txGasPrice < gasPrices.L2GasPrice
+		// check against l2GasPrice now
+		biL2GasPrice := big.NewInt(0).SetUint64(l2GasPrice)
+		if txGasPrice.Cmp(biL2GasPrice) == -1 { // txGasPrice < l2GasPrice
 			// reject tx
 			reject = true
 		} else {
@@ -285,7 +279,7 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 	}
 
 	log.Infof("egp-log: txGasPrice(): %v, breakEvenGasPrice: %v, breakEvenGasPriceWithFactor: %v, gasUsed: %v, reject: %t, loss: %v, L1GasPrice: %d, L2GasPrice: %d, Enabled: %t, tx: %s",
-		txGasPrice, breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, gasPrices.L2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
+		txGasPrice, breakEvenGasPrice, breakEvenGasPriceWithFactor, preExecutionGasUsed, reject, loss, gasPrices.L1GasPrice, l2GasPrice, p.cfg.EffectiveGasPrice.Enabled, tx.Hash().String())
 
 	// Reject transaction if EffectiveGasPrice is enabled
 	if p.cfg.EffectiveGasPrice.Enabled && reject {
@@ -298,7 +292,7 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 
 // preExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
-	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, isOOC: false, isOOG: false, isReverted: false}
+	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
 
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
@@ -308,32 +302,41 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		if !isOOC && !isOOG {
 			return response, err
 		} else {
-			response.isOOC = isOOC
-			response.isOOG = isOOG
-			if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
+			if isOOC {
+				response.OOCError = err
+			}
+			if isOOG {
+				response.OOGError = err
+			}
+			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
-				response.txResponse = processBatchResponse.Responses[0]
+				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
 			return response, nil
 		}
 	}
 
-	if processBatchResponse.Responses != nil && len(processBatchResponse.Responses) > 0 {
-		errorToCheck := processBatchResponse.Responses[0].RomError
+	if processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
+		errorToCheck := processBatchResponse.BlockResponses[0].TransactionResponses[0].RomError
 		response.isExecutorLevelError = processBatchResponse.IsExecutorLevelError
 		if errorToCheck != nil {
 			response.isReverted = errors.Is(errorToCheck, runtime.ErrExecutionReverted)
-			response.isOOC = executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck))
-			response.isOOG = errors.Is(errorToCheck, runtime.ErrOutOfGas)
+			if executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck)) {
+				response.OOCError = err
+			}
+			if errors.Is(errorToCheck, runtime.ErrOutOfGas) {
+				response.OOGError = err
+			}
 		} else {
 			if !p.batchConstraintsCfg.IsWithinConstraints(processBatchResponse.UsedZkCounters) {
-				response.isOOC = true
-				log.Errorf("OutOfCounters Error (Node level) for tx: %s", tx.Hash().String())
+				err := fmt.Errorf("OutOfCounters Error (Node level) for tx: %s", tx.Hash().String())
+				response.OOCError = err
+				log.Error(err.Error())
 			}
 		}
 
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
-		response.txResponse = processBatchResponse.Responses[0]
+		response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 	}
 
 	return response, nil
@@ -505,9 +508,11 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if !contains(p.cfg.FreeGasAddress, from) || !poolTx.IsClaims {
 		p.minSuggestedGasPriceMux.RLock()
 		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
-		p.minSuggestedGasPriceMux.RUnlock()
 		if gasPriceCmp == -1 {
 			log.Debugf("low gas price: minSuggestedGasPrice %v got %v", p.minSuggestedGasPrice, poolTx.GasPrice())
+		}
+		p.minSuggestedGasPriceMux.RUnlock()
+		if gasPriceCmp == -1 {
 			return ErrGasPrice
 		}
 	}
@@ -569,15 +574,6 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	return nil
-}
-
-func contains(s []string, ele common.Address) bool {
-	for _, e := range s {
-		if common.HexToAddress(e) == ele {
-			return true
-		}
-	}
-	return false
 }
 
 // pollMinSuggestedGasPrice polls the minimum L2 gas price since the previous
@@ -680,6 +676,21 @@ const (
 	txGas                 uint64 = 21000
 	txDataZeroGas         uint64 = 4
 )
+
+// CalculateEffectiveGasPrice calculates the final effective gas price for a tx
+func (p *Pool) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+}
+
+// CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
+func (p *Pool) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, effectiveGasPrice *big.Int) (uint8, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPricePercentage(gasPrice, effectiveGasPrice)
+}
+
+// EffectiveGasPriceEnabled returns if effective gas price calculation is enabled or not
+func (p *Pool) EffectiveGasPriceEnabled() bool {
+	return p.effectiveGasPrice.IsEnabled()
+}
 
 // IntrinsicGas computes the 'intrinsic gas' for a given transaction.
 func IntrinsicGas(tx types.Transaction) (uint64, error) {

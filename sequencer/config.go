@@ -7,27 +7,26 @@ import (
 
 // Config represents the configuration of a sequencer
 type Config struct {
-	// WaitPeriodPoolIsEmpty is the time the sequencer waits until
-	// trying to add new txs to the state
-	WaitPeriodPoolIsEmpty types.Duration `mapstructure:"WaitPeriodPoolIsEmpty"`
+	// DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool
+	DeletePoolTxsL1BlockConfirmations uint64 `mapstructure:"DeletePoolTxsL1BlockConfirmations"`
 
-	// BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool
-	BlocksAmountForTxsToBeDeleted uint64 `mapstructure:"BlocksAmountForTxsToBeDeleted"`
+	// DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting
+	DeletePoolTxsCheckInterval types.Duration `mapstructure:"DeletePoolTxsCheckInterval"`
 
-	// FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting
-	FrequencyToCheckTxsForDelete types.Duration `mapstructure:"FrequencyToCheckTxsForDelete"`
+	// TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime
+	TxLifetimeCheckInterval types.Duration `mapstructure:"TxLifetimeCheckInterval"`
 
-	// TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime
-	TxLifetimeCheckTimeout types.Duration `mapstructure:"TxLifetimeCheckTimeout"`
+	// TxLifetimeMax is the time a tx can be in the sequencer/worker memory
+	TxLifetimeMax types.Duration `mapstructure:"TxLifetimeMax"`
 
-	// MaxTxLifetime is the time a tx can be in the sequencer/worker memory
-	MaxTxLifetime types.Duration `mapstructure:"MaxTxLifetime"`
+	// LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool
+	LoadPoolTxsCheckInterval types.Duration `mapstructure:"LoadPoolTxsCheckInterval"`
+
+	// StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened
+	StateConsistencyCheckInterval types.Duration `mapstructure:"StateConsistencyCheckInterval"`
 
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
-
-	// DBManager's specific config properties
-	DBManager DBManagerCfg `mapstructure:"DBManager"`
 
 	// StreamServerCfg is the config for the stream server
 	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
@@ -39,57 +38,59 @@ type StreamServerCfg struct {
 	Port uint16 `mapstructure:"Port"`
 	// Filename of the binary data file
 	Filename string `mapstructure:"Filename"`
+	// Version of the binary data file
+	Version uint8 `mapstructure:"Version"`
+	// ChainID is the chain ID
+	ChainID uint64 `mapstructure:"ChainID"`
 	// Enabled is a flag to enable/disable the data streamer
 	Enabled bool `mapstructure:"Enabled"`
 	// Log is the log configuration
 	Log log.Config `mapstructure:"Log"`
+	// UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+	UpgradeEtrogBatchNumber uint64 `mapstructure:"UpgradeEtrogBatchNumber"`
 }
 
 // FinalizerCfg contains the finalizer's configuration properties
 type FinalizerCfg struct {
-	// GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root
-	GERDeadlineTimeout types.Duration `mapstructure:"GERDeadlineTimeout"`
+	// ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
+	ForcedBatchesTimeout types.Duration `mapstructure:"ForcedBatchesTimeout"`
 
-	// ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches
-	ForcedBatchDeadlineTimeout types.Duration `mapstructure:"ForcedBatchDeadlineTimeout"`
+	// NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
+	NewTxsWaitInterval types.Duration `mapstructure:"NewTxsWaitInterval"`
 
-	// SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed
-	SleepDuration types.Duration `mapstructure:"SleepDuration"`
+	// ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed
+	ResourceExhaustedMarginPct uint32 `mapstructure:"ResourceExhaustedMarginPct"`
 
-	// ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed
-	ResourcePercentageToCloseBatch uint32 `mapstructure:"ResourcePercentageToCloseBatch"`
+	// ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final
+	ForcedBatchesL1BlockConfirmations uint64 `mapstructure:"ForcedBatchesL1BlockConfirmations"`
 
-	// GERFinalityNumberOfBlocks is number of blocks to consider GER final
-	GERFinalityNumberOfBlocks uint64 `mapstructure:"GERFinalityNumberOfBlocks"`
+	// L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final
+	L1InfoTreeL1BlockConfirmations uint64 `mapstructure:"L1InfoTreeL1BlockConfirmations"`
 
-	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingL1Timeout types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingL1Timeout"`
+	// ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation
+	ForcedBatchesCheckInterval types.Duration `mapstructure:"ForcedBatchesCheckInterval"`
 
-	// ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingGER types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingGER"`
+	// L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated
+	L1InfoTreeCheckInterval types.Duration `mapstructure:"L1InfoTreeCheckInterval"`
 
-	// ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation
-	ClosingSignalsManagerWaitForCheckingForcedBatches types.Duration `mapstructure:"ClosingSignalsManagerWaitForCheckingForcedBatches"`
+	// BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch
+	BatchMaxDeltaTimestamp types.Duration `mapstructure:"BatchMaxDeltaTimestamp"`
 
-	// ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final
-	ForcedBatchesFinalityNumberOfBlocks uint64 `mapstructure:"ForcedBatchesFinalityNumberOfBlocks"`
+	// L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block
+	L2BlockMaxDeltaTimestamp types.Duration `mapstructure:"L2BlockMaxDeltaTimestamp"`
 
-	// TimestampResolution is the resolution of the timestamp used to close a batch
-	TimestampResolution types.Duration `mapstructure:"TimestampResolution"`
+	// HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.
+	// The Sequencer will halt after it closes the batch equal to this number
+	HaltOnBatchNumber uint64 `mapstructure:"HaltOnBatchNumber"`
 
-	// StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number
-	StopSequencerOnBatchNum uint64 `mapstructure:"StopSequencerOnBatchNum"`
-
-	// SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a
+	// SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a
 	// sequential way (instead than in parallel)
-	SequentialReprocessFullBatch bool `mapstructure:"SequentialReprocessFullBatch"`
+	SequentialBatchSanityCheck bool `mapstructure:"SequentialBatchSanityCheck"`
+
+	// SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead
+	// in the processPendingL2Blocks go func
+	SequentialProcessL2Block bool `mapstructure:"SequentialProcessL2Block"`
 
 	// FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
 	FullBatchSleepDuration types.Duration `mapstructure:"FullBatchSleepDuration"`
-}
-
-// DBManagerCfg contains the DBManager's configuration properties
-type DBManagerCfg struct {
-	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
-	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
 }

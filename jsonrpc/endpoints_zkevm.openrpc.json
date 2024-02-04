@@ -343,6 +343,86 @@
             "$ref": "#/components/schemas/NativeBlockHashes"
           }
       }
+    },
+    {
+      "name": "zkevm_getTransactionByL2Hash",
+      "summary": "Returns the information about a transaction requested by transaction l2 hash.",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/TransactionHash"
+        }
+      ],
+      "result": {
+        "$ref": "#/components/contentDescriptors/TransactionResult"
+      }
+    },
+    {
+      "name": "zkevm_getTransactionReceiptByL2Hash",
+      "summary": "Returns the receipt information of a transaction by its l2 hash.",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/TransactionHash"
+        }
+      ],
+      "result": {
+        "name": "transactionReceiptResult",
+        "description": "returns either a receipt or null",
+        "schema": {
+          "title": "transactionReceiptOrNull",
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Receipt"
+            },
+            {
+              "$ref": "#/components/schemas/Null"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "zkevm_getExitRootsByGER",
+      "summary": "Gets the exit roots accordingly to the provided Global Exit Root",
+      "params": [
+        {
+          "$ref": "#/components/schemas/Keccak"
+        }
+      ],
+      "result": {
+        "$ref": "#/components/schemas/ExitRoots"
+      },
+      "examples": [
+        {
+          "name": "exit roots",
+          "params": [
+            {
+              "name": "global exit root",
+              "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+            }
+          ],
+          "result": {
+            "name": "Exit Roots",
+            "value": {
+              "blockNumber": "0x1",
+              "timestamp": "0x642af31f",
+              "mainnetExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000002",
+              "rollupExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000003"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "zkevm_getLatestGlobalExitRoot",
+      "summary": "Returns the latest global exit root used in a batch.",
+      "params": [
+      ],
+      "result": {
+        "name": "GER",
+          "schema": {
+            "$ref": "#/components/schemas/Keccak"
+          }
+      }
     }
   ],
   "components": {
@@ -390,6 +470,28 @@
         "description": "A block object",
         "schema": {
           "$ref": "#/components/schemas/Block"
+        }
+      },
+      "TransactionHash": {
+        "name": "transactionHash",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/TransactionHash"
+        }
+      },
+      "TransactionResult": {
+        "name": "transactionResult",
+        "description": "Returns a transaction or null",
+        "schema": {
+          "title": "TransactionOrNull",
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            {
+              "$ref": "#/components/schemas/Null"
+            }
+          ]
         }
       }
     },
@@ -870,6 +972,9 @@
           "hash": {
             "$ref": "#/components/schemas/TransactionHash"
           },
+          "l2Hash": {
+            "$ref": "#/components/schemas/TransactionHash"
+          },
           "input": {
             "title": "transactionInput",
             "type": "string",
@@ -1047,6 +1152,9 @@
           "transactionHash": {
             "$ref": "#/components/schemas/TransactionHash"
           },
+          "transactionL2Hash": {
+            "$ref": "#/components/schemas/TransactionHash"
+          },
           "transactionIndex": {
             "$ref": "#/components/schemas/TransactionIndex"
           },
@@ -1151,6 +1259,27 @@
           },
           "toBlock": {
             "$ref": "#/components/schemas/BlockNumber"
+          }
+        }
+      },
+      "ExitRoots": {
+        "title": "ExitRoots",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "blockNumber": {
+            "$ref": "#/components/schemas/BlockNumber"
+          },
+          "timestamp": {
+            "title": "timestamp",
+            "type": "string",
+            "description": "The unix timestamp of the block mentioned in the blockNumber field"
+          },
+          "mainnetExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
+          },
+          "rollupExitRoot": {
+            "$ref": "#/components/schemas/Keccak"
           }
         }
       }

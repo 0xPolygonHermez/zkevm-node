@@ -55,7 +55,8 @@ func Register() {
 				Help: "[JSONRPC] number of requests handled",
 			},
 			Labels: []string{requestHandledTypeLabelName},
-		}}
+		},
+	}
 
 	start := 0.1
 	width := 0.1

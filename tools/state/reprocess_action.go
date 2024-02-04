@@ -36,7 +36,7 @@ func (r *reprocessAction) start() error {
 	oldStateRoot := batch.StateRoot
 	oldAccInputHash := batch.AccInputHash
 
-	for i := uint64(firstBatchNumber); i < lastBatch; i++ {
+	for i := firstBatchNumber; i < lastBatch; i++ {
 		r.output.startProcessingBatch(i)
 		batchOnDB, response, err := r.stepWithFlushId(i, oldStateRoot, oldAccInputHash)
 		if response != nil {
@@ -78,7 +78,7 @@ func (r *reprocessAction) stepWithFlushId(i uint64, oldStateRoot common.Hash, ol
 
 // returns:
 // - state.Batch -> batch on DB
-// - *ProcessBatchResponse -> response of reprocessing batch with EXECTOR
+// - *ProcessBatchResponse -> response of reprocessing batch with EXECUTOR
 func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHash common.Hash) (*state.Batch, *state.ProcessBatchResponse, error) {
 	dbTx, err := r.st.BeginStateTransaction(r.ctx)
 	if err != nil {
@@ -97,10 +97,10 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 		OldStateRoot:    oldStateRoot,
 		OldAccInputHash: oldAccInputHash,
 		Coinbase:        batch2.Coinbase,
-		Timestamp:       batch2.Timestamp,
+		Timestamp_V1:    batch2.Timestamp,
 
-		GlobalExitRoot: batch2.GlobalExitRoot,
-		Transactions:   batch2.BatchL2Data,
+		GlobalExitRoot_V1: batch2.GlobalExitRoot,
+		Transactions:      batch2.BatchL2Data,
 	}
 	log.Debugf("Processing batch %d: ntx:%d StateRoot:%s", batch2.BatchNumber, len(batch2.BatchL2Data), batch2.StateRoot)
 	forkID := r.st.GetForkIDByBatchNumber(batch2.BatchNumber)
@@ -115,11 +115,13 @@ func (r *reprocessAction) step(i uint64, oldStateRoot common.Hash, oldAccInputHa
 
 	log.Infof("id:%d len_trs:%d oldStateRoot:%s", batch2.BatchNumber, len(syncedTxs), request.OldStateRoot)
 	response, err = r.st.ProcessBatch(r.ctx, request, r.updateHasbDB)
-	for tx_i, txresponse := range response.Responses {
-		if txresponse.RomError != nil {
-			r.output.addTransactionError(tx_i, txresponse.RomError)
-			log.Errorf("error processing batch %d. tx:%d Error: %v stateroot:%s", i, tx_i, txresponse.RomError, response.NewStateRoot)
-			//return txresponse.RomError
+	for _, blockResponse := range response.BlockResponses {
+		for tx_i, txresponse := range blockResponse.TransactionResponses {
+			if txresponse.RomError != nil {
+				r.output.addTransactionError(tx_i, txresponse.RomError)
+				log.Errorf("error processing batch %d. tx:%d Error: %v stateroot:%s", i, tx_i, txresponse.RomError, response.NewStateRoot)
+				//return txresponse.RomError
+			}
 		}
 	}
 

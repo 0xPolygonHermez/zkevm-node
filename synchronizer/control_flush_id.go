@@ -7,6 +7,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -24,7 +25,7 @@ type FlushIDController interface {
 
 // ClientFlushIDControl is a struct to control the flushID and ProverID, implements FlushIDController interface
 type ClientFlushIDControl struct {
-	state    stateInterface
+	state    syncinterfaces.StateFullInterface
 	ctx      context.Context
 	eventLog *event.EventLog
 
@@ -41,7 +42,7 @@ type ClientFlushIDControl struct {
 }
 
 // NewFlushIDController create a new struct ClientFlushIDControl
-func NewFlushIDController(state stateInterface, ctx context.Context, eventLog *event.EventLog) *ClientFlushIDControl {
+func NewFlushIDController(state syncinterfaces.StateFullInterface, ctx context.Context, eventLog *event.EventLog) *ClientFlushIDControl {
 	return &ClientFlushIDControl{
 		state:                   state,
 		ctx:                     ctx,

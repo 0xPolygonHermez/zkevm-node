@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"math/rand"
 
+	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
@@ -71,6 +72,10 @@ func (s *ClientSynchronizer) getBatchL2Data(batchNum uint64, expectedTransaction
 }
 
 func (s *ClientSynchronizer) getDataFromCommittee(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
+	if s.dataCommitteeClientFactory == nil {
+		s.dataCommitteeClientFactory = &dataCommitteeClient.ClientFactory{}
+	}
+
 	intialMember := s.selectedCommitteeMember
 	found := false
 	for !found && intialMember != -1 {

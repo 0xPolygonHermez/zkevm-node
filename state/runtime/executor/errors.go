@@ -14,8 +14,12 @@ var (
 	ErrROMUnspecified = fmt.Errorf("unspecified ROM error")
 	// ErrExecutorUnknown indicates an unknown executor error
 	ErrExecutorUnknown = fmt.Errorf("unknown executor error")
+	// ErrCodeExecutorUnknown indicates an unknown executor error
+	ErrCodeExecutorUnknown = ExecutorError(math.MaxInt32)
 	// ErrROMUnknown indicates an unknown ROM error
 	ErrROMUnknown = fmt.Errorf("unknown ROM error")
+	// ErrCodeROMUnknown indicates an unknown ROM error
+	ErrCodeROMUnknown = RomError(math.MaxInt32)
 )
 
 // RomErr returns an instance of error related to the ExecutorError
@@ -51,6 +55,8 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrOutOfCountersPadding
 	case RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON:
 		return runtime.ErrOutOfCountersPoseidon
+	case RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA:
+		return runtime.ErrOutOfCountersSha
 	case RomError_ROM_ERROR_INVALID_JUMP:
 		return runtime.ErrInvalidJump
 	case RomError_ROM_ERROR_INVALID_OPCODE:
@@ -81,8 +87,17 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrUnsupportedForkId
 	case RomError_ROM_ERROR_INVALID_RLP:
 		return runtime.ErrInvalidRLP
+	// Start of V2 errors
+	case RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK:
+		return runtime.ErrInvalidDecodeChangeL2Block
+	case RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK:
+		return runtime.ErrInvalidNotFirstTxChangeL2Block
+	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP:
+		return runtime.ErrInvalidTxChangeL2BlockLimitTimestamp
+	case RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP:
+		return runtime.ErrInvalidTxChangeL2BlockMinTimestamp
 	}
-	return fmt.Errorf("unknown error")
+	return ErrROMUnknown
 }
 
 // RomErrorCode returns the error code for a given error
@@ -116,6 +131,8 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_PADDING
 	case runtime.ErrOutOfCountersPoseidon:
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	case runtime.ErrOutOfCountersSha:
+		return RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 	case runtime.ErrInvalidJump:
 		return RomError_ROM_ERROR_INVALID_JUMP
 	case runtime.ErrInvalidOpCode:
@@ -146,13 +163,22 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_UNSUPPORTED_FORK_ID
 	case runtime.ErrInvalidRLP:
 		return RomError_ROM_ERROR_INVALID_RLP
+	// Start of V2 errors
+	case runtime.ErrInvalidDecodeChangeL2Block:
+		return RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK
+	case runtime.ErrInvalidNotFirstTxChangeL2Block:
+		return RomError_ROM_ERROR_INVALID_NOT_FIRST_TX_CHANGE_L2_BLOCK
+	case runtime.ErrInvalidTxChangeL2BlockLimitTimestamp:
+		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_LIMIT_TIMESTAMP
+	case runtime.ErrInvalidTxChangeL2BlockMinTimestamp:
+		return RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP
 	}
-	return math.MaxInt32
+	return ErrCodeROMUnknown
 }
 
 // IsROMOutOfCountersError indicates if the error is an ROM OOC
 func IsROMOutOfCountersError(error RomError) bool {
-	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 }
 
 // IsROMOutOfGasError indicates if the error is an ROM OOG
@@ -160,9 +186,9 @@ func IsROMOutOfGasError(error RomError) bool {
 	return error == RomError_ROM_ERROR_OUT_OF_GAS
 }
 
-// IsExecutorOutOfCountersError indicates if the error is an ROM OOC
-func IsExecutorOutOfCountersError(error ExecutorError) bool {
-	return error >= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS && error <= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON
+// IsExecutorCountersOverflowError indicates if the error is OOC detected by the executor
+func IsExecutorCountersOverflowError(error ExecutorError) bool {
+	return (error >= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_STEPS && error <= ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_POSEIDON) || error == ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256
 }
 
 // IsExecutorUnspecifiedError indicates an unspecified error in the executor
@@ -183,6 +209,11 @@ func IsInvalidNonceError(error RomError) bool {
 // IsInvalidBalanceError indicates if the error is due to a invalid balance
 func IsInvalidBalanceError(error RomError) bool {
 	return error == RomError_ROM_ERROR_INTRINSIC_INVALID_BALANCE
+}
+
+// IsInvalidL2Block indicates if the error is related to L2Block and invalidate all the batch
+func IsInvalidL2Block(error RomError) bool {
+	return error >= RomError_ROM_ERROR_INVALID_DECODE_CHANGE_L2_BLOCK && error <= RomError_ROM_ERROR_INVALID_TX_CHANGE_L2_BLOCK_MIN_TIMESTAMP
 }
 
 // ExecutorErr returns an instance of error related to the ExecutorError
@@ -350,6 +381,71 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidContractsBytecodeValue
 	case ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY:
 		return runtime.ErrExecutorErrorInvalidGetKey
+		// Start of V2 errors
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256:
+		return runtime.ErrExecutorSMMainCountersOverflowSha256
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS:
+		return runtime.ErrExecutorSMMainHashS
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSSizeOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE:
+		return runtime.ErrExecutorSMMainHashSPositionNegative
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSPositionPlusSizeOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND:
+		return runtime.ErrExecutorSMMainHashSDigestAddressNotFound
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED:
+		return runtime.ErrExecutorSMMainHashSDigestNotCompleted
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSValueMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSPaddingMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSSizeMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSLenLengthMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE:
+		return runtime.ErrExecutorSMMainHashSLenCalledTwice
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND:
+		return runtime.ErrExecutorSMMainHashSDigestNotFound
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH:
+		return runtime.ErrExecutorSMMainHashSDigestDigestMismatch
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE:
+		return runtime.ErrExecutorSMMainHashSDigestCalledTwice
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE:
+		return runtime.ErrExecutorSMMainHashSReadOutOfRange
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_ROOT:
+		return runtime.ErrExecutorErrorInvalidL1InfoRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1:
+		return runtime.ErrExecutorErrorInvalidForcedBlockhashL1
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT:
+		return runtime.ErrExecutorErrorInvalidL1DataV2GlobalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1:
+		return runtime.ErrExecutorErrorInvalidL1DataV2BlockHashL1
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_SMT_PROOF:
+		return runtime.ErrExecutorErrorInvalidL1SmtProof
+	case ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE:
+		return runtime.ErrExecutorErrorInvalidBalance
+	case ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH:
+		return runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT:
+		return runtime.ErrExecutorErrorInvalidNewStateRoot
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH:
+		return runtime.ErrExecutorErrorInvalidNewAccInputHash
+	case ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT:
+		return runtime.ErrExecutorErrorInvalidNewLocalExitRoot
+	case ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND:
+		return runtime.ErrExecutorErrorDBKeyNotFound
+	case ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE:
+		return runtime.ErrExecutorErrorSMTInvalidDataSize
+	case ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR:
+		return runtime.ErrExecutorErrorHashDBGRPCError
+	case ExecutorError_EXECUTOR_ERROR_STATE_MANAGER:
+		return runtime.ErrExecutorErrorStateManager
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeIndex
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue
 	}
 	return ErrExecutorUnknown
 }
@@ -517,6 +613,72 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_CONTRACTS_BYTECODE_VALUE
 	case runtime.ErrExecutorErrorInvalidGetKey:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_GET_KEY
+		// Start of V2 errors
+	case runtime.ErrExecutorSMMainCountersOverflowSha256:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_COUNTERS_OVERFLOW_SHA256
+	case runtime.ErrExecutorSMMainHashS:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS
+	case runtime.ErrExecutorSMMainHashSSizeOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_OUT_OF_RANGE
+	case runtime.ErrExecutorSMMainHashSPositionNegative:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_NEGATIVE
+	case runtime.ErrExecutorSMMainHashSPositionPlusSizeOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_POSITION_PLUS_SIZE_OUT_OF_RANGE
+	case runtime.ErrExecutorSMMainHashSDigestAddressNotFound:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_ADDRESS_NOT_FOUND
+	case runtime.ErrExecutorSMMainHashSDigestNotCompleted:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_COMPLETED
+	case runtime.ErrExecutorSMMainHashSValueMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_VALUE_MISMATCH
+	case runtime.ErrExecutorSMMainHashSPaddingMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_PADDING_MISMATCH
+	case runtime.ErrExecutorSMMainHashSSizeMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_SIZE_MISMATCH
+	case runtime.ErrExecutorSMMainHashSLenLengthMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_LENGTH_MISMATCH
+	case runtime.ErrExecutorSMMainHashSLenCalledTwice:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSLEN_CALLED_TWICE
+	case runtime.ErrExecutorSMMainHashSDigestNotFound:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_NOT_FOUND
+	case runtime.ErrExecutorSMMainHashSDigestDigestMismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_DIGEST_MISMATCH
+	case runtime.ErrExecutorSMMainHashSDigestCalledTwice:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHSDIGEST_CALLED_TWICE
+	case runtime.ErrExecutorSMMainHashSReadOutOfRange:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_HASHS_READ_OUT_OF_RANGE
+	case runtime.ErrExecutorErrorInvalidL1InfoRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_ROOT
+	case runtime.ErrExecutorErrorInvalidForcedBlockhashL1:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_FORCED_BLOCKHASH_L1
+	case runtime.ErrExecutorErrorInvalidL1DataV2GlobalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_GLOBAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorInvalidL1DataV2BlockHashL1:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_DATA_V2_BLOCK_HASH_L1
+	case runtime.ErrExecutorErrorInvalidL1SmtProof:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_SMT_PROOF
+	case runtime.ErrExecutorErrorInvalidBalance:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_BALANCE
+	case runtime.ErrExecutorErrorSMMainBinaryLt4Mismatch:
+		return ExecutorError_EXECUTOR_ERROR_SM_MAIN_BINARY_LT4_MISMATCH
+	case runtime.ErrExecutorErrorInvalidNewStateRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_STATE_ROOT
+	case runtime.ErrExecutorErrorInvalidNewAccInputHash:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_ACC_INPUT_HASH
+	case runtime.ErrExecutorErrorInvalidNewLocalExitRoot:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_NEW_LOCAL_EXIT_ROOT
+	case runtime.ErrExecutorErrorDBKeyNotFound:
+		return ExecutorError_EXECUTOR_ERROR_DB_KEY_NOT_FOUND
+	case runtime.ErrExecutorErrorSMTInvalidDataSize:
+		return ExecutorError_EXECUTOR_ERROR_SMT_INVALID_DATA_SIZE
+	case runtime.ErrExecutorErrorHashDBGRPCError:
+		return ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR
+	case runtime.ErrExecutorErrorStateManager:
+		return ExecutorError_EXECUTOR_ERROR_STATE_MANAGER
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeIndex:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE
 	}
-	return math.MaxInt32
+
+	return ErrCodeExecutorUnknown
 }

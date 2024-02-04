@@ -191,24 +191,23 @@ To configure your Metamask to use your local environment, follow these steps:
 
 | Address | Description |
 |---|---|
-| 0x0D9088C72Cd4F08e9dDe474D8F5394147f64b22C | Proof of Efficiency |
-| 0x10B65c586f795aF3eCCEe594fE4E38E1F059F780 | Bridge |
-| 0xcFE6D77a653b988203BfAc9C6a69eA9D583bdC2b | Matic token |
-| 0x82109a709138A2953C720D3d775168717b668ba6 | L1 OKB token |
-| 0x82109a709138A2953C720D3d775168717b668ba6 | L2 WETH token |
-| 0xEd236da21Ff62bC7B62608AdB818da49E8549fa7 | GlobalExitRootManager |
+| 0x8dAF17A20c9DBA35f005b6324F493785D239719d | Polygon ZKEVM |
+| 0x40E0576c0A7dff9dc460B29ba73e79aBf73dD2a9 | Polygon Bridge |
+| 0x5FbDB2315678afecb367f032d93F642f64180aa3 | Pol token |
+| 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318 | Polygon GlobalExitRootManager |
+| 0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e | Polygon RollupManager |
 
-## Admin Account
+## Deployer Account
+
 | Address | Private Key |
 |---|---|
-| 0x2ECF31eCe36ccaC2d3222A303b1409233ECBB225 | 0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38 |
+| 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 | 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 |
 
 ## Sequencer Account
 
 | Address | Private Key |
 |---|---|
 | 0x617b3a3528F9cDd6630fd3301B9c8911F7Bf063D | 0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e |
-| 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 | 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 |
 
 ## Accounts
 

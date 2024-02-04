@@ -500,7 +500,7 @@ func RPCErrorResponse(code int, message string, err error, logError bool) (inter
 }
 
 // RPCErrorResponseWithData formats error to be returned through RPC
-func RPCErrorResponseWithData(code int, message string, data *[]byte, err error, logError bool) (interface{}, types.Error) {
+func RPCErrorResponseWithData(code int, message string, data []byte, err error, logError bool) (interface{}, types.Error) {
 	if logError {
 		if err != nil {
 			log.Debugf("%v: %v", message, err.Error())

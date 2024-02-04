@@ -226,3 +226,21 @@ func (e *EthEndpoints) GetBlockInternalTransactions(hash types.ArgHash) (interfa
 	}
 	return blockInternalTxs, nil
 }
+
+func (e *EthEndpoints) getGasEstimationWithFactorX1(gasEstimation uint64) uint64 {
+	gasEstimationWithFactor := gasEstimation
+	var gasLimitFactor float64
+
+	if getApolloConfig().Enable() {
+		getApolloConfig().RLock()
+		gasLimitFactor = getApolloConfig().GasLimitFactor
+		getApolloConfig().RUnlock()
+	} else {
+		gasLimitFactor = e.cfg.GasLimitFactor
+	}
+
+	if gasLimitFactor > 0 {
+		gasEstimationWithFactor = uint64(float64(gasEstimation) * gasLimitFactor)
+	}
+	return gasEstimationWithFactor
+}

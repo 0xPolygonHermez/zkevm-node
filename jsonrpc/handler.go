@@ -228,12 +228,10 @@ func (h *Handler) registerService(service Service) {
 func (h *Handler) getFnHandler(req types.Request) (*serviceData, *funcData, types.Error) {
 	methodNotFoundErrorMessage := fmt.Sprintf("the method %s does not exist/is not available", req.Method)
 
-	callName := strings.SplitN(req.Method, "_", 2) //nolint:gomnd
-	if len(callName) != 2 {                        //nolint:gomnd
+	serviceName, funcName, found := strings.Cut(req.Method, "_")
+	if !found {
 		return nil, nil, types.NewRPCError(types.NotFoundErrorCode, methodNotFoundErrorMessage)
 	}
-
-	serviceName, funcName := callName[0], callName[1]
 
 	service, ok := h.serviceMap[serviceName]
 	if !ok {

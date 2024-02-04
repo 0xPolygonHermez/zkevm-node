@@ -90,6 +90,21 @@ f1_another_name="value_f1"
 f2_another_name=5678
 `
 
+// func TestConfigWithPointer(t *testing.T) {
+// 	cli := cli.NewContext(nil, nil, nil)
+// 	generator := ConfigJsonSchemaGenerater[ConfigWithBatchDataPointer]{
+// 		repoName:                "github.com/0xPolygonHermez/zkevm-node/config/",
+// 		cleanRequiredField:      true,
+// 		addCodeCommentsToSchema: true,
+// 		pathSourceCode:          "./",
+// 		repoNameSuffix:          "config/",
+// 		defaultValues:           &ConfigWithBatchDataPointer{},
+// 	}
+// 	schema, err := generator.GenerateJsonSchema(cli)
+// 	require.NoError(t, err)
+// 	require.NotNil(t, schema)
+// }
+
 func TestGenerateJsonSchemaWithAEthAddressEmpty(t *testing.T) {
 	cli := cli.NewContext(nil, nil, nil)
 	generator := ConfigJsonSchemaGenerater[TestConfigWithAddress]{

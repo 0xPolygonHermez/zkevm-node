@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -52,13 +52,13 @@ func (etherMan *Client) BuildSequenceBatchesTxDataX1(sender common.Address, sequ
 }
 
 func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
-	var batches []polygonzkevm.PolygonZkEVMBatchData
+	var batches []oldpolygonzkevm.PolygonZkEVMBatchData
 
 	var tx *types.Transaction
 	var err error
 	if len(committeeSignaturesAndAddrs) > 0 {
 		for _, seq := range sequences {
-			batch := polygonzkevm.PolygonZkEVMBatchData{
+			batch := oldpolygonzkevm.PolygonZkEVMBatchData{
 				TransactionsHash:   crypto.Keccak256Hash(seq.BatchL2Data),
 				GlobalExitRoot:     seq.GlobalExitRoot,
 				Timestamp:          uint64(seq.Timestamp),
@@ -69,10 +69,10 @@ func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []et
 		}
 
 		log.Infof("Sequence batches with validium.")
-		tx, err = etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
+		tx, err = etherMan.OldZkEVM.SequenceBatches(&opts, batches, l2Coinbase, committeeSignaturesAndAddrs)
 	} else {
 		for _, seq := range sequences {
-			batch := polygonzkevm.PolygonZkEVMBatchData{
+			batch := oldpolygonzkevm.PolygonZkEVMBatchData{
 				Transactions:       seq.BatchL2Data,
 				GlobalExitRoot:     seq.GlobalExitRoot,
 				Timestamp:          uint64(seq.Timestamp),
@@ -83,7 +83,7 @@ func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []et
 		}
 
 		log.Infof("Sequence batches with rollup.")
-		tx, err = etherMan.ZkEVM.SequenceBatches(&opts, batches, l2Coinbase, nil)
+		tx, err = etherMan.OldZkEVM.SequenceBatches(&opts, batches, l2Coinbase, nil)
 	}
 
 	if err != nil {

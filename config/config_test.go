@@ -42,7 +42,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Synchronizer.L1SynchronizationMode",
-			expectedValue: "sequential",
+			expectedValue: "parallel",
 		},
 		{
 			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
@@ -53,76 +53,68 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(25),
 		},
 		{
-			path:          "Sequencer.WaitPeriodPoolIsEmpty",
-			expectedValue: types.NewDuration(1 * time.Second),
-		},
-		{
-			path:          "Sequencer.BlocksAmountForTxsToBeDeleted",
+			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
 			expectedValue: uint64(100),
 		},
 		{
-			path:          "Sequencer.FrequencyToCheckTxsForDelete",
+			path:          "Sequencer.DeletePoolTxsCheckInterval",
 			expectedValue: types.NewDuration(12 * time.Hour),
 		},
 		{
-			path:          "Sequencer.TxLifetimeCheckTimeout",
+			path:          "Sequencer.TxLifetimeCheckInterval",
 			expectedValue: types.NewDuration(10 * time.Minute),
 		},
 		{
-			path:          "Sequencer.MaxTxLifetime",
+			path:          "Sequencer.TxLifetimeMax",
 			expectedValue: types.NewDuration(3 * time.Hour),
 		},
 		{
-			path:          "Sequencer.Finalizer.GERDeadlineTimeout",
-			expectedValue: types.NewDuration(5 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ForcedBatchDeadlineTimeout",
-			expectedValue: types.NewDuration(60 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.SleepDuration",
-			expectedValue: types.NewDuration(100 * time.Millisecond),
-		},
-		{
-			path:          "Sequencer.Finalizer.ResourcePercentageToCloseBatch",
-			expectedValue: uint32(10),
-		},
-		{
-			path:          "Sequencer.Finalizer.GERFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingL1Timeout",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingGER",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ClosingSignalsManagerWaitForCheckingForcedBatches",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.Finalizer.ForcedBatchesFinalityNumberOfBlocks",
-			expectedValue: uint64(64),
-		},
-		{
-			path:          "Sequencer.Finalizer.StopSequencerOnBatchNum",
-			expectedValue: uint64(0),
-		},
-		{
-			path:          "Sequencer.Finalizer.TimestampResolution",
-			expectedValue: types.NewDuration(10 * time.Second),
-		},
-		{
-			path:          "Sequencer.DBManager.PoolRetrievalInterval",
+			path:          "Sequencer.LoadPoolTxsCheckInterval",
 			expectedValue: types.NewDuration(500 * time.Millisecond),
 		},
 		{
-			path:          "Sequencer.DBManager.L2ReorgRetrievalInterval",
+			path:          "Sequencer.StateConsistencyCheckInterval",
 			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesTimeout",
+			expectedValue: types.NewDuration(60 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.NewTxsWaitInterval",
+			expectedValue: types.NewDuration(100 * time.Millisecond),
+		},
+		{
+			path:          "Sequencer.Finalizer.ResourceExhaustedMarginPct",
+			expectedValue: uint32(10),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesL1BlockConfirmations",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.L1InfoTreeL1BlockConfirmations",
+			expectedValue: uint64(64),
+		},
+		{
+			path:          "Sequencer.Finalizer.ForcedBatchesCheckInterval",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L1InfoTreeCheckInterval",
+			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.L2BlockMaxDeltaTimestamp",
+			expectedValue: types.NewDuration(3 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.HaltOnBatchNumber",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Sequencer.Finalizer.BatchMaxDeltaTimestamp",
+			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",
@@ -131,6 +123,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.StreamServer.Filename",
 			expectedValue: "",
+		},
+		{
+			path:          "Sequencer.StreamServer.Version",
+			expectedValue: uint8(0),
 		},
 		{
 			path:          "Sequencer.StreamServer.Enabled",
@@ -145,8 +141,12 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(5 * time.Second),
 		},
 		{
-			path:          "SequenceSender.MaxBatchesForL1",
-			expectedValue: uint64(10),
+			path:          "SequenceSender.L1BlockTimestampMargin",
+			expectedValue: types.NewDuration(30 * time.Second),
+		},
+		{
+			path:          "SequenceSender.MaxTxSizeForL1",
+			expectedValue: uint64(131072),
 		},
 		{
 			path:          "SequenceSender.GasOffset",
@@ -165,7 +165,7 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
 		},
 		{
-			path:          "NetworkConfig.L1Config.MaticAddr",
+			path:          "NetworkConfig.L1Config.PolAddr",
 			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
 		},
 		{
@@ -210,7 +210,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "x1-prover:50061",
+			expectedValue: "zkevm-prover:50061",
 		},
 		{
 			path:          "State.DB.User",
@@ -226,7 +226,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "State.DB.Host",
-			expectedValue: "x1-state-db",
+			expectedValue: "zkevm-state-db",
 		},
 		{
 			path:          "State.DB.Port",
@@ -302,6 +302,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(10),
 		},
 		{
+			path:          "Pool.EffectiveGasPrice.EthTransferGasPrice",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor",
+			expectedValue: float64(0),
+		},
+		{
 			path:          "Pool.DB.User",
 			expectedValue: "pool_user",
 		},
@@ -315,7 +323,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.DB.Host",
-			expectedValue: "x1-pool-db",
+			expectedValue: "zkevm-pool-db",
 		},
 		{
 			path:          "Pool.DB.Port",
@@ -399,7 +407,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "x1-prover:50071",
+			expectedValue: "zkevm-prover:50071",
 		},
 		{
 			path:          "Executor.MaxResourceExhaustedAttempts",
@@ -463,6 +471,10 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Aggregator.GasOffset",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Aggregator.UpgradeEtrogBatchNumber",
 			expectedValue: uint64(0),
 		},
 		{

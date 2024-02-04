@@ -151,113 +151,6 @@
 					"type": "integer",
 					"description": "MaxGasPriceLimit helps avoiding transactions to be sent over an specified\ngas price amount, default value is 0, which means no limit.\nIf the gas price provided by the network and adjusted by the GasPriceMarginFactor\nis greater than this configuration, transaction will have its gas price set to\nthe value configured in this config as the limit.\n\nex:\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 150\ntx gas price = 120\n\nsuggested gas price: 100\ngas price margin factor: 20%\nmax gas price limit: 110\ntx gas price = 110",
 					"default": 0
-				},
-				"CustodialAssets": {
-					"properties": {
-						"Enable": {
-							"type": "boolean",
-							"description": "Enable is the flag to enable the custodial assets",
-							"default": false
-						},
-						"URL": {
-							"type": "string",
-							"description": "URL is the url to sign the custodial assets",
-							"default": "http://localhost:8080"
-						},
-						"Symbol": {
-							"type": "integer",
-							"description": "Symbol is the symbol of the network, 2 prd, 2882 devnet",
-							"default": 2882
-						},
-						"SequencerAddr": {
-							"items": {
-								"type": "integer"
-							},
-							"type": "array",
-							"maxItems": 20,
-							"minItems": 20,
-							"description": "SequencerAddr is the address of the sequencer",
-							"default": "0x1a13bddcc02d363366e04d4aa588d3c125b0ff6f"
-						},
-						"AggregatorAddr": {
-							"items": {
-								"type": "integer"
-							},
-							"type": "array",
-							"maxItems": 20,
-							"minItems": 20,
-							"description": "AggregatorAddr is the address of the aggregator",
-							"default": "0x66e39a1e507af777e8c385e2d91559e20e306303"
-						},
-						"WaitResultTimeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "WaitResultTimeout is the timeout to wait for the result of the custodial assets",
-							"default": "2m0s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"OperateTypeSeq": {
-							"type": "integer",
-							"description": "OperateTypeSeq is the operate type of the custodial assets for the sequencer",
-							"default": 1
-						},
-						"OperateTypeAgg": {
-							"type": "integer",
-							"description": "OperateTypeAgg is the operate type of the custodial assets for the aggregator",
-							"default": 2
-						},
-						"ProjectSymbol": {
-							"type": "integer",
-							"description": "ProjectSymbol is the project symbol of the custodial assets",
-							"default": 3011
-						},
-						"OperateSymbol": {
-							"type": "integer",
-							"description": "OperateSymbol is the operate symbol of the custodial assets",
-							"default": 2
-						},
-						"SysFrom": {
-							"type": "integer",
-							"description": "SysFrom is the sys from of the custodial assets",
-							"default": 3
-						},
-						"UserID": {
-							"type": "integer",
-							"description": "UserID is the user id of the custodial assets",
-							"default": 0
-						},
-						"OperateAmount": {
-							"type": "integer",
-							"description": "OperateAmount is the operate amount of the custodial assets",
-							"default": 0
-						},
-						"RequestSignURI": {
-							"type": "string",
-							"description": "RequestSignURI is the request sign uri of the custodial assets",
-							"default": "/priapi/v1/assetonchain/ecology/ecologyOperate"
-						},
-						"QuerySignURI": {
-							"type": "string",
-							"description": "QuerySignURI is the query sign uri of the custodial assets",
-							"default": "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo"
-						},
-						"AccessKey": {
-							"type": "string",
-							"description": "AccessKey is the access key of the custodial assets",
-							"default": ""
-						},
-						"SecretKey": {
-							"type": "string",
-							"description": "SecretKey is the secret key of the custodial assets",
-							"default": ""
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "CustodialAssets is the configuration for the custodial assets"
 				}
 			},
 			"additionalProperties": false,
@@ -266,11 +159,6 @@
 		},
 		"Pool": {
 			"properties": {
-				"FreeClaimGasLimit": {
-					"type": "integer",
-					"description": "FreeClaimGasLimit is the max gas allowed use to do a free claim",
-					"default": 150000
-				},
 				"IntervalToRefreshBlockedAddresses": {
 					"type": "string",
 					"title": "Duration",
@@ -321,7 +209,7 @@
 						"Host": {
 							"type": "string",
 							"description": "Host address of database",
-							"default": "x1-pool-db"
+							"default": "zkevm-pool-db"
 						},
 						"Port": {
 							"type": "string",
@@ -378,16 +266,6 @@
 					"description": "GlobalQueue represents the maximum number of non-executable transaction slots for all accounts",
 					"default": 1024
 				},
-				"FreeGasAddress": {
-					"items": {
-						"type": "string"
-					},
-					"type": "array",
-					"description": "FreeGasAddress is the default free gas address",
-					"default": [
-						"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-					]
-				},
 				"EffectiveGasPrice": {
 					"properties": {
 						"Enabled": {
@@ -424,6 +302,16 @@
 							"type": "integer",
 							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
+						},
+						"EthTransferGasPrice": {
+							"type": "integer",
+							"description": "EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
+						},
+						"EthTransferL1GasPriceFactor": {
+							"type": "number",
+							"description": "EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
 						},
 						"L2GasPriceSuggesterFactor": {
 							"type": "number",
@@ -562,132 +450,6 @@
 					"type": "boolean",
 					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
 					"default": true
-				},
-				"EnablePendingTransactionFilter": {
-					"type": "boolean",
-					"description": "EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction",
-					"default": false
-				},
-				"Nacos": {
-					"properties": {
-						"URLs": {
-							"type": "string",
-							"description": "URLs nacos server urls for discovery service of rest api, url is separated by \",\"",
-							"default": ""
-						},
-						"NamespaceId": {
-							"type": "string",
-							"description": "NamespaceId nacos namepace id for discovery service of rest api",
-							"default": ""
-						},
-						"ApplicationName": {
-							"type": "string",
-							"description": "ApplicationName rest application name in  nacos",
-							"default": ""
-						},
-						"ExternalListenAddr": {
-							"type": "string",
-							"description": "ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker",
-							"default": ""
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "Nacos configuration"
-				},
-				"NacosWs": {
-					"properties": {
-						"URLs": {
-							"type": "string",
-							"description": "URLs nacos server urls for discovery service of rest api, url is separated by \",\"",
-							"default": ""
-						},
-						"NamespaceId": {
-							"type": "string",
-							"description": "NamespaceId nacos namepace id for discovery service of rest api",
-							"default": ""
-						},
-						"ApplicationName": {
-							"type": "string",
-							"description": "ApplicationName rest application name in  nacos",
-							"default": ""
-						},
-						"ExternalListenAddr": {
-							"type": "string",
-							"description": "ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker",
-							"default": ""
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "NacosWs configuration"
-				},
-				"GasLimitFactor": {
-					"type": "number",
-					"description": "GasLimitFactor is used to multiply the suggested gas provided by the network\nin order to allow a enough gas to be set for all the transactions default value is 1.\n\nex:\nsuggested gas limit: 100\nGasLimitFactor: 1\ngas limit = 100\n\nsuggested gas limit: 100\nGasLimitFactor: 1.1\ngas limit = 110",
-					"default": 1
-				},
-				"DisableAPIs": {
-					"items": {
-						"type": "string"
-					},
-					"type": "array",
-					"description": "DisableAPIs disable some API",
-					"default": []
-				},
-				"RateLimit": {
-					"properties": {
-						"Enabled": {
-							"type": "boolean",
-							"description": "Enabled defines if the rate limit is enabled or disabled",
-							"default": false
-						},
-						"RateLimitApis": {
-							"items": {
-								"type": "string"
-							},
-							"type": "array",
-							"description": "RateLimitApis defines the apis that need to be rate limited",
-							"default": []
-						},
-						"RateLimitCount": {
-							"type": "integer",
-							"description": "RateLimitBurst defines the maximum burst size of requests",
-							"default": 100
-						},
-						"RateLimitDuration": {
-							"type": "integer",
-							"description": "RateLimitDuration defines the time window for the rate limit",
-							"default": 1
-						},
-						"SpecialApis": {
-							"items": {
-								"properties": {
-									"Api": {
-										"type": "string",
-										"description": "Api defines the api that need to be rate limited"
-									},
-									"Count": {
-										"type": "integer",
-										"description": "Count defines the maximum burst size of requests"
-									},
-									"Duration": {
-										"type": "integer",
-										"description": "Duration defines the time window for the rate limit"
-									}
-								},
-								"additionalProperties": false,
-								"type": "object",
-								"description": "RateLimitItem defines the special rate limit for some apis"
-							},
-							"type": "array",
-							"description": "SpecialApis defines the apis that need to be rate limited with special rate limit",
-							"default": []
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "RateLimit enable rate limit"
 				}
 			},
 			"additionalProperties": false,
@@ -723,7 +485,7 @@
 						"parallel"
 					],
 					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
-					"default": "sequential"
+					"default": "parallel"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
@@ -831,46 +593,56 @@
 		},
 		"Sequencer": {
 			"properties": {
-				"WaitPeriodPoolIsEmpty": {
-					"type": "string",
-					"title": "Duration",
-					"description": "WaitPeriodPoolIsEmpty is the time the sequencer waits until\ntrying to add new txs to the state",
-					"default": "1s",
-					"examples": [
-						"1m",
-						"300ms"
-					]
-				},
-				"BlocksAmountForTxsToBeDeleted": {
+				"DeletePoolTxsL1BlockConfirmations": {
 					"type": "integer",
-					"description": "BlocksAmountForTxsToBeDeleted is blocks amount after which txs will be deleted from the pool",
+					"description": "DeletePoolTxsL1BlockConfirmations is blocks amount after which txs will be deleted from the pool",
 					"default": 100
 				},
-				"FrequencyToCheckTxsForDelete": {
+				"DeletePoolTxsCheckInterval": {
 					"type": "string",
 					"title": "Duration",
-					"description": "FrequencyToCheckTxsForDelete is frequency with which txs will be checked for deleting",
+					"description": "DeletePoolTxsCheckInterval is frequency with which txs will be checked for deleting",
 					"default": "12h0m0s",
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"TxLifetimeCheckTimeout": {
+				"TxLifetimeCheckInterval": {
 					"type": "string",
 					"title": "Duration",
-					"description": "TxLifetimeCheckTimeout is the time the sequencer waits to check txs lifetime",
+					"description": "TxLifetimeCheckInterval is the time the sequencer waits to check txs lifetime",
 					"default": "10m0s",
 					"examples": [
 						"1m",
 						"300ms"
 					]
 				},
-				"MaxTxLifetime": {
+				"TxLifetimeMax": {
 					"type": "string",
 					"title": "Duration",
-					"description": "MaxTxLifetime is the time a tx can be in the sequencer/worker memory",
+					"description": "TxLifetimeMax is the time a tx can be in the sequencer/worker memory",
 					"default": "3h0m0s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"LoadPoolTxsCheckInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "LoadPoolTxsCheckInterval is the time the sequencer waits to check in there are new txs in the pool",
+					"default": "500ms",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"StateConsistencyCheckInterval": {
+					"type": "string",
+					"title": "Duration",
+					"description": "StateConsistencyCheckInterval is the time the sequencer waits to check if a state inconsistency has happened",
+					"default": "5s",
 					"examples": [
 						"1m",
 						"300ms"
@@ -878,140 +650,100 @@
 				},
 				"Finalizer": {
 					"properties": {
-						"GERDeadlineTimeout": {
+						"ForcedBatchesTimeout": {
 							"type": "string",
 							"title": "Duration",
-							"description": "GERDeadlineTimeout is the time the finalizer waits after receiving closing signal to update Global Exit Root",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ForcedBatchDeadlineTimeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ForcedBatchDeadlineTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches",
+							"description": "ForcedBatchesTimeout is the time the finalizer waits after receiving closing signal to process Forced Batches",
 							"default": "1m0s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"SleepDuration": {
+						"NewTxsWaitInterval": {
 							"type": "string",
 							"title": "Duration",
-							"description": "SleepDuration is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
+							"description": "NewTxsWaitInterval is the time the finalizer sleeps between each iteration, if there are no transactions to be processed",
 							"default": "100ms",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"ResourcePercentageToCloseBatch": {
+						"ResourceExhaustedMarginPct": {
 							"type": "integer",
-							"description": "ResourcePercentageToCloseBatch is the percentage window of the resource left out for the batch to be closed",
+							"description": "ResourceExhaustedMarginPct is the percentage window of the resource left out for the batch to be closed",
 							"default": 10
 						},
-						"GERFinalityNumberOfBlocks": {
+						"ForcedBatchesL1BlockConfirmations": {
 							"type": "integer",
-							"description": "GERFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"description": "ForcedBatchesL1BlockConfirmations is number of blocks to consider GER final",
 							"default": 64
 						},
-						"ClosingSignalsManagerWaitForCheckingL1Timeout": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ClosingSignalsManagerWaitForCheckingGER": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingGER is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ClosingSignalsManagerWaitForCheckingForcedBatches": {
-							"type": "string",
-							"title": "Duration",
-							"description": "ClosingSignalsManagerWaitForCheckingL1Timeout is used by the closing signals manager to wait for its operation",
-							"default": "10s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"ForcedBatchesFinalityNumberOfBlocks": {
+						"L1InfoTreeL1BlockConfirmations": {
 							"type": "integer",
-							"description": "ForcedBatchesFinalityNumberOfBlocks is number of blocks to consider GER final",
+							"description": "L1InfoTreeL1BlockConfirmations is number of blocks to consider L1InfoRoot final",
 							"default": 64
 						},
-						"TimestampResolution": {
+						"ForcedBatchesCheckInterval": {
 							"type": "string",
 							"title": "Duration",
-							"description": "TimestampResolution is the resolution of the timestamp used to close a batch",
+							"description": "ForcedBatchesCheckInterval is used by the closing signals manager to wait for its operation",
 							"default": "10s",
 							"examples": [
 								"1m",
 								"300ms"
 							]
 						},
-						"StopSequencerOnBatchNum": {
+						"L1InfoTreeCheckInterval": {
+							"type": "string",
+							"title": "Duration",
+							"description": "L1InfoTreeCheckInterval is the wait time to check if the L1InfoRoot has been updated",
+							"default": "10s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"BatchMaxDeltaTimestamp": {
+							"type": "string",
+							"title": "Duration",
+							"description": "BatchMaxDeltaTimestamp is the resolution of the timestamp used to close a batch",
+							"default": "10s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"L2BlockMaxDeltaTimestamp": {
+							"type": "string",
+							"title": "Duration",
+							"description": "L2BlockMaxDeltaTimestamp is the resolution of the timestamp used to close a L2 block",
+							"default": "3s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
+						},
+						"HaltOnBatchNumber": {
 							"type": "integer",
-							"description": "StopSequencerOnBatchNum specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
+							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.\nThe Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
 						},
-						"SequentialReprocessFullBatch": {
+						"SequentialBatchSanityCheck": {
 							"type": "boolean",
-							"description": "SequentialReprocessFullBatch indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
+							"description": "SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
 						},
-						"FullBatchSleepDuration": {
-							"type": "string",
-							"title": "Duration",
-							"description": "FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration",
-							"default": "0s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
+						"SequentialProcessL2Block": {
+							"type": "boolean",
+							"description": "SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead\nin the processPendingL2Blocks go func",
+							"default": true
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "Finalizer's specific config properties"
-				},
-				"DBManager": {
-					"properties": {
-						"PoolRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "500ms",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						},
-						"L2ReorgRetrievalInterval": {
-							"type": "string",
-							"title": "Duration",
-							"default": "5s",
-							"examples": [
-								"1m",
-								"300ms"
-							]
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "DBManager's specific config properties"
 				},
 				"StreamServer": {
 					"properties": {
@@ -1024,6 +756,16 @@
 							"type": "string",
 							"description": "Filename of the binary data file",
 							"default": ""
+						},
+						"Version": {
+							"type": "integer",
+							"description": "Version of the binary data file",
+							"default": 0
+						},
+						"ChainID": {
+							"type": "integer",
+							"description": "ChainID is the chain ID",
+							"default": 0
 						},
 						"Enabled": {
 							"type": "boolean",
@@ -1063,6 +805,11 @@
 							"additionalProperties": false,
 							"type": "object",
 							"description": "Log is the log configuration"
+						},
+						"UpgradeEtrogBatchNumber": {
+							"type": "integer",
+							"description": "UpgradeEtrogBatchNumber is the batch number of the upgrade etrog",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
@@ -1096,15 +843,20 @@
 						"300ms"
 					]
 				},
+				"L1BlockTimestampMargin": {
+					"type": "string",
+					"title": "Duration",
+					"description": "L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before\nto send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater",
+					"default": "30s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
 				"MaxTxSizeForL1": {
 					"type": "integer",
-					"description": "// MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\n// non-trivial consequences: larger transactions than 128KB are significantly harder and\n// more expensive to propagate; larger transactions also take more resources\n// to validate whether they fit into the pool or not.",
-					"default": 0
-				},
-				"MaxBatchesForL1": {
-					"type": "integer",
-					"description": "MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx",
-					"default": 10
+					"description": "MaxTxSizeForL1 is the maximum size a single transaction can have. This field has\nnon-trivial consequences: larger transactions than 128KB are significantly harder and\nmore expensive to propagate; larger transactions also take more resources\nto validate whether they fit into the pool or not.",
+					"default": 131072
 				},
 				"SenderAddress": {
 					"items": {
@@ -1130,23 +882,6 @@
 						"Path": {
 							"type": "string",
 							"description": "Path is the file path for the key store file",
-							"default": ""
-						},
-						"Password": {
-							"type": "string",
-							"description": "Password is the password to decrypt the key store file",
-							"default": ""
-						}
-					},
-					"additionalProperties": false,
-					"type": "object",
-					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
-				},
-				"DAPermitApiPrivateKey": {
-					"properties": {
-						"Path": {
-							"type": "string",
-							"description": "Path is the file path for the key store file",
 							"default": "/pk/sequencer.keystore"
 						},
 						"Password": {
@@ -1157,17 +892,12 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "DAPermitApiPrivateKey defines all the key store files that are going\nto sign batches for DA service"
+					"description": "PrivateKey defines all the key store files that are going\nto be read in order to provide the private keys to sign the L1 txs"
 				},
 				"ForkUpgradeBatchNumber": {
 					"type": "integer",
 					"description": "Batch number where there is a forkid change (fork upgrade)",
 					"default": 0
-				},
-				"UseValidium": {
-					"type": "boolean",
-					"description": "UseValidium is a flag to enable/disable the use of validium",
-					"default": true
 				},
 				"GasOffset": {
 					"type": "integer",
@@ -1276,6 +1006,11 @@
 					"type": "integer",
 					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
 					"default": 0
+				},
+				"UpgradeEtrogBatchNumber": {
+					"type": "integer",
+					"description": "UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog",
+					"default": 0
 				}
 			},
 			"additionalProperties": false,
@@ -1298,16 +1033,25 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 contract"
+							"description": "ZkEVMAddr Address of the L1 contract polygonZkEVMAddress"
 						},
-						"maticTokenAddress": {
+						"polygonRollupManagerAddress": {
 							"items": {
 								"type": "integer"
 							},
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 Matic token Contract"
+							"description": "RollupManagerAddr Address of the L1 contract"
+						},
+						"polTokenAddress": {
+							"items": {
+								"type": "integer"
+							},
+							"type": "array",
+							"maxItems": 20,
+							"minItems": 20,
+							"description": "PolAddr Address of the L1 Pol token Contract"
 						},
 						"polygonZkEVMGlobalExitRootAddress": {
 							"items": {
@@ -1316,45 +1060,18 @@
 							"type": "array",
 							"maxItems": 20,
 							"minItems": 20,
-							"description": "Address of the L1 GlobalExitRootManager contract"
-						},
-						"dataCommitteeContract": {
-							"items": {
-								"type": "integer"
-							},
-							"type": "array",
-							"maxItems": 20,
-							"minItems": 20,
-							"description": "Address of the data availability committee contract"
+							"description": "GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract"
 						}
 					},
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1: Configuration related to L1"
 				},
-				"L2GlobalExitRootManagerAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "DEPRECATED L2: address of the `PolygonZkEVMGlobalExitRootL2 proxy` smart contract"
-				},
-				"L2BridgeAddr": {
-					"items": {
-						"type": "integer"
-					},
-					"type": "array",
-					"maxItems": 20,
-					"minItems": 20,
-					"description": "L2: address of the `PolygonZkEVMBridge proxy` smart contract"
-				},
 				"Genesis": {
 					"properties": {
-						"GenesisBlockNum": {
+						"BlockNumber": {
 							"type": "integer",
-							"description": "GenesisBlockNum is the block number where the polygonZKEVM smc was deployed on L1",
+							"description": "BlockNumber is the block number where the polygonZKEVM smc was deployed on L1",
 							"default": 0
 						},
 						"Root": {
@@ -1366,7 +1083,7 @@
 							"minItems": 32,
 							"description": "Root hash of the genesis block"
 						},
-						"GenesisActions": {
+						"Actions": {
 							"items": {
 								"properties": {
 									"address": {
@@ -1396,7 +1113,7 @@
 								"description": "GenesisAction represents one of the values set on the SMT during genesis."
 							},
 							"type": "array",
-							"description": "Contracts to be deployed to L2"
+							"description": "Actions is the data to populate into the state trie"
 						}
 					},
 					"additionalProperties": false,
@@ -1469,57 +1186,6 @@
 						"300ms"
 					]
 				},
-				"KafkaURL": {
-					"type": "string",
-					"default": ""
-				},
-				"Topic": {
-					"type": "string",
-					"default": ""
-				},
-				"GroupID": {
-					"type": "string",
-					"default": ""
-				},
-				"Username": {
-					"type": "string",
-					"default": ""
-				},
-				"Password": {
-					"type": "string",
-					"default": ""
-				},
-				"RootCAPath": {
-					"type": "string",
-					"default": ""
-				},
-				"L1CoinId": {
-					"type": "integer",
-					"default": 0
-				},
-				"L2CoinId": {
-					"type": "integer",
-					"default": 0
-				},
-				"DefaultL1CoinPrice": {
-					"type": "number",
-					"description": "DefaultL1CoinPrice is the L1 token's coin price",
-					"default": 0
-				},
-				"DefaultL2CoinPrice": {
-					"type": "number",
-					"description": "DefaultL2CoinPrice is the native token's coin price",
-					"default": 0
-				},
-				"GasPriceUsdt": {
-					"type": "number",
-					"default": 0
-				},
-				"EnableFollowerAdjustByL2L1Price": {
-					"type": "boolean",
-					"description": "EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy",
-					"default": false
-				},
 				"Factor": {
 					"type": "number",
 					"default": 0.15
@@ -1533,7 +1199,7 @@
 			"properties": {
 				"URI": {
 					"type": "string",
-					"default": "x1-prover:50071"
+					"default": "zkevm-prover:50071"
 				},
 				"MaxResourceExhaustedAttempts": {
 					"type": "integer",
@@ -1564,7 +1230,7 @@
 				"URI": {
 					"type": "string",
 					"description": "URI is the server URI.",
-					"default": "x1-prover:50061"
+					"default": "zkevm-prover:50061"
 				}
 			},
 			"additionalProperties": false,
@@ -1677,7 +1343,7 @@
 				"Host": {
 					"type": "string",
 					"description": "Host address of database",
-					"default": "x1-state-db"
+					"default": "zkevm-state-db"
 				},
 				"Port": {
 					"type": "string",
@@ -1782,7 +1448,7 @@
 						"Host": {
 							"type": "string",
 							"description": "Host address of database",
-							"default": "x1-state-db"
+							"default": "zkevm-state-db"
 						},
 						"Port": {
 							"type": "string",
@@ -1847,6 +1513,10 @@
 								"MaxSteps": {
 									"type": "integer",
 									"default": 7570538
+								},
+								"MaxSHA256Hashes": {
+									"type": "integer",
+									"default": 1596
 								}
 							},
 							"additionalProperties": false,
@@ -1876,29 +1546,6 @@
 			"additionalProperties": false,
 			"type": "object",
 			"description": "State service configuration"
-		},
-		"Apollo": {
-			"properties": {
-				"Enable": {
-					"type": "boolean",
-					"default": false
-				},
-				"IP": {
-					"type": "string",
-					"default": ""
-				},
-				"AppID": {
-					"type": "string",
-					"default": ""
-				},
-				"NamespaceName": {
-					"type": "string",
-					"default": ""
-				}
-			},
-			"additionalProperties": false,
-			"type": "object",
-			"description": "Apollo configuration"
 		}
 	},
 	"additionalProperties": false,

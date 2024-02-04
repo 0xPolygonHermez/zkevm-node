@@ -80,6 +80,17 @@ type ErrorObject struct {
 	Data    *ArgBytes `json:"data,omitempty"`
 }
 
+// RPCError returns an instance of RPCError from the
+// data available in the ErrorObject instance
+func (e *ErrorObject) RPCError() RPCError {
+	var data []byte
+	if e.Data != nil {
+		data = *e.Data
+	}
+	rpcError := NewRPCErrorWithData(e.Code, e.Message, data)
+	return *rpcError
+}
+
 // NewResponse returns Success/Error response object
 func NewResponse(req Request, reply []byte, err Error) Response {
 	var result json.RawMessage
@@ -94,7 +105,7 @@ func NewResponse(req Request, reply []byte, err Error) Response {
 			Message: err.Error(),
 		}
 		if err.ErrorData() != nil {
-			errorObj.Data = ArgBytesPtr(*err.ErrorData())
+			errorObj.Data = ArgBytesPtr(err.ErrorData())
 		}
 	}
 
@@ -233,6 +244,10 @@ func (b *BlockNumber) GetNumericBlockNumber(ctx context.Context, s StateInterfac
 // n == -1 = earliest
 // n >=  0 = hex(n)
 func (b *BlockNumber) StringOrHex() string {
+	if b == nil {
+		return Latest
+	}
+
 	switch *b {
 	case EarliestBlockNumber:
 		return Earliest
@@ -474,6 +489,34 @@ func (b *BatchNumber) GetNumericBatchNumber(ctx context.Context, s StateInterfac
 			return 0, NewRPCError(InvalidParamsErrorCode, "invalid batch number: %v", bValue)
 		}
 		return uint64(bValue), nil
+	}
+}
+
+// StringOrHex returns the batch number as a string or hex
+// n == -5 = finalized
+// n == -4 = safe
+// n == -3 = pending
+// n == -2 = latest
+// n == -1 = earliest
+// n >=  0 = hex(n)
+func (b *BatchNumber) StringOrHex() string {
+	if b == nil {
+		return Latest
+	}
+
+	switch *b {
+	case EarliestBatchNumber:
+		return Earliest
+	case PendingBatchNumber:
+		return Pending
+	case LatestBatchNumber:
+		return Latest
+	case SafeBatchNumber:
+		return Safe
+	case FinalizedBatchNumber:
+		return Finalized
+	default:
+		return hex.EncodeUint64(uint64(*b))
 	}
 }
 
