@@ -2,8 +2,10 @@ package main
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config"
+	"github.com/0xPolygonHermez/zkevm-node/config/apollo"
 	"github.com/0xPolygonHermez/zkevm-node/ethtxmanager"
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/sequencesender"
@@ -40,4 +42,21 @@ func createSequenceSenderX1(cfg config.Config, pool *pool.Pool, etmStorage *etht
 	}
 
 	return seqSender
+}
+
+func initRunForX1(c *config.Config, components []string) {
+	// Read configure from apollo
+	apolloClient := apollo.NewClient(c)
+	if apolloClient.LoadConfig() {
+		log.Info("apollo config loaded")
+	}
+
+	pool.SetL2BridgeAddr(c.NetworkConfig.L2BridgeAddr)
+
+	for _, component := range components {
+		switch component {
+		case RPC:
+			jsonrpc.InitRateLimit(c.RPC.RateLimit)
+		}
+	}
 }

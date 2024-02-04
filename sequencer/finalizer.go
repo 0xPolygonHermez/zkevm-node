@@ -539,7 +539,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			}
 		}
 	}
-	metrics.HaltCount()
 
 	// Check remaining resources
 	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})

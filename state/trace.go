@@ -334,6 +334,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			log.Errorf("debug transaction: failed to create callTracer, err: %v", err)
 			return nil, fmt.Errorf("failed to create callTracer, err: %v", err)
 		}
+	} else if traceConfig.IsFlatCallTracer() {
+		tracer, err = native.NewFlatCallTracer(tracerContext, traceConfig.TracerConfig)
+		if err != nil {
+			log.Errorf("debug transaction: failed to create flatCallTracer, err: %v", err)
+			return nil, fmt.Errorf("failed to create flatCallTracer, err: %v", err)
+		}
+		tracer = native.SetFlatCallTracerLimit(tracer, traceConfig.Limit)
 	} else if traceConfig.IsNoopTracer() {
 		tracer, err = native.NewNoopTracer(tracerContext, traceConfig.TracerConfig)
 		if err != nil {

@@ -147,6 +147,10 @@ func start(cliCtx *cli.Context) error {
 	if c.Metrics.ProfilingEnabled {
 		go startProfilingHttpServer(c.Metrics)
 	}
+
+	// init for x1
+	initRunForX1(c, components)
+
 	for _, component := range components {
 		switch component {
 		case AGGREGATOR:

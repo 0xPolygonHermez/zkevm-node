@@ -33,7 +33,7 @@ import (
 //go:generate go run github.com/fjl/gencodec -type flatCallResult -field-override flatCallResultMarshaling -out gen_flatcallresult_json.go
 
 func init() {
-	tracers.DefaultDirectory.Register("flatCallTracer", newFlatCallTracer, false)
+	tracers.DefaultDirectory.Register("flatCallTracer", NewFlatCallTracer, false)
 }
 
 var parityErrorMapping = map[string]string{
@@ -121,8 +121,8 @@ type flatCallTracerConfig struct {
 	IncludePrecompiles  bool `json:"includePrecompiles"`  // If true, call tracer includes calls to precompiled contracts
 }
 
-// newFlatCallTracer returns a new flatCallTracer.
-func newFlatCallTracer(ctx *tracers.Context, cfg json.RawMessage) (tracers.Tracer, error) {
+// NewFlatCallTracer returns a new flatCallTracer.
+func NewFlatCallTracer(ctx *tracers.Context, cfg json.RawMessage) (tracers.Tracer, error) {
 	var config flatCallTracerConfig
 	if cfg != nil {
 		if err := json.Unmarshal(cfg, &config); err != nil {

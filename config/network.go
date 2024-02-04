@@ -20,6 +20,10 @@ type NetworkConfig struct {
 	// L1: Configuration related to L1
 	L1Config etherman.L1Config `json:"l1Config"`
 	// L1: Genesis of the rollup, first block number and root
+
+	// L2: address of the `PolygonZkEVMBridge proxy` smart contract
+	L2BridgeAddr common.Address
+
 	Genesis state.Genesis
 }
 
@@ -127,7 +131,13 @@ func LoadGenesisFromJSONString(jsonStr string) (NetworkConfig, error) {
 		Actions:     []*state.GenesisAction{},
 	}
 
+	const l2BridgeSCName = "PolygonZkEVMBridge proxy"
+
 	for _, account := range cfgJSON.Genesis {
+		if account.ContractName == l2BridgeSCName {
+			cfg.L2BridgeAddr = common.HexToAddress(account.Address)
+		}
+
 		if account.Balance != "" && account.Balance != "0" {
 			action := &state.GenesisAction{
 				Address: account.Address,
