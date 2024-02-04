@@ -21,6 +21,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -31,6 +32,7 @@ const (
 	ParallelMode = "parallel"
 	// SequentialMode is the value for L1SynchronizationMode to run in sequential mode
 	SequentialMode = "sequential"
+	maxBatchNumber = ^uint64(0)
 )
 
 // Synchronizer connects L1 and L2
@@ -113,10 +115,15 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
-	//res.syncTrustedStateExecutor = l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
-	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+
+	syncTrustedStateIncaberry := l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
+	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
 		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
+
+	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(
+		syncTrustedStateIncaberry, syncTrustedStateEtrog, st)
+
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -630,10 +637,11 @@ func (s *ClientSynchronizer) ProcessBlockRange(blocks []etherman.Block, order ma
 }
 
 func (s *ClientSynchronizer) syncTrustedState(latestSyncedBatch uint64) error {
-	if s.syncTrustedStateExecutor == nil {
+	if s.syncTrustedStateExecutor == nil || s.isTrustedSequencer {
 		return nil
 	}
-	return s.syncTrustedStateExecutor.SyncTrustedState(s.ctx, latestSyncedBatch)
+
+	return s.syncTrustedStateExecutor.SyncTrustedState(s.ctx, latestSyncedBatch, maxBatchNumber)
 }
 
 // This function allows reset the state until an specific ethereum block

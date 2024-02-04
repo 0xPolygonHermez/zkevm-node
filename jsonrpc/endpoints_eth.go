@@ -98,7 +98,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		}
 
 		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
-		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		sender, tx, err := arg.ToTransaction(ctx, e.state, state.MaxTxGasLimit, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
@@ -182,7 +182,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		}
 
 		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
-		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		sender, tx, err := arg.ToTransaction(ctx, e.state, state.MaxTxGasLimit, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
@@ -229,6 +229,23 @@ func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to read gas price from sequencer node", err, true)
 	}
 	return gasPrice, nil
+}
+
+func (e *EthEndpoints) getHighestL2BlockFromTrustedNode() (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_blockNumber")
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get gas price from sequencer node", err, true)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
+	}
+	var highestBlockNum types.ArgUint64
+	err = json.Unmarshal(res.Result, &highestBlockNum)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read eth_blockNumber from sequencer node", err, true)
+	}
+	return uint64(highestBlockNum), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -1011,10 +1028,23 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err, true)
 		}
 
-		if syncInfo.CurrentBlockNumber >= syncInfo.LastBlockNumberSeen {
+		if !syncInfo.IsSynchronizing {
 			return false, nil
 		}
-
+		if e.cfg.SequencerNodeURI != "" {
+			// If we have a trusted node we ask it for the highest l2 block
+			res, err := e.getHighestL2BlockFromTrustedNode()
+			if err != nil {
+				log.Warnf("failed to get highest l2 block from trusted node: %v", err)
+			} else {
+				highestL2BlockInTrusted := res.(uint64)
+				if highestL2BlockInTrusted > syncInfo.CurrentBlockNumber {
+					syncInfo.EstimatedHighestBlock = highestL2BlockInTrusted
+				} else {
+					log.Warnf("highest l2 block in trusted node (%d) is lower than the current block number in the state (%d)", highestL2BlockInTrusted, syncInfo.CurrentBlockNumber)
+				}
+			}
+		}
 		return struct {
 			S types.ArgUint64 `json:"startingBlock"`
 			C types.ArgUint64 `json:"currentBlock"`
@@ -1022,7 +1052,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 		}{
 			S: types.ArgUint64(syncInfo.InitialSyncingBlock),
 			C: types.ArgUint64(syncInfo.CurrentBlockNumber),
-			H: types.ArgUint64(syncInfo.LastBlockNumberSeen),
+			H: types.ArgUint64(syncInfo.EstimatedHighestBlock),
 		}, nil
 	})
 }

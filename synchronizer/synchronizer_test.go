@@ -15,7 +15,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -71,10 +70,8 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_shared.TrustedBatchesRetrieve)
-	require.EqualValues(t, true, ok, "Can't convert sync Object to underlaying l2_shared.TrustedBatchesRetrieve implementation")
-	cachedBatch, ok := syncTrusted.TrustedStateMngr.Cache.Get(uint64(batch10With3Tx.Number))
-	require.Equal(t, true, ok)
+	cachedBatch := sync.syncTrustedStateExecutor.GetCachedBatch(uint64(batch10With3Tx.Number))
+	require.True(t, cachedBatch != nil)
 	require.Equal(t, rpcBatchTostateBatch(batch10With3Tx), cachedBatch)
 }
 
@@ -99,10 +96,8 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_shared.TrustedBatchesRetrieve)
-	require.EqualValues(t, true, ok, "Can't convert sync Object to underlaying l2_shared.TrustedBatchesRetrieve implementation")
-	cachedBatch, ok := syncTrusted.TrustedStateMngr.Cache.Get(uint64(batch10With2Tx.Number))
-	require.Equal(t, true, ok)
+	cachedBatch := sync.syncTrustedStateExecutor.GetCachedBatch(uint64(batch10With2Tx.Number))
+	require.True(t, cachedBatch != nil)
 	require.Equal(t, rpcBatchTostateBatch(batch10With2Tx), cachedBatch)
 }
 
@@ -132,6 +127,12 @@ func TestForcedBatchEtrog(t *testing.T) {
 
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
@@ -765,6 +766,11 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, previousBatchInPermissionless *types.Batch,
 	needToRetrieveBatchFromDatabase bool, etrogMode bool) {
 	m.State.EXPECT().GetForkIDByBatchNumber(mock.Anything).Return(uint64(7)).Times(1)
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).

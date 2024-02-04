@@ -1677,7 +1677,15 @@ func (etherMan *Client) ApprovePol(ctx context.Context, account common.Address, 
 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
 func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
-	return etherMan.ZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	url, err := etherMan.ZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	//TODO: remove this code because is for compatibility with oldZkEVM
+	if err != nil || url == "" {
+		// Getting from oldZkEVM Contract
+		log.Debug("getting trusted sequencer URL from oldZkevm smc")
+		return etherMan.OldZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	}
+	// err is always nil
+	return url, nil
 }
 
 // GetL2ChainID returns L2 Chain ID

@@ -3,7 +3,7 @@ package setup
 import (
 	"context"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
+	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/benchmarks/sequencer/common/params"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
 )
@@ -32,7 +33,7 @@ var (
 	bc = state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
-		MaxCumulativeGasUsed: 30000000,
+		MaxCumulativeGasUsed: uint64(math.MaxInt64),
 		MaxKeccakHashes:      2145,
 		MaxPoseidonHashes:    252357,
 		MaxPoseidonPaddings:  135191,
