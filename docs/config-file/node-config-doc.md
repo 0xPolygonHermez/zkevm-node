@@ -3420,6 +3420,7 @@ MaxConns=200
 | - [MaxLogsCount](#State_MaxLogsCount )                                 | No      | integer         | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                      |
 | - [MaxLogsBlockRange](#State_MaxLogsBlockRange )                       | No      | integer         | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
 | - [MaxNativeBlockHashBlockRange](#State_MaxNativeBlockHashBlockRange ) | No      | integer         | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
+| - [AvoidForkIDInMemory](#State_AvoidForkIDInMemory )                   | No      | boolean         | No         | -          | AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded<br />from the DB every time it's needed                                                        |
 
 ### <a name="State_MaxCumulativeGasUsed"></a>20.1. `State.MaxCumulativeGasUsed`
 
@@ -3735,12 +3736,12 @@ MaxBatchBytesSize=120000
 
 **Type:** : `integer`
 
-**Default:** `30000000`
+**Default:** `9223372036854775807`
 
-**Example setting the default value** (30000000):
+**Example setting the default value** (9223372036854775807):
 ```
 [State.Batch.Constraints]
-MaxCumulativeGasUsed=30000000
+MaxCumulativeGasUsed=9223372036854775807
 ```
 
 ##### <a name="State_Batch_Constraints_MaxKeccakHashes"></a>20.9.1.4. `State.Batch.Constraints.MaxKeccakHashes`
@@ -3882,6 +3883,21 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [State]
 MaxNativeBlockHashBlockRange=0
+```
+
+### <a name="State_AvoidForkIDInMemory"></a>20.13. `State.AvoidForkIDInMemory`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded
+from the DB every time it's needed
+
+**Example setting the default value** (false):
+```
+[State]
+AvoidForkIDInMemory=false
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------
