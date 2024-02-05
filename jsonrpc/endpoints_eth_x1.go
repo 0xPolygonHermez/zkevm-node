@@ -244,3 +244,20 @@ func (e *EthEndpoints) getGasEstimationWithFactorX1(gasEstimation uint64) uint64
 	}
 	return gasEstimationWithFactor
 }
+
+// internal
+func (e *EthEndpoints) newPendingTransactionFilterX1(wsConn *concurrentWsConn) (interface{}, types.Error) {
+	//X1 handle
+	if e.isDisabled("eth_newPendingTransactionFilter") {
+		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
+	}
+
+	if !e.cfg.EnablePendingTransactionFilter {
+		return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
+	}
+	id, err := e.storage.NewPendingTransactionFilter(wsConn)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err, true)
+	}
+	return id, nil
+}

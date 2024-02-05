@@ -280,11 +280,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.finalizeWIPBatch(ctx, state.NoTxFitsClosingReason)
 			continue
 		}
-		fullBatchSleepDuration := getFullBatchSleepDuration(f.cfg.FullBatchSleepDuration.Duration)
-		if fullBatchSleepDuration > 0 {
-			log.Infof("Slow down sequencer: %v", fullBatchSleepDuration)
-			time.Sleep(fullBatchSleepDuration)
-		}
+
+		// X1 handle
+		f.tryToSleep()
 
 		metrics.WorkerProcessingTime(time.Since(start))
 		metrics.GetLogStatistics().CumulativeTiming(metrics.GetTx, time.Since(start))

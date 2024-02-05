@@ -145,13 +145,16 @@ func (h *Handler) Handle(req handleRequest) types.Response {
 // HandleWs handle websocket requests
 func (h *Handler) HandleWs(reqBody []byte, wsConn *concurrentWsConn, httpReq *http.Request) ([]byte, error) {
 	log.Debugf("WS message received: %v", string(reqBody))
-	st := time.Now()
 	var req types.Request
 	if err := json.Unmarshal(reqBody, &req); err != nil {
 		return types.NewResponse(req, nil, types.NewRPCError(types.InvalidRequestErrorCode, "Invalid json request")).Bytes()
 	}
+
+	// X1 handler
+	st := time.Now()
 	defer metrics.WsRequestMethodCount(req.Method)
 	defer metrics.WsRequestMethodDuration(req.Method, st)
+
 	handleReq := handleRequest{
 		Request:     req,
 		wsConn:      wsConn,

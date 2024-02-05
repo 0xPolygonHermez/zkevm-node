@@ -58,7 +58,7 @@ func approveTokens(ctx *cli.Context) error {
 	}
 
 	// load auth from keystore file
-	auth, _, err := etherman.LoadAuthFromKeyStoreX1(addrKeyStorePath, addrPassword)
+	auth, err := etherman.LoadAuthFromKeyStore(addrKeyStorePath, addrPassword)
 	if err != nil {
 		log.Fatal(err)
 		return err

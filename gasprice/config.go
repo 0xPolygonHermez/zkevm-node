@@ -16,7 +16,8 @@ const (
 	LastNBatchesType EstimatorType = "lastnbatches"
 	// FollowerType calculate the gas price basing on the L1 gasPrice.
 	FollowerType EstimatorType = "follower"
-	// FixedType the gas price from config that the unit is usdt
+
+	// FixedType the gas price from config that the unit is usdt, X1 config
 	FixedType EstimatorType = "fixed"
 )
 
@@ -36,6 +37,9 @@ type Config struct {
 	CleanHistoryPeriod        types.Duration `mapstructure:"CleanHistoryPeriod"`
 	CleanHistoryTimeRetention types.Duration `mapstructure:"CleanHistoryTimeRetention"`
 
+	Factor float64 `mapstructure:"Factor"`
+
+	// X1 config
 	KafkaURL   string `mapstructure:"KafkaURL"`
 	Topic      string `mapstructure:"Topic"`
 	GroupID    string `mapstructure:"GroupID"`
@@ -52,6 +56,4 @@ type Config struct {
 
 	// EnableFollowerAdjustByL2L1Price is dynamic adjust the factor through the L1 and L2 coins price in follower strategy
 	EnableFollowerAdjustByL2L1Price bool `mapstructure:"EnableFollowerAdjustByL2L1Price"`
-
-	Factor float64 `mapstructure:"Factor"`
 }

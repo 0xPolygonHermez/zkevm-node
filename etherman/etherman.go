@@ -1,3 +1,6 @@
+//go:build ignore
+// +build ignore
+
 package etherman
 
 import (
@@ -16,7 +19,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/datacommittee"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
@@ -164,8 +166,6 @@ type L1Config struct {
 	PolAddr common.Address `json:"polTokenAddress"`
 	// GlobalExitRootManagerAddr Address of the L1 GlobalExitRootManager contract
 	GlobalExitRootManagerAddr common.Address `json:"polygonZkEVMGlobalExitRootAddress"`
-	// Address of the data availability committee contract
-	DataCommitteeAddr common.Address `json:"dataCommitteeContract"`
 }
 
 type externalGasProviders struct {
@@ -176,13 +176,12 @@ type externalGasProviders struct {
 // Client is a simple implementation of EtherMan.
 type Client struct {
 	EthClient                ethereumClient
-	OldZkEVM                 *oldpolygonzkevm.Polygonzkevm
+	OldZkEVM                 *oldpolygonzkevm.Oldpolygonzkevm
 	ZkEVM                    *polygonzkevm.Polygonzkevm
 	RollupManager            *polygonrollupmanager.Polygonrollupmanager
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
 	Pol                      *pol.Pol
-	DataCommittee            *datacommittee.Datacommittee
 	SCAddresses              []common.Address
 
 	RollupID uint32
@@ -208,7 +207,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
 	}
-	oldZkevm, err := oldpolygonzkevm.NewPolygonzkevm(l1Config.RollupManagerAddr, ethClient)
+	oldZkevm, err := oldpolygonzkevm.NewOldpolygonzkevm(l1Config.RollupManagerAddr, ethClient)
 	if err != nil {
 		log.Errorf("error creating NewOldpolygonzkevm client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
@@ -233,12 +232,6 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		log.Errorf("error creating NewPol client (%s). Error: %w", l1Config.PolAddr.String(), err)
 		return nil, err
 	}
-
-	dataCommittee, err := datacommittee.NewDatacommittee(l1Config.DataCommitteeAddr, ethClient)
-	if err != nil {
-		return nil, err
-	}
-
 	var scAddresses []common.Address
 	scAddresses = append(scAddresses, l1Config.ZkEVMAddr, l1Config.RollupManagerAddr, l1Config.GlobalExitRootManagerAddr)
 
@@ -268,7 +261,6 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		RollupManager:            rollupManager,
 		Pol:                      pol,
 		GlobalExitRootManager:    globalExitRoot,
-		DataCommittee:            dataCommittee,
 		OldGlobalExitRootManager: oldGlobalExitRoot,
 		SCAddresses:              scAddresses,
 		RollupID:                 rollupID,
@@ -301,7 +293,7 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	if len(logs) == 0 {
 		return false, fmt.Errorf("the specified genBlockNumber in config file does not contain any forkID event. Please use the proper blockNumber.")
 	}
-	var zkevmVersion oldpolygonzkevm.PolygonzkevmUpdateZkEVMVersion
+	var zkevmVersion oldpolygonzkevm.OldpolygonzkevmUpdateZkEVMVersion
 	switch logs[0].Topics[0] {
 	case updateZkEVMVersionSignatureHash:
 		log.Debug("UpdateZkEVMVersion event detected during the Verification of the GenBlockNumber")
@@ -363,7 +355,7 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 
 	var forks []state.ForkIDInterval
 	for i, l := range logs {
-		var zkevmVersion oldpolygonzkevm.PolygonzkevmUpdateZkEVMVersion
+		var zkevmVersion oldpolygonzkevm.OldpolygonzkevmUpdateZkEVMVersion
 		switch l.Topics[0] {
 		case updateZkEVMVersionSignatureHash:
 			log.Debug("updateZkEVMVersion Event received")
@@ -1331,7 +1323,6 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			Coinbase:                        coinbase,
 			PolygonRollupBaseEtrogBatchData: &s,
 		}
-		//log.Infof("decodeSequences txs len:%d, tx hash:%s", len(seq.Transactions), hex.EncodeToString(seq.TransactionsHash[:]))
 	}
 
 	return sequencedBatches, nil
@@ -1340,7 +1331,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(oldpolygonzkevm.PolygonzkevmABI))
+	smcAbi, err := abi.JSON(strings.NewReader(oldpolygonzkevm.OldpolygonzkevmABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1385,7 +1376,7 @@ func decodeSequencesPreEtrog(txData []byte, lastBatchNumber uint64, sequencer co
 
 func (etherMan *Client) oldVerifyBatchesTrustedAggregatorEvent(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
 	log.Debug("TrustedVerifyBatches event detected")
-	var vb *oldpolygonzkevm.PolygonzkevmVerifyBatchesTrustedAggregator
+	var vb *oldpolygonzkevm.OldpolygonzkevmVerifyBatchesTrustedAggregator
 	vb, err := etherMan.OldZkEVM.ParseVerifyBatchesTrustedAggregator(vLog)
 	if err != nil {
 		log.Error("error parsing TrustedVerifyBatches event. Error: ", err)

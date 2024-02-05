@@ -24,7 +24,9 @@ var defaultTraceConfig = &traceConfig{
 	EnableMemory:     false,
 	EnableReturnData: false,
 	Tracer:           nil,
-	Limit:            0,
+
+	// X1 config
+	Limit: 0,
 }
 
 // DebugEndpoints is the debug jsonrpc endpoint
@@ -51,7 +53,9 @@ type traceConfig struct {
 	EnableReturnData bool            `json:"enableReturnData"`
 	Tracer           *string         `json:"tracer"`
 	TracerConfig     json.RawMessage `json:"tracerConfig"`
-	Limit            int             `json:"limit"`
+
+	// X1 config
+	Limit int `json:"limit"`
 }
 
 type traceBlockTransactionResponse struct {
@@ -285,7 +289,9 @@ func (d *DebugEndpoints) buildTraceTransaction(ctx context.Context, hash common.
 		EnableReturnData: traceCfg.EnableReturnData,
 		Tracer:           traceCfg.Tracer,
 		TracerConfig:     traceCfg.TracerConfig,
-		Limit:            traceCfg.Limit,
+
+		//X1 config
+		Limit: traceCfg.Limit,
 	}
 	result, err := d.state.DebugTransaction(ctx, hash, stateTraceConfig, dbTx)
 	if errors.Is(err, state.ErrNotFound) {

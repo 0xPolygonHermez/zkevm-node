@@ -95,6 +95,8 @@ func NewServer(
 // Start initializes the JSON RPC server to listen for request
 func (s *Server) Start() error {
 	metrics.Register()
+
+	// X1 handler
 	s.registerNacos()
 
 	if s.config.WebSockets.Enabled {
@@ -295,7 +297,6 @@ func (s *Server) isSingleRequest(data []byte) (bool, error) {
 }
 
 func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
-	st := time.Now()
 	defer metrics.RequestHandled(metrics.RequestHandledLabelSingle)
 	request, err := s.parseRequest(data)
 	if err != nil {
@@ -303,12 +304,15 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 		return 0
 	}
 
+	// X1 handler
+	st := time.Now()
 	if !methodRateLimitAllow(request.Method) {
 		handleInvalidRequest(w, errors.New("server is too busy"), http.StatusTooManyRequests)
 		return 0
 	}
 	defer metrics.RequestMethodCount(request.Method)
 	defer metrics.RequestMethodDuration(request.Method, st)
+
 	req := handleRequest{Request: request, HttpRequest: httpRequest}
 	response := s.handler.Handle(req)
 
@@ -328,18 +332,8 @@ func (s *Server) handleSingleRequest(httpRequest *http.Request, w http.ResponseW
 
 func (s *Server) handleBatchRequest(httpRequest *http.Request, w http.ResponseWriter, data []byte) int {
 	// Checking if batch requests are enabled
-	var batchRequestEnable bool
-	var batchRequestLimit uint
-	// if apollo is enabled, get the config from apollo
-	if getApolloConfig().Enable() {
-		getApolloConfig().RLock()
-		batchRequestEnable = getApolloConfig().BatchRequestsEnabled
-		batchRequestLimit = getApolloConfig().BatchRequestsLimit
-		getApolloConfig().RUnlock()
-	} else {
-		batchRequestEnable = s.config.BatchRequestsEnabled
-		batchRequestLimit = s.config.BatchRequestsLimit
-	}
+	// X1 handler
+	batchRequestEnable, batchRequestLimit := s.getBatchReqLimit()
 
 	if !batchRequestEnable {
 		handleInvalidRequest(w, types.ErrBatchRequestsDisabled, http.StatusBadRequest)

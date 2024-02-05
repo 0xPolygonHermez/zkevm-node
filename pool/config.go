@@ -7,8 +7,6 @@ import (
 
 // Config is the pool configuration
 type Config struct {
-	// FreeClaimGasLimit is the max gas allowed use to do a free claim
-	FreeClaimGasLimit uint64 `mapstructure:"FreeClaimGasLimit"`
 	// IntervalToRefreshBlockedAddresses is the time it takes to sync the
 	// blocked address list from db to memory
 	IntervalToRefreshBlockedAddresses types.Duration `mapstructure:"IntervalToRefreshBlockedAddresses"`
@@ -40,13 +38,17 @@ type Config struct {
 	// GlobalQueue represents the maximum number of non-executable transaction slots for all accounts
 	GlobalQueue uint64 `mapstructure:"GlobalQueue"`
 
-	// FreeGasAddress is the default free gas address
-	FreeGasAddress []string `mapstructure:"FreeGasAddress"`
 	// EffectiveGasPrice is the config for the effective gas price calculation
 	EffectiveGasPrice EffectiveGasPriceCfg `mapstructure:"EffectiveGasPrice"`
 
 	// ForkID is the current fork ID of the chain
 	ForkID uint64 `mapstructure:"ForkID"`
+
+	// X1 config
+	// FreeGasAddress is the default free gas address
+	FreeGasAddress []string `mapstructure:"FreeGasAddress"`
+	// FreeClaimGasLimit is the max gas allowed use to do a free claim
+	FreeClaimGasLimit uint64 `mapstructure:"FreeClaimGasLimit"`
 }
 
 // EffectiveGasPriceCfg contains the configuration properties for the effective gas price

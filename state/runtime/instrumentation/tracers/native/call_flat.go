@@ -113,7 +113,9 @@ type flatCallTracer struct {
 	ctx               *tracers.Context // Holds tracer context data
 	reason            error            // Textual reason for the interruption
 	activePrecompiles []common.Address // Updated on CaptureStart based on given rules
-	limit             int
+
+	// X1 config
+	limit int
 }
 
 type flatCallTracerConfig struct {
@@ -219,6 +221,7 @@ func (t *flatCallTracer) GetResult() (json.RawMessage, error) {
 		return nil, err
 	}
 
+	// X1 handler
 	if t.limit > 0 && len(flat) > t.limit {
 		flat = flat[:t.limit]
 	}

@@ -102,12 +102,14 @@ func Register() {
 	}
 
 	metrics.RegisterCounters(counters...)
-	metrics.RegisterCounters(countersX1...)
 	metrics.RegisterCounterVecs(counterVecs...)
 	metrics.RegisterGauges(gauges...)
+	metrics.RegisterHistograms(histograms...)
+
+	// X1 handler
+	metrics.RegisterCounters(countersX1...)
 	metrics.RegisterGauges(gaugesX1...)
 	metrics.RegisterGaugeVecs(gaugeVecs...)
-	metrics.RegisterHistograms(histograms...)
 }
 
 // AverageGasPrice sets the gauge to the given average gas price.

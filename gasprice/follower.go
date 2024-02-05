@@ -12,10 +12,12 @@ import (
 
 // FollowerGasPrice struct.
 type FollowerGasPrice struct {
-	cfg      Config
-	pool     poolInterface
-	ctx      context.Context
-	eth      ethermanInterface
+	cfg  Config
+	pool poolInterface
+	ctx  context.Context
+	eth  ethermanInterface
+
+	// X1 config
 	kafkaPrc *KafkaProcessor
 }
 

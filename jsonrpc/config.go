@@ -62,6 +62,8 @@ type Config struct {
 	// EnableHttpLog allows the user to enable or disable the logs related to the HTTP
 	// requests to be captured by the server.
 	EnableHttpLog bool `mapstructure:"EnableHttpLog"`
+
+	// X1 config
 	// EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
 	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
 

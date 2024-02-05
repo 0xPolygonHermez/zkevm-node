@@ -3,7 +3,6 @@ module github.com/0xPolygonHermez/zkevm-node
 go 1.21
 
 require (
-	github.com/0xPolygon/cdk-data-availability v0.0.0-20230830141533-4064ada790a6
 	github.com/0xPolygonHermez/zkevm-data-streamer v0.1.18
 	github.com/didip/tollbooth/v6 v6.1.2
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
@@ -105,6 +104,7 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jmoiron/sqlx v1.2.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
@@ -178,6 +178,7 @@ require (
 )
 
 require (
+	github.com/0xPolygon/cdk-data-availability v0.0.4-0.20240117132610-c0301289110e
 	github.com/apolloconfig/agollo/v4 v4.3.1
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
@@ -188,6 +189,6 @@ require (
 	golang.org/x/time v0.5.0
 )
 
-replace github.com/0xPolygon/cdk-data-availability => github.com/okx/x1-data-availability v0.0.0-20231113064732-3afebde141fc
+//replace github.com/0xPolygon/cdk-data-availability => github.com/okx/x1-data-availability v0.0.0-20240131134146-9deeeea46e13
 
 replace github.com/0xPolygonHermez/zkevm-node => ./

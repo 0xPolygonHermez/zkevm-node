@@ -43,15 +43,12 @@ const (
 	DefaultForcedBatchesPrivateKey             = "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
 	DefaultSequencerBalance                    = 400000
 	DefaultMaxCumulativeGasUsed                = 800000
-	DefaultL1DataCommitteeContract             = "0x6Ae5b0863dBF3477335c0102DBF432aFf04ceb22"
 	DefaultL1ZkEVMSmartContract                = "0x8dAF17A20c9DBA35f005b6324F493785D239719d"
 	DefaultL1RollupManagerSmartContract        = "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e"
 	DefaultL1PolSmartContract                  = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 	DefaultL1NetworkURL                        = "http://localhost:8545"
 	DefaultL1NetworkWebSocketURL               = "ws://localhost:8546"
 	DefaultL1ChainID                    uint64 = 1337
-	DefaultL1AdminAddress                      = "0x2ecf31ece36ccac2d3222a303b1409233ecbb225"
-	DefaultL1AdminPrivateKey                   = "0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38"
 
 	DefaultL2NetworkURL                        = "http://localhost:8123"
 	PermissionlessL2NetworkURL                 = "http://localhost:8125"
@@ -63,7 +60,6 @@ const (
 
 	DefaultWaitPeriodSendSequence                          = "15s"
 	DefaultLastBatchVirtualizationTimeMaxWaitPeriod        = "10s"
-	MaxBatchesForL1                                 uint64 = 10
 	DefaultMaxTxSizeForL1                           uint64 = 131072
 )
 
@@ -552,26 +548,6 @@ func (m *Manager) StartNode() error {
 // StartTrustedAndPermissionlessNode starts the node container
 func (m *Manager) StartTrustedAndPermissionlessNode() error {
 	return StartComponent("permissionless", nodeUpCondition)
-}
-
-// StartDACDB starts the data availability node DB
-func (m *Manager) StartDACDB() error {
-	return StartComponent("dac-db", func() (bool, error) { return true, nil })
-}
-
-// StopDACDB stops the data availability node DB
-func (m *Manager) StopDACDB() error {
-	return StopComponent("dac-db")
-}
-
-// StartPermissionlessNodeForcedToSYncThroughDAC starts a permissionless node that is froced to sync through the DAC
-func (m *Manager) StartPermissionlessNodeForcedToSYncThroughDAC() error {
-	return StartComponent("permissionless-dac", func() (bool, error) { return true, nil })
-}
-
-// StopPermissionlessNodeForcedToSYncThroughDAC stops the permissionless node that is froced to sync through the DAC
-func (m *Manager) StopPermissionlessNodeForcedToSYncThroughDAC() error {
-	return StopComponent("permissionless-dac")
 }
 
 // ApprovePol runs the approving Pol command

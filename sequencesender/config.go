@@ -20,8 +20,6 @@ type Config struct {
 	// more expensive to propagate; larger transactions also take more resources
 	// to validate whether they fit into the pool or not.
 	MaxTxSizeForL1 uint64 `mapstructure:"MaxTxSizeForL1"`
-	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
-	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
 	// SenderAddress defines which private key the eth tx manager needs to use
 	// to sign the L1 txs
 	SenderAddress common.Address
@@ -30,15 +28,8 @@ type Config struct {
 	// PrivateKey defines all the key store files that are going
 	// to be read in order to provide the private keys to sign the L1 txs
 	PrivateKey types.KeystoreFileConfig `mapstructure:"PrivateKey"`
-	// DAPermitApiPrivateKey defines all the key store files that are going
-	// to sign batches for DA service
-	DAPermitApiPrivateKey types.KeystoreFileConfig `mapstructure:"DAPermitApiPrivateKey"`
 	// Batch number where there is a forkid change (fork upgrade)
 	ForkUpgradeBatchNumber uint64
-
-	// UseValidium is a flag to enable/disable the use of validium
-	UseValidium bool `mapstructure:"UseValidium"`
-
 	// GasOffset is the amount of gas to be added to the gas estimation in order
 	// to provide an amount that is higher than the estimated one. This is used
 	// to avoid the TX getting reverted in case something has changed in the network
@@ -50,4 +41,11 @@ type Config struct {
 	// gas offset: 100
 	// final gas: 1100
 	GasOffset uint64 `mapstructure:"GasOffset"`
+
+	// X1 config
+	// MaxBatchesForL1 is the maximum amount of batches to be sequenced in a single L1 tx
+	MaxBatchesForL1 uint64 `mapstructure:"MaxBatchesForL1"`
+	// DAPermitApiPrivateKey defines all the key store files that are going
+	// to sign batches for DA service
+	DAPermitApiPrivateKey types.KeystoreFileConfig `mapstructure:"DAPermitApiPrivateKey"`
 }

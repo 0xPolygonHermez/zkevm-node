@@ -13,7 +13,6 @@ var (
 	storageMutex  sync.RWMutex
 	registerer    prometheus.Registerer
 	gauges        map[string]prometheus.Gauge
-	gaugeVecs     map[string]*prometheus.GaugeVec
 	counters      map[string]prometheus.Counter
 	counterVecs   map[string]*prometheus.CounterVec
 	histograms    map[string]prometheus.Histogram
@@ -21,6 +20,9 @@ var (
 	summaries     map[string]prometheus.Summary
 	initialized   bool
 	initOnce      sync.Once
+
+	// X1 config
+	gaugeVecs map[string]*prometheus.GaugeVec
 )
 
 // CounterVecOpts holds options for the CounterVec type.
@@ -41,13 +43,15 @@ func Init() {
 		storageMutex = sync.RWMutex{}
 		registerer = prometheus.DefaultRegisterer
 		gauges = make(map[string]prometheus.Gauge)
-		gaugeVecs = make(map[string]*prometheus.GaugeVec)
 		counters = make(map[string]prometheus.Counter)
 		counterVecs = make(map[string]*prometheus.CounterVec)
 		histograms = make(map[string]prometheus.Histogram)
 		histogramVecs = make(map[string]*prometheus.HistogramVec)
 		summaries = make(map[string]prometheus.Summary)
 		initialized = true
+
+		// X1 handler
+		gaugeVecs = make(map[string]*prometheus.GaugeVec)
 	})
 }
 

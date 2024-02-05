@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -124,14 +123,13 @@ func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
 		}
 	}
 
-	signaturesAndAddrs, err := s.getSignaturesAndAddrsFromDataCommittee(ctx, sequences)
-
-	if !s.isValidium() {
-		signaturesAndAddrs = nil
-	}
-
 	// add sequence to be monitored
-	to, data, err := s.etherman.BuildSequenceBatchesTxDataX1(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, signaturesAndAddrs)
+	dataAvailabilityMessage, err := s.da.PostSequence(ctx, sequences)
+	if err != nil {
+		log.Error("error posting sequences to the data availability protocol: ", err)
+		return
+	}
+	to, data, err := s.etherman.BuildSequenceBatchesTxDataX1(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -161,9 +159,6 @@ func (s *SequenceSender) getSequencesToSendX1(ctx context.Context) ([]types.Sequ
 	log.Debugf("current batch number to sequence: %d", currentBatchNumToSequence)
 
 	sequences := []types.Sequence{}
-	// var estimatedGas uint64
-
-	var tx *ethTypes.Transaction
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
 	for {
@@ -218,34 +213,13 @@ func (s *SequenceSender) getSequencesToSendX1(ctx context.Context) ([]types.Sequ
 		}
 
 		sequences = append(sequences, seq)
-		if s.isValidium() {
-			if len(sequences) == int(s.cfg.MaxBatchesForL1) {
-				log.Infof(
-					"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
-					s.cfg.MaxBatchesForL1,
-				)
-				return sequences, nil
-			}
-		} else {
-		// Check if can be send
-		tx, err = s.etherman.EstimateGasSequenceBatchesX1(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, nil)
-		if err == nil && tx.Size() > s.cfg.MaxTxSizeForL1 {
-			metrics.SequencesOvesizedDataError()
-			log.Infof("oversized Data on TX oldHash %s (txSize %d > %d)", tx.Hash(), tx.Size(), s.cfg.MaxTxSizeForL1)
-			err = ErrOversizedData
+		if len(sequences) == int(s.cfg.MaxBatchesForL1) {
+			log.Infof(
+				"sequence should be sent to L1, because MaxBatchesForL1 (%d) has been reached",
+				s.cfg.MaxBatchesForL1,
+			)
+			return sequences, nil
 		}
-		if err != nil {
-			log.Infof("Handling estimage gas send sequence error: %v", err)
-			sequences, err = s.handleEstimateGasSendSequenceErr(ctx, sequences, currentBatchNumToSequence, err)
-			if sequences != nil {
-				// Handling the error gracefully, re-processing the sequence as a sanity check
-				_, err = s.etherman.EstimateGasSequenceBatchesX1(s.cfg.SenderAddress, sequences, s.cfg.L2Coinbase, nil)
-				return sequences, err
-			}
-			return sequences, err
-			}
-		}
-		// estimatedGas = tx.Gas()
 
 		//Check if the current batch is the last before a change to a new forkid, in this case we need to close and send the sequence to L1
 		if (s.cfg.ForkUpgradeBatchNumber != 0) && (currentBatchNumToSequence == (s.cfg.ForkUpgradeBatchNumber)) {
@@ -280,18 +254,6 @@ func (s *SequenceSender) getSequencesToSendX1(ctx context.Context) ([]types.Sequ
 	return nil, nil
 }
 
-func (s *SequenceSender) isValidium() bool {
-	if !s.cfg.UseValidium {
-		return false
-	}
-
-	committee, err := s.etherman.GetCurrentDataCommittee()
-	if err != nil {
-		return false
-	}
-
-	if len(committee.Members) <= 0 {
-		return false
-	}
-	return true
+func (s *SequenceSender) SetDataProvider(da dataAbilitier) {
+	s.da = da
 }

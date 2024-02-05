@@ -66,7 +66,6 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 		ZkEVMAddr:                 cfg.L1.PolygonZkEVMAddress,
 		PolAddr:                   cfg.L1.PolygonMaticAddress,
 		GlobalExitRootManagerAddr: cfg.L1.GlobalExitRootManagerAddr,
-		DataCommitteeAddr:         cfg.L1.DataCommitteeAddr,
 	}
 
 	var err error
