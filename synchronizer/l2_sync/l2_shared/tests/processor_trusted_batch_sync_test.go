@@ -334,7 +334,6 @@ func TestExecuteProcessBatchError(t *testing.T) {
 	}
 	returnedError := errors.New("error")
 	testData.mockExecutor.EXPECT().NothingProcess(mock.Anything, mock.Anything, mock.Anything).Return(nil, returnedError)
-
 	_, err := testData.sut.ExecuteProcessBatch(context.Background(), &data, nil)
 	require.ErrorIs(t, returnedError, err)
 }
