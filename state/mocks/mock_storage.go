@@ -874,55 +874,6 @@ func (_c *StorageMock_Begin_Call) RunAndReturn(run func(context.Context) (pgx.Tx
 	return _c
 }
 
-// BuildChangeL2Block provides a mock function with given fields: deltaTimestamp, l1InfoTreeIndex
-func (_m *StorageMock) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
-	ret := _m.Called(deltaTimestamp, l1InfoTreeIndex)
-
-	if len(ret) == 0 {
-		panic("no return value specified for BuildChangeL2Block")
-	}
-
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(uint32, uint32) []byte); ok {
-		r0 = rf(deltaTimestamp, l1InfoTreeIndex)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
-	}
-
-	return r0
-}
-
-// StorageMock_BuildChangeL2Block_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BuildChangeL2Block'
-type StorageMock_BuildChangeL2Block_Call struct {
-	*mock.Call
-}
-
-// BuildChangeL2Block is a helper method to define mock.On call
-//   - deltaTimestamp uint32
-//   - l1InfoTreeIndex uint32
-func (_e *StorageMock_Expecter) BuildChangeL2Block(deltaTimestamp interface{}, l1InfoTreeIndex interface{}) *StorageMock_BuildChangeL2Block_Call {
-	return &StorageMock_BuildChangeL2Block_Call{Call: _e.mock.On("BuildChangeL2Block", deltaTimestamp, l1InfoTreeIndex)}
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) Run(run func(deltaTimestamp uint32, l1InfoTreeIndex uint32)) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uint32), args[1].(uint32))
-	})
-	return _c
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) Return(_a0 []byte) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) RunAndReturn(run func(uint32, uint32) []byte) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CheckProofContainsCompleteSequences provides a mock function with given fields: ctx, proof, dbTx
 func (_m *StorageMock) CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, proof, dbTx)
@@ -3411,23 +3362,23 @@ func (_c *StorageMock_GetL2BlocksByBatchNumber_Call) RunAndReturn(run func(conte
 }
 
 // GetL2TxHashByTxHash provides a mock function with given fields: ctx, hash, dbTx
-func (_m *StorageMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+func (_m *StorageMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*common.Hash, error) {
 	ret := _m.Called(ctx, hash, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetL2TxHashByTxHash")
 	}
 
-	var r0 common.Hash
+	var r0 *common.Hash
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*common.Hash, error)); ok {
 		return rf(ctx, hash, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) common.Hash); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *common.Hash); ok {
 		r0 = rf(ctx, hash, dbTx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(common.Hash)
+			r0 = ret.Get(0).(*common.Hash)
 		}
 	}
 
@@ -3460,12 +3411,12 @@ func (_c *StorageMock_GetL2TxHashByTxHash_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *StorageMock_GetL2TxHashByTxHash_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetL2TxHashByTxHash_Call {
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) Return(_a0 *common.Hash, _a1 error) *StorageMock_GetL2TxHashByTxHash_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *StorageMock_GetL2TxHashByTxHash_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)) *StorageMock_GetL2TxHashByTxHash_Call {
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (*common.Hash, error)) *StorageMock_GetL2TxHashByTxHash_Call {
 	_c.Call.Return(run)
 	return _c
 }
