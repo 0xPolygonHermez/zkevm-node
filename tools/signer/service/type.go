@@ -66,6 +66,7 @@ type AggData struct {
 	GasLimit         uint64         `json:"gasLimit"`
 	GasPrice         string         `json:"gasPrice"`
 	Nonce            uint64         `json:"nonce"`
+	Beneficiary      common.Address `json:"beneficiary"`
 }
 
 // Response is the response body

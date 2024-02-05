@@ -64,7 +64,7 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 	srv.l1Cfg = etherman.L1Config{
 		L1ChainID:                 cfg.L1.ChainId,
 		ZkEVMAddr:                 cfg.L1.PolygonZkEVMAddress,
-		MaticAddr:                 cfg.L1.PolygonMaticAddress,
+		PolAddr:                   cfg.L1.PolygonMaticAddress,
 		GlobalExitRootManagerAddr: cfg.L1.GlobalExitRootManagerAddr,
 		DataCommitteeAddr:         cfg.L1.DataCommitteeAddr,
 	}
@@ -245,7 +245,7 @@ func (s *Server) signAgg(requestData Request) (error, string) {
 		FinalProof:       proof,
 	}
 
-	_, data, err := s.ethClient.BuildTrustedVerifyBatchesTxData(aggData.InitNumBatch, aggData.FinalNewBatch, inputs)
+	_, data, err := s.ethClient.BuildTrustedVerifyBatchesTxData(aggData.InitNumBatch, aggData.FinalNewBatch, inputs, aggData.Beneficiary)
 	if err != nil {
 		log.Errorf("error BuildTrustedVerifyBatchesTxData: %v", err)
 		return err, ""
