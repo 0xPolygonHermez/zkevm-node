@@ -486,7 +486,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
 	}
-	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
+
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	// This is to force to build cache, and check that DB is ok before starting the application
 	l1inforoot, err := st.GetCurrentL1InfoRoot(ctx, nil)
