@@ -89,7 +89,6 @@ func TestGetCurrentL1InfoRootBuildCacheIfNil(t *testing.T) {
 	l1InfoRoot, err := testState.GetCurrentL1InfoRoot(ctx, nil)
 	require.NoError(t, err)
 	require.Equal(t, l1InfoRoot, common.HexToHash("0x27ae5ba08d7291c96c8cbddcc148bf48a6d68c7974b94356f53754ef6171d757"))
-
 }
 
 func TestGetCurrentL1InfoRootNoBuildCacheIfNotNil(t *testing.T) {
@@ -147,5 +146,4 @@ func TestAddL1InfoTreeLeafIfNil(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, addLeaf.L1InfoTreeRoot, common.HexToHash("0xea536769cad1a63ffb1ea52ae772983905c3f0e2f8914e6c0e2af956637e480c"))
 	require.Equal(t, addLeaf.L1InfoTreeIndex, uint32(0))
-
 }
