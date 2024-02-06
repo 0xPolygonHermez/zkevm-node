@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"os"
 	"sync"
@@ -285,7 +284,7 @@ func generate(cliCtx *cli.Context) error {
 }
 
 func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State) {
-	l2Blocks, err := stateDB.GetDSL2Blocks(ctx, 0, uint64(math.MaxUint32), nil)
+	l2Blocks, err := stateDB.GetDSL2Blocks(ctx, 0, end, nil)
 	if err != nil {
 		log.Errorf("Error: %v\n", err)
 		os.Exit(1)
