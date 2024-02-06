@@ -148,6 +148,15 @@ func main() {
 				&entryFlag,
 			},
 		},
+		{
+			Name:    "imstateroot",
+			Aliases: []string{},
+			Usage:   "Calculate intermediate state root",
+			Action:  imstateroot,
+			Flags: []cli.Flag{
+				&configFileFlag,
+			},
+		},
 	}
 
 	err := app.Run(os.Args)
@@ -283,15 +292,59 @@ func generate(cliCtx *cli.Context) error {
 	return nil
 }
 
-func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State) {
-	l2Blocks, err := stateDB.GetDSL2Blocks(ctx, 0, end, nil)
+func imstateroot(cliCtx *cli.Context) error {
+	c, err := config.Load(cliCtx)
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+
+	log.Init(c.Log)
+
+	// Connect to the database
+	stateSqlDB, err := db.NewSQLDB(c.StateDB)
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+	defer stateSqlDB.Close()
+	stateDBStorage := pgstatestorage.NewPostgresStorage(state.Config{}, stateSqlDB)
+	log.Debug("Connected to the database")
+
+	mtDBServerConfig := merkletree.Config{URI: c.MerkleTree.URI}
+	var mtDBCancel context.CancelFunc
+	mtDBServiceClient, mtDBClientConn, mtDBCancel := merkletree.NewMTDBServiceClient(cliCtx.Context, mtDBServerConfig)
+	defer func() {
+		mtDBCancel()
+		mtDBClientConn.Close()
+	}()
+	stateTree := merkletree.NewStateTree(mtDBServiceClient)
+	log.Debug("Connected to the merkle tree")
+
+	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil, nil)
+
+	// Calculate intermediate state roots
+	position := state.GetSystemSCPosition(59056)
+	stateRoot := common.HexToHash("0x592a0600b9b96758328d4799c7b1fdac62c280cea8928e0a449642b5e25acb60")
+	imStateRoot, err := stateDB.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), stateRoot)
 	if err != nil {
 		log.Errorf("Error: %v\n", err)
 		os.Exit(1)
 	}
+	log.Infof("Intermediate state root: %s\n", common.BigToHash(imStateRoot))
 
+	return nil
+}
+
+func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State) {
 	for x := start; x <= end; x++ {
-		stateRoot := l2Blocks[x].StateRoot
+		l2Block, err := stateDB.GetL2BlockByNumber(ctx, uint64(x), nil)
+		if err != nil {
+			log.Errorf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		stateRoot := l2Block.Root()
 		// Populate intermediate state root
 		position := state.GetSystemSCPosition(x)
 		imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), stateRoot)
