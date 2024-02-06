@@ -61,10 +61,6 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 `curl -H "Content-Type: application/json" -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":83}' http://localhost:8545` 
 
-11. Restart zkevm-rpc when the permission less node is full synced for first time (you could use the next endpoint of the rpc to check if the node is synced: `eth_syncing`): 
-
-`docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml restart zkevm-rpc`
-
 ## Troubleshooting
 
 - It's possible that the machine you're using already uses some of the necessary ports. In this case you can change them directly at `$ZKEVM_DIR/$ZKEVM_NET/docker-compose.yml`
