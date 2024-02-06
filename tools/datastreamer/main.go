@@ -285,7 +285,7 @@ func generate(cliCtx *cli.Context) error {
 
 func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State) {
 	for x := start; x <= end; x++ {
-		l2Block, err := stateDB.GetL2BlockByNumber(ctx, uint64(x), nil)
+		l2Block, err := stateDB.GetL2BlockByNumber(ctx, x, nil)
 		if err != nil {
 			log.Errorf("Error: %v\n", err)
 			os.Exit(1)
