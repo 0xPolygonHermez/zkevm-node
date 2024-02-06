@@ -162,11 +162,11 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "NetworkConfig.L1Config.ZkEVMAddr",
-			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
+			expectedValue: common.HexToAddress("0xc88d4b73DAD5675b11D1e8c27a04e6cD9D05a3B1"),
 		},
 		{
 			path:          "NetworkConfig.L1Config.PolAddr",
-			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
+			expectedValue: common.HexToAddress("0xC9dF8baf460b5AF848055C06074B258f4f0fF8Ae"),
 		},
 		{
 			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
