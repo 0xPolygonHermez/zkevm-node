@@ -579,6 +579,10 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 						StateRoot:     l2Block.StateRoot,
 					}
 
+					if l2Block.ForkID >= FORKID_ETROG {
+						blockEnd.BlockHash = l2Block.StateRoot
+					}
+
 					_, err = streamServer.AddStreamEntry(EntryTypeL2BlockEnd, blockEnd.Encode())
 					if err != nil {
 						return err
