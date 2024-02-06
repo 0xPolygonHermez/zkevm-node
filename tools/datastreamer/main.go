@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"os"
 	"sync"
@@ -256,7 +257,7 @@ func generate(cliCtx *cli.Context) error {
 		go func(i int) {
 			defer wg.Done()
 			log.Debugf("Thread %d: Start: %d, End: %d, Total: %d", i, start, end, end-start)
-			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB, lastL2BlockHeader.Root)
+			getImStateRoots(cliCtx.Context, start, end, &imStateRoots, imStateRootsMux, stateDB)
 		}(x)
 	}
 
@@ -283,8 +284,15 @@ func generate(cliCtx *cli.Context) error {
 	return nil
 }
 
-func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State, stateRoot common.Hash) {
+func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[uint64][]byte, imStateRootMux *sync.Mutex, stateDB *state.State) {
+	l2Blocks, err := stateDB.GetDSL2Blocks(ctx, 0, uint64(math.MaxUint32), nil)
+	if err != nil {
+		log.Errorf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
 	for x := start; x <= end; x++ {
+		stateRoot := l2Blocks[x].StateRoot
 		// Populate intermediate state root
 		position := state.GetSystemSCPosition(x)
 		imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), stateRoot)
@@ -781,7 +789,7 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EffectiveGasPricePercentage))
 		printColored(color.FgGreen, "Is Valid........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%t\n", dsTx.IsValid == 1))
-		printColored(color.FgGreen, "State Root......: ")
+		printColored(color.FgGreen, "IM State Root...: ")
 		printColored(color.FgHiWhite, fmt.Sprint(dsTx.StateRoot.Hex()+"\n"))
 		printColored(color.FgGreen, "Encoded Length..: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", dsTx.EncodedLength))
@@ -793,13 +801,13 @@ func printEntry(entry datastreamer.FileEntry) {
 			log.Error(err)
 			os.Exit(1)
 		}
-		printColored(color.FgGreen, "Decoded.........: ")
-		printColored(color.FgHiWhite, fmt.Sprintf("%+v\n", tx))
+
 		sender, err := state.GetSender(*tx)
 		if err != nil {
 			log.Error(err)
 			os.Exit(1)
 		}
+
 		printColored(color.FgGreen, "Sender..........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", sender))
 		nonce := tx.Nonce()
