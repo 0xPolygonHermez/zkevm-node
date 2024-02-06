@@ -81,9 +81,11 @@ func (p *PostgresStorage) AddForkIDInterval(ctx context.Context, newForkID state
 		var forkIDs []state.ForkIDInterval
 		forkIDs = oldForkIDs
 		// Check to detect forkID inconsistencies
-		if forkIDs[len(forkIDs)-1].ForkId+1 != newForkID.ForkId {
-			log.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
-			return fmt.Errorf("error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d", forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+		if forkIDs[len(forkIDs)-1].ForkId >= newForkID.ForkId {
+			errMsg := "error checking forkID sequence. Last ForkID stored: %d. New ForkID received: %d"
+			err := fmt.Errorf(errMsg, forkIDs[len(forkIDs)-1].ForkId, newForkID.ForkId)
+			log.Errorf(err.Error())
+			return err
 		}
 		forkIDs[len(forkIDs)-1].ToBatchNumber = newForkID.FromBatchNumber - 1
 		err := p.UpdateForkID(ctx, forkIDs[len(forkIDs)-1], dbTx)
@@ -145,4 +147,14 @@ func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 
 	// If not found return the last fork id
 	return p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1].ForkId
+}
+
+// GetForkIDInMemory get the forkIDs stored in cache, or nil if not found
+func (p *PostgresStorage) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
+	for _, interval := range p.cfg.ForkIDIntervals {
+		if interval.ForkId == forkId {
+			return &interval
+		}
+	}
+	return nil
 }
