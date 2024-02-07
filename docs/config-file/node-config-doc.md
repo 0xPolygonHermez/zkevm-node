@@ -1308,18 +1308,18 @@ Must be one of:
 **Type:** : `object`
 **Description:** L1ParallelSynchronization Configuration for parallel mode (if L1SynchronizationMode equal to 'parallel')
 
-| Property                                                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                             |
-| --------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [MaxClients](#Synchronizer_L1ParallelSynchronization_MaxClients )                                                         | No      | integer | No         | -          | MaxClients Number of clients used to synchronize with L1                                                                                                                                      |
-| - [MaxPendingNoProcessedBlocks](#Synchronizer_L1ParallelSynchronization_MaxPendingNoProcessedBlocks )                       | No      | integer | No         | -          | MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />sugested twice of NumberOfParallelOfEthereumClients |
-| - [RequestLastBlockPeriod](#Synchronizer_L1ParallelSynchronization_RequestLastBlockPeriod )                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [PerformanceWarning](#Synchronizer_L1ParallelSynchronization_PerformanceWarning )                                         | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                         |
-| - [RequestLastBlockTimeout](#Synchronizer_L1ParallelSynchronization_RequestLastBlockTimeout )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [RequestLastBlockMaxRetries](#Synchronizer_L1ParallelSynchronization_RequestLastBlockMaxRetries )                         | No      | integer | No         | -          | RequestLastBlockMaxRetries Max number of retries to request LastBlock On L1                                                                                                                   |
-| - [StatisticsPeriod](#Synchronizer_L1ParallelSynchronization_StatisticsPeriod )                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [RollupInfoRetriesSpacing](#Synchronizer_L1ParallelSynchronization_RollupInfoRetriesSpacing )                             | No      | string  | No         | -          | Duration                                                                                                                                                                                      |
-| - [FallbackToSequentialModeOnSynchronized](#Synchronizer_L1ParallelSynchronization_FallbackToSequentialModeOnSynchronized ) | No      | boolean | No         | -          | FallbackToSequentialModeOnSynchronized if true switch to sequential mode if the system is synchronized                                                                                        |
+| Property                                                                                                                    | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [MaxClients](#Synchronizer_L1ParallelSynchronization_MaxClients )                                                         | No      | integer | No         | -          | MaxClients Number of clients used to synchronize with L1                                                                                                                                       |
+| - [MaxPendingNoProcessedBlocks](#Synchronizer_L1ParallelSynchronization_MaxPendingNoProcessedBlocks )                       | No      | integer | No         | -          | MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync<br />suggested twice of NumberOfParallelOfEthereumClients |
+| - [RequestLastBlockPeriod](#Synchronizer_L1ParallelSynchronization_RequestLastBlockPeriod )                                 | No      | string  | No         | -          | Duration                                                                                                                                                                                       |
+| - [PerformanceWarning](#Synchronizer_L1ParallelSynchronization_PerformanceWarning )                                         | No      | object  | No         | -          | Consumer Configuration for the consumer of rollup information from L1                                                                                                                          |
+| - [RequestLastBlockTimeout](#Synchronizer_L1ParallelSynchronization_RequestLastBlockTimeout )                               | No      | string  | No         | -          | Duration                                                                                                                                                                                       |
+| - [RequestLastBlockMaxRetries](#Synchronizer_L1ParallelSynchronization_RequestLastBlockMaxRetries )                         | No      | integer | No         | -          | RequestLastBlockMaxRetries Max number of retries to request LastBlock On L1                                                                                                                    |
+| - [StatisticsPeriod](#Synchronizer_L1ParallelSynchronization_StatisticsPeriod )                                             | No      | string  | No         | -          | Duration                                                                                                                                                                                       |
+| - [TimeOutMainLoop](#Synchronizer_L1ParallelSynchronization_TimeOutMainLoop )                                               | No      | string  | No         | -          | Duration                                                                                                                                                                                       |
+| - [RollupInfoRetriesSpacing](#Synchronizer_L1ParallelSynchronization_RollupInfoRetriesSpacing )                             | No      | string  | No         | -          | Duration                                                                                                                                                                                       |
+| - [FallbackToSequentialModeOnSynchronized](#Synchronizer_L1ParallelSynchronization_FallbackToSequentialModeOnSynchronized ) | No      | boolean | No         | -          | FallbackToSequentialModeOnSynchronized if true switch to sequential mode if the system is synchronized                                                                                         |
 
 #### <a name="Synchronizer_L1ParallelSynchronization_MaxClients"></a>9.5.1. `Synchronizer.L1ParallelSynchronization.MaxClients`
 
@@ -1342,7 +1342,7 @@ MaxClients=10
 **Default:** `25`
 
 **Description:** MaxPendingNoProcessedBlocks Size of the buffer used to store rollup information from L1, must be >= to NumberOfEthereumClientsToSync
-sugested twice of NumberOfParallelOfEthereumClients
+suggested twice of NumberOfParallelOfEthereumClients
 
 **Example setting the default value** (25):
 ```
@@ -1397,9 +1397,9 @@ RequestLastBlockPeriod="5s"
 **Default:** `"5s"`
 
 **Description:** AceptableInacctivityTime is the expected maximum time that the consumer
-could wait until new data is produced. If the time is greater it emmit a log to warn about
+could wait until new data is produced. If the time is greater it emit a log to warn about
 that. The idea is keep working the consumer as much as possible, so if the producer is not
-fast enought then you could increse the number of parallel clients to sync with L1
+fast enough then you could increase the number of parallel clients to sync with L1
 
 **Examples:** 
 
@@ -1480,7 +1480,7 @@ RequestLastBlockMaxRetries=3
 
 **Default:** `"5m0s"`
 
-**Description:** StatisticsPeriod how ofter show a log with statistics (0 is disabled)
+**Description:** StatisticsPeriod how often show a log with statistics (0 is disabled)
 
 **Examples:** 
 
