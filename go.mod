@@ -179,7 +179,7 @@ require (
 
 require (
 	github.com/0xPolygon/cdk-data-availability v0.0.4-0.20240117132610-c0301289110e
-	github.com/apolloconfig/agollo/v4 v4.0.9
+	github.com/apolloconfig/agollo/v4 v4.3.1
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
 	github.com/nacos-group/nacos-sdk-go v1.1.4
