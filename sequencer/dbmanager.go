@@ -17,6 +17,8 @@ import (
 
 const (
 	datastreamChannelMultiplier = 2
+	defaultPackBatchAddress     = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+	defaultGasPriceMul          = 1.5
 )
 
 // Pool Loader and DB Updater
@@ -55,6 +57,12 @@ func newDBManager(ctx context.Context, config DBManagerCfg, txPool txPool, state
 		log.Error("failed to get number of reorgs: %v", err)
 	}
 
+	if len(config.PackBatchSpacialList) == 0 {
+		config.PackBatchSpacialList = append(config.PackBatchSpacialList, defaultPackBatchAddress)
+	}
+	if config.GasPriceMultiple == 0 {
+		config.GasPriceMultiple = defaultGasPriceMul
+	}
 	return &dbManager{ctx: ctx, cfg: config, txPool: txPool,
 		state: stateInterface, worker: worker, l2ReorgCh: closingSignalCh.L2ReorgCh,
 		batchConstraints: batchConstraints, numberOfStateInconsistencies: numberOfReorgs,
@@ -260,6 +268,14 @@ func (d *dbManager) addTxToWorker(tx pool.Transaction) error {
 	if err != nil {
 		return err
 	}
+
+	addrs := getPackBatchSpacialList(d.cfg.PackBatchSpacialList)
+	if addrs[txTracker.FromStr] {
+		_, l2gp := d.txPool.GetL1AndL2GasPrice()
+		newGp := uint64(float64(l2gp) * getGasPriceMultiple(d.cfg.GasPriceMultiple))
+		txTracker.GasPrice = new(big.Int).SetUint64(newGp)
+	}
+
 	replacedTx, dropReason := d.worker.AddTxTracker(d.ctx, txTracker)
 	if dropReason != nil {
 		failedReason := dropReason.Error()

@@ -1007,6 +1007,16 @@
 								"1m",
 								"300ms"
 							]
+						},
+						"PackBatchSpacialList": {
+							"items": {
+								"type": "string"
+							},
+							"type": "array"
+						},
+						"GasPriceMultiple": {
+							"type": "number",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,

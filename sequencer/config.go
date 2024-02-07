@@ -92,4 +92,6 @@ type FinalizerCfg struct {
 type DBManagerCfg struct {
 	PoolRetrievalInterval    types.Duration `mapstructure:"PoolRetrievalInterval"`
 	L2ReorgRetrievalInterval types.Duration `mapstructure:"L2ReorgRetrievalInterval"`
+	PackBatchSpacialList     []string       `mapstructure:"PackBatchSpacialList"`
+	GasPriceMultiple         float64        `mapstructure:"GasPriceMultiple"`
 }

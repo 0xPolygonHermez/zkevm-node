@@ -2594,10 +2594,12 @@ FullBatchSleepDuration="0s"
 **Type:** : `object`
 **Description:** DBManager's specific config properties
 
-| Property                                                                     | Pattern | Type   | Deprecated | Definition | Title/Description |
-| ---------------------------------------------------------------------------- | ------- | ------ | ---------- | ---------- | ----------------- |
-| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string | No         | -          | Duration          |
-| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string | No         | -          | Duration          |
+| Property                                                                     | Pattern | Type            | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | ----------------- |
+| - [PoolRetrievalInterval](#Sequencer_DBManager_PoolRetrievalInterval )       | No      | string          | No         | -          | Duration          |
+| - [L2ReorgRetrievalInterval](#Sequencer_DBManager_L2ReorgRetrievalInterval ) | No      | string          | No         | -          | Duration          |
+| - [PackBatchSpacialList](#Sequencer_DBManager_PackBatchSpacialList )         | No      | array of string | No         | -          | -                 |
+| - [GasPriceMultiple](#Sequencer_DBManager_GasPriceMultiple )                 | No      | number          | No         | -          | -                 |
 
 #### <a name="Sequencer_DBManager_PoolRetrievalInterval"></a>10.7.1. `Sequencer.DBManager.PoolRetrievalInterval`
 
@@ -2645,6 +2647,22 @@ PoolRetrievalInterval="500ms"
 ```
 [Sequencer.DBManager]
 L2ReorgRetrievalInterval="5s"
+```
+
+#### <a name="Sequencer_DBManager_PackBatchSpacialList"></a>10.7.3. `Sequencer.DBManager.PackBatchSpacialList`
+
+**Type:** : `array of string`
+
+#### <a name="Sequencer_DBManager_GasPriceMultiple"></a>10.7.4. `Sequencer.DBManager.GasPriceMultiple`
+
+**Type:** : `number`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[Sequencer.DBManager]
+GasPriceMultiple=0
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
