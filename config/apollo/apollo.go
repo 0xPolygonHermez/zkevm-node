@@ -12,7 +12,7 @@ import (
 
 // Client is the apollo client
 type Client struct {
-	agollo.Client
+	*agollo.Client
 	config *nodeconfig.Config
 }
 
