@@ -12,7 +12,7 @@ Note that sequencing and proving functionalities are not covered in this documen
 - A machine to run the zkEVM permissionless node with the following requirements:
   - Hardware: 32GB RAM, 4 cores, 256GB Disk with high IOPS (as the network is super young the current disk requirements are quite low, but they will increase overtime. Also note that this requirement is true if the DBs run on the same machine, but it's recommended to run Postgres on dedicated infra). Currently ARM-based CPUs are not supported
   - Software: Ubuntu 22.04, Docker
-- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
+- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Sepolia for Cardona zkEVM testnet, Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
 
