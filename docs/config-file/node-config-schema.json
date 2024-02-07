@@ -485,7 +485,7 @@
 						"parallel"
 					],
 					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
-					"default": "parallel"
+					"default": "sequential"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
