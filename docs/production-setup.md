@@ -57,7 +57,7 @@ cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env
 ```bash
 nano $ZKEVM_CONFIG_DIR/.env
 ```
-> **NOTE:** With the configuration done in step 7 it is enougth to run the permissionless node with the default config parameters. If you want to customize some config parameters do the following steps:  
+> **NOTE:** With the configuration done in step 7 it is enough to run the permissionless node with the default config parameters. If you want to customize some config parameters do the following steps:  
 > 1. Copy the config files into the config directory: `cp $ZKEVM_DIR/$ZKEVM_NET/config/environments/$ZKEVM_NET/* $ZKEVM_CONFIG_DIR/`
 > 2. Make sure the modify the `ZKEVM_ADVANCED_CONFIG_DIR` variable from `$ZKEVM_CONFIG_DIR/.env` with the correct path (same value as `$ZKEVM_CONFIG_DIR`)
 > 3. Edit the different configuration files in the `$ZKEVM_CONFIG_DIR` directory and make the necessary changes
