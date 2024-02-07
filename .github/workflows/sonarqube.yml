@@ -25,7 +25,7 @@ jobs:
 
     - name: Build Docker
       run: make build-docker
-      
+
     - name: Compile SCs
       run: make compile-scs
       working-directory: test
@@ -38,7 +38,7 @@ jobs:
     
     # Triggering SonarQube analysis as results of it are required by Quality Gate check.
     - name: SonarQube Scan
-      uses: sonarsource/sonarqube-scan-action@master
+      uses: SonarSource/sonarcloud-github-action@master
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
