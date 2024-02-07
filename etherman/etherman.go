@@ -1874,3 +1874,8 @@ func (etherMan *Client) GetDAProtocolAddr() (common.Address, error) {
 func (etherMan *Client) GetDAProtocolName() (string, error) {
 	return etherMan.DAProtocol.GetProcotolName(&bind.CallOpts{Pending: false})
 }
+
+// GetRollupId returns the rollup id
+func (etherMan *Client) GetRollupId() uint32 {
+	return etherMan.RollupID
+}

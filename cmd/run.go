@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"time"
 
+	agglayerClient "github.com/0xPolygon/agglayer/client"
 	dataCommitteeClient "github.com/0xPolygon/cdk-data-availability/client"
 	datastreamerlog "github.com/0xPolygonHermez/zkevm-data-streamer/log"
 	"github.com/0xPolygonHermez/zkevm-node"
@@ -506,7 +507,23 @@ func createSequenceSender(cfg config.Config, pool *pool.Pool, etmStorage *ethtxm
 }
 
 func runAggregator(ctx context.Context, c aggregator.Config, etherman *etherman.Client, ethTxManager *ethtxmanager.Client, st *state.State) {
-	agg, err := aggregator.New(c, st, ethTxManager, etherman)
+	var (
+		aggCli *agglayerClient.Client
+		pk     *ecdsa.PrivateKey
+		err    error
+	)
+
+	if c.SettlementBackend == aggregator.AggLayer {
+		aggCli = agglayerClient.New(c.AggLayerURL)
+
+		// Load private key
+		pk, err = config.NewKeyFromKeystore(c.SequencerPrivateKey)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	agg, err := aggregator.New(c, st, ethTxManager, etherman, aggCli, pk)
 	if err != nil {
 		log.Fatal(err)
 	}
