@@ -20,7 +20,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -112,12 +111,8 @@ func NewSynchronizer(
 	}
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	syncTrustedStateIncaberry := l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
-	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+	res.syncTrustedStateExecutor = l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
 		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
-
-	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(
-		syncTrustedStateIncaberry, syncTrustedStateEtrog, st)
 
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {

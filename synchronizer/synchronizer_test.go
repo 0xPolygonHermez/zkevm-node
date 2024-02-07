@@ -29,6 +29,7 @@ const (
 	ETROG_MODE_FLAG                = true
 	RETRIEVE_BATCH_FROM_DB_FLAG    = true
 	RETRIEVE_BATCH_FROM_CACHE_FLAG = false
+	PROCESS_BATCH_SELECTOR_ENABLED = false
 )
 
 type mocks struct {
@@ -130,8 +131,9 @@ func TestForcedBatchEtrog(t *testing.T) {
 		FromBatchNumber: 0,
 		ToBatchNumber:   ^uint64(0),
 	}
-	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
-
+	if PROCESS_BATCH_SELECTOR_ENABLED {
+		m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	}
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
@@ -771,7 +773,9 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		FromBatchNumber: 0,
 		ToBatchNumber:   ^uint64(0),
 	}
-	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	if PROCESS_BATCH_SELECTOR_ENABLED {
+		m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	}
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).
