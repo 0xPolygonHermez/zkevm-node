@@ -192,8 +192,11 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
+	log.Debugf("last virtual batch number: %d", lastVirtualBatchNum)
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
+	log.Debugf("current batch number to sequence: %d", currentBatchNumToSequence)
+
 	sequences := []types.Sequence{}
 
 	// Add sequences until too big for a single L1 tx or last batch is reached
@@ -204,19 +207,26 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, fmt.Errorf("aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber+1)
 		}
 
-		// Check if batch is closed
-		isClosed, err := s.state.IsBatchClosed(ctx, currentBatchNumToSequence, nil)
-		if err != nil {
-			return nil, err
-		}
-		if !isClosed {
-			// Reached current (WIP) batch
-			break
-		}
 		// Add new sequence
 		batch, err := s.state.GetBatchByNumber(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
+			if err == state.ErrNotFound {
+				break
+			}
+			log.Debugf("failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
 			return nil, err
+		}
+
+		// Check if batch is closed
+		isClosed, err := s.state.IsBatchClosed(ctx, currentBatchNumToSequence, nil)
+		if err != nil {
+			log.Debugf("failed to check if batch %d is closed, err: %w", currentBatchNumToSequence, err)
+			return nil, err
+		}
+
+		if !isClosed {
+			// Reached current (WIP) batch
+			break
 		}
 
 		seq := types.Sequence{

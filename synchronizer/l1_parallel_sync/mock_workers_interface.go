@@ -63,6 +63,51 @@ func (_c *workersInterfaceMock_String_Call) RunAndReturn(run func() string) *wor
 	return _c
 }
 
+// ToStringBrief provides a mock function with given fields:
+func (_m *workersInterfaceMock) ToStringBrief() string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for ToStringBrief")
+	}
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func() string); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	return r0
+}
+
+// workersInterfaceMock_ToStringBrief_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ToStringBrief'
+type workersInterfaceMock_ToStringBrief_Call struct {
+	*mock.Call
+}
+
+// ToStringBrief is a helper method to define mock.On call
+func (_e *workersInterfaceMock_Expecter) ToStringBrief() *workersInterfaceMock_ToStringBrief_Call {
+	return &workersInterfaceMock_ToStringBrief_Call{Call: _e.mock.On("ToStringBrief")}
+}
+
+func (_c *workersInterfaceMock_ToStringBrief_Call) Run(run func()) *workersInterfaceMock_ToStringBrief_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *workersInterfaceMock_ToStringBrief_Call) Return(_a0 string) *workersInterfaceMock_ToStringBrief_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *workersInterfaceMock_ToStringBrief_Call) RunAndReturn(run func() string) *workersInterfaceMock_ToStringBrief_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // asyncRequestRollupInfoByBlockRange provides a mock function with given fields: ctx, request
 func (_m *workersInterfaceMock) asyncRequestRollupInfoByBlockRange(ctx context.Context, request requestRollupInfoByBlockRange) (chan responseRollupInfoByBlockRange, error) {
 	ret := _m.Called(ctx, request)

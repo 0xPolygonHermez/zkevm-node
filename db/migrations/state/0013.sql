@@ -11,7 +11,7 @@ ALTER TABLE state.transaction
 CREATE INDEX IF NOT EXISTS idx_transaction_l2_hash ON state.transaction (l2_hash);
 
 ALTER TABLE state.batch
-    ADD COLUMN IF NOT EXISTS wip BOOLEAN NOT NULL;
+    ADD COLUMN IF NOT EXISTS wip BOOLEAN NOT NULL DEFAULT FALSE;
 
 ALTER TABLE state.virtual_batch
     ADD COLUMN IF NOT EXISTS timestamp_batch_etrog TIMESTAMP WITH TIME ZONE NULL,

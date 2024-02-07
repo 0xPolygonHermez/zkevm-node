@@ -46,6 +46,8 @@ type StreamServerCfg struct {
 	ChainID uint64 `mapstructure:"ChainID"`
 	// Log is the log configuration
 	Log log.Config `mapstructure:"Log"`
+	// UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+	UpgradeEtrogBatchNumber uint64 `mapstructure:"UpgradeEtrogBatchNumber"`
 }
 
 // Config is the configuration for the tool

@@ -65,6 +65,7 @@ func (f *finalizer) setWIPBatch(ctx context.Context, wipStateBatch *state.Batch)
 		initialStateRoot:        prevStateBatch.StateRoot,
 		finalStateRoot:          wipStateBatch.StateRoot,
 		timestamp:               wipStateBatch.Timestamp,
+		countOfL2Blocks:         len(wipStateBatchBlocks.Blocks),
 		countOfTxs:              wipStateBatchCountOfTxs,
 		imRemainingResources:    remainingResources,
 		finalRemainingResources: remainingResources,
@@ -196,21 +197,20 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 		f.initWIPL2Block(ctx)
 	}
 
-	batch, err := f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot)
+	f.wipBatch, err = f.openNewWIPBatch(ctx, lastBatchNumber+1, stateRoot)
 	if err != nil {
 		return fmt.Errorf("failed to open new wip batch, error: %v", err)
 	}
 
 	if f.wipL2Block != nil {
+		f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 		// Subtract the WIP L2 block used resources to batch
-		overflow, overflowResource := batch.imRemainingResources.Sub(f.wipL2Block.usedResources)
+		overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(f.wipL2Block.usedResources)
 		if overflow {
 			return fmt.Errorf("failed to subtract L2 block [%d] used resources to new wip batch %d, overflow resource: %s",
-				f.wipL2Block.trackingNum, batch.batchNumber, overflowResource)
+				f.wipL2Block.trackingNum, f.wipBatch.batchNumber, overflowResource)
 		}
 	}
-
-	f.wipBatch = batch
 
 	log.Infof("new WIP batch %d", f.wipBatch.batchNumber)
 

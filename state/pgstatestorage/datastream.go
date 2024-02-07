@@ -86,9 +86,9 @@ func scanL2Block(row pgx.Row) (*state.DSL2Block, error) {
 // GetDSL2Transactions returns the L2 transactions
 func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, firstL2Block, lastL2Block uint64, dbTx pgx.Tx) ([]*state.DSL2Transaction, error) {
 	const l2TxSQL = `SELECT l2_block_num, t.effective_percentage, t.encoded
-					 FROM state.transaction t
-					 WHERE l2_block_num BETWEEN $1 AND $2
-					 ORDER BY t.l2_block_num ASC`
+					 FROM state.transaction t, state.receipt r
+					 WHERE l2_block_num BETWEEN $1 AND $2 AND r.tx_hash = t.hash
+					 ORDER BY t.l2_block_num ASC, r.tx_index ASC`
 
 	e := p.getExecQuerier(dbTx)
 	rows, err := e.Query(ctx, l2TxSQL, firstL2Block, lastL2Block)
@@ -139,12 +139,12 @@ func scanDSL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
 // GetDSBatches returns the DS batches
 func (p *PostgresStorage) GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error) {
 	var getBatchByNumberSQL = `
-		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, f.fork_id
+		SELECT b.batch_num, b.global_exit_root, b.local_exit_root, b.acc_input_hash, b.state_root, b.timestamp, b.coinbase, b.raw_txs_data, b.forced_batch_num, b.wip, f.fork_id
 		  FROM state.batch b, state.fork_id f
 		 WHERE b.batch_num >= $1 AND b.batch_num <= $2 AND batch_num between f.from_batch_num AND f.to_batch_num`
 
 	if !readWIPBatch {
-		getBatchByNumberSQL += " AND b.wip = false"
+		getBatchByNumberSQL += " AND b.wip is false"
 	}
 
 	getBatchByNumberSQL += " ORDER BY b.batch_num ASC"
@@ -191,6 +191,7 @@ func scanDSBatch(row pgx.Row) (state.DSBatch, error) {
 		&coinbaseStr,
 		&batch.BatchL2Data,
 		&batch.ForcedBatchNum,
+		&batch.WIP,
 		&batch.ForkID,
 	)
 	if err != nil {

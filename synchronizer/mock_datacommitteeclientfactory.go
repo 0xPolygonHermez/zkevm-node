@@ -21,15 +21,15 @@ func (_m *dataCommitteeClientFactoryMock) EXPECT() *dataCommitteeClientFactoryMo
 }
 
 // New provides a mock function with given fields: url
-func (_m *dataCommitteeClientFactoryMock) New(url string) client.IClient {
+func (_m *dataCommitteeClientFactoryMock) New(url string) client.Client {
 	ret := _m.Called(url)
 
-	var r0 client.IClient
-	if rf, ok := ret.Get(0).(func(string) client.IClient); ok {
+	var r0 client.Client
+	if rf, ok := ret.Get(0).(func(string) client.Client); ok {
 		r0 = rf(url)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(client.IClient)
+			r0 = ret.Get(0).(client.Client)
 		}
 	}
 
@@ -54,12 +54,12 @@ func (_c *dataCommitteeClientFactoryMock_New_Call) Run(run func(url string)) *da
 	return _c
 }
 
-func (_c *dataCommitteeClientFactoryMock_New_Call) Return(_a0 client.IClient) *dataCommitteeClientFactoryMock_New_Call {
+func (_c *dataCommitteeClientFactoryMock_New_Call) Return(_a0 client.Client) *dataCommitteeClientFactoryMock_New_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *dataCommitteeClientFactoryMock_New_Call) RunAndReturn(run func(string) client.IClient) *dataCommitteeClientFactoryMock_New_Call {
+func (_c *dataCommitteeClientFactoryMock_New_Call) RunAndReturn(run func(string) client.Client) *dataCommitteeClientFactoryMock_New_Call {
 	_c.Call.Return(run)
 	return _c
 }

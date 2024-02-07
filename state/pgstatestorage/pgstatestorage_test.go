@@ -193,12 +193,15 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
 	receipt.BlockHash = l2Block.Hash()
 
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	for range transactions {
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	numTxs := len(transactions)
+	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
+	for i := range transactions {
+		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+		txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 	}
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
@@ -712,12 +715,15 @@ func TestGetLastVerifiedL2BlockNumberUntilL1Block(t *testing.T) {
 		l2Header := state.NewL2Header(&types.Header{Number: big.NewInt(0).SetUint64(blockNumber + uint64(10))})
 		l2Block := state.NewL2BlockWithHeader(l2Header)
 
-		storeTxsEGPData := []state.StoreTxEGPData{}
-		for range l2Block.Transactions() {
-			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)})
+		numTxs := len(l2Block.Transactions())
+		storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+		txsL2Hash := make([]common.Hash, numTxs)
+		for i := range l2Block.Transactions() {
+			storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: uint8(0)}
+			txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, []*types.Receipt{}, storeTxsEGPData, dbTx)
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, []*types.Receipt{}, txsL2Hash, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		virtualBatch := state.VirtualBatch{BlockNumber: blockNumber, BatchNumber: batchNumber, Coinbase: addr, SequencerAddr: addr, TxHash: hash}
@@ -932,12 +938,15 @@ func TestGetLogs(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		storeTxsEGPData := []state.StoreTxEGPData{}
-		for range transactions {
-			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		numTxs := len(transactions)
+		storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+		txsL2Hash := make([]common.Hash, numTxs)
+		for i := range transactions {
+			storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+			txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 	}
 
@@ -1059,12 +1068,15 @@ func TestGetNativeBlockHashesInRange(t *testing.T) {
 			receipt.BlockHash = l2Block.Hash()
 		}
 
-		storeTxsEGPData := []state.StoreTxEGPData{}
-		for range transactions {
-			storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+		numTxs := len(transactions)
+		storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+		txsL2Hash := make([]common.Hash, numTxs)
+		for i := range transactions {
+			storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+			txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 		}
 
-		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+		err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 		require.NoError(t, err)
 
 		nativeBlockHashes = append(nativeBlockHashes, l2Block.Header().Root)

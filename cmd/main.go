@@ -47,7 +47,7 @@ var (
 	networkFlag = cli.StringFlag{
 		Name:     config.FlagNetwork,
 		Aliases:  []string{"net"},
-		Usage:    "Load default network configuration. Supported values: [`mainnet`, `testnet`, `custom`]",
+		Usage:    "Load default network configuration. Supported values: [`custom`]",
 		Required: true,
 	}
 	customNetworkFlag = cli.StringFlag{

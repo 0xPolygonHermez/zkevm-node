@@ -386,13 +386,13 @@ func (_c *StorageMock_AddL1InfoRootToExitRoot_Call) RunAndReturn(run func(contex
 	return _c
 }
 
-// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx
-func (_m *StorageMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx
+func (_m *StorageMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []state.StoreTxEGPData, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []common.Hash, []state.StoreTxEGPData, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -410,15 +410,16 @@ type StorageMock_AddL2Block_Call struct {
 //   - batchNumber uint64
 //   - l2Block *state.L2Block
 //   - receipts []*types.Receipt
+//   - txsL2Hash []common.Hash
 //   - txsEGPData []state.StoreTxEGPData
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) AddL2Block(ctx interface{}, batchNumber interface{}, l2Block interface{}, receipts interface{}, txsEGPData interface{}, dbTx interface{}) *StorageMock_AddL2Block_Call {
-	return &StorageMock_AddL2Block_Call{Call: _e.mock.On("AddL2Block", ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)}
+func (_e *StorageMock_Expecter) AddL2Block(ctx interface{}, batchNumber interface{}, l2Block interface{}, receipts interface{}, txsL2Hash interface{}, txsEGPData interface{}, dbTx interface{}) *StorageMock_AddL2Block_Call {
+	return &StorageMock_AddL2Block_Call{Call: _e.mock.On("AddL2Block", ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)}
 }
 
-func (_c *StorageMock_AddL2Block_Call) Run(run func(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx)) *StorageMock_AddL2Block_Call {
+func (_c *StorageMock_AddL2Block_Call) Run(run func(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx)) *StorageMock_AddL2Block_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(*state.L2Block), args[3].([]*types.Receipt), args[4].([]state.StoreTxEGPData), args[5].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(uint64), args[2].(*state.L2Block), args[3].([]*types.Receipt), args[4].([]common.Hash), args[5].([]state.StoreTxEGPData), args[6].(pgx.Tx))
 	})
 	return _c
 }
@@ -428,7 +429,7 @@ func (_c *StorageMock_AddL2Block_Call) Return(_a0 error) *StorageMock_AddL2Block
 	return _c
 }
 
-func (_c *StorageMock_AddL2Block_Call) RunAndReturn(run func(context.Context, uint64, *state.L2Block, []*types.Receipt, []state.StoreTxEGPData, pgx.Tx) error) *StorageMock_AddL2Block_Call {
+func (_c *StorageMock_AddL2Block_Call) RunAndReturn(run func(context.Context, uint64, *state.L2Block, []*types.Receipt, []common.Hash, []state.StoreTxEGPData, pgx.Tx) error) *StorageMock_AddL2Block_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3063,6 +3064,66 @@ func (_c *StorageMock_GetL2BlocksByBatchNumber_Call) Return(_a0 []state.L2Block,
 }
 
 func (_c *StorageMock_GetL2BlocksByBatchNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) ([]state.L2Block, error)) *StorageMock_GetL2BlocksByBatchNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetL2TxHashByTxHash provides a mock function with given fields: ctx, hash, dbTx
+func (_m *StorageMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, hash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2TxHashByTxHash")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, hash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, hash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, hash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetL2TxHashByTxHash_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL2TxHashByTxHash'
+type StorageMock_GetL2TxHashByTxHash_Call struct {
+	*mock.Call
+}
+
+// GetL2TxHashByTxHash is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hash common.Hash
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetL2TxHashByTxHash(ctx interface{}, hash interface{}, dbTx interface{}) *StorageMock_GetL2TxHashByTxHash_Call {
+	return &StorageMock_GetL2TxHashByTxHash_Call{Call: _e.mock.On("GetL2TxHashByTxHash", ctx, hash, dbTx)}
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) Run(run func(ctx context.Context, hash common.Hash, dbTx pgx.Tx)) *StorageMock_GetL2TxHashByTxHash_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(common.Hash), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) Return(_a0 common.Hash, _a1 error) *StorageMock_GetL2TxHashByTxHash_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetL2TxHashByTxHash_Call) RunAndReturn(run func(context.Context, common.Hash, pgx.Tx) (common.Hash, error)) *StorageMock_GetL2TxHashByTxHash_Call {
 	_c.Call.Return(run)
 	return _c
 }

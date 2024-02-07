@@ -349,7 +349,7 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 			c.Etherman.URL,
 			dacAddr,
 			pk,
-			&dataCommitteeClient.Factory{},
+			dataCommitteeClient.NewFactory(),
 		)
 		if err != nil {
 			return nil, err

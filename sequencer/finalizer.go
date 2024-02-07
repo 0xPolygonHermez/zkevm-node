@@ -268,7 +268,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	for {
 		start := now()
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
-		if !f.wipL2Block.timestamp.Add(f.cfg.L2BlockMaxDeltaTimestamp.Duration).After(time.Now()) {
+		if f.wipL2Block.timestamp+uint64(f.cfg.L2BlockMaxDeltaTimestamp.Seconds()) <= uint64(time.Now().Unix()) {
 			f.finalizeWIPL2Block(ctx)
 		}
 
@@ -277,6 +277,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		// If we have txs pending to process but none of them fits into the wip batch, we close the wip batch and open a new one
 		if err == ErrNoFittingTransaction {
 			f.finalizeWIPBatch(ctx, state.NoTxFitsClosingReason)
+			continue
 		}
 
 		metrics.WorkerProcessingTime(time.Since(start))
@@ -293,6 +294,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 						firstTxProcess = false
 						log.Infof("reprocessing tx %s because of effective gas price calculation", tx.HashStr)
 						continue
+					} else if err == ErrBatchResourceUnderFlow {
+						log.Infof("skipping tx %s due to a batch resource underflow", tx.HashStr)
+						break
 					} else {
 						log.Errorf("failed to process tx %s, error: %v", err)
 						break
@@ -337,12 +341,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		metrics.ProcessingTime(time.Since(start))
 	}()
 
+	log.Infof("processing tx %s, batchNumber: %d, l2Block: [%d], oldStateRoot: %s, L1InfoRootIndex: %d",
+		tx.HashStr, f.wipBatch.batchNumber, f.wipL2Block.trackingNum, f.wipBatch.imStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
+
 	batchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             mockL1InfoRoot,
-		TimestampLimit_V2:         uint64(f.wipL2Block.timestamp.Unix()),
+		TimestampLimit_V2:         f.wipL2Block.timestamp,
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		Transactions:              tx.RawTx,
@@ -425,9 +432,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	batchRequest.Transactions = append(batchRequest.Transactions, effectivePercentageAsDecodedHex...)
 
-	log.Infof("processing tx %s, wipBatch.BatchNumber: %d, batchNumber: %d, oldStateRoot: %s, L1InfoRootIndex: %d",
-		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchRequest.OldStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
-
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
 
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
@@ -463,9 +467,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	// Update imStateRoot
 	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
 
-	log.Infof("processed tx %s. Batch.batchNumber: %d, batchNumber: %d, newStateRoot: %s, oldStateRoot: %s, used counters: %s",
-		tx.HashStr, f.wipBatch.batchNumber, batchRequest.BatchNumber, batchResponse.NewStateRoot.String(),
-		batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
+	log.Infof("processed tx %s, batchNumber: %d, l2Block: [%d], newStateRoot: %s, oldStateRoot: %s, used counters: %s",
+		tx.HashStr, batchRequest.BatchNumber, f.wipL2Block.trackingNum, batchResponse.NewStateRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
 	return nil, nil
 }
@@ -478,16 +481,6 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
 		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
-	}
-
-	// Check remaining resources
-	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
-	if overflow {
-		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
-		start := time.Now()
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return nil, err
 	}
 
 	egpEnabled := f.effectiveGasPrice.IsEnabled()
@@ -530,6 +523,16 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 				return nil, errCompare
 			}
 		}
+	}
+
+	// Check remaining resources
+	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
+	if overflow {
+		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
+		start := time.Now()
+		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
+		metrics.WorkerProcessingTime(time.Since(start))
+		return nil, ErrBatchResourceUnderFlow
 	}
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging

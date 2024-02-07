@@ -1,7 +1,7 @@
 -- +migrate Up
 ALTER TABLE pool.transaction
     ADD COLUMN l2_hash VARCHAR UNIQUE,
-    ADD COLUMN used_sha256_hashes INTEGER;
+    ADD COLUMN used_sha256_hashes INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_transaction_l2_hash ON pool.transaction (l2_hash);
 
 -- +migrate Down

@@ -377,7 +377,13 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 
 // GetTxsByBlockNumber returns all the txs in a given block
 func (p *PostgresStorage) GetTxsByBlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) ([]*types.Transaction, error) {
-	const getTxsByBlockNumSQL = "SELECT encoded FROM state.transaction WHERE l2_block_num = $1"
+	const getTxsByBlockNumSQL = `SELECT t.encoded 
+	   FROM state.transaction t
+	   JOIN state.receipt r
+	     ON t.hash = r.tx_hash
+	  WHERE t.l2_block_num = $1
+	    AND r.block_num = $1
+	  ORDER by r.tx_index ASC`
 
 	q := p.getExecQuerier(dbTx)
 	rows, err := q.Query(ctx, getTxsByBlockNumSQL, blockNumber)
@@ -553,4 +559,22 @@ func (p *PostgresStorage) GetTransactionEGPLogByHash(ctx context.Context, transa
 	}
 
 	return &egpLog, nil
+}
+
+// GetL2TxHashByTxHash gets the L2 Hash from the tx found by the provided tx hash
+func (p *PostgresStorage) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (common.Hash, error) {
+	const getTransactionByHashSQL = "SELECT transaction.l2_hash FROM state.transaction WHERE hash = $1"
+
+	var l2HashHex string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getTransactionByHashSQL, hash.String()).Scan(&l2HashHex)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return common.Hash{}, state.ErrNotFound
+	} else if err != nil {
+		return common.Hash{}, err
+	}
+
+	l2Hash := common.HexToHash(l2HashHex)
+	return l2Hash, nil
 }
