@@ -69,7 +69,7 @@ services:
       - 5432:5432
     volumes:
       - ./db/scripts/init_prover_db.sql:/docker-entrypoint-initdb.d/init.sql
-      - ${ZKEVM_NODE_STATEDB_DATA_DIR}:/var/lib/postgresql/data
+      - ${ZKEVM_NODE_STATEDB_DATA_DIR-./data/statedb}:/var/lib/postgresql/data
       - ${ZKEVM_ADVANCED_CONFIG_DIR:-./config/environments/${ZKEVM_NETWORK}}/postgresql.conf:/etc/postgresql.conf
     environment:
       - POSTGRES_USER=state_user
@@ -94,7 +94,7 @@ services:
     ports:
       - 5433:5432
     volumes:
-      - ${ZKEVM_NODE_POOLDB_DATA_DIR}:/var/lib/postgresql/data
+      - ${ZKEVM_NODE_POOLDB_DATA_DIR:-./data/pooldb}:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=pool_user
       - POSTGRES_PASSWORD=pool_password
