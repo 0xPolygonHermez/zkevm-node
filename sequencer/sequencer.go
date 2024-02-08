@@ -124,7 +124,7 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 		}
 
 		if stateInconsistenciesDetected != s.numberOfStateInconsistencies {
-			s.finalizer.Halt(ctx, fmt.Errorf("state inconsistency detected, halting finalizer"))
+			s.finalizer.Halt(ctx, fmt.Errorf("state inconsistency detected, halting finalizer"), false)
 		}
 	}
 }
