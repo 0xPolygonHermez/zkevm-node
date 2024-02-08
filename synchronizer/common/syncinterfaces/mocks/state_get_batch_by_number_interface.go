@@ -28,6 +28,10 @@ func (_m *StateGetBatchByNumberInterface) EXPECT() *StateGetBatchByNumberInterfa
 func (_m *StateGetBatchByNumberInterface) GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchByNumber")
+	}
+
 	var r0 *state.Batch
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Batch, error)); ok {

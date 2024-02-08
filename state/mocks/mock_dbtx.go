@@ -28,6 +28,10 @@ func (_m *DbTxMock) EXPECT() *DbTxMock_Expecter {
 func (_m *DbTxMock) Begin(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Begin")
+	}
+
 	var r0 pgx.Tx
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {
@@ -82,6 +86,10 @@ func (_c *DbTxMock_Begin_Call) RunAndReturn(run func(context.Context) (pgx.Tx, e
 func (_m *DbTxMock) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
 	ret := _m.Called(ctx, f)
 
+	if len(ret) == 0 {
+		panic("no return value specified for BeginFunc")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, func(pgx.Tx) error) error); ok {
 		r0 = rf(ctx, f)
@@ -125,6 +133,10 @@ func (_c *DbTxMock_BeginFunc_Call) RunAndReturn(run func(context.Context, func(p
 func (_m *DbTxMock) Commit(ctx context.Context) error {
 	ret := _m.Called(ctx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Commit")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
 		r0 = rf(ctx)
@@ -166,6 +178,10 @@ func (_c *DbTxMock_Commit_Call) RunAndReturn(run func(context.Context) error) *D
 // Conn provides a mock function with given fields:
 func (_m *DbTxMock) Conn() *pgx.Conn {
 	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Conn")
+	}
 
 	var r0 *pgx.Conn
 	if rf, ok := ret.Get(0).(func() *pgx.Conn); ok {
@@ -209,6 +225,10 @@ func (_c *DbTxMock_Conn_Call) RunAndReturn(run func() *pgx.Conn) *DbTxMock_Conn_
 // CopyFrom provides a mock function with given fields: ctx, tableName, columnNames, rowSrc
 func (_m *DbTxMock) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
 	ret := _m.Called(ctx, tableName, columnNames, rowSrc)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CopyFrom")
+	}
 
 	var r0 int64
 	var r1 error
@@ -267,6 +287,10 @@ func (_m *DbTxMock) Exec(ctx context.Context, sql string, arguments ...interface
 	_ca = append(_ca, ctx, sql)
 	_ca = append(_ca, arguments...)
 	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Exec")
+	}
 
 	var r0 pgconn.CommandTag
 	var r1 error
@@ -331,6 +355,10 @@ func (_c *DbTxMock_Exec_Call) RunAndReturn(run func(context.Context, string, ...
 func (_m *DbTxMock) LargeObjects() pgx.LargeObjects {
 	ret := _m.Called()
 
+	if len(ret) == 0 {
+		panic("no return value specified for LargeObjects")
+	}
+
 	var r0 pgx.LargeObjects
 	if rf, ok := ret.Get(0).(func() pgx.LargeObjects); ok {
 		r0 = rf()
@@ -371,6 +399,10 @@ func (_c *DbTxMock_LargeObjects_Call) RunAndReturn(run func() pgx.LargeObjects) 
 // Prepare provides a mock function with given fields: ctx, name, sql
 func (_m *DbTxMock) Prepare(ctx context.Context, name string, sql string) (*pgconn.StatementDescription, error) {
 	ret := _m.Called(ctx, name, sql)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Prepare")
+	}
 
 	var r0 *pgconn.StatementDescription
 	var r1 error
@@ -430,6 +462,10 @@ func (_m *DbTxMock) Query(ctx context.Context, sql string, args ...interface{}) 
 	_ca = append(_ca, ctx, sql)
 	_ca = append(_ca, args...)
 	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Query")
+	}
 
 	var r0 pgx.Rows
 	var r1 error
@@ -494,6 +530,10 @@ func (_c *DbTxMock_Query_Call) RunAndReturn(run func(context.Context, string, ..
 func (_m *DbTxMock) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
 	ret := _m.Called(ctx, sql, args, scans, f)
 
+	if len(ret) == 0 {
+		panic("no return value specified for QueryFunc")
+	}
+
 	var r0 pgconn.CommandTag
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, []interface{}, []interface{}, func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error)); ok {
@@ -555,6 +595,10 @@ func (_m *DbTxMock) QueryRow(ctx context.Context, sql string, args ...interface{
 	_ca = append(_ca, args...)
 	ret := _m.Called(_ca...)
 
+	if len(ret) == 0 {
+		panic("no return value specified for QueryRow")
+	}
+
 	var r0 pgx.Row
 	if rf, ok := ret.Get(0).(func(context.Context, string, ...interface{}) pgx.Row); ok {
 		r0 = rf(ctx, sql, args...)
@@ -608,6 +652,10 @@ func (_c *DbTxMock_QueryRow_Call) RunAndReturn(run func(context.Context, string,
 func (_m *DbTxMock) Rollback(ctx context.Context) error {
 	ret := _m.Called(ctx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for Rollback")
+	}
+
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
 		r0 = rf(ctx)
@@ -649,6 +697,10 @@ func (_c *DbTxMock_Rollback_Call) RunAndReturn(run func(context.Context) error) 
 // SendBatch provides a mock function with given fields: ctx, b
 func (_m *DbTxMock) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	ret := _m.Called(ctx, b)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SendBatch")
+	}
 
 	var r0 pgx.BatchResults
 	if rf, ok := ret.Get(0).(func(context.Context, *pgx.Batch) pgx.BatchResults); ok {

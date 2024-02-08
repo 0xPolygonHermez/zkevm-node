@@ -670,7 +670,7 @@ install-mockery: ## Installs mockery with the correct version to generate the mo
 	go install github.com/vektra/mockery/v2@v2.39.0
 
 .PHONY: generate-mocks
-generate-mocks: generate-mocks-jsonrpc generate-mocks-sequencer generate-mocks-synchronizer generate-mocks-etherman generate-mocks-aggregator generate-mocks-state ## Generates mocks for the tests, using mockery tool
+generate-mocks: generate-mocks-jsonrpc generate-mocks-sequencer generate-mocks-sequence-sender generate-mocks-synchronizer generate-mocks-etherman generate-mocks-aggregator generate-mocks-state ## Generates mocks for the tests, using mockery tool
 
 .PHONY: generate-mocks-jsonrpc
 generate-mocks-jsonrpc: ## Generates mocks for jsonrpc , using mockery tool
@@ -688,6 +688,12 @@ generate-mocks-sequencer: ## Generates mocks for sequencer , using mockery tool
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Tx --srcpkg=github.com/jackc/pgx/v4 --output=../sequencer --outpkg=sequencer --structname=DbTxMock --filename=mock_dbtx.go
 	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=etherman --dir=../sequencer --output=../sequencer --outpkg=sequencer --inpackage --structname=EthermanMock --filename=mock_etherman.go
 
+.PHONY: generate-mocks-sequence-sender
+generate-mocks-sequence-sender: ## Generates mocks for sequencesender package, using mockery tool
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=stateInterface --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --inpackage --structname=StateMock --filename=mock_state.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethTxManager --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --inpackage  --structname=EthTxManagerMock --filename=mock_ethtxmanager.go
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=etherman --dir=../sequencesender --output=../sequencesender --outpkg=sequencesender --inpackage --structname=EthermanMock --filename=mock_etherman.go
+
 SYNC_L1_PARALLEL_FOLDER="../synchronizer/l1_parallel_sync"
 SYNC_L1_PARALLEL_MOCKS_FOLDER="../synchronizer/l1_parallel_sync/mocks"
 SYNC_L1_PARALLEL_PARAMS=--inpackage --outpkg=l1_parallel_sync
@@ -695,12 +701,12 @@ COMMON_MOCKERY_PARAMS=--disable-version-string --with-expecter
 .PHONY: generate-mocks-synchronizer
 generate-mocks-synchronizer: ## Generates mocks for synchronizer , using mockery tool
 	## mocks for synchronizer
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthermanInterface 		--dir=../synchronizer        			--output=../synchronizer --outpkg=synchronizer 	--structname=ethermanMock 						--filename=mock_etherman.go      ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=stateInterface    		--dir=../synchronizer        			--output=../synchronizer --outpkg=synchronizer 	--structname=StateMock 							--filename=mock_state.go         ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=ethTxManager       		--dir=../synchronizer       			--output=../synchronizer --outpkg=synchronizer 	--structname=ethTxManagerMock 					--filename=mock_ethtxmanager.go  ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=poolInterface 			--dir=../synchronizer 					--output=../synchronizer --outpkg=synchronizer 	--structname=poolMock 							--filename=mock_pool.go          ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Factory    			--srcpkg=github.com/0xPolygon/cdk-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientFactoryMock --filename=mock_datacommitteeclientfactory.go ${COMMON_MOCKERY_PARAMS}
-	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Client           		--srcpkg=github.com/0xPolygon/cdk-data-availability/client --output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientMock        --filename=mock_datacommitteeclient.go        ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthermanFullInterface 		--dir=../synchronizer/common/syncinterfaces        			--output=../synchronizer --outpkg=synchronizer 	--structname=ethermanMock 						--filename=mock_etherman.go      ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=StateFullInterface    		--dir=../synchronizer/common/syncinterfaces        			--output=../synchronizer --outpkg=synchronizer 	--structname=StateMock 							--filename=mock_state.go         ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=EthTxManager       			--dir=../synchronizer/common/syncinterfaces       			--output=../synchronizer --outpkg=synchronizer 	--structname=ethTxManagerMock 					--filename=mock_ethtxmanager.go  ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=PoolInterface 				--dir=../synchronizer/common/syncinterfaces 				--output=../synchronizer --outpkg=synchronizer 	--structname=poolMock 							--filename=mock_pool.go          ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Factory    					--srcpkg=github.com/0xPolygon/cdk-data-availability/client 	--output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientFactoryMock --filename=mock_datacommitteeclientfactory.go ${COMMON_MOCKERY_PARAMS}
+	export "GOROOT=$$(go env GOROOT)" && $$(go env GOPATH)/bin/mockery --name=Client           				--srcpkg=github.com/0xPolygon/cdk-data-availability/client 	--output=../synchronizer --outpkg=synchronizer --structname=dataCommitteeClientMock        --filename=mock_datacommitteeclient.go        ${COMMON_MOCKERY_PARAMS}
 	for i in l1RollupProducerInterface l1RollupConsumerInterface worker synchronizerProcessBlockRangeInterface workersInterface L1ParallelEthermanInterface; do \
 		camelcase=$$(echo $$i | sed 's/\([a-z0-9]\)\([A-Z]\)/\1_\2/g' | tr '[:upper:]' '[:lower:]') ; \
 		echo $$camelcase ; \

@@ -31,6 +31,10 @@ func (_m *StateGERInteface) EXPECT() *StateGERInteface_Expecter {
 func (_m *StateGERInteface) GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error) {
 	ret := _m.Called(ctx, ger, dbTx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetExitRootByGlobalExitRoot")
+	}
+
 	var r0 *state.GlobalExitRoot
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*state.GlobalExitRoot, error)); ok {
@@ -86,6 +90,10 @@ func (_c *StateGERInteface_GetExitRootByGlobalExitRoot_Call) RunAndReturn(run fu
 // GetLastBlock provides a mock function with given fields: ctx, dbTx
 func (_m *StateGERInteface) GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error) {
 	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastBlock")
+	}
 
 	var r0 *state.Block
 	var r1 error

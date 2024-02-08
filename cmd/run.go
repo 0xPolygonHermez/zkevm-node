@@ -29,7 +29,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/gasprice"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/client"
-	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/merkletree"
 	"github.com/0xPolygonHermez/zkevm-node/metrics"
@@ -122,20 +121,17 @@ func start(cliCtx *cli.Context) error {
 		log.Fatal(err)
 	}
 
-	st := newState(cliCtx.Context, c, l2ChainID, []state.ForkIDInterval{}, stateSqlDB, eventLog, needsExecutor, needsStateTree)
-
-	etherman, err := newEtherman(*c, st)
+	etherman, err := etherman.NewClient(c.Etherman, c.NetworkConfig.L1Config, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	forkIDIntervals, err := forkIDIntervals(cliCtx.Context, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
-	if err != nil {
-		log.Fatal("error getting forkIDs. Error: ", err)
-	}
-	st.UpdateForkIDIntervalsInMemory(forkIDIntervals)
+	st, currentForkID := newState(cliCtx.Context, c, etherman, l2ChainID, stateSqlDB, eventLog, needsExecutor, needsStateTree, false)
 
-	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
-	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
+	etherman, err = newEtherman(*c, st)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	c.Aggregator.ChainID = l2ChainID
 	c.Sequencer.StreamServer.ChainID = l2ChainID
 	log.Infof("Chain ID read from POE SC = %v", l2ChainID)
@@ -220,6 +216,7 @@ func start(cliCtx *cli.Context) error {
 			for _, a := range cliCtx.StringSlice(config.FlagHTTPAPI) {
 				apis[a] = true
 			}
+			st, _ := newState(cliCtx.Context, c, etherman, l2ChainID, stateSqlDB, eventLog, needsExecutor, needsStateTree, true)
 			go runJSONRPCServer(*c, etherman, l2ChainID, poolInstance, st, apis)
 		case SYNCHRONIZER:
 			ev.Component = event.Component_Synchronizer
@@ -379,7 +376,7 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 				log.Fatal("error getting trusted sequencer URI. Error: %v", err)
 			}
 		}
-		log.Debug("trustedSequencerURL ", trustedSequencerURL)
+		log.Info("trustedSequencerURL ", trustedSequencerURL)
 	}
 	zkEVMClient := client.NewClient(trustedSequencerURL)
 
@@ -543,9 +540,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-	stateDb := pgstatestorage.NewPostgresStorage(c.State, sqlDB)
-
+func newState(ctx context.Context, c *config.Config, etherman *etherman.Client, l2ChainID uint64, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree, avoidForkIDInMemory bool) (*state.State, uint64) {
 	// Executor
 	var executorClient executor.ExecutorServiceClient
 	if needsExecutor {
@@ -562,7 +557,7 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 	stateCfg := state.Config{
 		MaxCumulativeGasUsed:         c.State.Batch.Constraints.MaxCumulativeGasUsed,
 		ChainID:                      l2ChainID,
-		ForkIDIntervals:              forkIDIntervals,
+		ForkIDIntervals:              []state.ForkIDInterval{},
 		MaxResourceExhaustedAttempts: c.Executor.MaxResourceExhaustedAttempts,
 		WaitOnResourceExhaustion:     c.Executor.WaitOnResourceExhaustion,
 		ForkUpgradeBatchNumber:       c.ForkUpgradeBatchNumber,
@@ -570,22 +565,27 @@ func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDInt
 		MaxLogsCount:                 c.RPC.MaxLogsCount,
 		MaxLogsBlockRange:            c.RPC.MaxLogsBlockRange,
 		MaxNativeBlockHashBlockRange: c.RPC.MaxNativeBlockHashBlockRange,
+		AvoidForkIDInMemory:          avoidForkIDInMemory,
 	}
-	allLeaves, err := stateDb.GetAllL1InfoRootEntries(ctx, nil)
+	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil)
+	// This is to force to build cache, and check that DB is ok before starting the application
+	l1inforoot, err := st.GetCurrentL1InfoRoot(ctx, nil)
 	if err != nil {
-		log.Fatal("error getting all leaves. Error: ", err)
+		log.Fatal("error getting current L1InfoRoot. Error: ", err)
 	}
-	var leaves [][32]byte
-	for _, leaf := range allLeaves {
-		leaves = append(leaves, leaf.Hash())
-	}
-	mt, err := l1infotree.NewL1InfoTree(uint8(32), leaves) //nolint:gomnd
-	if err != nil {
-		log.Fatal("error creating L1InfoTree. Error: ", err)
-	}
+	log.Infof("Starting L1InfoRoot: %v", l1inforoot.String())
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, mt)
-	return st
+	forkIDIntervals, err := forkIDIntervals(ctx, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
+	if err != nil {
+		log.Fatal("error getting forkIDs. Error: ", err)
+	}
+	st.UpdateForkIDIntervalsInMemory(forkIDIntervals)
+
+	currentForkID := forkIDIntervals[len(forkIDIntervals)-1].ForkId
+	log.Infof("Fork ID read from POE SC = %v", forkIDIntervals[len(forkIDIntervals)-1].ForkId)
+
+	return st, currentForkID
 }
 
 func createPool(cfgPool pool.Config, constraintsCfg state.BatchConstraintsCfg, l2ChainID uint64, st *state.State, eventLog *event.EventLog) *pool.Pool {

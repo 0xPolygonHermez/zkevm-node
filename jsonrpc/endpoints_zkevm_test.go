@@ -777,7 +777,7 @@ func TestGetBatchByNumber(t *testing.T) {
 						Once()
 					m.State.
 						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
-						Return(tx.Hash(), nil).
+						Return(state.Ptr(tx.Hash()), nil).
 						Once()
 				}
 				m.State.
@@ -1063,7 +1063,7 @@ func TestGetBatchByNumber(t *testing.T) {
 
 					m.State.
 						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
-						Return(tx.Hash(), nil).
+						Return(state.Ptr(tx.Hash()), nil).
 						Once()
 				}
 
@@ -1210,6 +1210,7 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 		SetupMocks     func(*mocksWrapper, *testCase)
 	}
 
+	st := trie.NewStackTrie(nil)
 	testCases := []testCase{
 		{
 			Name:           "Block not found",
@@ -1262,7 +1263,7 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
 				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
-				&trie.StackTrie{},
+				st,
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
@@ -1270,7 +1271,8 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 				for _, uncle := range tc.ExpectedResult.Uncles() {
 					uncles = append(uncles, state.NewL2Header(uncle))
 				}
-				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				st := trie.NewStackTrie(nil)
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, st)
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1402,7 +1404,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
 	l2Header.BlockInfoRoot = common.HexToHash("0x17")
-	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, st)
 
 	for _, receipt := range receipts {
 		receipt.BlockHash = l2Block.Hash()
@@ -1620,7 +1623,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				lastBlockHeader := &ethTypes.Header{Number: big.NewInt(0).SetUint64(uint64(rpcBlock.Number))}
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
+				st := trie.NewStackTrie(nil)
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, st)
 
 				tc.ExpectedResult = &types.Block{}
 				tc.ExpectedResult.ParentHash = lastBlock.Hash()
@@ -1976,7 +1980,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 
 				m.State.
 					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
-					Return(l2Hash, nil).
+					Return(&l2Hash, nil).
 					Once()
 			},
 		},
@@ -2292,7 +2296,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 
 				m.State.
 					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
-					Return(l2Hash, nil).
+					Return(&l2Hash, nil).
 					Once()
 			},
 		},
@@ -2422,7 +2426,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 
 				m.State.
 					On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
-					Return(l2Hash, nil).
+					Return(&l2Hash, nil).
 					Once()
 			},
 		},

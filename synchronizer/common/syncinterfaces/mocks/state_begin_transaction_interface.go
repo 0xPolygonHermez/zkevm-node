@@ -26,6 +26,10 @@ func (_m *StateBeginTransactionInterface) EXPECT() *StateBeginTransactionInterfa
 func (_m *StateBeginTransactionInterface) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	ret := _m.Called(ctx)
 
+	if len(ret) == 0 {
+		panic("no return value specified for BeginStateTransaction")
+	}
+
 	var r0 pgx.Tx
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context) (pgx.Tx, error)); ok {

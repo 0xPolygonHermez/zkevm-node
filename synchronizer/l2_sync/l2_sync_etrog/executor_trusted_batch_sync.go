@@ -89,7 +89,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			return nil, ErrCriticalClosedBatchDontContainExpectedData
 		}
 	}
-
+	res := l2_shared.NewProcessResponse()
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
@@ -97,10 +97,10 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
+		data.StateBatch.WIP = false
+		res.UpdateCurrentBatch(data.StateBatch)
 	}
-	data.StateBatch.WIP = !data.BatchMustBeClosed
-	res := l2_shared.NewProcessResponse()
-	res.UpdateCurrentBatch(data.StateBatch)
+
 	return &res, nil
 }
 
@@ -395,7 +395,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Contex
 		return nil, fmt.Errorf("%s romOOCError detected.err: %w", debugPrefix, ErrFailExecuteBatch)
 	}
 	for _, block := range processBatchResp.BlockResponses {
-		log.Debugf("%s Storing trusted tx %+v", block.BlockNumber, debugPrefix)
+		log.Debugf("%s Storing trusted tx %d", debugPrefix, block.BlockNumber)
 		if err = b.state.StoreL2Block(ctx, request.BatchNumber, block, nil, dbTx); err != nil {
 			newErr := fmt.Errorf("%s failed to store l2block: %v  err:%w", debugPrefix, block.BlockNumber, err)
 			log.Error(newErr.Error())

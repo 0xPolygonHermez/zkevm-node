@@ -424,6 +424,27 @@ func (p *PostgresStorage) GetL2BlockHeaderByNumber(ctx context.Context, blockNum
 	return header, nil
 }
 
+// GetL2BlockHashByNumber gets the block hash by block number
+func (p *PostgresStorage) GetL2BlockHashByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
+	const getL2BlockHeaderByNumberSQL = "SELECT block_hash FROM state.l2block b WHERE b.block_num = $1"
+
+	blockHash := state.ZeroHash
+
+	var blockHashStr string
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, getL2BlockHeaderByNumberSQL, blockNumber).Scan(&blockHashStr)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return blockHash, state.ErrNotFound
+	} else if err != nil {
+		return blockHash, err
+	}
+
+	blockHash = common.HexToHash(blockHashStr)
+
+	return blockHash, nil
+}
+
 // GetL2BlockHashesSince gets the block hashes added since the provided date
 func (p *PostgresStorage) GetL2BlockHashesSince(ctx context.Context, since time.Time, dbTx pgx.Tx) ([]common.Hash, error) {
 	const getL2BlockHashesSinceSQL = "SELECT block_hash FROM state.l2block WHERE created_at >= $1"
@@ -495,4 +516,24 @@ func buildBlock(header *state.L2Header, transactions []*types.Transaction, uncle
 	l2Block.ReceivedAt = receivedAt
 
 	return l2Block
+}
+
+func (p *PostgresStorage) GetFirstL2BlockNumberForBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (uint64, error) {
+	const getL2BlockNumSQL = `
+	select MIN(block_num) 
+		FROM state.l2block  
+		WHERE batch_num = $1;
+	`
+
+	q := p.getExecQuerier(dbTx)
+	row := q.QueryRow(ctx, getL2BlockNumSQL, batchNumber)
+	var l2BlockNumber uint64
+	err := row.Scan(&l2BlockNumber)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, state.ErrNotFound
+	} else if err != nil {
+		return 0, err
+	}
+
+	return l2BlockNumber, nil
 }

@@ -1287,16 +1287,16 @@ TrustedSequencerURL=""
 
 **Type:** : `enum (of string)`
 
-**Default:** `"parallel"`
+**Default:** `"sequential"`
 
 **Description:** L1SynchronizationMode define how to synchronize with L1:
 - parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data
 - sequential: Request data to L1 and execute
 
-**Example setting the default value** ("parallel"):
+**Example setting the default value** ("sequential"):
 ```
 [Synchronizer]
-L1SynchronizationMode="parallel"
+L1SynchronizationMode="sequential"
 ```
 
 Must be one of:
@@ -3435,6 +3435,7 @@ MaxConns=200
 | - [MaxLogsCount](#State_MaxLogsCount )                                 | No      | integer         | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                      |
 | - [MaxLogsBlockRange](#State_MaxLogsBlockRange )                       | No      | integer         | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
 | - [MaxNativeBlockHashBlockRange](#State_MaxNativeBlockHashBlockRange ) | No      | integer         | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
+| - [AvoidForkIDInMemory](#State_AvoidForkIDInMemory )                   | No      | boolean         | No         | -          | AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded<br />from the DB every time it's needed                                                        |
 
 ### <a name="State_MaxCumulativeGasUsed"></a>20.1. `State.MaxCumulativeGasUsed`
 
@@ -3750,12 +3751,12 @@ MaxBatchBytesSize=120000
 
 **Type:** : `integer`
 
-**Default:** `30000000`
+**Default:** `1125899906842624`
 
-**Example setting the default value** (30000000):
+**Example setting the default value** (1125899906842624):
 ```
 [State.Batch.Constraints]
-MaxCumulativeGasUsed=30000000
+MaxCumulativeGasUsed=1125899906842624
 ```
 
 ##### <a name="State_Batch_Constraints_MaxKeccakHashes"></a>20.9.1.4. `State.Batch.Constraints.MaxKeccakHashes`
@@ -3897,6 +3898,21 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [State]
 MaxNativeBlockHashBlockRange=0
+```
+
+### <a name="State_AvoidForkIDInMemory"></a>20.13. `State.AvoidForkIDInMemory`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded
+from the DB every time it's needed
+
+**Example setting the default value** (false):
+```
+[State]
+AvoidForkIDInMemory=false
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

@@ -485,7 +485,7 @@
 						"parallel"
 					],
 					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
-					"default": "parallel"
+					"default": "sequential"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
@@ -1489,7 +1489,7 @@
 								},
 								"MaxCumulativeGasUsed": {
 									"type": "integer",
-									"default": 30000000
+									"default": 1125899906842624
 								},
 								"MaxKeccakHashes": {
 									"type": "integer",
@@ -1546,6 +1546,11 @@
 					"type": "integer",
 					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
 					"default": 0
+				},
+				"AvoidForkIDInMemory": {
+					"type": "boolean",
+					"description": "AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded\nfrom the DB every time it's needed",
+					"default": false
 				}
 			},
 			"additionalProperties": false,

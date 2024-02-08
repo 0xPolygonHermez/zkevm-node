@@ -37,6 +37,10 @@ func (_m *ExecutorServiceClientMock) GetFlushStatus(ctx context.Context, in *emp
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
+	if len(ret) == 0 {
+		panic("no return value specified for GetFlushStatus")
+	}
+
 	var r0 *executor.GetFlushStatusResponse
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *emptypb.Empty, ...grpc.CallOption) (*executor.GetFlushStatusResponse, error)); ok {
@@ -107,6 +111,10 @@ func (_m *ExecutorServiceClientMock) ProcessBatch(ctx context.Context, in *execu
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
+	if len(ret) == 0 {
+		panic("no return value specified for ProcessBatch")
+	}
+
 	var r0 *executor.ProcessBatchResponse
 	var r1 error
 	if rf, ok := ret.Get(0).(func(context.Context, *executor.ProcessBatchRequest, ...grpc.CallOption) (*executor.ProcessBatchResponse, error)); ok {
@@ -176,6 +184,10 @@ func (_m *ExecutorServiceClientMock) ProcessBatchV2(ctx context.Context, in *exe
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ProcessBatchV2")
+	}
 
 	var r0 *executor.ProcessBatchResponseV2
 	var r1 error

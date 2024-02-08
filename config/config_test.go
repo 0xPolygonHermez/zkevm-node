@@ -42,7 +42,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Synchronizer.L1SynchronizationMode",
-			expectedValue: "parallel",
+			expectedValue: "sequential",
 		},
 		{
 			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
@@ -491,7 +491,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "State.Batch.Constraints.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
+			expectedValue: uint64(1125899906842624),
 		},
 		{
 			path:          "State.Batch.Constraints.MaxKeccakHashes",

@@ -12,7 +12,7 @@ Note that sequencing and proving functionalities are not covered in this documen
 - A machine to run the zkEVM node with the following requirements:
   - Hardware: 32G RAM, 4 cores, 128G Disk with high IOPS (as the network is super young the current disk requirements are quite low, but they will increase over time. Also note that this requirement is true if the DBs run on the same machine, but it's recommended to run Postgres on dedicated infra). Currently ARM-based CPUs are not supported
   - Software: Ubuntu 22.04, Docker
-- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
+- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Sepolia for Cardona zkEVM testnet, Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
 
@@ -37,7 +37,7 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 ### Explained step by step:
 
-1. Define network: `ZKEVM_NET=testnet` or `ZKEVM_NET=mainnet`
+1. Define network: `ZKEVM_NET=custom`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using

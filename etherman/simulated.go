@@ -16,15 +16,15 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/proxy"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient/simulated"
 )
 
 // NewSimulatedEtherman creates an etherman that uses a simulated blockchain. It's important to notice that the ChainID of the auth
 // must be 1337. The address that holds the auth will have an initial balance of 10 ETH
-func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAvailabilityProvider) (etherman *Client, ethBackend *backends.SimulatedBackend, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge, err error) {
+func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAvailabilityProvider) (etherman *Client, ethBackend *simulated.Backend, polAddr common.Address, br *polygonzkevmbridge.Polygonzkevmbridge, err error) {
 	if auth == nil {
 		// read only client
 		return &Client{}, nil, common.Address{}, nil, nil
@@ -38,35 +38,39 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 		},
 	}
 	blockGasLimit := uint64(999999999999999999) //nolint:gomnd
-	client := backends.NewSimulatedBackend(genesisAlloc, blockGasLimit)
+	// client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
+	client := simulated.NewBackend(genesisAlloc, simulated.WithBlockGasLimit(blockGasLimit))
 
 	// DAC Setup
-	daAddr, _, da, err := polygondatacommittee.DeployPolygondatacommittee(auth, client)
+	daAddr, _, da, err := polygondatacommittee.DeployPolygondatacommittee(auth, client.Client())
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 	_, err = da.Initialize(auth)
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 
 	// Deploy contracts
 	const polDecimalPlaces = 18
 	totalSupply, _ := new(big.Int).SetString("10000000000000000000000000000", 10) //nolint:gomnd
-	polAddr, _, polContract, err := pol.DeployPol(auth, client, "Pol Token", "POL", polDecimalPlaces, totalSupply)
+	polAddr, _, polContract, err := pol.DeployPol(auth, client.Client(), "Pol Token", "POL", polDecimalPlaces, totalSupply)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	rollupVerifierAddr, _, _, err := mockverifier.DeployMockverifier(auth, client)
+	rollupVerifierAddr, _, _, err := mockverifier.DeployMockverifier(auth, client.Client())
 	if err != nil {
 		return nil, nil, common.Address{}, nil, err
 	}
-	nonce, err := client.PendingNonceAt(context.TODO(), auth.From)
+	nonce, err := client.Client().PendingNonceAt(context.TODO(), auth.From)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
@@ -76,28 +80,29 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 	const posRollupManager = 4
 	calculatedRollupManagerAddr := crypto.CreateAddress(auth.From, nonce+posRollupManager)
 	genesis := common.HexToHash("0xfd3434cd8f67e59d73488a2b8da242dd1f02849ea5dd99f0ca22c836c3d5b4a9") // Random value. Needs to be different to 0x0
-	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client, calculatedRollupManagerAddr, calculatedBridgeAddr)
+	exitManagerAddr, _, globalExitRoot, err := polygonzkevmglobalexitroot.DeployPolygonzkevmglobalexitroot(auth, client.Client(), calculatedRollupManagerAddr, calculatedBridgeAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	implementationBridgeAddr, _, _, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client)
+	implementationBridgeAddr, _, _, err := polygonzkevmbridge.DeployPolygonzkevmbridge(auth, client.Client())
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 
-	implementationMockRollupManagerAddr, _, _, err := mockpolygonrollupmanager.DeployMockpolygonrollupmanager(auth, client, exitManagerAddr, polAddr, calculatedBridgeAddr)
+	implementationMockRollupManagerAddr, _, _, err := mockpolygonrollupmanager.DeployMockpolygonrollupmanager(auth, client.Client(), exitManagerAddr, polAddr, calculatedBridgeAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	bridgeAddr, _, _, err := proxy.DeployProxy(auth, client, implementationBridgeAddr, implementationBridgeAddr, []byte{})
+	client.Commit()
+	bridgeAddr, _, _, err := proxy.DeployProxy(auth, client.Client(), implementationBridgeAddr, implementationBridgeAddr, []byte{})
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	mockRollupManagerAddr, _, _, err := proxy.DeployProxy(auth, client, implementationMockRollupManagerAddr, implementationMockRollupManagerAddr, []byte{})
+	mockRollupManagerAddr, _, _, err := proxy.DeployProxy(auth, client.Client(), implementationMockRollupManagerAddr, implementationMockRollupManagerAddr, []byte{})
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
@@ -106,31 +111,34 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 		return nil, nil, common.Address{}, nil, fmt.Errorf("RollupManagerAddr (%s) is different from the expected contract address (%s)",
 			mockRollupManagerAddr.String(), calculatedRollupManagerAddr.String())
 	}
-	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client, exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
+	initZkevmAddr, _, _, err := polygonzkevm.DeployPolygonzkevm(auth, client.Client(), exitManagerAddr, polAddr, bridgeAddr, mockRollupManagerAddr)
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	mockRollupManager, err := mockpolygonrollupmanager.NewMockpolygonrollupmanager(mockRollupManagerAddr, client)
+	mockRollupManager, err := mockpolygonrollupmanager.NewMockpolygonrollupmanager(mockRollupManagerAddr, client.Client())
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
-	br, err = polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, client)
+	br, err = polygonzkevmbridge.NewPolygonzkevmbridge(bridgeAddr, client.Client())
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 	_, err = br.Initialize(auth, 0, common.Address{}, 0, exitManagerAddr, mockRollupManagerAddr, []byte{})
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 	_, err = mockRollupManager.Initialize(auth, auth.From, 10000, 10000, auth.From, auth.From, auth.From, common.Address{}, common.Address{}, 0, 0) //nolint:gomnd
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
+	client.Commit()
 	_, err = mockRollupManager.AddNewRollupType(auth, initZkevmAddr, rollupVerifierAddr, 6, 0, genesis, "PolygonZkEvm Rollup") //nolint:gomnd
 	if err != nil {
 		log.Error("error: ", err)
@@ -168,13 +176,13 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 			bridgeAddr.String(), calculatedBridgeAddr.String())
 	}
 
-	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(mockRollupManagerAddr, client)
+	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(mockRollupManagerAddr, client.Client())
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
 	}
 
-	trueZkevm, err := polygonzkevm.NewPolygonzkevm(zkevmAddr, client) //nolint
+	trueZkevm, err := polygonzkevm.NewPolygonzkevm(zkevmAddr, client.Client()) //nolint
 	if err != nil {
 		log.Error("error: ", err)
 		return nil, nil, common.Address{}, nil, err
@@ -206,7 +214,7 @@ func NewSimulatedEtherman(cfg Config, auth *bind.TransactOpts, daBackend dataAva
 
 	client.Commit()
 	c := &Client{
-		EthClient:             client,
+		EthClient:             client.Client(),
 		ZkEVM:                 trueZkevm,
 		RollupManager:         rollupManager,
 		Pol:                   polContract,

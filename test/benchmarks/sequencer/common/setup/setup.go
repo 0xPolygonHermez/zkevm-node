@@ -31,7 +31,7 @@ var (
 	bc = state.BatchConstraintsCfg{
 		MaxTxsPerBatch:       300,
 		MaxBatchBytesSize:    120000,
-		MaxCumulativeGasUsed: 30000000,
+		MaxCumulativeGasUsed: uint64(1125899906842624),
 		MaxKeccakHashes:      2145,
 		MaxPoseidonHashes:    252357,
 		MaxPoseidonPaddings:  135191,
