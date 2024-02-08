@@ -254,15 +254,15 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, err
 		}
 
-		// Check if batch is closed
-		isClosed, err := s.state.IsBatchClosed(ctx, currentBatchNumToSequence, nil)
+		// Check if batch is closed and checked (sequencer sanity check was successful)
+		isChecked, err := s.state.IsBatchChecked(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			log.Debugf("failed to check if batch %d is closed, err: %w", currentBatchNumToSequence, err)
+			log.Debugf("failed to check if batch %d is closed and checked, err: %w", currentBatchNumToSequence, err)
 			return nil, err
 		}
 
-		if !isClosed {
-			// Reached current (WIP) batch
+		if !isChecked {
+			// Batch is not closed and checked
 			break
 		}
 
