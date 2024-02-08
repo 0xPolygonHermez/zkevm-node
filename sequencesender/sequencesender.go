@@ -224,7 +224,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
+		return nil, fmt.Errorf("failed to get last virtual batch num, err: %v", err)
 	}
 	log.Debugf("last virtual batch number: %d", lastVirtualBatchNum)
 
@@ -250,14 +250,14 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			if err == state.ErrNotFound {
 				break
 			}
-			log.Debugf("failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
+			log.Debugf("failed to get batch by number %d, err: %v", currentBatchNumToSequence, err)
 			return nil, err
 		}
 
 		// Check if batch is closed and checked (sequencer sanity check was successful)
 		isChecked, err := s.state.IsBatchChecked(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
-			log.Debugf("failed to check if batch %d is closed and checked, err: %w", currentBatchNumToSequence, err)
+			log.Debugf("failed to check if batch %d is closed and checked, err: %v", currentBatchNumToSequence, err)
 			return nil, err
 		}
 
