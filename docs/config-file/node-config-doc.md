@@ -1287,16 +1287,16 @@ TrustedSequencerURL=""
 
 **Type:** : `enum (of string)`
 
-**Default:** `"parallel"`
+**Default:** `"sequential"`
 
 **Description:** L1SynchronizationMode define how to synchronize with L1:
 - parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data
 - sequential: Request data to L1 and execute
 
-**Example setting the default value** ("parallel"):
+**Example setting the default value** ("sequential"):
 ```
 [Synchronizer]
-L1SynchronizationMode="parallel"
+L1SynchronizationMode="sequential"
 ```
 
 Must be one of:
@@ -1992,14 +1992,15 @@ SequentialProcessL2Block=true
 **Type:** : `object`
 **Description:** StreamServerCfg is the config for the stream server
 
-| Property                                        | Pattern | Type    | Deprecated | Definition | Title/Description                                     |
-| ----------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------------------------------------------- |
-| - [Port](#Sequencer_StreamServer_Port )         | No      | integer | No         | -          | Port to listen on                                     |
-| - [Filename](#Sequencer_StreamServer_Filename ) | No      | string  | No         | -          | Filename of the binary data file                      |
-| - [Version](#Sequencer_StreamServer_Version )   | No      | integer | No         | -          | Version of the binary data file                       |
-| - [ChainID](#Sequencer_StreamServer_ChainID )   | No      | integer | No         | -          | ChainID is the chain ID                               |
-| - [Enabled](#Sequencer_StreamServer_Enabled )   | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer |
-| - [Log](#Sequencer_StreamServer_Log )           | No      | object  | No         | -          | Log is the log configuration                          |
+| Property                                                                      | Pattern | Type    | Deprecated | Definition | Title/Description                                                |
+| ----------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer_Port )                                       | No      | integer | No         | -          | Port to listen on                                                |
+| - [Filename](#Sequencer_StreamServer_Filename )                               | No      | string  | No         | -          | Filename of the binary data file                                 |
+| - [Version](#Sequencer_StreamServer_Version )                                 | No      | integer | No         | -          | Version of the binary data file                                  |
+| - [ChainID](#Sequencer_StreamServer_ChainID )                                 | No      | integer | No         | -          | ChainID is the chain ID                                          |
+| - [Enabled](#Sequencer_StreamServer_Enabled )                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer            |
+| - [Log](#Sequencer_StreamServer_Log )                                         | No      | object  | No         | -          | Log is the log configuration                                     |
+| - [UpgradeEtrogBatchNumber](#Sequencer_StreamServer_UpgradeEtrogBatchNumber ) | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the batch number of the upgrade etrog |
 
 #### <a name="Sequencer_StreamServer_Port"></a>10.8.1. `Sequencer.StreamServer.Port`
 
@@ -2123,6 +2124,20 @@ Must be one of:
 
 **Type:** : `array of string`
 
+#### <a name="Sequencer_StreamServer_UpgradeEtrogBatchNumber"></a>10.8.7. `Sequencer.StreamServer.UpgradeEtrogBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer]
+UpgradeEtrogBatchNumber=0
+```
+
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
 
 **Type:** : `object`
@@ -2139,7 +2154,6 @@ Must be one of:
 | - [PrivateKey](#SequenceSender_PrivateKey )                                                             | No      | object           | No         | -          | PrivateKey defines all the key store files that are going<br />to be read in order to provide the private keys to sign the L1 txs                                                                                                                                                                                                                                                                                             |
 | - [ForkUpgradeBatchNumber](#SequenceSender_ForkUpgradeBatchNumber )                                     | No      | integer          | No         | -          | Batch number where there is a forkid change (fork upgrade)                                                                                                                                                                                                                                                                                                                                                                    |
 | - [GasOffset](#SequenceSender_GasOffset )                                                               | No      | integer          | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
-| - [StreamClient](#SequenceSender_StreamClient )                                                         | No      | object           | No         | -          | StreamClientCfg is the config for the stream client                                                                                                                                                                                                                                                                                                                                                                           |
 
 ### <a name="SequenceSender_WaitPeriodSendSequence"></a>11.1. `SequenceSender.WaitPeriodSendSequence`
 
@@ -2333,89 +2347,6 @@ final gas: 1100
 [SequenceSender]
 GasOffset=80000
 ```
-
-### <a name="SequenceSender_StreamClient"></a>11.10. `[SequenceSender.StreamClient]`
-
-**Type:** : `object`
-**Description:** StreamClientCfg is the config for the stream client
-
-| Property                                         | Pattern | Type   | Deprecated | Definition | Title/Description            |
-| ------------------------------------------------ | ------- | ------ | ---------- | ---------- | ---------------------------- |
-| - [Server](#SequenceSender_StreamClient_Server ) | No      | string | No         | -          | Datastream server to connect |
-| - [Log](#SequenceSender_StreamClient_Log )       | No      | object | No         | -          | Log is the log configuration |
-
-#### <a name="SequenceSender_StreamClient_Server"></a>11.10.1. `SequenceSender.StreamClient.Server`
-
-**Type:** : `string`
-
-**Default:** `""`
-
-**Description:** Datastream server to connect
-
-**Example setting the default value** (""):
-```
-[SequenceSender.StreamClient]
-Server=""
-```
-
-#### <a name="SequenceSender_StreamClient_Log"></a>11.10.2. `[SequenceSender.StreamClient.Log]`
-
-**Type:** : `object`
-**Description:** Log is the log configuration
-
-| Property                                                       | Pattern | Type             | Deprecated | Definition | Title/Description                                                                                                                                                                                                                                                                                                                                                                               |
-| -------------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [Environment](#SequenceSender_StreamClient_Log_Environment ) | No      | enum (of string) | No         | -          | Environment defining the log format ("production" or "development").<br />In development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.<br />Check [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig) |
-| - [Level](#SequenceSender_StreamClient_Log_Level )             | No      | enum (of string) | No         | -          | Level of log. As lower value more logs are going to be generated                                                                                                                                                                                                                                                                                                                                |
-| - [Outputs](#SequenceSender_StreamClient_Log_Outputs )         | No      | array of string  | No         | -          | Outputs                                                                                                                                                                                                                                                                                                                                                                                         |
-
-##### <a name="SequenceSender_StreamClient_Log_Environment"></a>11.10.2.1. `SequenceSender.StreamClient.Log.Environment`
-
-**Type:** : `enum (of string)`
-
-**Default:** `""`
-
-**Description:** Environment defining the log format ("production" or "development").
-In development mode enables development mode (which makes DPanicLevel logs panic), uses a console encoder, writes to standard error, and disables sampling. Stacktraces are automatically included on logs of WarnLevel and above.
-Check [here](https://pkg.go.dev/go.uber.org/zap@v1.24.0#NewDevelopmentConfig)
-
-**Example setting the default value** (""):
-```
-[SequenceSender.StreamClient.Log]
-Environment=""
-```
-
-Must be one of:
-* "production"
-* "development"
-
-##### <a name="SequenceSender_StreamClient_Log_Level"></a>11.10.2.2. `SequenceSender.StreamClient.Log.Level`
-
-**Type:** : `enum (of string)`
-
-**Default:** `""`
-
-**Description:** Level of log. As lower value more logs are going to be generated
-
-**Example setting the default value** (""):
-```
-[SequenceSender.StreamClient.Log]
-Level=""
-```
-
-Must be one of:
-* "debug"
-* "info"
-* "warn"
-* "error"
-* "dpanic"
-* "panic"
-* "fatal"
-
-##### <a name="SequenceSender_StreamClient_Log_Outputs"></a>11.10.2.3. `SequenceSender.StreamClient.Log.Outputs`
-
-**Type:** : `array of string`
-**Description:** Outputs
 
 ## <a name="Aggregator"></a>12. `[Aggregator]`
 
@@ -3489,6 +3420,7 @@ MaxConns=200
 | - [MaxLogsCount](#State_MaxLogsCount )                                 | No      | integer         | No         | -          | MaxLogsCount is a configuration to set the max number of logs that can be returned<br />in a single call to the state, if zero it means no limit                                      |
 | - [MaxLogsBlockRange](#State_MaxLogsBlockRange )                       | No      | integer         | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
 | - [MaxNativeBlockHashBlockRange](#State_MaxNativeBlockHashBlockRange ) | No      | integer         | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
+| - [AvoidForkIDInMemory](#State_AvoidForkIDInMemory )                   | No      | boolean         | No         | -          | AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded<br />from the DB every time it's needed                                                        |
 
 ### <a name="State_MaxCumulativeGasUsed"></a>20.1. `State.MaxCumulativeGasUsed`
 
@@ -3804,12 +3736,12 @@ MaxBatchBytesSize=120000
 
 **Type:** : `integer`
 
-**Default:** `30000000`
+**Default:** `1125899906842624`
 
-**Example setting the default value** (30000000):
+**Example setting the default value** (1125899906842624):
 ```
 [State.Batch.Constraints]
-MaxCumulativeGasUsed=30000000
+MaxCumulativeGasUsed=1125899906842624
 ```
 
 ##### <a name="State_Batch_Constraints_MaxKeccakHashes"></a>20.9.1.4. `State.Batch.Constraints.MaxKeccakHashes`
@@ -3951,6 +3883,21 @@ native block hashes in a single call to the state, if zero it means no limit
 ```
 [State]
 MaxNativeBlockHashBlockRange=0
+```
+
+### <a name="State_AvoidForkIDInMemory"></a>20.13. `State.AvoidForkIDInMemory`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded
+from the DB every time it's needed
+
+**Example setting the default value** (false):
+```
+[State]
+AvoidForkIDInMemory=false
 ```
 
 ----------------------------------------------------------------------------------------------------------------------------

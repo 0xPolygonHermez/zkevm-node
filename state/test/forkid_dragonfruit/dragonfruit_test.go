@@ -1490,18 +1490,22 @@ func TestExecutorRevert(t *testing.T) {
 	transactions := []*types.Transaction{signedTx0, signedTx1}
 
 	// Create block to be able to calculate its hash
-	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, st)
 	l2Block.ReceivedAt = time.Now()
 
 	receipt.BlockHash = l2Block.Hash()
 	receipt1.BlockHash = l2Block.Hash()
 
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	for range transactions {
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	numTxs := len(transactions)
+	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
+	for i := range transactions {
+		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+		txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 	}
 
-	err = testState.AddL2Block(ctx, 0, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = testState.AddL2Block(ctx, 0, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	l2Block, err = testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)

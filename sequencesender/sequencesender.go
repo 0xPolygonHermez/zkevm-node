@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	ethTxManagerOwner = "sequencer"
-	monitoredIDFormat = "sequence-from-%v-to-%v"
+	ethTxManagerOwner    = "sequencer"
+	monitoredIDFormat    = "sequence-from-%v-to-%v"
+	retriesSanityCheck   = 8
+	waitRetrySanityCheck = 15 * time.Second
 )
 
 var (
@@ -27,6 +29,10 @@ var (
 	// than some meaningful limit a user might use. This is not a consensus error
 	// making the transaction invalid, rather a DOS protection.
 	ErrOversizedData = errors.New("oversized data")
+	// ErrSyncVirtualGreaterSequenced is returned by the isSynced function when the last virtual batch is greater that the last SC sequenced batch
+	ErrSyncVirtualGreaterSequenced = errors.New("last virtual batch is greater than last SC sequenced batch")
+	// ErrSyncVirtualGreaterTrusted is returned by the isSynced function when the last virtual batch is greater that the last trusted batch closed
+	ErrSyncVirtualGreaterTrusted = errors.New("last virtual batch is greater than last trusted batch closed")
 )
 
 // SequenceSender represents a sequence sender
@@ -51,13 +57,38 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
-	ticker := time.NewTicker(s.cfg.WaitPeriodSendSequence.Duration)
 	for {
-		s.tryToSendSequence(ctx, ticker)
+		s.tryToSendSequence(ctx)
 	}
 }
 
-func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Ticker) {
+// marginTimeElapsed checks if the time between currentTime and l2BlockTimestamp is greater than timeMargin.
+// If it's greater returns true, otherwise it returns false and the waitTime needed to achieve this timeMargin
+func (s *SequenceSender) marginTimeElapsed(ctx context.Context, l2BlockTimestamp uint64, currentTime uint64, timeMargin int64) (bool, int64) {
+	// Check the time difference between L2 block and currentTime
+	var timeDiff int64
+	if l2BlockTimestamp >= currentTime {
+		//L2 block timestamp is above currentTime, negative timeDiff. We do in this way to avoid uint64 overflow
+		timeDiff = int64(-(l2BlockTimestamp - currentTime))
+	} else {
+		timeDiff = int64(currentTime - l2BlockTimestamp)
+	}
+
+	// Check if the time difference is less than timeMargin (L1BlockTimestampMargin)
+	if timeDiff < timeMargin {
+		var waitTime int64
+		if timeDiff < 0 { //L2 block timestamp is above currentTime
+			waitTime = timeMargin + (-timeDiff)
+		} else {
+			waitTime = timeMargin - timeDiff
+		}
+		return false, waitTime
+	} else { // timeDiff is greater than timeMargin
+		return true, 0
+	}
+}
+
+func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -73,9 +104,13 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 	}
 
 	// Check if synchronizer is up to date
-	if !s.isSynced(ctx) {
-		log.Info("wait for synchronizer to sync last batch")
-		waitTick(ctx, ticker)
+	synced, err := s.isSynced(ctx, retriesSanityCheck, waitRetrySanityCheck)
+	if err != nil {
+		s.halt(ctx, err)
+	}
+	if !synced {
+		log.Info("wait virtual state to be synced...")
+		time.Sleep(5 * time.Second) // nolint:gomnd
 		return
 	}
 
@@ -88,7 +123,7 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 		} else {
 			log.Info("waiting for sequences to be worth sending to L1")
 		}
-		waitTick(ctx, ticker)
+		time.Sleep(s.cfg.WaitPeriodSendSequence.Duration)
 		return
 	}
 
@@ -126,38 +161,42 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context, ticker *time.Tic
 
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
 
-	// Wait until L1 block timestamp is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
+	// Wait until last L1 block timestamp is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
 	for {
-		// Get timestamp of the last L1 block
-		lastL1BlockTimestamp, err := s.etherman.GetLatestBlockTimestamp(ctx)
+		// Get header of the last L1 block
+		lastL1BlockHeader, err := s.etherman.GetLatestBlockHeader(ctx)
 		if err != nil {
 			log.Errorf("failed to get last L1 block timestamp, err: %v", err)
 			return
 		}
 
-		// Check the time difference between L2 and L1 block
-		var timeDiff int64
-		if lastL2BlockTimestamp >= lastL1BlockTimestamp {
-			//L2 block timestamp is above L1 block timestamp, negative timeDiff. We do in this way to avoid uint64 overflow
-			timeDiff = int64(-(lastL2BlockTimestamp - lastL1BlockTimestamp))
-		} else {
-			timeDiff = int64(lastL1BlockTimestamp - lastL2BlockTimestamp)
-		}
+		elapsed, waitTime := s.marginTimeElapsed(ctx, lastL2BlockTimestamp, lastL1BlockHeader.Time, timeMargin)
 
-		// Wait if the time difference is less than timeMargin (L1BlockTimestampMargin)
-		if timeDiff < timeMargin {
-			var waitTime int64
-			if timeDiff < 0 { //L2 block timestamp is above L1 block timestamp
-				waitTime = timeMargin + (-timeDiff)
-			} else {
-				waitTime = timeMargin - timeDiff
-			}
-			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
-				waitTime, lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+		if !elapsed {
+			log.Infof("waiting at least %d seconds to send sequences, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
 			time.Sleep(time.Duration(waitTime) * time.Second)
 		} else {
-			log.Infof("sending sequences now, time difference between last L1 block (ts: %d) amd last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
-				lastL1BlockTimestamp, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			log.Infof("continuing, time difference between last L1 block %d (ts: %d) and last L2 block %d (ts: %d) in the sequence is greater than %d seconds",
+				lastL1BlockHeader.Number, lastL1BlockHeader.Time, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			break
+		}
+	}
+
+	// Sanity check. Wait also until current time (now) is timeMargin (L1BlockTimestampMargin) seconds above the timestamp of the last L2 block in the sequence
+	for {
+		currentTime := uint64(time.Now().Unix())
+
+		elapsed, waitTime := s.marginTimeElapsed(ctx, lastL2BlockTimestamp, currentTime, timeMargin)
+
+		// Wait if the time difference is less than timeMargin (L1BlockTimestampMargin)
+		if !elapsed {
+			log.Infof("waiting at least %d seconds to send sequences, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is lower than %d seconds",
+				waitTime, currentTime, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
+			time.Sleep(time.Duration(waitTime) * time.Second)
+		} else {
+			log.Infof("sending sequences now, time difference between now (ts: %d) and last L2 block %d (ts: %d) in the sequence is also greater than %d seconds",
+				currentTime, lastL2Block.Number(), lastL2BlockTimestamp, timeMargin)
 			break
 		}
 	}
@@ -187,8 +226,11 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %w", err)
 	}
+	log.Debugf("last virtual batch number: %d", lastVirtualBatchNum)
 
 	currentBatchNumToSequence := lastVirtualBatchNum + 1
+	log.Debugf("current batch number to sequence: %d", currentBatchNumToSequence)
+
 	sequences := []types.Sequence{}
 	// var estimatedGas uint64
 
@@ -202,30 +244,34 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			return nil, fmt.Errorf("aborting sequencing process as we reached the batch %d where a new forkid is applied (upgrade)", s.cfg.ForkUpgradeBatchNumber+1)
 		}
 
+		// Add new sequence
+		batch, err := s.state.GetBatchByNumber(ctx, currentBatchNumToSequence, nil)
+		if err != nil {
+			if err == state.ErrNotFound {
+				break
+			}
+			log.Debugf("failed to get batch by number %d, err: %w", currentBatchNumToSequence, err)
+			return nil, err
+		}
+
 		// Check if batch is closed
 		isClosed, err := s.state.IsBatchClosed(ctx, currentBatchNumToSequence, nil)
 		if err != nil {
+			log.Debugf("failed to check if batch %d is closed, err: %w", currentBatchNumToSequence, err)
 			return nil, err
 		}
+
 		if !isClosed {
 			// Reached current (WIP) batch
 			break
 		}
-		// Add new sequence
-		batch, err := s.state.GetBatchByNumber(ctx, currentBatchNumToSequence, nil)
-		if err != nil {
-			return nil, err
-		}
 
 		seq := types.Sequence{
-			GlobalExitRoot: batch.GlobalExitRoot,   //TODO: set empty for regular batches
-			Timestamp:      batch.Timestamp.Unix(), //TODO: set empty for regular batches
-			BatchL2Data:    batch.BatchL2Data,
-			BatchNumber:    batch.BatchNumber,
+			BatchL2Data: batch.BatchL2Data,
+			BatchNumber: batch.BatchNumber,
 		}
 
 		if batch.ForcedBatchNum != nil {
-			//TODO: Assign GER, timestamp(forcedAt) and l1block.parentHash to seq
 			forcedBatch, err := s.state.GetForcedBatch(ctx, *batch.ForcedBatchNum, nil)
 			if err != nil {
 				return nil, err
@@ -367,38 +413,75 @@ func isDataForEthTxTooBig(err error) bool {
 		errors.Is(err, ethman.ErrContentLengthTooLarge)
 }
 
-func waitTick(ctx context.Context, ticker *time.Ticker) {
-	select {
-	case <-ticker.C:
-		// nothing
-	case <-ctx.Done():
-		return
+func (s *SequenceSender) isSynced(ctx context.Context, retries int, waitRetry time.Duration) (bool, error) {
+	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last virtual batch number, err: %v", err)
+		return false, nil
+	}
+
+	lastTrustedBatchClosed, err := s.state.GetLastClosedBatch(ctx, nil)
+	if err != nil && err != state.ErrNotFound {
+		log.Warnf("failed to get last trusted batch closed, err: %v", err)
+		return false, nil
+	}
+
+	lastSCBatchNum, err := s.etherman.GetLatestBatchNumber()
+	if err != nil {
+		log.Warnf("failed to get from the SC last sequenced batch number, err: %v", err)
+		return false, nil
+	}
+
+	if lastVirtualBatchNum < lastSCBatchNum {
+		log.Infof("waiting for the state to be synced, last virtual batch: %d, last SC sequenced batch: %d", lastVirtualBatchNum, lastSCBatchNum)
+		return false, nil
+	} else if lastVirtualBatchNum > lastSCBatchNum { // Sanity check: virtual batch number cannot be greater than last batch sequenced in the SC
+		// we will retry some times to check that really the last sequenced batch in the SC is lower that the las virtual batch
+		log.Warnf("last virtual batch %d is greater than last SC sequenced batch %d, retrying...", lastVirtualBatchNum, lastSCBatchNum)
+		for i := 0; i < retries; i++ {
+			time.Sleep(waitRetry)
+			lastSCBatchNum, err = s.etherman.GetLatestBatchNumber()
+			if err != nil {
+				log.Warnf("failed to get from the SC last sequenced batch number, err: %v", err)
+				return false, nil
+			}
+			if lastVirtualBatchNum == lastSCBatchNum { // last virtual batch is equals to last sequenced batch in the SC, everything is ok we continue
+				break
+			} else if i == retries-1 { // it's the last retry, we halt sequence-sender
+				log.Errorf("last virtual batch %d is greater than last SC sequenced batch %d", lastVirtualBatchNum, lastSCBatchNum)
+				return false, ErrSyncVirtualGreaterSequenced
+			}
+		}
+		log.Infof("last virtual batch %d is equal to last SC sequenced batch %d, continuing...", lastVirtualBatchNum, lastSCBatchNum)
+	}
+
+	// At this point lastVirtualBatchNum = lastEthBatchNum. Check trusted batches
+	if lastTrustedBatchClosed.BatchNumber >= lastVirtualBatchNum {
+		return true, nil
+	} else { // Sanity check: virtual batch number cannot be greater than last trusted batch closed
+		log.Errorf("last virtual batch %d is greater than last trusted batch closed %d", lastVirtualBatchNum, lastTrustedBatchClosed.BatchNumber)
+		return false, ErrSyncVirtualGreaterTrusted
 	}
 }
 
-func (s *SequenceSender) isSynced(ctx context.Context) bool {
-	lastSyncedBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last isSynced batch, err: %v", err)
-		return false
-	}
-	lastBatchNum, err := s.state.GetLastBatchNumber(ctx, nil)
-	if err != nil && err != state.ErrNotFound {
-		log.Errorf("failed to get last batch num, err: %v", err)
-		return false
-	}
-	if lastBatchNum > lastSyncedBatchNum {
-		return true
-	}
-	lastEthBatchNum, err := s.etherman.GetLatestBatchNumber()
-	if err != nil {
-		log.Errorf("failed to get last eth batch, err: %v", err)
-		return false
-	}
-	if lastSyncedBatchNum < lastEthBatchNum {
-		log.Infof("waiting for the state to be isSynced, lastSyncedBatchNum: %d, lastEthBatchNum: %d", lastSyncedBatchNum, lastEthBatchNum)
-		return false
+// halt halts the SequenceSender
+func (s *SequenceSender) halt(ctx context.Context, err error) {
+	event := &event.Event{
+		ReceivedAt:  time.Now(),
+		Source:      event.Source_Node,
+		Component:   event.Component_Sequence_Sender,
+		Level:       event.Level_Critical,
+		EventID:     event.EventID_FinalizerHalt,
+		Description: fmt.Sprintf("SequenceSender halted due to error, error: %s", err),
 	}
 
-	return true
+	eventErr := s.eventLog.LogEvent(ctx, event)
+	if eventErr != nil {
+		log.Errorf("error storing SequenceSender halt event, error: %v", eventErr)
+	}
+
+	log.Errorf("halting SequenceSender, fatal error: %v", err)
+	for {
+		time.Sleep(300 * time.Second) //nolint:gomnd
+	}
 }

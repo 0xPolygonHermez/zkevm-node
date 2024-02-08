@@ -58,7 +58,9 @@ func New(cfg Config, batchCfg state.BatchConfig, poolCfg pool.Config, txPool txP
 		eventLog:  eventLog,
 	}
 
-	sequencer.dataToStream = make(chan interface{}, batchCfg.Constraints.MaxTxsPerBatch*datastreamChannelMultiplier)
+	// TODO: Make configurable
+	channelBufferSize := 200 * datastreamChannelMultiplier // nolint:gomnd
+	sequencer.dataToStream = make(chan interface{}, channelBufferSize)
 
 	return sequencer, nil
 }
@@ -88,13 +90,13 @@ func (s *Sequencer) Start(ctx context.Context) {
 			log.Fatalf("failed to start stream server, error: %v", err)
 		}
 
-		s.updateDataStreamerFile(ctx)
+		s.updateDataStreamerFile(ctx, s.cfg.StreamServer.ChainID)
 	}
 
 	go s.loadFromPool(ctx)
 
 	if s.streamServer != nil {
-		go s.sendDataToStreamer()
+		go s.sendDataToStreamer(s.cfg.StreamServer.ChainID)
 	}
 
 	s.worker = NewWorker(s.stateIntf, s.batchCfg.Constraints)
@@ -127,8 +129,8 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 	}
 }
 
-func (s *Sequencer) updateDataStreamerFile(ctx context.Context) {
-	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateIntf, true, nil)
+func (s *Sequencer) updateDataStreamerFile(ctx context.Context, chainID uint64) {
+	err := state.GenerateDataStreamerFile(ctx, s.streamServer, s.stateIntf, true, nil, chainID, s.cfg.StreamServer.UpgradeEtrogBatchNumber)
 	if err != nil {
 		log.Fatalf("failed to generate data streamer file, error: %v", err)
 	}
@@ -139,7 +141,13 @@ func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 	for {
 		time.Sleep(s.cfg.DeletePoolTxsCheckInterval.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
-		txHashes, err := s.stateIntf.GetTxsOlderThanNL1Blocks(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, nil)
+		earliestTxHash, err := s.pool.GetEarliestProcessedTx(ctx)
+		if err != nil {
+			log.Errorf("failed to get earliest tx hash to delete, err: %v", err)
+			continue
+		}
+
+		txHashes, err := s.stateIntf.GetTxsOlderThanNL1BlocksUntilTxHash(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, earliestTxHash, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, error: %v", err)
 			continue
@@ -219,7 +227,7 @@ func (s *Sequencer) addTxToWorker(ctx context.Context, tx pool.Transaction) erro
 }
 
 // sendDataToStreamer sends data to the data stream server
-func (s *Sequencer) sendDataToStreamer() {
+func (s *Sequencer) sendDataToStreamer(chainID uint64) {
 	var err error
 	for {
 		// Read error from previous iteration
@@ -235,11 +243,10 @@ func (s *Sequencer) sendDataToStreamer() {
 		dataStream := <-s.dataToStream
 
 		if s.streamServer != nil {
-			switch t := dataStream.(type) {
+			switch data := dataStream.(type) {
 			// Stream a complete L2 block with its transactions
 			case state.DSL2FullBlock:
-				l2Block := t
-				l2Transactions := t.Txs
+				l2Block := data
 
 				err = s.streamServer.StartAtomicOp()
 				if err != nil {
@@ -258,14 +265,34 @@ func (s *Sequencer) sendDataToStreamer() {
 					continue
 				}
 
+				// Get previous block timestamp to calculate delta timestamp
+				previousL2Block := state.DSL2BlockStart{}
+				if l2Block.L2BlockNumber > 0 {
+					bookMark = state.DSBookMark{
+						Type:  state.BookMarkTypeL2Block,
+						Value: l2Block.L2BlockNumber - 1,
+					}
+
+					previousL2BlockEntry, err := s.streamServer.GetFirstEventAfterBookmark(bookMark.Encode())
+					if err != nil {
+						log.Errorf("failed to get previous l2block %d, error: %v", l2Block.L2BlockNumber-1, err)
+						continue
+					}
+
+					previousL2Block = state.DSL2BlockStart{}.Decode(previousL2BlockEntry.Data)
+				}
+
 				blockStart := state.DSL2BlockStart{
-					BatchNumber:    l2Block.BatchNumber,
-					L2BlockNumber:  l2Block.L2BlockNumber,
-					Timestamp:      l2Block.Timestamp,
-					L1BlockHash:    l2Block.L1BlockHash,
-					GlobalExitRoot: l2Block.GlobalExitRoot,
-					Coinbase:       l2Block.Coinbase,
-					ForkID:         l2Block.ForkID,
+					BatchNumber:     l2Block.BatchNumber,
+					L2BlockNumber:   l2Block.L2BlockNumber,
+					Timestamp:       l2Block.Timestamp,
+					DeltaTimestamp:  uint32(l2Block.Timestamp - previousL2Block.Timestamp),
+					L1InfoTreeIndex: l2Block.L1InfoTreeIndex,
+					L1BlockHash:     l2Block.L1BlockHash,
+					GlobalExitRoot:  l2Block.GlobalExitRoot,
+					Coinbase:        l2Block.Coinbase,
+					ForkID:          l2Block.ForkID,
+					ChainID:         uint32(chainID),
 				}
 
 				_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2BlockStart, blockStart.Encode())
@@ -274,7 +301,7 @@ func (s *Sequencer) sendDataToStreamer() {
 					continue
 				}
 
-				for _, l2Transaction := range l2Transactions {
+				for _, l2Transaction := range l2Block.Txs {
 					// Populate intermediate state root
 					position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
 					imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
@@ -310,7 +337,7 @@ func (s *Sequencer) sendDataToStreamer() {
 
 			// Stream a bookmark
 			case state.DSBookMark:
-				bookmark := t
+				bookmark := data
 
 				err = s.streamServer.StartAtomicOp()
 				if err != nil {

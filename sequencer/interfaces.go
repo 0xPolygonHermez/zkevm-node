@@ -29,6 +29,7 @@ type txPool interface {
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
 	GetL1AndL2GasPrice() (uint64, uint64)
+	GetEarliestProcessedTx(ctx context.Context) (common.Hash, error)
 }
 
 // etherman contains the methods required to interact with ethereum.
@@ -46,6 +47,7 @@ type etherman interface {
 type stateInterface interface {
 	GetTimeForLatestBatchVirtualization(ctx context.Context, dbTx pgx.Tx) (time.Time, error)
 	GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uint64, dbTx pgx.Tx) ([]common.Hash, error)
+	GetTxsOlderThanNL1BlocksUntilTxHash(ctx context.Context, nL1Blocks uint64, earliestTxHash common.Hash, dbTx pgx.Tx) ([]common.Hash, error)
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 	GetTransactionsByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (txs []types.Transaction, effectivePercentages []uint8, err error)
 	BeginStateTransaction(ctx context.Context) (pgx.Tx, error)
@@ -84,7 +86,7 @@ type stateInterface interface {
 	FlushMerkleTree(ctx context.Context, newStateRoot common.Hash) error
 	GetStoredFlushID(ctx context.Context) (uint64, string, error)
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
-	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error
+	AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*state.DSL2Block, error)
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*state.DSBatch, error)
 	GetDSL2Blocks(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, dbTx pgx.Tx) ([]*state.DSL2Block, error)

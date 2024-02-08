@@ -645,17 +645,21 @@ func TestAddGetL2Block(t *testing.T) {
 	receipts := []*types.Receipt{receipt}
 
 	// Create block to be able to calculate its hash
-	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, st)
 	l2Block.ReceivedAt = time
 
 	receipt.BlockHash = l2Block.Hash()
 
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	for range transactions {
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	numTxs := len(transactions)
+	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
+	for i := range transactions {
+		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+		txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 	}
 
-	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = testState.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	result, err := testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)

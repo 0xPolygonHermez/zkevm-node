@@ -1,6 +1,8 @@
 package test_l2_shared
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
@@ -9,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	mock_l2_shared "github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared/mocks"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -255,4 +258,82 @@ func TestGetNextStatusUpdate(t *testing.T) {
 	require.False(t, res.IsEmpty())
 	require.Nil(t, res.LastTrustedBatches[0])
 	require.Equal(t, processBatchResp.ProcessBatchResponse.NewStateRoot, res.LastTrustedBatches[1].StateRoot)
+}
+
+func TestGetNextStatusUpdateNothing(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+
+	batch0 := state.Batch{
+		BatchNumber: 123,
+	}
+	batch1 := state.Batch{
+		BatchNumber: 122,
+	}
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{&batch0, &batch1},
+	}
+	ProcessResponse := l2_shared.NewProcessResponse()
+	newStatus, err := testData.sut.GetNextStatus(previousStatus, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, &previousStatus, newStatus)
+	// If batch is close move current batch to previous one
+	newStatus, err = testData.sut.GetNextStatus(previousStatus, &ProcessResponse, true, "test")
+	require.NoError(t, err)
+	require.Equal(t, &l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, &batch0},
+	}, newStatus)
+}
+
+func TestGetNextStatusDiscardCache(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	ProcessResponse.DiscardCache()
+	newStatus, err := testData.sut.GetNextStatus(l2_shared.TrustedState{}, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.True(t, newStatus.IsEmpty())
+}
+
+func TestGetNextStatusUpdateCurrentBatch(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	batch := state.Batch{
+		BatchNumber: 123,
+	}
+	ProcessResponse.UpdateCurrentBatch(&batch)
+	newStatus, err := testData.sut.GetNextStatus(l2_shared.TrustedState{}, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, &l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{&batch, nil},
+	}, newStatus)
+}
+
+func TestGetNextStatusUpdateExecutionResult(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	ProcessResponse := l2_shared.NewProcessResponse()
+	batch := state.Batch{
+		BatchNumber: 123,
+	}
+	previousStatus := l2_shared.TrustedState{
+		LastTrustedBatches: []*state.Batch{nil, nil},
+	}
+
+	ProcessResponse.UpdateCurrentBatchWithExecutionResult(&batch, &state.ProcessBatchResponse{
+		NewStateRoot: common.HexToHash("0x123"),
+	})
+	newStatus, err := testData.sut.GetNextStatus(previousStatus, &ProcessResponse, false, "test")
+	require.NoError(t, err)
+	require.Equal(t, common.HexToHash("0x123"), newStatus.LastTrustedBatches[0].StateRoot)
+}
+
+func TestExecuteProcessBatchError(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+
+	data := l2_shared.ProcessData{
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: true,
+	}
+	returnedError := errors.New("error")
+	testData.mockExecutor.EXPECT().NothingProcess(mock.Anything, mock.Anything, mock.Anything).Return(nil, returnedError)
+	_, err := testData.sut.ExecuteProcessBatch(context.Background(), &data, nil)
+	require.ErrorIs(t, returnedError, err)
 }

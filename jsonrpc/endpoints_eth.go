@@ -98,7 +98,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		}
 
 		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
-		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		sender, tx, err := arg.ToTransaction(ctx, e.state, state.MaxTxGasLimit, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
@@ -182,7 +182,7 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 		}
 
 		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
-		sender, tx, err := arg.ToTransaction(ctx, e.state, e.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		sender, tx, err := arg.ToTransaction(ctx, e.state, state.MaxTxGasLimit, block.Root(), defaultSenderAddress, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
@@ -228,6 +228,23 @@ func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to read gas price from sequencer node", err, true)
 	}
 	return gasPrice, nil
+}
+
+func (e *EthEndpoints) getHighestL2BlockFromTrustedNode() (interface{}, types.Error) {
+	res, err := client.JSONRPCCall(e.cfg.SequencerNodeURI, "eth_blockNumber")
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to get gas price from sequencer node", err, true)
+	}
+
+	if res.Error != nil {
+		return RPCErrorResponse(res.Error.Code, res.Error.Message, nil, false)
+	}
+	var highestBlockNum types.ArgUint64
+	err = json.Unmarshal(res.Result, &highestBlockNum)
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to read eth_blockNumber from sequencer node", err, true)
+	}
+	return uint64(highestBlockNum), nil
 }
 
 // GetBalance returns the account's balance at the referenced block
@@ -305,7 +322,7 @@ func (e *EthEndpoints) GetBlockByHash(hash types.ArgHash, fullTx bool, includeEx
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
+		rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by hash %v", hash.Hash()), err, true)
 		}
@@ -329,7 +346,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 				UncleHash:  ethTypes.EmptyUncleHash,
 			})
 			l2Block := state.NewL2BlockWithHeader(l2Header)
-			rpcBlock, err := types.NewBlock(nil, l2Block, nil, fullTx, false, includeExtraInfo)
+			rpcBlock, err := types.NewBlock(ctx, e.state, nil, l2Block, nil, fullTx, false, includeExtraInfo, dbTx)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
@@ -359,7 +376,7 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 			receipts = append(receipts, *receipt)
 		}
 
-		rpcBlock, err := types.NewBlock(state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo)
+		rpcBlock, err := types.NewBlock(ctx, e.state, state.Ptr(l2Block.Hash()), l2Block, receipts, fullTx, false, includeExtraInfo, dbTx)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, fmt.Sprintf("couldn't build block response for block by number %v", blockNumber), err, true)
 		}
@@ -563,7 +580,16 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, ind
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+		var l2Hash *common.Hash
+		if includeExtraInfo != nil && *includeExtraInfo {
+			l2h, err := e.state.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+			}
+			l2Hash = l2h
+		}
+
+		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -596,7 +622,16 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNu
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction receipt", err, true)
 		}
 
-		res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+		var l2Hash *common.Hash
+		if includeExtraInfo != nil && *includeExtraInfo {
+			l2h, err := e.state.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+			if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+			}
+			l2Hash = l2h
+		}
+
+		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 		}
@@ -621,7 +656,16 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to load transaction receipt from state", err, true)
 			}
 
-			res, err := types.NewTransaction(*tx, receipt, false, includeExtraInfo)
+			var l2Hash *common.Hash
+			if includeExtraInfo != nil && *includeExtraInfo {
+				l2h, err := e.state.GetL2TxHashByTxHash(ctx, hash.Hash(), dbTx)
+				if err != nil {
+					return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
+				}
+				l2Hash = l2h
+			}
+
+			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -641,7 +685,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 		}
 		if poolTx.Status == pool.TxStatusPending {
 			tx = &poolTx.Transaction
-			res, err := types.NewTransaction(*tx, nil, false, includeExtraInfo)
+			res, err := types.NewTransaction(*tx, nil, false, nil)
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to build transaction response", err, true)
 			}
@@ -812,7 +856,7 @@ func (e *EthEndpoints) GetTransactionReceipt(hash types.ArgHash) (interface{}, t
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get tx receipt from state", err, true)
 		}
 
-		receipt, err := types.NewReceipt(*tx, r, state.Ptr(false))
+		receipt, err := types.NewReceipt(*tx, r, nil)
 		if err != nil {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to build the receipt response", err, true)
 		}
@@ -965,10 +1009,23 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to get syncing info from state", err, true)
 		}
 
-		if syncInfo.CurrentBlockNumber >= syncInfo.LastBlockNumberSeen {
+		if !syncInfo.IsSynchronizing {
 			return false, nil
 		}
-
+		if e.cfg.SequencerNodeURI != "" {
+			// If we have a trusted node we ask it for the highest l2 block
+			res, err := e.getHighestL2BlockFromTrustedNode()
+			if err != nil {
+				log.Warnf("failed to get highest l2 block from trusted node: %v", err)
+			} else {
+				highestL2BlockInTrusted := res.(uint64)
+				if highestL2BlockInTrusted > syncInfo.CurrentBlockNumber {
+					syncInfo.EstimatedHighestBlock = highestL2BlockInTrusted
+				} else {
+					log.Warnf("highest l2 block in trusted node (%d) is lower than the current block number in the state (%d)", highestL2BlockInTrusted, syncInfo.CurrentBlockNumber)
+				}
+			}
+		}
 		return struct {
 			S types.ArgUint64 `json:"startingBlock"`
 			C types.ArgUint64 `json:"currentBlock"`
@@ -976,7 +1033,7 @@ func (e *EthEndpoints) Syncing() (interface{}, types.Error) {
 		}{
 			S: types.ArgUint64(syncInfo.InitialSyncingBlock),
 			C: types.ArgUint64(syncInfo.CurrentBlockNumber),
-			H: types.ArgUint64(syncInfo.LastBlockNumberSeen),
+			H: types.ArgUint64(syncInfo.EstimatedHighestBlock),
 		}, nil
 	})
 }
@@ -1089,7 +1146,7 @@ func (e *EthEndpoints) notifyNewHeads(wg *sync.WaitGroup, event state.NewL2Block
 	defer wg.Done()
 	start := time.Now()
 
-	b, err := types.NewBlock(state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false))
+	b, err := types.NewBlock(context.Background(), e.state, state.Ptr(event.Block.Hash()), &event.Block, nil, false, false, state.Ptr(false), nil)
 	if err != nil {
 		log.Errorf("failed to build block response to subscription: %v", err)
 		return

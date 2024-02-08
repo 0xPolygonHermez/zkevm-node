@@ -26,17 +26,17 @@ type StateMock struct {
 	mock.Mock
 }
 
-// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx
-func (_m *StateMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+// AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx
+func (_m *StateMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddL2Block")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []state.StoreTxEGPData, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, l2Block, receipts, txsEGPData, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, *state.L2Block, []*types.Receipt, []common.Hash, []state.StoreTxEGPData, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1295,6 +1295,36 @@ func (_m *StateMock) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Blocks uin
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, nL1Blocks, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetTxsOlderThanNL1BlocksUntilTxHash provides a mock function with given fields: ctx, nL1Blocks, earliestTxHash, dbTx
+func (_m *StateMock) GetTxsOlderThanNL1BlocksUntilTxHash(ctx context.Context, nL1Blocks uint64, earliestTxHash common.Hash, dbTx pgx.Tx) ([]common.Hash, error) {
+	ret := _m.Called(ctx, nL1Blocks, earliestTxHash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTxsOlderThanNL1BlocksUntilTxHash")
+	}
+
+	var r0 []common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) ([]common.Hash, error)); ok {
+		return rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, common.Hash, pgx.Tx) []common.Hash); ok {
+		r0 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, nL1Blocks, earliestTxHash, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

@@ -775,6 +775,10 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(state.Ptr(tx.Hash()), nil).
+						Once()
 				}
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), hex.DecodeBig(tc.Number).Uint64(), m.DbTx).
@@ -966,8 +970,9 @@ func TestGetBatchByNumber(t *testing.T) {
 					receipts = append(receipts, receipt)
 					from, _ := state.GetSender(*tx)
 					V, R, S := tx.RawSignatureValues()
+					l2Hash := common.HexToHash("0x987654321")
 
-					rpcReceipt, err := types.NewReceipt(*tx, receipt, state.Ptr(true))
+					rpcReceipt, err := types.NewReceipt(*tx, receipt, &l2Hash)
 					require.NoError(t, err)
 
 					tc.ExpectedResult.Transactions = append(tc.ExpectedResult.Transactions,
@@ -990,6 +995,7 @@ func TestGetBatchByNumber(t *testing.T) {
 								R:           types.ArgBig(*R),
 								S:           types.ArgBig(*S),
 								Receipt:     &rpcReceipt,
+								L2Hash:      &l2Hash,
 							},
 						},
 					)
@@ -1054,7 +1060,13 @@ func TestGetBatchByNumber(t *testing.T) {
 						On("GetTransactionReceipt", context.Background(), tx.Hash(), m.DbTx).
 						Return(receipts[i], nil).
 						Once()
+
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+						Return(state.Ptr(tx.Hash()), nil).
+						Once()
 				}
+
 				m.State.
 					On("GetTransactionsByBatchNumber", context.Background(), uint64(tc.ExpectedResult.Number), m.DbTx).
 					Return(batchTxs, effectivePercentages, nil).
@@ -1198,6 +1210,7 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 		SetupMocks     func(*mocksWrapper, *testCase)
 	}
 
+	st := trie.NewStackTrie(nil)
 	testCases := []testCase{
 		{
 			Name:           "Block not found",
@@ -1250,7 +1263,7 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
 				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
-				&trie.StackTrie{},
+				st,
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
@@ -1258,7 +1271,8 @@ func TestGetL2FullBlockByHash(t *testing.T) {
 				for _, uncle := range tc.ExpectedResult.Uncles() {
 					uncles = append(uncles, state.NewL2Header(uncle))
 				}
-				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				st := trie.NewStackTrie(nil)
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, st)
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1390,7 +1404,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
 	l2Header.BlockInfoRoot = common.HexToHash("0x17")
-	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, st)
 
 	for _, receipt := range receipts {
 		receipt.BlockHash = l2Block.Hash()
@@ -1608,7 +1623,8 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				lastBlockHeader := &ethTypes.Header{Number: big.NewInt(0).SetUint64(uint64(rpcBlock.Number))}
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
+				st := trie.NewStackTrie(nil)
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, st)
 
 				tc.ExpectedResult = &types.Block{}
 				tc.ExpectedResult.ParentHash = lastBlock.Hash()
@@ -1911,8 +1927,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 
 	txV, txR, txS := signedTx.RawSignatureValues()
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	rpcTransaction := types.Transaction{
 		Nonce:    types.ArgUint64(signedTx.Nonce()),
@@ -1962,6 +1977,11 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
 					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(&l2Hash, nil).
+					Once()
 			},
 		},
 		{
@@ -1974,6 +1994,7 @@ func TestGetTransactionByL2Hash(t *testing.T) {
 				tc.ExpectedResult.BlockHash = nil
 				tc.ExpectedResult.BlockNumber = nil
 				tc.ExpectedResult.TxIndex = nil
+				tc.ExpectedResult.L2Hash = nil
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -2201,8 +2222,7 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 	signedTx, err := auth.Signer(auth.From, tx)
 	require.NoError(t, err)
 
-	l2Hash, err := state.GetL2Hash(*signedTx)
-	require.NoError(t, err)
+	l2Hash := common.HexToHash("0x987654321")
 
 	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
 	logs := []*ethTypes.Log{log}
@@ -2272,6 +2292,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(receipt, nil).
+					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+					Return(&l2Hash, nil).
 					Once()
 			},
 		},
@@ -2397,6 +2422,11 @@ func TestGetTransactionReceiptByL2Hash(t *testing.T) {
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
 					Return(ethTypes.NewReceipt([]byte{}, false, 0), nil).
+					Once()
+
+				m.State.
+					On("GetL2TxHashByTxHash", context.Background(), tx.Hash(), m.DbTx).
+					Return(&l2Hash, nil).
 					Once()
 			},
 		},

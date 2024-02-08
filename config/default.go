@@ -24,7 +24,7 @@ Outputs = ["stderr"]
 		[State.Batch.Constraints]
 		MaxTxsPerBatch = 300
 		MaxBatchBytesSize = 120000
-		MaxCumulativeGasUsed = 30000000
+		MaxCumulativeGasUsed = 1125899906842624
 		MaxKeccakHashes = 2145
 		MaxPoseidonHashes = 252357
 		MaxPoseidonPaddings = 135191
@@ -102,7 +102,7 @@ EnableHttpLog = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
-L1SynchronizationMode = "parallel"
+L1SynchronizationMode = "sequential"
 	[Synchronizer.L1ParallelSynchronization]
 		MaxClients = 10
 		MaxPendingNoProcessedBlocks = 25

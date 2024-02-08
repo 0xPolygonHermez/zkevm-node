@@ -201,22 +201,32 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Create smc clients
 	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
 	}
 	oldZkevm, err := oldpolygonzkevm.NewOldpolygonzkevm(l1Config.RollupManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewOldpolygonzkevm client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
 	}
 	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(l1Config.RollupManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewPolygonrollupmanager client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
 	}
 	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(l1Config.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewPolygonzkevmglobalexitroot client (%s). Error: %w", l1Config.GlobalExitRootManagerAddr.String(), err)
+		return nil, err
+	}
+	oldGlobalExitRoot, err := oldpolygonzkevmglobalexitroot.NewOldpolygonzkevmglobalexitroot(l1Config.GlobalExitRootManagerAddr, ethClient)
+	if err != nil {
+		log.Errorf("error creating NewOldpolygonzkevmglobalexitroot client (%s). Error: %w", l1Config.GlobalExitRootManagerAddr.String(), err)
 		return nil, err
 	}
 	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewPol client (%s). Error: %w", l1Config.PolAddr.String(), err)
 		return nil, err
 	}
 	var scAddresses []common.Address
@@ -236,19 +246,21 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Get RollupID
 	rollupID, err := rollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, l1Config.ZkEVMAddr)
 	if err != nil {
+		log.Errorf("error rollupManager.cRollupAddressToID(%s). Error: %w", l1Config.RollupManagerAddr, err)
 		return nil, err
 	}
 	log.Debug("rollupID: ", rollupID)
 
 	return &Client{
-		EthClient:             ethClient,
-		ZkEVM:                 zkevm,
-		OldZkEVM:              oldZkevm,
-		RollupManager:         rollupManager,
-		Pol:                   pol,
-		GlobalExitRootManager: globalExitRoot,
-		SCAddresses:           scAddresses,
-		RollupID:              rollupID,
+		EthClient:                ethClient,
+		ZkEVM:                    zkevm,
+		OldZkEVM:                 oldZkevm,
+		RollupManager:            rollupManager,
+		Pol:                      pol,
+		GlobalExitRootManager:    globalExitRoot,
+		OldGlobalExitRootManager: oldGlobalExitRoot,
+		SCAddresses:              scAddresses,
+		RollupID:                 rollupID,
 		GasProviders: externalGasProviders{
 			MultiGasProvider: cfg.MultiGasProvider,
 			Providers:        gProviders,
@@ -1546,6 +1558,15 @@ func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
 		return 0, err
 	}
 	return rollupData.LastBatchSequenced, nil
+}
+
+// GetLatestBlockHeader gets the latest block header from the ethereum
+func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
+	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
+	if err != nil || header == nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // GetLatestBlockNumber gets the latest block number from the ethereum

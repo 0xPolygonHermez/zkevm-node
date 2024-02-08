@@ -89,7 +89,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			return nil, ErrCriticalClosedBatchDontContainExpectedData
 		}
 	}
-
+	res := l2_shared.NewProcessResponse()
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
 		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
@@ -97,16 +97,39 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
+		data.StateBatch.WIP = false
+		res.UpdateCurrentBatch(data.StateBatch)
 	}
-	data.StateBatch.WIP = !data.BatchMustBeClosed
+
+	return &res, nil
+}
+
+// CreateEmptyBatch create a new empty batch (no batchL2Data and WIP)
+func (b *SyncTrustedBatchExecutorForEtrog) CreateEmptyBatch(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
+	log.Debugf("%s The Batch is a WIP empty, so just creating a DB entry", data.DebugPrefix)
+	err := b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+	if err != nil {
+		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
+		return nil, err
+	}
+	log.Debugf("%s updateWIPBatch", data.DebugPrefix)
+	err = b.updateWIPBatch(ctx, data, data.TrustedBatch.StateRoot, dbTx)
+	if err != nil {
+		log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
+		return nil, err
+	}
 	res := l2_shared.NewProcessResponse()
-	res.UpdateCurrentBatch(data.StateBatch)
+	stateBatch := syncCommon.RpcBatchToStateBatch(data.TrustedBatch)
+	res.UpdateCurrentBatch(stateBatch)
 	return &res, nil
 }
 
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Debugf("%s FullProcess", data.DebugPrefix)
+	if len(data.TrustedBatch.BatchL2Data) == 0 && !data.BatchMustBeClosed {
+		return b.CreateEmptyBatch(ctx, data, dbTx)
+	}
 	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
 	if err != nil {
 		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
@@ -117,6 +140,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
+
 	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
@@ -144,7 +168,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		}
 	} else {
 		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
-		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		err = b.updateWIPBatch(ctx, data, processBatchResp.NewStateRoot, dbTx)
 		if err != nil {
 			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -214,7 +238,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		}
 	} else {
 		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
-		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		err = b.updateWIPBatch(ctx, data, processBatchResp.NewStateRoot, dbTx)
 		if err != nil {
 			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -237,10 +261,10 @@ func (b *SyncTrustedBatchExecutorForEtrog) checkIfWeAreSyncedFromL1ToProcessGlob
 	return b.l1SyncChecker.CheckL1SyncStatusEnoughToProcessBatch(ctx, data.BatchNumber, data.TrustedBatch.GlobalExitRoot, dbTx)
 }
 
-func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, processBatchResp *state.ProcessBatchResponse, dbTx pgx.Tx) error {
+func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, NewStateRoot common.Hash, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    data.BatchNumber,
-		StateRoot:      processBatchResp.NewStateRoot,
+		StateRoot:      NewStateRoot,
 		LocalExitRoot:  data.TrustedBatch.LocalExitRoot,
 		BatchL2Data:    data.TrustedBatch.BatchL2Data,
 		AccInputHash:   data.TrustedBatch.AccInputHash,
@@ -371,7 +395,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Contex
 		return nil, fmt.Errorf("%s romOOCError detected.err: %w", debugPrefix, ErrFailExecuteBatch)
 	}
 	for _, block := range processBatchResp.BlockResponses {
-		log.Debugf("%s Storing trusted tx %+v", block.BlockNumber, debugPrefix)
+		log.Debugf("%s Storing trusted tx %d", debugPrefix, block.BlockNumber)
 		if err = b.state.StoreL2Block(ctx, request.BatchNumber, block, nil, dbTx); err != nil {
 			newErr := fmt.Errorf("%s failed to store l2block: %v  err:%w", debugPrefix, block.BlockNumber, err)
 			log.Error(newErr.Error())

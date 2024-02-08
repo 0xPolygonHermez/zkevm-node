@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -179,19 +180,42 @@ func TestDebugTraceTransactionCallTracer(t *testing.T) {
 					require.NoError(t, err)
 				}
 
-				signedTx, err := tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
-				require.NoError(t, err)
-
-				err = ethereumClient.SendTransaction(ctx, signedTx)
-				require.NoError(t, err)
-
-				log.Debugf("tx sent: %v", signedTx.Hash().String())
-
-				err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
-				if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+				var receipt *ethTypes.Receipt
+				var signedTx *ethTypes.Transaction
+				forceTxIndexDifferentFromZero := tcIdx%2 == 0
+				for {
+					log.Debugf("forceTxIndexDifferentFromZero: %v", forceTxIndexDifferentFromZero)
+					var err error
+					if forceTxIndexDifferentFromZero {
+						// send eth transfers txs to make the trace tx to not be the index 0 in the block
+						sendEthTransfersWithoutWaiting(t, ctx, ethereumClient, auth, common.HexToAddress(operations.DefaultSequencerAddress), big.NewInt(1), 3)
+					}
+					signedTx, err = tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
 					require.NoError(t, err)
-				}
 
+					err = ethereumClient.SendTransaction(ctx, signedTx)
+					require.NoError(t, err)
+
+					log.Debugf("tx sent: %v", signedTx.Hash().String())
+
+					err = operations.WaitTxToBeMined(ctx, ethereumClient, signedTx, operations.DefaultTimeoutTxToBeMined)
+					if err != nil && !strings.HasPrefix(err.Error(), "transaction has failed, reason:") {
+						require.NoError(t, err)
+					}
+
+					if forceTxIndexDifferentFromZero {
+						receipt, err = ethereumClient.TransactionReceipt(ctx, signedTx.Hash())
+						require.NoError(t, err)
+						if receipt.TransactionIndex != 0 {
+							log.Debugf("tx receipt has tx index %v, accepted", receipt.TransactionIndex)
+							break
+						} else {
+							log.Debugf("tx receipt has tx index 0, retrying")
+						}
+					} else {
+						break
+					}
+				}
 				debugOptions := map[string]interface{}{
 					"tracer": "callTracer",
 					"tracerConfig": map[string]interface{}{
@@ -415,7 +439,7 @@ func TestDebugTraceBlockCallTracer(t *testing.T) {
 				require.NoError(t, err)
 				require.Nil(t, response.Error)
 				require.NotNil(t, response.Result)
-				log.Debugf("%s response:%s", debugID, string(response.Result))
+				// log.Debugf("%s response:%s", debugID, string(response.Result))
 
 				txHash := signedTx.Hash().String()
 				resultForTx := findTxInResponse(t, response.Result, txHash, debugID)

@@ -264,7 +264,7 @@ type Block struct {
 }
 
 // NewBlock creates a Block instance
-func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool) (*Block, error) {
+func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool, dbTx pgx.Tx) (*Block, error) {
 	h := b.Header()
 
 	var miner *common.Address
@@ -323,7 +323,16 @@ func NewBlock(hash *common.Hash, b *state.L2Block, receipts []types.Receipt, ful
 				receiptPtr = &receipt
 			}
 
-			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts, includeExtraInfo)
+			var l2Hash *common.Hash
+			if includeExtraInfo != nil && *includeExtraInfo {
+				l2h, err := st.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+				if err != nil {
+					return nil, err
+				}
+				l2Hash = l2h
+			}
+
+			rpcTx, err := NewTransaction(*tx, receiptPtr, includeReceipts, l2Hash)
 			if err != nil {
 				return nil, err
 			}
@@ -368,7 +377,7 @@ type Batch struct {
 }
 
 // NewBatch creates a Batch instance
-func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot) (*Batch, error) {
+func NewBatch(ctx context.Context, st StateInterface, batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatch *state.VerifiedBatch, blocks []state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, ger *state.GlobalExitRoot, dbTx pgx.Tx) (*Batch, error) {
 	batchL2Data := batch.BatchL2Data
 	closed := !batch.WIP
 	res := &Batch{
@@ -409,7 +418,11 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 			if receipt, found := receiptsMap[tx.Hash()]; found {
 				receiptPtr = &receipt
 			}
-			rpcTx, err := NewTransaction(tx, receiptPtr, includeReceipts, state.Ptr(true))
+			l2Hash, err := st.GetL2TxHashByTxHash(ctx, tx.Hash(), dbTx)
+			if err != nil {
+				return nil, err
+			}
+			rpcTx, err := NewTransaction(tx, receiptPtr, includeReceipts, l2Hash)
 			if err != nil {
 				return nil, err
 			}
@@ -423,7 +436,7 @@ func NewBatch(batch *state.Batch, virtualBatch *state.VirtualBatch, verifiedBatc
 	for _, b := range blocks {
 		b := b
 		if fullTx {
-			block, err := NewBlock(state.Ptr(b.Hash()), &b, nil, false, false, state.Ptr(true))
+			block, err := NewBlock(ctx, st, state.Ptr(b.Hash()), &b, nil, false, false, state.Ptr(true), dbTx)
 			if err != nil {
 				return nil, err
 			}
@@ -550,11 +563,10 @@ func (t Transaction) CoreTx() *types.Transaction {
 func NewTransaction(
 	tx types.Transaction,
 	receipt *types.Receipt,
-	includeReceipt bool, includeExtraInfo *bool,
+	includeReceipt bool, l2Hash *common.Hash,
 ) (*Transaction, error) {
 	v, r, s := tx.RawSignatureValues()
 	from, _ := state.GetSender(tx)
-	l2Hash, _ := state.GetL2Hash(tx)
 
 	res := &Transaction{
 		Nonce:    ArgUint64(tx.Nonce()),
@@ -570,10 +582,7 @@ func NewTransaction(
 		From:     from,
 		ChainID:  ArgBig(*tx.ChainId()),
 		Type:     ArgUint64(tx.Type()),
-	}
-
-	if includeExtraInfo != nil && *includeExtraInfo {
-		res.L2Hash = &l2Hash
+		L2Hash:   l2Hash,
 	}
 
 	if receipt != nil {
@@ -582,7 +591,7 @@ func NewTransaction(
 		res.BlockHash = &receipt.BlockHash
 		ti := ArgUint64(receipt.TransactionIndex)
 		res.TxIndex = &ti
-		rpcReceipt, err := NewReceipt(tx, receipt, includeExtraInfo)
+		rpcReceipt, err := NewReceipt(tx, receipt, l2Hash)
 		if err != nil {
 			return nil, err
 		}
@@ -615,7 +624,7 @@ type Receipt struct {
 }
 
 // NewReceipt creates a new Receipt instance
-func NewReceipt(tx types.Transaction, r *types.Receipt, includeExtraInfo *bool) (Receipt, error) {
+func NewReceipt(tx types.Transaction, r *types.Receipt, l2Hash *common.Hash) (Receipt, error) {
 	to := tx.To()
 	logs := r.Logs
 	if logs == nil {
@@ -637,10 +646,6 @@ func NewReceipt(tx types.Transaction, r *types.Receipt, includeExtraInfo *bool) 
 	if err != nil {
 		return Receipt{}, err
 	}
-	l2Hash, err := state.GetL2Hash(tx)
-	if err != nil {
-		return Receipt{}, err
-	}
 	receipt := Receipt{
 		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
@@ -656,14 +661,11 @@ func NewReceipt(tx types.Transaction, r *types.Receipt, includeExtraInfo *bool) 
 		FromAddr:          from,
 		ToAddr:            to,
 		Type:              ArgUint64(r.Type),
+		TxL2Hash:          l2Hash,
 	}
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)
 		receipt.EffectiveGasPrice = &egp
-	}
-
-	if includeExtraInfo != nil && *includeExtraInfo {
-		receipt.TxL2Hash = &l2Hash
 	}
 
 	return receipt, nil
