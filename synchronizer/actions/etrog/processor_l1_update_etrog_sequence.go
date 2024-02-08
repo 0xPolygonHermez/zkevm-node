@@ -111,7 +111,7 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 	g.sync.PendingFlushID(flushID, proverID)
 
 	// Store virtualBatch
-	log.Debugf("processUpdateEtrogSequence: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d", virtualBatch.BatchNumber, blockNumber)
+	log.Infof("processUpdateEtrogSequence: Storing virtualBatch. BatchNumber: %d, BlockNumber: %d GER:%s", virtualBatch.BatchNumber, blockNumber, updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot.String()
 	err = g.state.AddVirtualBatch(ctx, &virtualBatch, dbTx)
 	if err != nil {
 		log.Errorf("error storing virtualBatch. BatchNumber: %d, BlockNumber: %d, error: %v", virtualBatch.BatchNumber, blockNumber, err)
