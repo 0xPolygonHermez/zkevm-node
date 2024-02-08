@@ -252,6 +252,34 @@ func (_m *StateMock) GetTimeForLatestBatchVirtualization(ctx context.Context, db
 	return r0, r1
 }
 
+// IsBatchChecked provides a mock function with given fields: ctx, batchNum, dbTx
+func (_m *StateMock) IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchNum, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBatchChecked")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (bool, error)); ok {
+		return rf(ctx, batchNum, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) bool); ok {
+		r0 = rf(ctx, batchNum, dbTx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNum, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // IsBatchClosed provides a mock function with given fields: ctx, batchNum, dbTx
 func (_m *StateMock) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNum, dbTx)
