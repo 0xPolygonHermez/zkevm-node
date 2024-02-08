@@ -452,11 +452,7 @@ func waitSignal(cancelFuncs []context.CancelFunc) {
 	}
 }
 
-<<<<<<< HEAD
-func newState(ctx context.Context, c *config.Config, l2ChainID uint64, forkIDIntervals []state.ForkIDInterval, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree bool) *state.State {
-=======
 func newState(ctx context.Context, c *config.Config, etherman *etherman.Client, l2ChainID uint64, sqlDB *pgxpool.Pool, eventLog *event.EventLog, needsExecutor, needsStateTree, avoidForkIDInMemory bool) (*state.State, uint64) {
->>>>>>> develop
 	// Executor
 	var executorClient executor.ExecutorServiceClient
 	if needsExecutor {
