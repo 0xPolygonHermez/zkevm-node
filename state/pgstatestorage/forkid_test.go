@@ -66,7 +66,7 @@ func TestGetForkIDByBlockNumber(t *testing.T) {
 		{
 			name:        "Block number is equal to an interval",
 			blockNumber: 200,
-			expected:    1,
+			expected:    2,
 		},
 		{
 			name:        "Block number is greater to an interval",

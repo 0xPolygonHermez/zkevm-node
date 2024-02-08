@@ -45,6 +45,10 @@ type Config struct {
 	// MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying
 	// native block hashes in a single call to the state, if zero it means no limit
 	MaxNativeBlockHashBlockRange uint64
+
+	// AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded
+	// from the DB every time it's needed
+	AvoidForkIDInMemory bool
 }
 
 // BatchConfig represents the configuration of the batch constraints
