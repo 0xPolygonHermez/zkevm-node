@@ -147,6 +147,10 @@ SenderAddress = "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 UpgradeEtrogBatchNumber = 0
+SettlementBackend = "agglayer"
+AggLayerTxTimeout = "5m"
+AggLayerURL = "http://zkevm-agglayer"
+SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 
 [EthTxManager]
 ForcedGas = 0
