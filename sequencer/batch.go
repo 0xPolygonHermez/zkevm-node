@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
-	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -350,7 +349,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			log.Infof("block[%d], txs: %d, deltaTimestamp: %d, l1InfoTreeIndex: %d", i, len(rawL2block.Transactions), rawL2block.DeltaTimestamp, rawL2block.IndexL1InfoTree)
 			for j, rawTx := range rawL2block.Transactions {
-				log.Infof("block[%d].tx[%d]: %s, egpPct: %d, data: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage, hex.EncodeToHex(rawTx.Data))
+				log.Infof("block[%d].tx[%d]: %s, egpPct: %d", batch.BatchNumber, i, j, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage)
 			}
 		}
 
