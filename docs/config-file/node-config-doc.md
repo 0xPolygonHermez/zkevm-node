@@ -2670,14 +2670,14 @@ UpgradeEtrogBatchNumber=0
 
 **Type:** : `string`
 
-**Default:** `""`
+**Default:** `"agglayer"`
 
 **Description:** SettlementBackend configuration defines how a final ZKP should be settled. Directly to L1 or over the Beethoven service.
 
-**Example setting the default value** (""):
+**Example setting the default value** ("agglayer"):
 ```
 [Aggregator]
-SettlementBackend=""
+SettlementBackend="agglayer"
 ```
 
 ### <a name="Aggregator_AggLayerTxTimeout"></a>12.17. `Aggregator.AggLayerTxTimeout`
@@ -2686,7 +2686,7 @@ SettlementBackend=""
 
 **Type:** : `string`
 
-**Default:** `"0s"`
+**Default:** `"5m0s"`
 
 **Description:** AggLayerTxTimeout is the interval time to wait for a tx to be mined from the agglayer
 
@@ -2700,24 +2700,24 @@ SettlementBackend=""
 "300ms"
 ```
 
-**Example setting the default value** ("0s"):
+**Example setting the default value** ("5m0s"):
 ```
 [Aggregator]
-AggLayerTxTimeout="0s"
+AggLayerTxTimeout="5m0s"
 ```
 
 ### <a name="Aggregator_AggLayerURL"></a>12.18. `Aggregator.AggLayerURL`
 
 **Type:** : `string`
 
-**Default:** `""`
+**Default:** `"http://zkevm-agglayer"`
 
 **Description:** AggLayerURL url of the agglayer service
 
-**Example setting the default value** (""):
+**Example setting the default value** ("http://zkevm-agglayer"):
 ```
 [Aggregator]
-AggLayerURL=""
+AggLayerURL="http://zkevm-agglayer"
 ```
 
 ### <a name="Aggregator_SequencerPrivateKey"></a>12.19. `[Aggregator.SequencerPrivateKey]`
@@ -2734,28 +2734,28 @@ AggLayerURL=""
 
 **Type:** : `string`
 
-**Default:** `""`
+**Default:** `"/pk/sequencer.keystore"`
 
 **Description:** Path is the file path for the key store file
 
-**Example setting the default value** (""):
+**Example setting the default value** ("/pk/sequencer.keystore"):
 ```
 [Aggregator.SequencerPrivateKey]
-Path=""
+Path="/pk/sequencer.keystore"
 ```
 
 #### <a name="Aggregator_SequencerPrivateKey_Password"></a>12.19.2. `Aggregator.SequencerPrivateKey.Password`
 
 **Type:** : `string`
 
-**Default:** `""`
+**Default:** `"testonly"`
 
 **Description:** Password is the password to decrypt the key store file
 
-**Example setting the default value** (""):
+**Example setting the default value** ("testonly"):
 ```
 [Aggregator.SequencerPrivateKey]
-Password=""
+Password="testonly"
 ```
 
 ## <a name="NetworkConfig"></a>13. `[NetworkConfig]`
