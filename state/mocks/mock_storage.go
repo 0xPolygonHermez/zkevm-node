@@ -874,55 +874,6 @@ func (_c *StorageMock_Begin_Call) RunAndReturn(run func(context.Context) (pgx.Tx
 	return _c
 }
 
-// BuildChangeL2Block provides a mock function with given fields: deltaTimestamp, l1InfoTreeIndex
-func (_m *StorageMock) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
-	ret := _m.Called(deltaTimestamp, l1InfoTreeIndex)
-
-	if len(ret) == 0 {
-		panic("no return value specified for BuildChangeL2Block")
-	}
-
-	var r0 []byte
-	if rf, ok := ret.Get(0).(func(uint32, uint32) []byte); ok {
-		r0 = rf(deltaTimestamp, l1InfoTreeIndex)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]byte)
-		}
-	}
-
-	return r0
-}
-
-// StorageMock_BuildChangeL2Block_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BuildChangeL2Block'
-type StorageMock_BuildChangeL2Block_Call struct {
-	*mock.Call
-}
-
-// BuildChangeL2Block is a helper method to define mock.On call
-//   - deltaTimestamp uint32
-//   - l1InfoTreeIndex uint32
-func (_e *StorageMock_Expecter) BuildChangeL2Block(deltaTimestamp interface{}, l1InfoTreeIndex interface{}) *StorageMock_BuildChangeL2Block_Call {
-	return &StorageMock_BuildChangeL2Block_Call{Call: _e.mock.On("BuildChangeL2Block", deltaTimestamp, l1InfoTreeIndex)}
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) Run(run func(deltaTimestamp uint32, l1InfoTreeIndex uint32)) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(uint32), args[1].(uint32))
-	})
-	return _c
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) Return(_a0 []byte) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *StorageMock_BuildChangeL2Block_Call) RunAndReturn(run func(uint32, uint32) []byte) *StorageMock_BuildChangeL2Block_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // CheckProofContainsCompleteSequences provides a mock function with given fields: ctx, proof, dbTx
 func (_m *StorageMock) CheckProofContainsCompleteSequences(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, proof, dbTx)
@@ -5251,6 +5202,65 @@ func (_c *StorageMock_GetNextForcedBatches_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// GetNotCheckedBatches provides a mock function with given fields: ctx, dbTx
+func (_m *StorageMock) GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx) ([]*state.Batch, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNotCheckedBatches")
+	}
+
+	var r0 []*state.Batch
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) ([]*state.Batch, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) []*state.Batch); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*state.Batch)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetNotCheckedBatches_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNotCheckedBatches'
+type StorageMock_GetNotCheckedBatches_Call struct {
+	*mock.Call
+}
+
+// GetNotCheckedBatches is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetNotCheckedBatches(ctx interface{}, dbTx interface{}) *StorageMock_GetNotCheckedBatches_Call {
+	return &StorageMock_GetNotCheckedBatches_Call{Call: _e.mock.On("GetNotCheckedBatches", ctx, dbTx)}
+}
+
+func (_c *StorageMock_GetNotCheckedBatches_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetNotCheckedBatches_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetNotCheckedBatches_Call) Return(_a0 []*state.Batch, _a1 error) *StorageMock_GetNotCheckedBatches_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetNotCheckedBatches_Call) RunAndReturn(run func(context.Context, pgx.Tx) ([]*state.Batch, error)) *StorageMock_GetNotCheckedBatches_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetNumberOfBlocksSinceLastGERUpdate provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetNumberOfBlocksSinceLastGERUpdate(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -6950,6 +6960,64 @@ func (_c *StorageMock_GetWIPBatchInStorage_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
+// IsBatchChecked provides a mock function with given fields: ctx, batchNum, dbTx
+func (_m *StorageMock) IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
+	ret := _m.Called(ctx, batchNum, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsBatchChecked")
+	}
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (bool, error)); ok {
+		return rf(ctx, batchNum, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) bool); ok {
+		r0 = rf(ctx, batchNum, dbTx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNum, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_IsBatchChecked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsBatchChecked'
+type StorageMock_IsBatchChecked_Call struct {
+	*mock.Call
+}
+
+// IsBatchChecked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNum uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) IsBatchChecked(ctx interface{}, batchNum interface{}, dbTx interface{}) *StorageMock_IsBatchChecked_Call {
+	return &StorageMock_IsBatchChecked_Call{Call: _e.mock.On("IsBatchChecked", ctx, batchNum, dbTx)}
+}
+
+func (_c *StorageMock_IsBatchChecked_Call) Run(run func(ctx context.Context, batchNum uint64, dbTx pgx.Tx)) *StorageMock_IsBatchChecked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_IsBatchChecked_Call) Return(_a0 bool, _a1 error) *StorageMock_IsBatchChecked_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_IsBatchChecked_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (bool, error)) *StorageMock_IsBatchChecked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsBatchClosed provides a mock function with given fields: ctx, batchNum, dbTx
 func (_m *StorageMock) IsBatchClosed(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
 	ret := _m.Called(ctx, batchNum, dbTx)
@@ -7809,6 +7877,54 @@ func (_c *StorageMock_StoreGenesisBatch_Call) Return(_a0 error) *StorageMock_Sto
 }
 
 func (_c *StorageMock_StoreGenesisBatch_Call) RunAndReturn(run func(context.Context, state.Batch, pgx.Tx) error) *StorageMock_StoreGenesisBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateBatchAsChecked provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StorageMock) UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateBatchAsChecked")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StorageMock_UpdateBatchAsChecked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBatchAsChecked'
+type StorageMock_UpdateBatchAsChecked_Call struct {
+	*mock.Call
+}
+
+// UpdateBatchAsChecked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) UpdateBatchAsChecked(ctx interface{}, batchNumber interface{}, dbTx interface{}) *StorageMock_UpdateBatchAsChecked_Call {
+	return &StorageMock_UpdateBatchAsChecked_Call{Call: _e.mock.On("UpdateBatchAsChecked", ctx, batchNumber, dbTx)}
+}
+
+func (_c *StorageMock_UpdateBatchAsChecked_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *StorageMock_UpdateBatchAsChecked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_UpdateBatchAsChecked_Call) Return(_a0 error) *StorageMock_UpdateBatchAsChecked_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StorageMock_UpdateBatchAsChecked_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) error) *StorageMock_UpdateBatchAsChecked_Call {
 	_c.Call.Return(run)
 	return _c
 }
