@@ -165,6 +165,10 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
 UpgradeEtrogBatchNumber = 0
+SettlementBackend = "agglayer"
+AggLayerTxTimeout = "5m"
+AggLayerURL = "http://zkevm-agglayer"
+SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
 
 [L2GasPriceSuggester]
 Type = "follower"

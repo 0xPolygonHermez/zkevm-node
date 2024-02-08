@@ -1884,3 +1884,8 @@ func (etherMan *Client) SetDataAvailabilityProtocol(from, daAddress common.Addre
 
 	return etherMan.ZkEVM.SetDataAvailabilityProtocol(&auth, daAddress)
 }
+
+// GetRollupId returns the rollup id
+func (etherMan *Client) GetRollupId() uint32 {
+	return etherMan.RollupID
+}
