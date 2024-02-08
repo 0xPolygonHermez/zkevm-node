@@ -1287,16 +1287,16 @@ TrustedSequencerURL=""
 
 **Type:** : `enum (of string)`
 
-**Default:** `"parallel"`
+**Default:** `"sequential"`
 
 **Description:** L1SynchronizationMode define how to synchronize with L1:
 - parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data
 - sequential: Request data to L1 and execute
 
-**Example setting the default value** ("parallel"):
+**Example setting the default value** ("sequential"):
 ```
 [Synchronizer]
-L1SynchronizationMode="parallel"
+L1SynchronizationMode="sequential"
 ```
 
 Must be one of:
@@ -3736,12 +3736,12 @@ MaxBatchBytesSize=120000
 
 **Type:** : `integer`
 
-**Default:** `9223372036854775807`
+**Default:** `1125899906842624`
 
-**Example setting the default value** (9223372036854775807):
+**Example setting the default value** (1125899906842624):
 ```
 [State.Batch.Constraints]
-MaxCumulativeGasUsed=9223372036854775807
+MaxCumulativeGasUsed=1125899906842624
 ```
 
 ##### <a name="State_Batch_Constraints_MaxKeccakHashes"></a>20.9.1.4. `State.Batch.Constraints.MaxKeccakHashes`
