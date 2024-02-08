@@ -1875,6 +1875,16 @@ func (etherMan *Client) GetDAProtocolName() (string, error) {
 	return etherMan.DAProtocol.GetProcotolName(&bind.CallOpts{Pending: false})
 }
 
+// SetDataAvailabilityProtocol sets the address for the new data availability protocol
+func (etherMan *Client) SetDataAvailabilityProtocol(from, daAddress common.Address) (*types.Transaction, error) {
+	auth, err := etherMan.getAuthByAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	return etherMan.ZkEVM.SetDataAvailabilityProtocol(&auth, daAddress)
+}
+
 // GetRollupId returns the rollup id
 func (etherMan *Client) GetRollupId() uint32 {
 	return etherMan.RollupID
