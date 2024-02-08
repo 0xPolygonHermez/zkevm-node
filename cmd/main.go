@@ -186,6 +186,13 @@ func main() {
 			Action:  restore,
 			Flags:   restoreFlags,
 		},
+		{
+			Name:    "set-data-availability-protocol",
+			Aliases: []string{"set-dap"},
+			Usage:   "Sets the new data availability protocol",
+			Action:  setDataAvailabilityProtocol,
+			Flags:   setDataAvailabilityProtocolFlags,
+		},
 	}
 
 	err := app.Run(os.Args)
