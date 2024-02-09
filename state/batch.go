@@ -79,17 +79,17 @@ const (
 	// ------------------------------------------------------------------------------------------
 
 	// SyncL1EventInitialBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to an initial batch (first batch mode forced)
-	SyncL1EventInitialBatchClosingReason ClosingReason = "sync: L1event: InitialBatch"
+	SyncL1EventInitialBatchClosingReason ClosingReason = "Sync L1: initial"
 	// SyncL1EventSequencedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced batch event from L1
-	SyncL1EventSequencedBatchClosingReason ClosingReason = "sync: L1event: SequencedBatch"
+	SyncL1EventSequencedBatchClosingReason ClosingReason = "Sync L1: sequenced"
 	// SyncL1EventSequencedForcedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced forced batch event from L1
-	SyncL1EventSequencedForcedBatchClosingReason ClosingReason = "sync: L1event: SequencedForcedBatch"
-	// SyncL1EventUpdateEtrogSequenceClosingReason is the closing reason used when a batch is closed by the synchronizer due to an update etrog sequence event from L1 that inject txs
-	SyncL1EventUpdateEtrogSequenceClosingReason ClosingReason = "sync: L1event: UpdateEtrogSequence"
+	SyncL1EventSequencedForcedBatchClosingReason ClosingReason = "Sync L1: forced"
+	// SyncL1EventUpdateEtrogSequenceClosingReason is the closing reason used when a batch is closed by the synchronizer due to an UpdateEtrogSequence event from L1 that inject txs
+	SyncL1EventUpdateEtrogSequenceClosingReason ClosingReason = "Sync L1: injected"
 	// SyncL2TrustedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a trusted batch from L2
-	SyncL2TrustedBatchClosingReason ClosingReason = "sync: L2: TrustedBatch"
+	SyncL2TrustedBatchClosingReason ClosingReason = "Sync L2: trusted"
 	// SyncGenesisBatchClosingReason is the closing reason used when genesis batch is created by synchronizer
-	SyncGenesisBatchClosingReason ClosingReason = "sync: GenesisBatch"
+	SyncGenesisBatchClosingReason ClosingReason = "Sync: genesis"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
