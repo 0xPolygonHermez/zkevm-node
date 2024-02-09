@@ -58,6 +58,7 @@ type preExecutionResponse struct {
 	OOCError             error
 	OOGError             error
 	isReverted           bool
+	txResponse           *state.ProcessTransactionResponse
 }
 
 // GasPrices contains the gas prices for L2 and L1
@@ -231,7 +232,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 		return err
 	}
 
-	err = p.ValidateBreakEvenGasPrice(ctx, tx, preExecutionResponse.usedZkCounters.GasUsed, gasPrices)
+	err = p.ValidateBreakEvenGasPrice(ctx, tx, preExecutionResponse.txResponse.GasUsed, gasPrices)
 	if err != nil {
 		return err
 	}
@@ -309,6 +310,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			}
 			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
 				response.usedZkCounters = processBatchResponse.UsedZkCounters
+				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
 			return response, nil
 		}
@@ -334,6 +336,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 		}
 
 		response.usedZkCounters = processBatchResponse.UsedZkCounters
+		response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 	}
 
 	return response, nil
