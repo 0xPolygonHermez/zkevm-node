@@ -430,7 +430,7 @@ func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interfac
 // EstimateGasPrice returns an estimate gas price for the transaction.
 func (z *ZKEVMEndpoints) EstimateGasPrice(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		gasPrice, _, err := z.internalEstimateGasPrice(ctx, arg, blockArg, dbTx)
+		gasPrice, _, err := z.internalEstimateGasPriceAndFee(ctx, arg, blockArg, dbTx)
 		if err != nil {
 			return nil, err
 		}
@@ -441,7 +441,7 @@ func (z *ZKEVMEndpoints) EstimateGasPrice(arg *types.TxArgs, blockArg *types.Blo
 // EstimateFee returns an estimate fee for the transaction.
 func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		_, fee, err := z.internalEstimateGasPrice(ctx, arg, blockArg, dbTx)
+		_, fee, err := z.internalEstimateGasPriceAndFee(ctx, arg, blockArg, dbTx)
 		if err != nil {
 			return nil, err
 		}
@@ -449,8 +449,8 @@ func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNum
 	})
 }
 
-// internalEstimateGasPrice computes the estimated gas price and the estimated fee for the transaction
-func (z *ZKEVMEndpoints) internalEstimateGasPrice(ctx context.Context, arg *types.TxArgs, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*big.Int, *big.Int, types.Error) {
+// internalEstimateGasPriceAndFee computes the estimated gas price and the estimated fee for the transaction
+func (z *ZKEVMEndpoints) internalEstimateGasPriceAndFee(ctx context.Context, arg *types.TxArgs, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*big.Int, *big.Int, types.Error) {
 	if arg == nil {
 		return nil, nil, types.NewRPCError(types.InvalidParamsErrorCode, "missing value for required argument 0")
 	}
@@ -519,13 +519,13 @@ func (z *ZKEVMEndpoints) internalEstimateGasPrice(ctx context.Context, arg *type
 			txGasPrice = new(big.Int).Mul(txGasPriceFraction, new(big.Int).SetUint64(uint64(txEGPPct+1)))
 		}
 
-		log.Infof("[EstimateFee] finalGasPrice: %d, effectiveGasPrice: %d, egpPct: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
+		log.Infof("[internalEstimateGasPriceAndFee] finalGasPrice: %d, effectiveGasPrice: %d, egpPct: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
 			txGasPrice, txEGP, txEGPPct, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
 	}
 
 	fee := new(big.Int).Mul(txGasPrice, new(big.Int).SetUint64(gasEstimation))
 
-	log.Infof("[EstimateFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
+	log.Infof("[internalEstimateGasPriceAndFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
 
 	return txGasPrice, fee, nil
 }
