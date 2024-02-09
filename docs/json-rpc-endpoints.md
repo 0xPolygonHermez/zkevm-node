@@ -62,6 +62,9 @@ If the endpoint is not in the list below, it means this specific endpoint is not
 - `zkevm_batchNumber`
 - `zkevm_batchNumberByBlockNumber`
 - `zkevm_consolidatedBlockNumber`
+- `zkevm_estimateFee`
+- `zkevm_estimateGasPrice`
+- `zkevm_getExitRootsByGER`
 - `zkevm_getBatchByNumber`
 - `zkevm_getFullBlockByHash`
 - `zkevm_getFullBlockByNumber`
