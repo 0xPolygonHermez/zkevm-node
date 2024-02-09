@@ -353,6 +353,7 @@ func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error
 		BatchL2Data:    p.BatchL2Data,
 		Timestamp:      tstamp,
 		GlobalExitRoot: p.GlobalExitRoot,
+		ClosingReason:  p.ClosingReason,
 	}
 	return &result, nil
 }

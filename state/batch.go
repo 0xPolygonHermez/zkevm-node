@@ -51,6 +51,7 @@ type ProcessingContext struct {
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
 	BatchL2Data    *[]byte
+	ClosingReason  ClosingReason
 }
 
 // ClosingReason represents the reason why a batch is closed.
@@ -73,6 +74,18 @@ const (
 	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp"
 	// NoTxFitsClosingReason is the closing reason used when any of the txs in the pool (worker) fits in the remaining resources of the batch
 	NoTxFitsClosingReason ClosingReason = "No transaction fits"
+	// Reason due Synchronizer
+	// ------------------------------------------------------------------------------------------
+	// SyncL1EventInitialBatch is the closing reason used when a batch is closed by the synchronizer due to an initial batch (first batch mode forced)
+	SyncL1EventInitialBatchClosingReason ClosingReason = "sync: L1event: InitialBatch"
+	// SyncL1EventSequencedBatch is the closing reason used when a batch is closed by the synchronizer due to a sequenced batch event from L1
+	SyncL1EventSequencedBatchClosingReason ClosingReason = "sync: L1event: SequencedBatch"
+	// SyncL1EventSequencedForcedBatch is the closing reason used when a batch is closed by the synchronizer due to a sequenced forced batch event from L1
+	SyncL1EventSequencedForcedBatchClosingReason ClosingReason = "sync: L1event: SequencedForcedBatch"
+	// SyncL1EventUpdateEtrogSequence is the closing reason used when a batch is closed by the synchronizer due to an update etrog sequence event from L1 that inject txs
+	SyncL1EventUpdateEtrogSequenceClosingReason ClosingReason = "sync: L1event: UpdateEtrogSequence"
+	// SyncL2TrustedBatch is the closing reason used when a batch is closed by the synchronizer due to a trusted batch from L2
+	SyncL2TrustedBatchClosingReason ClosingReason = "sync: L2: TrustedBatch"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
