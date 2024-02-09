@@ -423,6 +423,38 @@
             "$ref": "#/components/schemas/Keccak"
           }
       }
+    },
+    {
+      "name": "zkevm_estimateFee",
+      "summary": "Estimates the transaction Fee following the effective gas price rules",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/Transaction"
+        }
+      ],
+      "result": {
+        "name": "fee",
+        "description": "The amount of the fee",
+        "schema": {
+          "$ref": "#/components/schemas/Integer"
+        }
+      }
+    },
+    {
+      "name": "zkevm_estimateGasPrice",
+      "summary": "Estimates the transaction Gas Price following the effective gas price rules",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/Transaction"
+        }
+      ],
+      "result": {
+        "name": "gasPrice",
+        "description": "The amount of gas price",
+        "schema": {
+          "$ref": "#/components/schemas/Integer"
+        }
+      }
     }
   ],
   "components": {
@@ -470,6 +502,13 @@
         "description": "A block object",
         "schema": {
           "$ref": "#/components/schemas/Block"
+        }
+      },
+      "Transaction": {
+        "required": true,
+        "name": "transaction",
+        "schema": {
+          "$ref": "#/components/schemas/Transaction"
         }
       },
       "TransactionHash": {
