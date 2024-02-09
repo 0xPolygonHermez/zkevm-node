@@ -323,6 +323,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trust
 		LocalExitRoot: trustedBatch.LocalExitRoot,
 		BatchL2Data:   trustedBatch.BatchL2Data,
 		AccInputHash:  trustedBatch.AccInputHash,
+		ClosingReason: state.SyncL2TrustedBatchClosingReason,
 	}
 	log.Debugf("%s closing batch %v", debugStr, trustedBatch.Number)
 	// This update SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE

@@ -557,8 +557,8 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	return &virtualBatch, nil
 }
 
-func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)"
+func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx) error {
+	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num,closing_reason, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10, FALSE)"
 
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("%w. Got %d, should be 0", state.ErrUnexpectedBatch, batch.BatchNumber)
@@ -576,6 +576,7 @@ func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Bat
 		batch.Coinbase.String(),
 		batch.BatchL2Data,
 		batch.ForcedBatchNum,
+		closingReason,
 	)
 
 	return err
