@@ -60,6 +60,7 @@ type ProcessingContext struct {
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
 	BatchL2Data    *[]byte
+	ClosingReason  ClosingReason
 }
 
 // ClosingReason represents the reason why a batch is closed.
@@ -82,6 +83,22 @@ const (
 	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp"
 	// NoTxFitsClosingReason is the closing reason used when any of the txs in the pool (worker) fits in the remaining resources of the batch
 	NoTxFitsClosingReason ClosingReason = "No transaction fits"
+
+	// Reason due Synchronizer
+	// ------------------------------------------------------------------------------------------
+
+	// SyncL1EventInitialBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to an initial batch (first batch mode forced)
+	SyncL1EventInitialBatchClosingReason ClosingReason = "Sync L1: initial"
+	// SyncL1EventSequencedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced batch event from L1
+	SyncL1EventSequencedBatchClosingReason ClosingReason = "Sync L1: sequenced"
+	// SyncL1EventSequencedForcedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced forced batch event from L1
+	SyncL1EventSequencedForcedBatchClosingReason ClosingReason = "Sync L1: forced"
+	// SyncL1EventUpdateEtrogSequenceClosingReason is the closing reason used when a batch is closed by the synchronizer due to an UpdateEtrogSequence event from L1 that inject txs
+	SyncL1EventUpdateEtrogSequenceClosingReason ClosingReason = "Sync L1: injected"
+	// SyncL2TrustedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a trusted batch from L2
+	SyncL2TrustedBatchClosingReason ClosingReason = "Sync L2: trusted"
+	// SyncGenesisBatchClosingReason is the closing reason used when genesis batch is created by synchronizer
+	SyncGenesisBatchClosingReason ClosingReason = "Sync: genesis"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
