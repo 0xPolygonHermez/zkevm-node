@@ -239,6 +239,7 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 
 	poolTx := NewTransaction(tx, ip, isWIP)
 	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
+	poolTx.GasUsed = preExecutionResponse.txResponse.GasUsed
 
 	return p.storage.AddTx(ctx, *poolTx)
 }
