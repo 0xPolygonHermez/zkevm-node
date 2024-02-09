@@ -427,87 +427,107 @@ func (z *ZKEVMEndpoints) GetExitRootsByGER(globalExitRoot common.Hash) (interfac
 	})
 }
 
+// EstimateGasPrice returns an estimate gas price for the transaction.
+func (z *ZKEVMEndpoints) EstimateGasPrice(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		gasPrice, _, err := z.internalEstimateGasPrice(ctx, arg, blockArg, dbTx)
+		if err != nil {
+			return nil, err
+		}
+		return hex.EncodeBig(gasPrice), nil
+	})
+}
+
 // EstimateFee returns an estimate fee for the transaction.
 func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
 	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		if arg == nil {
-			return RPCErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil, false)
-		}
-
-		block, respErr := z.getBlockByArg(ctx, blockArg, dbTx)
-		if respErr != nil {
-			return nil, respErr
-		}
-
-		var blockToProcess *uint64
-		if blockArg != nil {
-			blockNumArg := blockArg.Number()
-			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
-				blockToProcess = nil
-			} else {
-				n := block.NumberU64()
-				blockToProcess = &n
-			}
-		}
-
-		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
-		sender, tx, err := arg.ToTransaction(ctx, z.state, z.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		_, fee, err := z.internalEstimateGasPrice(ctx, arg, blockArg, dbTx)
 		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
+			return nil, err
 		}
-
-		gasEstimation, returnValue, err := z.state.EstimateGas(tx, sender, blockToProcess, dbTx)
-		if errors.Is(err, runtime.ErrExecutionReverted) {
-			data := make([]byte, len(returnValue))
-			copy(data, returnValue)
-			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
-		} else if err != nil {
-			errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
-			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
-		}
-
-		gasPrices, err := z.pool.GetGasPrices(ctx)
-		if err != nil {
-			return RPCErrorResponse(types.DefaultErrorCode, "failed to get L2 gas price", err, false)
-		}
-
-		txGasPrice := new(big.Int).SetUint64(gasPrices.L2GasPrice) // by default we assume the tx gas price is the current L2 gas price
-		txEGPPct := state.MaxEffectivePercentage
-		egpEnabled := z.pool.EffectiveGasPriceEnabled()
-
-		if egpEnabled {
-			rawTx, err := state.EncodeTransactionWithoutEffectivePercentage(*tx)
-			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "failed to encode tx", err, false)
-			}
-
-			txEGP, err := z.pool.CalculateEffectiveGasPrice(rawTx, txGasPrice, gasEstimation, gasPrices.L1GasPrice, gasPrices.L2GasPrice)
-			if err != nil {
-				return RPCErrorResponse(types.DefaultErrorCode, "failed to calculate effective gas price", err, false)
-			}
-
-			if txEGP.Cmp(txGasPrice) == -1 { // txEGP < txGasPrice
-				// We need to "round" the final effectiveGasPrice to a 256 fraction of the txGasPrice
-				txEGPPct, err = z.pool.CalculateEffectiveGasPricePercentage(txGasPrice, txEGP)
-				if err != nil {
-					return RPCErrorResponse(types.DefaultErrorCode, "failed to calculate effective gas price percentage", err, false)
-				}
-				// txGasPriceFraction = txGasPrice/256
-				txGasPriceFraction := new(big.Int).Div(txGasPrice, new(big.Int).SetUint64(256)) //nolint:gomnd
-				// txGasPrice = txGasPriceFraction*(txEGPPct+1)
-				txGasPrice = new(big.Int).Mul(txGasPriceFraction, new(big.Int).SetUint64(uint64(txEGPPct+1)))
-			}
-
-			log.Infof("[EstimateFee] finalGasPrice: %d, effectiveGasPrice: %d, egpPct: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
-				txGasPrice, txEGP, txEGPPct, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
-		}
-
-		fee := new(big.Int).Mul(txGasPrice, new(big.Int).SetUint64(gasEstimation))
-
-		log.Infof("[EstimateFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
-
 		return hex.EncodeBig(fee), nil
 	})
+}
+
+// internalEstimateGasPrice computes the estimated gas price and the estimated fee for the transaction
+func (z *ZKEVMEndpoints) internalEstimateGasPrice(ctx context.Context, arg *types.TxArgs, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*big.Int, *big.Int, types.Error) {
+	if arg == nil {
+		return nil, nil, types.NewRPCError(types.InvalidParamsErrorCode, "missing value for required argument 0")
+	}
+
+	block, respErr := z.getBlockByArg(ctx, blockArg, dbTx)
+	if respErr != nil {
+		return nil, nil, respErr
+	}
+
+	var blockToProcess *uint64
+	if blockArg != nil {
+		blockNumArg := blockArg.Number()
+		if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
+			blockToProcess = nil
+		} else {
+			n := block.NumberU64()
+			blockToProcess = &n
+		}
+	}
+
+	defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
+	sender, tx, err := arg.ToTransaction(ctx, z.state, z.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+	if err != nil {
+		return nil, nil, types.NewRPCError(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction")
+	}
+
+	gasEstimation, returnValue, err := z.state.EstimateGas(tx, sender, blockToProcess, dbTx)
+	if errors.Is(err, runtime.ErrExecutionReverted) {
+		data := make([]byte, len(returnValue))
+		copy(data, returnValue)
+		return nil, nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
+	} else if err != nil {
+		errMsg := fmt.Sprintf("failed to estimate gas: %v", err.Error())
+		return nil, nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+	}
+
+	gasPrices, err := z.pool.GetGasPrices(ctx)
+	if err != nil {
+		return nil, nil, types.NewRPCError(types.DefaultErrorCode, "failed to get L2 gas price", err, false)
+	}
+
+	txGasPrice := new(big.Int).SetUint64(gasPrices.L2GasPrice) // by default we assume the tx gas price is the current L2 gas price
+	txEGPPct := state.MaxEffectivePercentage
+	egpEnabled := z.pool.EffectiveGasPriceEnabled()
+
+	if egpEnabled {
+		rawTx, err := state.EncodeTransactionWithoutEffectivePercentage(*tx)
+		if err != nil {
+			return nil, nil, types.NewRPCError(types.DefaultErrorCode, "failed to encode tx", err, false)
+		}
+
+		txEGP, err := z.pool.CalculateEffectiveGasPrice(rawTx, txGasPrice, gasEstimation, gasPrices.L1GasPrice, gasPrices.L2GasPrice)
+		if err != nil {
+			return nil, nil, types.NewRPCError(types.DefaultErrorCode, "failed to calculate effective gas price", err, false)
+		}
+
+		if txEGP.Cmp(txGasPrice) == -1 { // txEGP < txGasPrice
+			// We need to "round" the final effectiveGasPrice to a 256 fraction of the txGasPrice
+			txEGPPct, err = z.pool.CalculateEffectiveGasPricePercentage(txGasPrice, txEGP)
+			if err != nil {
+				return nil, nil, types.NewRPCError(types.DefaultErrorCode, "failed to calculate effective gas price percentage", err, false)
+			}
+			// txGasPriceFraction = txGasPrice/256
+			txGasPriceFraction := new(big.Int).Div(txGasPrice, new(big.Int).SetUint64(256)) //nolint:gomnd
+			// txGasPrice = txGasPriceFraction*(txEGPPct+1)
+			txGasPrice = new(big.Int).Mul(txGasPriceFraction, new(big.Int).SetUint64(uint64(txEGPPct+1)))
+		}
+
+		log.Infof("[EstimateFee] finalGasPrice: %d, effectiveGasPrice: %d, egpPct: %d, l2GasPrice: %d, len: %d, gas: %d, l1GasPrice: %d",
+			txGasPrice, txEGP, txEGPPct, gasPrices.L2GasPrice, len(rawTx), gasEstimation, gasPrices.L1GasPrice)
+	}
+
+	fee := new(big.Int).Mul(txGasPrice, new(big.Int).SetUint64(gasEstimation))
+
+	log.Infof("[EstimateFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
+
+	return txGasPrice, fee, nil
 }
 
 func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
