@@ -280,8 +280,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 }
 
 // PreProcessUnsignedTransaction processes the unsigned transaction in order to calculate its zkCounters
-func (s *State) PreProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, sender common.Address, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
-	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
+func (s *State) PreProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, sender common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, l2BlockNumber, false, dbTx)
 	if err != nil {
 		return response, err
 	}
@@ -320,7 +320,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.StateRoot = r.StateRoot.Bytes()
 
 	if errors.Is(r.RomError, runtime.ErrExecutionReverted) {
-		result.Err = constructErrorFromRevert(r.RomError, r.ReturnValue)
+		result.Err = ConstructErrorFromRevert(r.RomError, r.ReturnValue)
 	} else {
 		result.Err = r.RomError
 	}
@@ -947,7 +947,7 @@ func (s *State) internalTestGasEstimationTransactionV1(ctx context.Context, batc
 			// The EVM reverted during execution, attempt to extract the
 			// error message and return it
 			returnValue := txResponse.ReturnValue
-			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+			return true, true, gasUsed, returnValue, ConstructErrorFromRevert(err, returnValue)
 		}
 
 		return true, false, gasUsed, nil, err
@@ -1054,7 +1054,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 			// The EVM reverted during execution, attempt to extract the
 			// error message and return it
 			returnValue := txResponse.ReturnValue
-			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+			return true, true, gasUsed, returnValue, ConstructErrorFromRevert(err, returnValue)
 		}
 
 		return true, false, gasUsed, nil, err

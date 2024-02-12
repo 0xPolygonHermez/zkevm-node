@@ -1302,9 +1302,9 @@ func (_m *StateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber uint6
 	return r0, r1
 }
 
-// PreProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, sender, dbTx
-func (_m *StateMock) PreProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, sender common.Address, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
-	ret := _m.Called(ctx, tx, sender, dbTx)
+// PreProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, sender, l2BlockNumber, dbTx
+func (_m *StateMock) PreProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, sender common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, tx, sender, l2BlockNumber, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PreProcessUnsignedTransaction")
@@ -1312,19 +1312,19 @@ func (_m *StateMock) PreProcessUnsignedTransaction(ctx context.Context, tx *core
 
 	var r0 *state.ProcessBatchResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
-		return rf(ctx, tx, sender, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ctx, tx, sender, l2BlockNumber, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, pgx.Tx) *state.ProcessBatchResponse); ok {
-		r0 = rf(ctx, tx, sender, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, pgx.Tx) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, tx, sender, l2BlockNumber, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.ProcessBatchResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, pgx.Tx) error); ok {
-		r1 = rf(ctx, tx, sender, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, tx, sender, l2BlockNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

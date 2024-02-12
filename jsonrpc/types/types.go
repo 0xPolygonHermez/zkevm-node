@@ -717,21 +717,52 @@ type ZKCounters struct {
 	UsedArithmetics      ArgUint64 `json:"usedArithmetics"`
 	UsedBinaries         ArgUint64 `json:"usedBinaries"`
 	UsedSteps            ArgUint64 `json:"usedSteps"`
-	UsedSha256Hashes     ArgUint64 `json:"usedSha256Hashes"`
+	UsedSHA256Hashes     ArgUint64 `json:"usedSHA256Hashes"`
 }
 
-// NewZKCounters creates an instance of ZKCounters to be returned
+// ZKCountersLimits used to return the zk counter limits to the user
+type ZKCountersLimits struct {
+	MaxGasUsed          ArgUint64 `json:"maxGasUsed"`
+	MaxKeccakHashes     ArgUint64 `json:"maxKeccakHashes"`
+	MaxPoseidonHashes   ArgUint64 `json:"maxPoseidonHashes"`
+	MaxPoseidonPaddings ArgUint64 `json:"maxPoseidonPaddings"`
+	MaxMemAligns        ArgUint64 `json:"maxMemAligns"`
+	MaxArithmetics      ArgUint64 `json:"maxArithmetics"`
+	MaxBinaries         ArgUint64 `json:"maxBinaries"`
+	MaxSteps            ArgUint64 `json:"maxSteps"`
+	MaxSHA256Hashes     ArgUint64 `json:"maxSHA256Hashes"`
+}
+
+// RevertInfo contains the reverted message and data when a tx
+// is reverted during the zk counter estimation
+type RevertInfo struct {
+	Message string    `json:"message"`
+	Data    *ArgBytes `json:"data,omitempty"`
+}
+
+// ZKCountersResponse returned when counters are estimated
+type ZKCountersResponse struct {
+	CountersUsed   ZKCounters       `json:"countersUsed"`
+	CountersLimits ZKCountersLimits `json:"countersLimit"`
+	Revert         *RevertInfo      `json:"revert,omitempty"`
+}
+
+// NewZKCountersResponse creates an instance of ZKCounters to be returned
 // by the RPC to the caller
-func NewZKCounters(zkCounters state.ZKCounters) ZKCounters {
-	return ZKCounters{
-		GasUsed:              ArgUint64(zkCounters.GasUsed),
-		UsedKeccakHashes:     ArgUint64(zkCounters.UsedKeccakHashes),
-		UsedPoseidonHashes:   ArgUint64(zkCounters.UsedPoseidonHashes),
-		UsedPoseidonPaddings: ArgUint64(zkCounters.UsedPoseidonPaddings),
-		UsedMemAligns:        ArgUint64(zkCounters.UsedMemAligns),
-		UsedArithmetics:      ArgUint64(zkCounters.UsedArithmetics),
-		UsedBinaries:         ArgUint64(zkCounters.UsedBinaries),
-		UsedSteps:            ArgUint64(zkCounters.UsedSteps),
-		UsedSha256Hashes:     ArgUint64(zkCounters.UsedSha256Hashes_V2),
+func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo) ZKCountersResponse {
+	return ZKCountersResponse{
+		CountersUsed: ZKCounters{
+			GasUsed:              ArgUint64(zkCounters.GasUsed),
+			UsedKeccakHashes:     ArgUint64(zkCounters.UsedKeccakHashes),
+			UsedPoseidonHashes:   ArgUint64(zkCounters.UsedPoseidonHashes),
+			UsedPoseidonPaddings: ArgUint64(zkCounters.UsedPoseidonPaddings),
+			UsedMemAligns:        ArgUint64(zkCounters.UsedMemAligns),
+			UsedArithmetics:      ArgUint64(zkCounters.UsedArithmetics),
+			UsedBinaries:         ArgUint64(zkCounters.UsedBinaries),
+			UsedSteps:            ArgUint64(zkCounters.UsedSteps),
+			UsedSHA256Hashes:     ArgUint64(zkCounters.UsedSha256Hashes_V2),
+		},
+		CountersLimits: limits,
+		Revert:         revert,
 	}
 }
