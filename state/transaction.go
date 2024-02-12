@@ -279,6 +279,16 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	return nil
 }
 
+// PreProcessUnsignedTransaction processes the unsigned transaction in order to calculate its zkCounters
+func (s *State) PreProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, sender common.Address, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, nil, false, dbTx)
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
 func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	sender, err := GetSender(*tx)

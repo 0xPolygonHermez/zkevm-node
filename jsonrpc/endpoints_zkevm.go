@@ -510,6 +510,40 @@ func (z *ZKEVMEndpoints) EstimateFee(arg *types.TxArgs, blockArg *types.BlockNum
 	})
 }
 
+// EstimateCounters returns an estimation of the counters that are going to be used while executing
+// this transaction.
+func (z *ZKEVMEndpoints) EstimateCounters(arg *types.TxArgs) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return RPCErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil, false)
+		}
+
+		block, err := z.state.GetLastL2Block(ctx, dbTx)
+		if err != nil {
+			return nil, types.NewRPCError(types.DefaultErrorCode, "failed to get the last block number from state")
+		}
+
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
+		sender, tx, err := arg.ToTransaction(ctx, z.state, z.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
+		}
+
+		processBatchResponse, err := z.state.PreProcessUnsignedTransaction(ctx, tx, sender, dbTx)
+		if errors.Is(err, runtime.ErrExecutionReverted) {
+			txResponse := processBatchResponse.BlockResponses[0].TransactionResponses[0]
+			data := make([]byte, len(txResponse.ReturnValue))
+			copy(data, txResponse.ReturnValue)
+			return nil, types.NewRPCErrorWithData(types.RevertedErrorCode, err.Error(), data)
+		} else if err != nil {
+			errMsg := fmt.Sprintf("failed to estimate counters: %v", err.Error())
+			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+		}
+
+		return types.NewZKCounters(processBatchResponse.UsedZkCounters), nil
+	})
+}
+
 func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
 	// If no block argument is provided, return the latest block
 	if blockArg == nil {

@@ -706,3 +706,32 @@ type ExitRoots struct {
 	MainnetExitRoot common.Hash `json:"mainnetExitRoot"`
 	RollupExitRoot  common.Hash `json:"rollupExitRoot"`
 }
+
+// ZKCounters counters for the tx
+type ZKCounters struct {
+	GasUsed              ArgUint64 `json:"gasUsed"`
+	UsedKeccakHashes     ArgUint64 `json:"usedKeccakHashes"`
+	UsedPoseidonHashes   ArgUint64 `json:"usedPoseidonHashes"`
+	UsedPoseidonPaddings ArgUint64 `json:"usedPoseidonPaddings"`
+	UsedMemAligns        ArgUint64 `json:"usedMemAligns"`
+	UsedArithmetics      ArgUint64 `json:"usedArithmetics"`
+	UsedBinaries         ArgUint64 `json:"usedBinaries"`
+	UsedSteps            ArgUint64 `json:"usedSteps"`
+	UsedSha256Hashes     ArgUint64 `json:"usedSha256Hashes"`
+}
+
+// NewZKCounters creates an instance of ZKCounters to be returned
+// by the RPC to the caller
+func NewZKCounters(zkCounters state.ZKCounters) ZKCounters {
+	return ZKCounters{
+		GasUsed:              ArgUint64(zkCounters.GasUsed),
+		UsedKeccakHashes:     ArgUint64(zkCounters.UsedKeccakHashes),
+		UsedPoseidonHashes:   ArgUint64(zkCounters.UsedPoseidonHashes),
+		UsedPoseidonPaddings: ArgUint64(zkCounters.UsedPoseidonPaddings),
+		UsedMemAligns:        ArgUint64(zkCounters.UsedMemAligns),
+		UsedArithmetics:      ArgUint64(zkCounters.UsedArithmetics),
+		UsedBinaries:         ArgUint64(zkCounters.UsedBinaries),
+		UsedSteps:            ArgUint64(zkCounters.UsedSteps),
+		UsedSha256Hashes:     ArgUint64(zkCounters.UsedSha256Hashes_V2),
+	}
+}
