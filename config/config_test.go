@@ -158,19 +158,19 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "NetworkConfig.L1Config.L1ChainID",
-			expectedValue: uint64(5),
+			expectedValue: uint64(11155111),
 		},
 		{
 			path:          "NetworkConfig.L1Config.ZkEVMAddr",
-			expectedValue: common.HexToAddress("0xa997cfD539E703921fD1e3Cf25b4c241a27a4c7A"),
+			expectedValue: common.HexToAddress("0xA13Ddb14437A8F34897131367ad3ca78416d6bCa"),
 		},
 		{
 			path:          "NetworkConfig.L1Config.PolAddr",
-			expectedValue: common.HexToAddress("0x1319D23c2F7034F52Eb07399702B040bA278Ca49"),
+			expectedValue: common.HexToAddress("0x6a7c3F4B0651d6DA389AD1d11D962ea458cDCA70"),
 		},
 		{
 			path:          "NetworkConfig.L1Config.GlobalExitRootManagerAddr",
-			expectedValue: common.HexToAddress("0x4d9427DCA0406358445bC0a8F88C26b704004f74"),
+			expectedValue: common.HexToAddress("0xAd1490c248c5d3CbAE399Fd529b79B42984277DF"),
 		},
 		{
 			path:          "Etherman.MultiGasProvider",
