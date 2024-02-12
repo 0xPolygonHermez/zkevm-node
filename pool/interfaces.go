@@ -39,6 +39,7 @@ type storage interface {
 	GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error)
 	MinL2GasPriceSince(ctx context.Context, timestamp time.Time) (uint64, error)
 	policy
+	GetEarliestProcessedTx(ctx context.Context) (common.Hash, error)
 }
 
 type stateInterface interface {

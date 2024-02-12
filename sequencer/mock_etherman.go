@@ -4,7 +4,6 @@ package sequencer
 
 import (
 	context "context"
-	big "math/big"
 
 	common "github.com/ethereum/go-ethereum/common"
 
@@ -65,64 +64,6 @@ func (_m *EthermanMock) GetLatestBlockNumber(ctx context.Context) (uint64, error
 
 	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetLatestBlockTimestamp provides a mock function with given fields: ctx
-func (_m *EthermanMock) GetLatestBlockTimestamp(ctx context.Context) (uint64, error) {
-	ret := _m.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetLatestBlockTimestamp")
-	}
-
-	var r0 uint64
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context) (uint64, error)); ok {
-		return rf(ctx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context) uint64); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(uint64)
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// GetSendSequenceFee provides a mock function with given fields: numBatches
-func (_m *EthermanMock) GetSendSequenceFee(numBatches uint64) (*big.Int, error) {
-	ret := _m.Called(numBatches)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetSendSequenceFee")
-	}
-
-	var r0 *big.Int
-	var r1 error
-	if rf, ok := ret.Get(0).(func(uint64) (*big.Int, error)); ok {
-		return rf(numBatches)
-	}
-	if rf, ok := ret.Get(0).(func(uint64) *big.Int); ok {
-		r0 = rf(numBatches)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*big.Int)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(uint64) error); ok {
-		r1 = rf(numBatches)
 	} else {
 		r1 = ret.Error(1)
 	}
