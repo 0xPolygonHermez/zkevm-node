@@ -522,7 +522,7 @@ func Test_Defaults(t *testing.T) {
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagNetwork, "testnet", "")
+	flagSet.String(config.FlagNetwork, "cardona", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 	cfg, err := config.Load(ctx, true)
 	if err != nil {
@@ -560,7 +560,7 @@ func TestEnvVarArrayDecoding(t *testing.T) {
 	}()
 	require.NoError(t, os.WriteFile(file.Name(), []byte("{}"), 0600))
 	flagSet := flag.NewFlagSet("", flag.PanicOnError)
-	flagSet.String(config.FlagNetwork, "testnet", "")
+	flagSet.String(config.FlagNetwork, "cardona", "")
 	ctx := cli.NewContext(cli.NewApp(), flagSet, nil)
 
 	os.Setenv("ZKEVM_NODE_LOG_OUTPUTS", "a,b,c")

@@ -20,7 +20,7 @@ This repository contains scripts to benchmark a sequencer. The main script is wr
    - `POOLDB_EP`: Endpoint for the pool database. (From `Deployments.doc` under `BASH VARIABLES` section for the specific `Environment`)
    - `POOLDB_PASS`: Password for the pool database. (From `Deployments.doc` under `BASH VARIABLES` section for the specific `Environment`)
    - `POOLDB_USER`: User for the pool database. (From `Deployments.doc` under `BASH VARIABLES` section for the specific `Environment`)
-   - `SEQUENCER_IP`: The IP address of the sequencer. (`sequencer.zkevm-public.aws` for `public testnet`, `sequencer.zkevm-internal.aws` for `internal testnet`, `sequencer.zkevm-dev.aws` for `dev testnet`)
+   - `SEQUENCER_IP`: The IP address of the sequencer. (`sequencer.zkevm-public.aws` for `public cardona testnet`, `sequencer.zkevm-internal.aws` for `internal testnet`, `sequencer.zkevm-dev.aws` for `dev testnet`)
    - `RPC_URL`: The URL for the Remote Procedure Call (RPC) server. (From `Deployments.doc` under `Public URLs` section as a bullet point to `RPC` for the specific `Environment`)
    - `CHAIN_ID`: The ID of the blockchain network. (From `Deployments.doc` under `Public URLs` section as a bullet point to `RPC` for the specific `Environment`)
    - `PRIVATE_KEY`: Your private key.

@@ -19,7 +19,7 @@ import (
 	Considerations tricks and tips for migration file testing:
 
 	- Functionality of the DB is tested by the rest of the packages, migration tests only have to check persistence across migrations (both UP and DOWN)
-	- It's recommended to use real data (from testnet/mainnet), but modifying NULL fields to check that those are migrated properly
+	- It's recommended to use real data (from cardona/mainnet), but modifying NULL fields to check that those are migrated properly
 	- It's recommended to use some SQL tool (such as DBeaver) that generates insert queries from existing rows
 	- Any new migration file could be tested using the existing `migrationTester` interface. Check `0002_test.go` for an example
 */

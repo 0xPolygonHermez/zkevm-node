@@ -12,7 +12,7 @@ Note that sequencing and proving functionalities are not covered in this documen
 - A machine to run the zkEVM node with the following requirements:
   - Hardware: 32G RAM, 4 cores, 128G Disk with high IOPS (as the network is super young the current disk requirements are quite low, but they will increase over time. Also note that this requirement is true if the DBs run on the same machine, but it's recommended to run Postgres on dedicated infra). Currently ARM-based CPUs are not supported
   - Software: Ubuntu 22.04, Docker
-- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Sepolia for Cardona zkEVM testnet, Goerli for zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
+- A L1 node: we recommend using geth, but what it's actually needed is access to a JSON RPC interface for the L1 network (Sepolia for Cardona zkEVM testnet, Ethereum mainnet for zkEVM mainnet)
 
 ## Setup
 
@@ -37,13 +37,13 @@ docker compose --env-file $ZKEVM_CONFIG_DIR/.env -f $ZKEVM_DIR/$ZKEVM_NET/docker
 
 ### Explained step by step:
 
-1. Define network: `ZKEVM_NET=cardona` or `ZKEVM_NET=testnet` or `ZKEVM_NET=mainnet`
+1. Define network: `ZKEVM_NET=cardona` or `ZKEVM_NET=mainnet`
 2. Define installation path: `ZKEVM_DIR=./path/to/install`
 3. Define a config directory: `ZKEVM_CONFIG_DIR=./path/to/config`
 4. It's recommended to source this env vars in your `~/.bashrc`, `~/.zshrc` or whatever you're using
 5. Download and extract the artifacts: `curl -L https://github.com/0xPolygonHermez/zkevm-node/releases/latest/download/$ZKEVM_NET.zip > $ZKEVM_NET.zip && unzip -o $ZKEVM_NET.zip -d $ZKEVM_DIR && rm $ZKEVM_NET.zip`. Note you may need to install `unzip` for this command to work. 
 
-> **NOTE:** Take into account this works for the latest release (mainnet), in case you want to deploy a pre-release (testnet) you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/0xPolygonHermez) you can check the node release deployed for each network.
+> **NOTE:** Take into account this works for the latest release (mainnet), in case you want to deploy a pre-release (cardona testnet) you should get the artifacts directly for that release and not using the "latest" link depicted here. [Here](https://github.com/0xPolygonHermez) you can check the node release deployed for each network.
 
 6. Copy the file with the env parameters into config directory: `mkdir -p $ZKEVM_CONFIG_DIR && cp $ZKEVM_DIR/$ZKEVM_NET/example.env $ZKEVM_CONFIG_DIR/.env`
 7. Edit the env file, with your favourite editor. The example will use nano: `nano $ZKEVM_CONFIG_DIR/.env`. This file contains the configuration that anyone should modify. For advanced configuration:

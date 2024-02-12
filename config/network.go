@@ -26,7 +26,6 @@ type NetworkConfig struct {
 type network string
 
 const mainnet network = "mainnet"
-const testnet network = "testnet"
 const cardona network = "cardona"
 const custom network = "custom"
 
@@ -62,8 +61,6 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 	switch ctx.String(FlagNetwork) {
 	case string(mainnet):
 		networkJSON = MainnetNetworkConfigJSON
-	case string(testnet):
-		networkJSON = TestnetNetworkConfigJSON
 	case string(cardona):
 		networkJSON = CardonaNetworkConfigJSON
 	case string(custom):
@@ -74,7 +71,7 @@ func (cfg *Config) loadNetworkConfig(ctx *cli.Context) {
 			panic(err.Error())
 		}
 	default:
-		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, testnet, cardona, custom)
+		log.Fatalf("unsupported --network value. Must be one of: [%s, %s, %s]", mainnet, cardona, custom)
 	}
 	config, err := LoadGenesisFromJSONString(networkJSON)
 	if err != nil {

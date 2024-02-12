@@ -11,7 +11,7 @@ assignees: ''
 zkEVM Node version: `v0.0.X-RCXX`
 OS & Version: `Windows/Linux/OSX`
 Commit hash : (if `develop`)
-Network: `Mainnet/Testnet`
+Network: `Mainnet/Cardona`
 
 #### Expected behaviour
 
