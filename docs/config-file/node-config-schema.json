@@ -450,6 +450,45 @@
 					"type": "boolean",
 					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
 					"default": true
+				},
+				"ZKCountersLimits": {
+					"properties": {
+						"MaxKeccakHashes": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxPoseidonHashes": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxPoseidonPaddings": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxMemAligns": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxArithmetics": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxBinaries": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxSteps": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxSHA256Hashes": {
+							"type": "integer",
+							"default": 0
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "ZKCountersLimits defines the ZK Counter limits"
 				}
 			},
 			"additionalProperties": false,
