@@ -1029,10 +1029,10 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 				}
 				if l1InfoRoot != nil && *l1InfoRoot != calculatedL1InfoRoot {
 					for i, l := range aLeaves {
-						log.Info("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
+						log.Infof("AllLeaves[%d]: %s", i, common.Bytes2Hex(l[:]))
 					}
 					for i, s := range smtProof {
-						log.Info("smtProof[%d]: %s", i, common.Bytes2Hex(s[:]))
+						log.Infof("smtProof[%d]: %s", i, common.Bytes2Hex(s[:]))
 					}
 					return nil, fmt.Errorf("error: l1InfoRoot mismatch. L1InfoRoot: %s, calculatedL1InfoRoot: %s. l1InfoTreeIndex: %d", l1InfoRoot.String(), calculatedL1InfoRoot.String(), l2blockRaw.IndexL1InfoTree)
 				}
