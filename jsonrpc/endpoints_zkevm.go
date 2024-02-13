@@ -541,10 +541,15 @@ func (z *ZKEVMEndpoints) EstimateCounters(arg *types.TxArgs, blockArg *types.Blo
 			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
 		}
 
+		var oocErr error
 		processBatchResponse, err := z.state.PreProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, dbTx)
-		if err != nil && !executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
-			errMsg := fmt.Sprintf("failed to estimate counters: %v", err.Error())
-			return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+		if err != nil {
+			if executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
+				oocErr = err
+			} else {
+				errMsg := fmt.Sprintf("failed to estimate counters: %v", err.Error())
+				return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+			}
 		}
 
 		var revert *types.RevertInfo
@@ -573,7 +578,7 @@ func (z *ZKEVMEndpoints) EstimateCounters(arg *types.TxArgs, blockArg *types.Blo
 			MaxSteps:            types.ArgUint64(z.cfg.ZKCountersLimits.MaxSteps),
 			MaxSHA256Hashes:     types.ArgUint64(z.cfg.ZKCountersLimits.MaxSHA256Hashes),
 		}
-		return types.NewZKCountersResponse(processBatchResponse.UsedZkCounters, limits, revert), nil
+		return types.NewZKCountersResponse(processBatchResponse.UsedZkCounters, limits, revert, oocErr), nil
 	})
 }
 

@@ -745,11 +745,16 @@ type ZKCountersResponse struct {
 	CountersUsed   ZKCounters       `json:"countersUsed"`
 	CountersLimits ZKCountersLimits `json:"countersLimit"`
 	Revert         *RevertInfo      `json:"revert,omitempty"`
+	OOCError       *string          `json:"oocError,omitempty"`
 }
 
 // NewZKCountersResponse creates an instance of ZKCounters to be returned
 // by the RPC to the caller
-func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo) ZKCountersResponse {
+func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo, oocErr error) ZKCountersResponse {
+	var oocErrMsg string
+	if oocErr != nil {
+		oocErrMsg = oocErr.Error()
+	}
 	return ZKCountersResponse{
 		CountersUsed: ZKCounters{
 			GasUsed:              ArgUint64(zkCounters.GasUsed),
@@ -764,5 +769,6 @@ func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits,
 		},
 		CountersLimits: limits,
 		Revert:         revert,
+		OOCError:       &oocErrMsg,
 	}
 }
