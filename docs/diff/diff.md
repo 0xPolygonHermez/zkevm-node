@@ -50,7 +50,7 @@ diff -ruN \
 -x "coverage.out" \
 -x "*datastream.db*" \
 ${PATH_TO_ZKEVM_NODE_REPO} . | \
-diff2html -i stdin -s side -t "zkEVM node vs CDK validium node</br><h2>zkevm-node version: v0.5.8<h2/>" \
+diff2html -i stdin -s side -t "zkEVM node vs CDK validium node</br><h2>zkevm-node version: v0.5.10<h2/>" \
 -F ./docs/diff/diff.html
 ```
 
@@ -162,4 +162,4 @@ Add a test specific for DAC, this requires new containers configured in a way to
 
 ### Upstream Version
 
-v0.5.6
+v0.5.10
