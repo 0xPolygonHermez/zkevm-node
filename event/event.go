@@ -45,6 +45,8 @@ const (
 	// EventID_UnsupportedPrecompile is triggered when the executor returns an unsupported precompile error
 	EventID_UnsupportedPrecompile EventID = "UNSUPPORTED PRECOMPILE"
 
+	// EventID_NodeOOC is triggered when an OOC at node level is detected
+	EventID_NodeOOC EventID = "NODE OOC"
 	// Source_Node is the source of the event
 	Source_Node Source = "node"
 
