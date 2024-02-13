@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -441,13 +442,35 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	} else if err == nil && !batchResponse.IsRomLevelError && len(batchResponse.BlockResponses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
 		f.Halt(ctx, err, false)
-	} else if batchResponse.IsExecutorLevelError {
+	} else if err != nil {
 		log.Errorf("error received from executor, error: %v", err)
+
+		if errors.Is(err, runtime.ErrExecutorErrorUnsupportedPrecompile) {
+			payload, err := json.Marshal(batchRequest)
+			if err != nil {
+				log.Errorf("error marshaling payload, error: %v", err)
+			} else {
+				event := &event.Event{
+					ReceivedAt:  time.Now(),
+					Source:      event.Source_Node,
+					Component:   event.Component_Sequencer,
+					Level:       event.Level_Warning,
+					EventID:     event.EventID_UnsupportedPrecompile,
+					Description: string(payload),
+					Json:        batchRequest,
+				}
+				err = f.eventLog.LogEvent(ctx, event)
+				if err != nil {
+					log.Errorf("error storing payload, error: %v", err)
+				}
+			}
+		}
+
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
 		// Set tx as invalid in the pool
-		errMsg := batchResponse.ExecutorError.Error()
+		errMsg := err.Error()
 		err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
 		if err != nil {
 			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
