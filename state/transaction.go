@@ -204,6 +204,16 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	log.Debugf("storing l2 block %d, txs %d, hash %s", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
+	prevL2BlockHash, err := s.GetL2BlockHashByNumber(ctx, l2Block.BlockNumber-1, dbTx)
+	if err != nil {
+		return err
+	}
+
+	gasLimit := l2Block.GasLimit
+	if gasLimit > MaxL2BlockGasLimit {
+		gasLimit = MaxL2BlockGasLimit
+	}
+
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
 		ParentHash: prevL2BlockHash,
