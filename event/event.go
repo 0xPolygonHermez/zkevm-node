@@ -40,6 +40,10 @@ const (
 	EventID_SynchronizerRestart EventID = "SYNCHRONIZER RESTART"
 	// EventID_SynchronizerHalt is triggered when the synchronizer halts
 	EventID_SynchronizerHalt EventID = "SYNCHRONIZER HALT"
+	// EventID_SequenceSenderHalt is triggered when the SequenceSender halts
+	EventID_SequenceSenderHalt EventID = "SEQUENCESENDER HALT"
+	// EventID_NodeOOC is triggered when an OOC at node level is detected
+	EventID_NodeOOC EventID = "NODE OOC"
 	// Source_Node is the source of the event
 	Source_Node Source = "node"
 

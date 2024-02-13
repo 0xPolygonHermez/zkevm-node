@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
@@ -124,7 +123,7 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 		}
 
 		if stateInconsistenciesDetected != s.numberOfStateInconsistencies {
-			s.finalizer.Halt(ctx, fmt.Errorf("state inconsistency detected, halting finalizer"))
+			s.finalizer.Halt(ctx, fmt.Errorf("state inconsistency detected, halting finalizer"), false)
 		}
 	}
 }
@@ -141,7 +140,13 @@ func (s *Sequencer) deleteOldPoolTxs(ctx context.Context) {
 	for {
 		time.Sleep(s.cfg.DeletePoolTxsCheckInterval.Duration)
 		log.Infof("trying to get txs to delete from the pool...")
-		txHashes, err := s.stateIntf.GetTxsOlderThanNL1Blocks(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, nil)
+		earliestTxHash, err := s.pool.GetEarliestProcessedTx(ctx)
+		if err != nil {
+			log.Errorf("failed to get earliest tx hash to delete, err: %v", err)
+			continue
+		}
+
+		txHashes, err := s.stateIntf.GetTxsOlderThanNL1BlocksUntilTxHash(ctx, s.cfg.DeletePoolTxsL1BlockConfirmations, earliestTxHash, nil)
 		if err != nil {
 			log.Errorf("failed to get txs hashes to delete, error: %v", err)
 			continue
@@ -296,14 +301,6 @@ func (s *Sequencer) sendDataToStreamer(chainID uint64) {
 				}
 
 				for _, l2Transaction := range l2Block.Txs {
-					// Populate intermediate state root
-					position := state.GetSystemSCPosition(blockStart.L2BlockNumber)
-					imStateRoot, err := s.stateIntf.GetStorageAt(context.Background(), common.HexToAddress(state.SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
-					if err != nil {
-						log.Errorf("failed to get storage at for l2block %d, error: %v", l2Block.L2BlockNumber, err)
-					}
-					l2Transaction.StateRoot = common.BigToHash(imStateRoot)
-
 					_, err = s.streamServer.AddStreamEntry(state.EntryTypeL2Tx, l2Transaction.Encode())
 					if err != nil {
 						log.Errorf("failed to add l2tx stream entry for l2block %d, error: %v", l2Block.L2BlockNumber, err)

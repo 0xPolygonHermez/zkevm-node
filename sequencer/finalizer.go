@@ -143,6 +143,9 @@ func (f *finalizer) Start(ctx context.Context) {
 		mockL1InfoRoot[i] = byte(i)
 	}
 
+	// Do sanity check for batches closed but pending to be checked
+	f.processBatchesPendingtoCheck(ctx)
+
 	// Update L1InfoRoot
 	go f.checkL1InfoTreeUpdate(ctx)
 
@@ -282,7 +285,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
-			log.Debugf("processing tx %s", tx.HashStr)
 			showNotFoundTxLog = true
 
 			firstTxProcess := true
@@ -391,14 +393,13 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 			// If EffectiveGasPrice >= txGasPrice, we process the tx with tx.GasPrice
 			if tx.EffectiveGasPrice.Cmp(txGasPrice) >= 0 {
-				tx.EffectiveGasPrice.Set(txGasPrice)
-
 				loss := new(big.Int).Sub(tx.EffectiveGasPrice, txGasPrice)
 				// If loss > 0 the warning message indicating we loss fee for thix tx
 				if loss.Cmp(new(big.Int).SetUint64(0)) == 1 {
 					log.Warnf("egp-loss: gasPrice: %d, effectiveGasPrice1: %d, loss: %d, tx: %s", txGasPrice, tx.EffectiveGasPrice, loss, tx.HashStr)
 				}
 
+				tx.EffectiveGasPrice.Set(txGasPrice)
 				tx.IsLastExecution = true
 			}
 		}
@@ -439,7 +440,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		return nil, err
 	} else if err == nil && !batchResponse.IsRomLevelError && len(batchResponse.BlockResponses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
-		f.Halt(ctx, err)
+		f.Halt(ctx, err, false)
 	} else if batchResponse.IsExecutorLevelError {
 		log.Errorf("error received from executor, error: %v", err)
 		// Delete tx from the worker
@@ -526,13 +527,43 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	}
 
 	// Check remaining resources
+
 	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
 	if overflow {
 		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
-		start := time.Now()
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
-		return nil, ErrBatchResourceUnderFlow
+		if !f.batchConstraints.IsWithinConstraints(result.UsedZkCounters) {
+			log.Warnf("current tx %s exceeds the max limit for batch resources (node OOC), setting tx as invalid in the pool", tx.HashStr)
+
+			event := &event.Event{
+				ReceivedAt:  time.Now(),
+				Source:      event.Source_Node,
+				Component:   event.Component_Sequencer,
+				Level:       event.Level_Error,
+				EventID:     event.EventID_NodeOOC,
+				Description: fmt.Sprintf("tx: %s exceeds node max limit batch resources (node OOC), from: %s, IP: %s", tx.HashStr, tx.FromStr, tx.IP),
+			}
+
+			eventErr := f.eventLog.LogEvent(ctx, event)
+			if eventErr != nil {
+				log.Errorf("error storing finalizer halt event, error: %v", eventErr)
+			}
+
+			// Delete the transaction from the txSorted list
+			f.workerIntf.DeleteTx(tx.Hash, tx.From)
+
+			errMsg := "node OOC"
+			err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
+			if err != nil {
+				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
+			}
+
+			return nil, ErrBatchResourceUnderFlow
+		} else {
+			start := time.Now()
+			f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
+			metrics.WorkerProcessingTime(time.Since(start))
+			return nil, ErrBatchResourceUnderFlow
+		}
 	}
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging
@@ -722,7 +753,7 @@ func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
 }
 
 // Halt halts the finalizer
-func (f *finalizer) Halt(ctx context.Context, err error) {
+func (f *finalizer) Halt(ctx context.Context, err error, isFatal bool) {
 	f.haltFinalizer.Store(true)
 
 	event := &event.Event{
@@ -739,8 +770,12 @@ func (f *finalizer) Halt(ctx context.Context, err error) {
 		log.Errorf("error storing finalizer halt event, error: %v", eventErr)
 	}
 
-	for {
-		log.Errorf("halting finalizer, fatal error: %v", err)
-		time.Sleep(5 * time.Second) //nolint:gomnd
+	if isFatal {
+		log.Fatalf("fatal error on finalizer, error: %v", err)
+	} else {
+		for {
+			log.Errorf("halting finalizer, error: %v", err)
+			time.Sleep(5 * time.Second) //nolint:gomnd
+		}
 	}
 }

@@ -160,7 +160,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 				Coinbase:   processingContext.Coinbase,
 				Root:       processedTx.StateRoot,
 				GasUsed:    processedTx.GasUsed,
-				GasLimit:   s.cfg.MaxCumulativeGasUsed,
+				GasLimit:   processedBlock.GasLimit,
 				Time:       uint64(processingContext.Timestamp.Unix()),
 			})
 			header.GlobalExitRoot = processedBlock.GlobalExitRoot
@@ -204,18 +204,13 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	log.Debugf("storing l2 block %d, txs %d, hash %s", l2Block.BlockNumber, len(l2Block.TransactionResponses), l2Block.BlockHash.String())
 	start := time.Now()
 
-	prevL2BlockHash, err := s.GetL2BlockHashByNumber(ctx, l2Block.BlockNumber-1, dbTx)
-	if err != nil {
-		return err
-	}
-
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
 		ParentHash: prevL2BlockHash,
 		Coinbase:   l2Block.Coinbase,
 		Root:       l2Block.BlockHash, //BlockHash returned by the executor is the StateRoot in Etrog
 		GasUsed:    l2Block.GasUsed,
-		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		GasLimit:   gasLimit,
 		Time:       l2Block.Timestamp,
 	}
 
@@ -630,7 +625,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 		Coinbase:   coinbase,
 		Root:       processedTx.StateRoot,
 		GasUsed:    processedTx.GasUsed,
-		GasLimit:   s.cfg.MaxCumulativeGasUsed,
+		GasLimit:   MaxTxGasLimit,
 		Time:       timestamp,
 	})
 	header.GlobalExitRoot = globalExitRoot
@@ -707,7 +702,7 @@ func (s *State) EstimateGas(transaction *types.Transaction, senderAddress common
 	}
 	nonce := loadedNonce.Uint64()
 
-	highEnd := s.cfg.MaxCumulativeGasUsed
+	highEnd := MaxTxGasLimit
 
 	// if gas price is set, set the highEnd to the max amount
 	// of the account afford
