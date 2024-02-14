@@ -24,7 +24,8 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 			description: "happy path",
 			inputConfigStr: `{
 				"root": "0xBEEF",
-				"genesisBlockNumber": 69,
+				"rollupCreationBlockNumber": 69,
+				"rollupManagerCreationBlockNumber": 60,
 				"l1Config" : {
 					"chainId": 420,
 					"polygonZkEVMAddress": "0xc949254d682d8c9ad5682521675b8f43b102aec4",
@@ -76,8 +77,9 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 				},
 				Genesis: state.Genesis{
-					Root:        common.HexToHash("0xBEEF"),
-					BlockNumber: 69,
+					Root:                     common.HexToHash("0xBEEF"),
+					RollupBlockNumber:        69,
+					RollupManagerBlockNumber: 60,
 					Actions: []*state.GenesisAction{
 						{
 							Address: "0xc949254d682d8c9ad5682521675b8f43b102aec4",
