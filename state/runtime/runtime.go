@@ -321,9 +321,9 @@ var (
 	ErrExecutorErrorInvalidUpdateMerkleTree = errors.New("invalid update merkle tree")
 	// ErrExecutorErrorUnsupportedPrecompile  indicates that the precompile is not supported
 	ErrExecutorErrorUnsupportedPrecompile = errors.New("unsupported precompile")
-	// EXECUTOR_ERROR_OOG_2 indicates that an out of gas has occurred
+	// ErrExecutorErrorOOG2 indicates that an out of gas has occurred
 	ErrExecutorErrorOOG2 = errors.New("out of gas 2")
-	// EXECUTOR_ERROR_CLOSE_BATCH indicates that batch must be closed
+	// ErrExecutorErrorCloseBatch indicates that batch must be closed
 	ErrExecutorErrorCloseBatch = errors.New("close batch")
 
 	// GRPC ERRORS
