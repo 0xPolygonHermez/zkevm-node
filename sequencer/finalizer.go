@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -283,6 +284,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			continue
 		}
 
+		closeWIPBatch := false
 		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			showNotFoundTxLog = true
@@ -290,7 +292,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			firstTxProcess := true
 
 			for {
-				_, err := f.processTransaction(ctx, tx, firstTxProcess)
+				var err error
+				_, closeWIPBatch, err = f.processTransaction(ctx, tx, firstTxProcess)
 				if err != nil {
 					if err == ErrEffectiveGasPriceReprocess {
 						firstTxProcess = false
@@ -325,7 +328,11 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		}
 
 		// Check if we must finalize the batch due to a closing reason (resources exhausted, max txs, timestamp resolution, forced batches deadline)
-		if finalize, closeReason := f.checkIfFinalizeBatch(); finalize {
+		finalize, closeReason := f.checkIfFinalizeBatch()
+		if closeWIPBatch || finalize {
+			if closeWIPBatch {
+				closeReason = "Executor close batch"
+			}
 			f.finalizeWIPBatch(ctx, closeReason)
 		}
 
@@ -337,7 +344,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 }
 
 // processTransaction processes a single transaction.
-func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, err error) {
+func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, closeWIPBatch bool, err error) {
 	start := time.Now()
 	defer func() {
 		metrics.ProcessingTime(time.Since(start))
@@ -380,7 +387,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.ZKCounters.GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if f.effectiveGasPrice.IsEnabled() {
-				return nil, err
+				return nil, false, err
 			} else {
 				log.Warnf("effectiveGasPrice is disabled, but failed to calculate effectiveGasPrice for tx %s, error: %v", tx.HashStr, err)
 				tx.EGPLog.Error = fmt.Sprintf("CalculateEffectiveGasPrice#1: %s", err)
@@ -408,7 +415,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	egpPercentage, err := f.effectiveGasPrice.CalculateEffectiveGasPricePercentage(txGasPrice, tx.EffectiveGasPrice)
 	if err != nil {
 		if f.effectiveGasPrice.IsEnabled() {
-			return nil, err
+			return nil, false, err
 		} else {
 			log.Warnf("effectiveGasPrice is disabled, but failed to to calculate efftive gas price percentage (#1), error: %v", err)
 			tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPricePercentage#1: %s", tx.EGPLog.Error, err)
@@ -428,7 +435,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	effectivePercentageAsDecodedHex, err := hex.DecodeHex(fmt.Sprintf("%x", tx.EGPPercentage))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	batchRequest.Transactions = append(batchRequest.Transactions, effectivePercentageAsDecodedHex...)
@@ -437,12 +444,34 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
 		log.Errorf("failed to process tx %s, error: %v", tx.HashStr, err)
-		return nil, err
+		return nil, false, err
 	} else if err == nil && !batchResponse.IsRomLevelError && len(batchResponse.BlockResponses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
 		f.Halt(ctx, err, false)
 	} else if err != nil {
 		log.Errorf("error received from executor, error: %v", err)
+
+		if errors.Is(err, runtime.ErrExecutorErrorUnsupportedPrecompile) {
+			payload, err := json.Marshal(batchRequest)
+			if err != nil {
+				log.Errorf("error marshaling payload, error: %v", err)
+			} else {
+				event := &event.Event{
+					ReceivedAt:  time.Now(),
+					Source:      event.Source_Node,
+					Component:   event.Component_Sequencer,
+					Level:       event.Level_Warning,
+					EventID:     event.EventID_UnsupportedPrecompile,
+					Description: string(payload),
+					Json:        batchRequest,
+				}
+				err = f.eventLog.LogEvent(ctx, event)
+				if err != nil {
+					log.Errorf("error storing payload, error: %v", err)
+				}
+			}
+		}
+
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
@@ -454,14 +483,15 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		} else {
 			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 		}
-		return nil, err
+		return nil, false, err
 	}
 
+	closeBatch := false
 	oldStateRoot := f.wipBatch.imStateRoot
 	if len(batchResponse.BlockResponses) > 0 {
-		errWg, err = f.handleProcessTransactionResponse(ctx, tx, batchResponse, oldStateRoot)
+		errWg, closeBatch, err = f.handleProcessTransactionResponse(ctx, tx, batchResponse, oldStateRoot)
 		if err != nil {
-			return errWg, err
+			return errWg, false, err
 		}
 	}
 
@@ -471,17 +501,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	log.Infof("processed tx %s, batchNumber: %d, l2Block: [%d], newStateRoot: %s, oldStateRoot: %s, used counters: %s",
 		tx.HashStr, batchRequest.BatchNumber, f.wipL2Block.trackingNum, batchResponse.NewStateRoot.String(), batchRequest.OldStateRoot.String(), f.logZKCounters(batchResponse.UsedZkCounters))
 
-	return nil, nil
+	return nil, closeBatch, nil
 }
 
 // handleProcessTransactionResponse handles the response of transaction processing.
-func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, err error) {
+func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, closeWIPBatch bool, err error) {
 	// Handle Transaction Error
 	errorCode := executor.RomErrorCode(result.BlockResponses[0].TransactionResponses[0].RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
-		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
+		return errWg, false, result.BlockResponses[0].TransactionResponses[0].RomError
 	}
 
 	egpEnabled := f.effectiveGasPrice.IsEnabled()
@@ -496,7 +526,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		if err != nil {
 			if egpEnabled {
 				log.Errorf("failed to calculate effective gas price with new gasUsed for tx %s, error: %v", tx.HashStr, err.Error())
-				return nil, err
+				return nil, false, err
 			} else {
 				log.Warnf("effectiveGasPrice is disabled, but failed to calculate effective gas price with new gasUsed for tx %s, error: %v", tx.HashStr, err.Error())
 				tx.EGPLog.Error = fmt.Sprintf("%s; CalculateEffectiveGasPrice#2: %s", tx.EGPLog.Error, err)
@@ -521,7 +551,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			}
 
 			if errCompare != nil && egpEnabled {
-				return nil, errCompare
+				return nil, false, errCompare
 			}
 		}
 	}
@@ -557,12 +587,12 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
 			}
 
-			return nil, ErrBatchResourceUnderFlow
+			return nil, false, ErrBatchResourceUnderFlow
 		} else {
 			start := time.Now()
 			f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters)
 			metrics.WorkerProcessingTime(time.Since(start))
-			return nil, ErrBatchResourceUnderFlow
+			return nil, false, ErrBatchResourceUnderFlow
 		}
 	}
 
@@ -583,7 +613,11 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
 
-	return nil, nil
+	if result.CloseBatch_V2 {
+		return nil, true, nil
+	}
+
+	return nil, false, nil
 }
 
 // compareTxEffectiveGasPrice compares newEffectiveGasPrice with tx.EffectiveGasPrice.

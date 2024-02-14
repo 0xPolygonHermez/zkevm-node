@@ -305,6 +305,11 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 
 // closeWIPBatch closes the current batch in the state
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
+	// Sanity check: batch must not be empty (should have L2 blocks)
+	if f.wipBatch.isEmpty() {
+		f.Halt(ctx, fmt.Errorf("closing WIP batch %d without L2 blocks and should have at least 1", f.wipBatch.batchNumber), false)
+	}
+
 	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
