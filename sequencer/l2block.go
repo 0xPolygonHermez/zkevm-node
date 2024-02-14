@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -280,7 +281,7 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		return nil, 0, err
 	}
 
-	if batchResponse.ExecutorError != nil && batchResponse.ExecutorError != runtime.ErrExecutorErrorCloseBatch {
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
 		executeL2BLockError(batchResponse.ExecutorError)
 		return nil, 0, ErrExecutorError
 	}
