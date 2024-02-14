@@ -331,7 +331,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		finalize, closeReason := f.checkIfFinalizeBatch()
 		if closeWIPBatch || finalize {
 			if closeWIPBatch {
-				closeReason = "Executor Close Batch"
+				closeReason = "Executor close batch"
 			}
 			f.finalizeWIPBatch(ctx, closeReason)
 		}
