@@ -12,19 +12,6 @@ Outputs = ["stderr"]
 	Port = "5432"
 	EnableLog = false	
 	MaxConns = 200
-	[State.Batch]
-		[State.Batch.Constraints]
-		MaxTxsPerBatch = 300
-		MaxBatchBytesSize = 120000
-		MaxCumulativeGasUsed = 1125899906842624
-		MaxKeccakHashes = 2145
-		MaxPoseidonHashes = 252357
-		MaxPoseidonPaddings = 135191
-		MaxMemAligns = 236585
-		MaxArithmetics = 236585
-		MaxBinaries = 473170
-		MaxSteps = 7570538
-		MaxSHA256Hashes = 1596
 
 [Pool]
 IntervalToRefreshBlockedAddresses = "5m"
