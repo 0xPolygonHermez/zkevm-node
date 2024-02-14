@@ -559,7 +559,7 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		return nil, err
 	}
 
-	if batchResponse.ExecutorError != nil {
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
 		return nil, ErrExecutorError
 	}
 
