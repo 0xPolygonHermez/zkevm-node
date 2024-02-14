@@ -495,7 +495,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult,
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
 			var gasUsed uint64
 			var err error
-			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) || errors.Is(previousStep.Error, runtime.ErrExecutorErrorOOG2) {
 				itCtx, err := internalTxSteps.Pop()
 				if err != nil {
 					return nil, err
