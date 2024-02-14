@@ -165,7 +165,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 	if err != nil {
 		log.Error("error executing batch: ", err)
 		return nil, err
-	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponse.Error, processBatchRequest)
 	}
