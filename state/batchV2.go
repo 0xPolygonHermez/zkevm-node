@@ -299,7 +299,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		log.Errorf("error executor ProcessBatchV2 response: %v", batchResponse)
 	} else {
 		batchResponseToString := processBatchResponseToString(newBatchNum, batchResponse, elapsed)
-		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 			err = executor.ExecutorErr(batchResponse.Error)
 			log.Warnf("executor batch %d response, executor error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)

@@ -225,7 +225,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		endTime = time.Now()
 		if err != nil {
 			return nil, err
-		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 			err = executor.ExecutorErr(processBatchResponseV2.Error)
 			s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 			return nil, err

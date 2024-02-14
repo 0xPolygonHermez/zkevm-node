@@ -945,6 +945,9 @@ func TestNewFinalizer(t *testing.T) {
 func TestFinalizer_closeWIPBatch(t *testing.T) {
 	// arrange
 	f = setupFinalizer(true)
+	// set wip batch has at least one L2 block as it can not be closed empty
+	f.wipBatch.countOfL2Blocks++
+
 	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 
 	receipt := state.ProcessingReceipt{

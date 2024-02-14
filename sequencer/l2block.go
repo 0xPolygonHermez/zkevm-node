@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -279,13 +281,13 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		return nil, 0, err
 	}
 
-	if batchResponse.ExecutorError != nil {
-		executeL2BLockError(err)
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
+		executeL2BLockError(batchResponse.ExecutorError)
 		return nil, 0, ErrExecutorError
 	}
 
 	if batchResponse.IsRomOOCError {
-		executeL2BLockError(err)
+		executeL2BLockError(batchResponse.RomError_V2)
 		return nil, 0, ErrProcessBatchOOC
 	}
 
@@ -557,7 +559,7 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		return nil, err
 	}
 
-	if batchResponse.ExecutorError != nil {
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
 		return nil, ErrExecutorError
 	}
 
