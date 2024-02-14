@@ -456,6 +456,10 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidUpdateMerkleTree
 	case ExecutorError_EXECUTOR_ERROR_UNSUPPORTED_PRECOMPILED:
 		return runtime.ErrExecutorErrorUnsupportedPrecompile
+	case ExecutorError_EXECUTOR_ERROR_OOG_2:
+		return runtime.ErrExecutorErrorOOG2
+	case ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH:
+		return runtime.ErrExecutorErrorCloseBatch
 	}
 	return ErrExecutorUnknown
 }
@@ -698,6 +702,10 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE
 	case runtime.ErrExecutorErrorUnsupportedPrecompile:
 		return ExecutorError_EXECUTOR_ERROR_UNSUPPORTED_PRECOMPILED
+	case runtime.ErrExecutorErrorOOG2:
+		return ExecutorError_EXECUTOR_ERROR_OOG_2
+	case runtime.ErrExecutorErrorCloseBatch:
+		return ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH
 	}
 
 	return ErrCodeExecutorUnknown

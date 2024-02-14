@@ -862,6 +862,10 @@ enum ExecutorError {
     EXECUTOR_ERROR_INVALID_DATA_STREAM = 115;
     // EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE indicates that the provided update merkle tree is invalid, e.g. because the executor is configured not to write to database
     EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE = 116;
-     // EXECUTOR_ERROR_UNSUPPORTED_PRECOMPILED indicates that an unsupported precompiled has been used
+    // EXECUTOR_ERROR_UNSUPPORTED_PRECOMPILED indicates that an unsupported precompiled has been used
     EXECUTOR_ERROR_UNSUPPORTED_PRECOMPILED = 117;
+    // EXECUTOR_ERROR_OOG_2 indicates that an out of gas has occurred
+    EXECUTOR_ERROR_OOG_2 = 118;
+    // EXECUTOR_ERROR_CLOSE_BATCH indicates that batch must be closed
+    EXECUTOR_ERROR_CLOSE_BATCH = 119;
 }
