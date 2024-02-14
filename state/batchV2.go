@@ -303,7 +303,9 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 			err = executor.ExecutorErr(batchResponse.Error)
 			log.Warnf("executor batch %d response, executor error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)
-			s.eventLog.LogExecutorErrorV2(ctx, batchResponse.Error, batchRequest)
+			if s.eventLog != nil {
+				s.eventLog.LogExecutorErrorV2(ctx, batchResponse.Error, batchRequest)
+			}
 		} else if batchResponse.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR && executor.IsROMOutOfCountersError(batchResponse.ErrorRom) {
 			log.Warnf("executor batch %d response, ROM OOC, error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)

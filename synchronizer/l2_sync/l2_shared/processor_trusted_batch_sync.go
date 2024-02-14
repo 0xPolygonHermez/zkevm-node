@@ -339,7 +339,12 @@ func checkProcessBatchResultMatchExpected(data *ProcessData, processBatchResp *s
 	var err error = nil
 	var trustedBatch = data.TrustedBatch
 	if trustedBatch == nil {
-		panic("trustedBatch is nil")
+		log.Error("trustedBatch is nil, it never should be nil")
+		return fmt.Errorf("trustedBatch is nil, it never should be nil")
+	}
+	if len(trustedBatch.BatchL2Data) == 0 {
+		log.Warnf("Batch %v: BatchL2Data is empty, no checking", trustedBatch.Number)
+		return nil
 	}
 	if processBatchResp == nil {
 		log.Warnf("Batch %v: Can't check  processBatchResp because is nil, then check store batch in DB", trustedBatch.Number)
