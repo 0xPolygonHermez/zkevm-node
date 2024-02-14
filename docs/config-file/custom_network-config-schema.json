@@ -6,11 +6,11 @@
 			"type": "string",
 			"description": "L1: root hash of the genesis block"
 		},
-		"rollupGenesisBlockNumber": {
+		"rollupCreationBlockNumber": {
 			"type": "integer",
 			"description": "L1: block number in which the rollup was created"
 		},
-		"rollupManagerGenesisBlockNumber": {
+		"rollupManagerCreationBlockNumber": {
 			"type": "integer",
 			"description": "L1: block number in which the rollup manager was created"
 		},

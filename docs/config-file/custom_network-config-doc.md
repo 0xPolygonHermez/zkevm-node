@@ -3,25 +3,25 @@
 **Type:** : `object`
 **Description:** GenesisFromJSON is the config file for network_custom
 
-| Property                                                               | Pattern | Type            | Deprecated | Definition | Title/Description                                                           |
-| ---------------------------------------------------------------------- | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
-| - [root](#root )                                                       | No      | string          | No         | -          | L1: root hash of the genesis block                                          |
-| - [rollupGenesisBlockNumber](#rollupGenesisBlockNumber )               | No      | integer         | No         | -          | L1: block number in which the rollup was created                            |
-| - [rollupManagerGenesisBlockNumber](#rollupManagerGenesisBlockNumber ) | No      | integer         | No         | -          | L1: block number in which the rollup manager was created                    |
-| - [genesis](#genesis )                                                 | No      | array of object | No         | -          | L2:  List of states contracts used to populate merkle tree at initial state |
-| - [L1Config](#L1Config )                                               | No      | object          | No         | -          | L1: configuration of the network                                            |
+| Property                                                                 | Pattern | Type            | Deprecated | Definition | Title/Description                                                           |
+| ------------------------------------------------------------------------ | ------- | --------------- | ---------- | ---------- | --------------------------------------------------------------------------- |
+| - [root](#root )                                                         | No      | string          | No         | -          | L1: root hash of the genesis block                                          |
+| - [rollupCreationBlockNumber](#rollupCreationBlockNumber )               | No      | integer         | No         | -          | L1: block number in which the rollup was created                            |
+| - [rollupManagerCreationBlockNumber](#rollupManagerCreationBlockNumber ) | No      | integer         | No         | -          | L1: block number in which the rollup manager was created                    |
+| - [genesis](#genesis )                                                   | No      | array of object | No         | -          | L2:  List of states contracts used to populate merkle tree at initial state |
+| - [L1Config](#L1Config )                                                 | No      | object          | No         | -          | L1: configuration of the network                                            |
 
 ## <a name="root"></a>1. `root`
 
 **Type:** : `string`
 **Description:** L1: root hash of the genesis block
 
-## <a name="rollupGenesisBlockNumber"></a>2. `rollupGenesisBlockNumber`
+## <a name="rollupCreationBlockNumber"></a>2. `rollupCreationBlockNumber`
 
 **Type:** : `integer`
 **Description:** L1: block number in which the rollup was created
 
-## <a name="rollupManagerGenesisBlockNumber"></a>3. `rollupManagerGenesisBlockNumber`
+## <a name="rollupManagerCreationBlockNumber"></a>3. `rollupManagerCreationBlockNumber`
 
 **Type:** : `integer`
 **Description:** L1: block number in which the rollup manager was created
