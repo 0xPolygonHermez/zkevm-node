@@ -448,7 +448,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	} else if err == nil && !batchResponse.IsRomLevelError && len(batchResponse.BlockResponses) == 0 {
 		err = fmt.Errorf("executor returned no errors and no responses for tx %s", tx.HashStr)
 		f.Halt(ctx, err, false)
-	} else if err != nil && !errors.Is(err, runtime.ErrExecutorErrorCloseBatch) {
+	} else if err != nil {
 		log.Errorf("error received from executor, error: %v", err)
 
 		if errors.Is(err, runtime.ErrExecutorErrorUnsupportedPrecompile) {
