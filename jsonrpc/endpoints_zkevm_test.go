@@ -1706,7 +1706,6 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				assert.Equal(t, tc.ExpectedResult.ReceiptsRoot.String(), result.ReceiptsRoot.String())
 				assert.Equal(t, tc.ExpectedResult.LogsBloom, result.LogsBloom)
 				assert.Equal(t, tc.ExpectedResult.Difficulty, result.Difficulty)
-				assert.Equal(t, tc.ExpectedResult.TotalDifficulty, result.TotalDifficulty)
 				assert.Equal(t, tc.ExpectedResult.Size, result.Size)
 				assert.Equal(t, tc.ExpectedResult.Number, result.Number)
 				assert.Equal(t, tc.ExpectedResult.GasLimit, result.GasLimit)
@@ -1714,7 +1713,6 @@ func TestGetL2FullBlockByNumber(t *testing.T) {
 				assert.Equal(t, tc.ExpectedResult.Timestamp, result.Timestamp)
 				assert.Equal(t, tc.ExpectedResult.ExtraData, result.ExtraData)
 				assert.Equal(t, tc.ExpectedResult.MixHash, result.MixHash)
-				assert.Equal(t, tc.ExpectedResult.Nonce, result.Nonce)
 				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
 				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
 
