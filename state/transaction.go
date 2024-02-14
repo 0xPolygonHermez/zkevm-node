@@ -580,7 +580,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		}
 	}
 
-	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return nil, err
