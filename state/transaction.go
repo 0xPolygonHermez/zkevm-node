@@ -1014,7 +1014,12 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 		log.Errorf("error estimating gas: %v", err)
 		return false, false, gasUsed, nil, err
 	}
-	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR &&
+		processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+		if processBatchResponseV2.Error == executor.ExecutorError_EXECUTOR_ERROR_OOG_2 {
+			return true, false, gasUsed, nil, nil
+		}
+
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
