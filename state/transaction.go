@@ -1010,7 +1010,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 	txExecutionOnExecutorTime := time.Now()
 	processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
 	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
-	if err != nil {
+	if err != nil && !errors.Is(err, runtime.ErrExecutorErrorOOG2) {
 		log.Errorf("error estimating gas: %v", err)
 		return false, false, gasUsed, nil, err
 	}
@@ -1060,7 +1060,7 @@ func isGasApplyError(err error) bool {
 
 // Checks if EVM level valid gas errors occurred
 func isGasEVMError(err error) bool {
-	return errors.Is(err, runtime.ErrOutOfGas) || errors.Is(err, runtime.ErrExecutorErrorOOG2)
+	return errors.Is(err, runtime.ErrOutOfGas)
 }
 
 // Checks if the EVM reverted during execution
