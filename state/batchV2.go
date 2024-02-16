@@ -67,7 +67,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		ChainId:           s.cfg.ChainID,
 		ForkId:            request.ForkID,
 		ContextId:         uuid.NewString(),
-		ExecutionMode:     executor.ExecutionMode0,
+		ExecutionMode:     request.ExecutionMode,
 	}
 
 	if request.SkipFirstChangeL2Block_V2 {

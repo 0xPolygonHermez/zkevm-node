@@ -13,6 +13,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -386,6 +387,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		ForkID:                  f.stateIntf.GetForkIDByBatchNumber(batch.BatchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  caller,
+		ExecutionMode:           executor.ExecutionMode0,
 	}
 	batchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
