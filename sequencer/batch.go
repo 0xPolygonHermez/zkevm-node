@@ -354,12 +354,16 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 
 		// Log batch detailed info
 		log.Errorf("batch %d sanity check error: initialStateRoot: %s, expectedNewStateRoot: %s", batch.BatchNumber, initialStateRoot, expectedNewStateRoot)
-		for i, rawL2block := range rawL2Blocks.Blocks {
-			log.Infof("block[%d], txs: %d, deltaTimestamp: %d, l1InfoTreeIndex: %d", i, len(rawL2block.Transactions), rawL2block.DeltaTimestamp, rawL2block.IndexL1InfoTree)
-			for j, rawTx := range rawL2block.Transactions {
-				log.Infof("block[%d].tx[%d]: %s, egpPct: %d", batch.BatchNumber, i, j, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage)
+		batchLog := ""
+		totalTxs := 0
+		for blockIdx, rawL2block := range rawL2Blocks.Blocks {
+			totalTxs += len(rawL2block.Transactions)
+			batchLog += fmt.Sprintf("block[%d], txs: %d, deltaTimestamp: %d, l1InfoTreeIndex: %d\n", blockIdx, len(rawL2block.Transactions), rawL2block.DeltaTimestamp, rawL2block.IndexL1InfoTree)
+			for txIdx, rawTx := range rawL2block.Transactions {
+				batchLog += fmt.Sprintf("   tx[%d]: %s, egpPct: %d\n", txIdx, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage)
 			}
 		}
+		log.Infof("DUMP batch %d, blocks: %d, txs: %d\n%s", batch.BatchNumber, len(rawL2Blocks.Blocks), totalTxs, batchLog)
 
 		f.Halt(ctx, fmt.Errorf("batch sanity check error. Check previous errors in logs to know which was the cause"), false)
 	}
