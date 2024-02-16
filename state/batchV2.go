@@ -87,7 +87,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 	}
 
 	var result *ProcessBatchResponse
-	result, err = s.convertToProcessBatchResponseV2(res)
+	result, err = s.ConvertToProcessBatchResponseV2(res)
 	if err != nil {
 		return nil, err
 	}
@@ -160,8 +160,19 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 	log.Debugf("ExecuteBatchV2[processBatchRequest.ContextId]: %v", processBatchRequest.ContextId)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.SkipVerifyL1InfoRoot]: %v", processBatchRequest.SkipVerifyL1InfoRoot)
 	log.Debugf("ExecuteBatchV2[processBatchRequest.L1InfoTreeData]: %+v", l1InfoTreeData)
-
-	processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
+	var processBatchResponse *executor.ProcessBatchResponseV2
+	for k := 0; k < 100; k++ {
+		processBatchResponse, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequest)
+		if err != nil {
+			log.Fatal("error executing batch: ", err)
+		}
+		log.Infof("BlockNumber: %d", processBatchResponse.BlockResponses[3].BlockNumber)
+		log.Infof("TXHash: %s", hex.EncodeToHex(processBatchResponse.BlockResponses[3].Responses[1].TxHash))
+		log.Infof("nlogs: %d", len(processBatchResponse.BlockResponses[3].Responses[1].Logs))
+		if len(processBatchResponse.BlockResponses[3].Responses[1].Logs) == 0 {
+			log.Fatal("No logs")
+		}
+	}
 	if err != nil {
 		log.Error("error executing batch: ", err)
 		return nil, err
@@ -387,7 +398,7 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		return common.Hash{}, noFlushID, noProverID, err
 	}
 
-	processedBatch, err := s.convertToProcessBatchResponseV2(processed)
+	processedBatch, err := s.ConvertToProcessBatchResponseV2(processed)
 	if err != nil {
 		log.Errorf("%s error convertToProcessBatchResponseV2: %v", debugPrefix, err)
 		return common.Hash{}, noFlushID, noProverID, err

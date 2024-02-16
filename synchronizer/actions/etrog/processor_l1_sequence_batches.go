@@ -349,7 +349,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 }
 
 func (p *ProcessorL1SequenceBatchesEtrog) checkTrustedState(ctx context.Context, batch state.Batch, tBatch *state.Batch, newRoot common.Hash, dbTx pgx.Tx) bool {
-	//Compare virtual state with trusted state
+	//Comp/are virtual state with trusted state
 	var reorgReasons strings.Builder
 	batchNumStr := fmt.Sprintf("Batch: %d.", batch.BatchNumber)
 	if newRoot != tBatch.StateRoot {

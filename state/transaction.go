@@ -592,7 +592,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, err
 	}
 
-	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+	response, err := s.ConvertToProcessBatchResponseV2(processBatchResponseV2)
 	if err != nil {
 		return nil, err
 	}

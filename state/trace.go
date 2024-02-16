@@ -242,7 +242,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			log.Debugf(tx.Hash().String())
 		}
 
-		convertedResponse, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+		convertedResponse, err := s.ConvertToProcessBatchResponseV2(processBatchResponseV2)
 		if err != nil {
 			return nil, err
 		}

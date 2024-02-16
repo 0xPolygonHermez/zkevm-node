@@ -433,6 +433,35 @@ func scanBatch(row pgx.Row) (state.Batch, error) {
 	return batch, nil
 }
 
+func scanVirtualBatch(row pgx.Row) (state.VirtualBatch, error) {
+	batch := state.VirtualBatch{}
+	var (
+		tx_hash        string
+		coinbase       string
+		sequencer_addr string
+		l1_info_root   string
+	)
+	err := row.Scan(
+		&batch.BatchNumber,
+		&tx_hash,
+		&coinbase,
+		&batch.BlockNumber,
+		&sequencer_addr,
+		&batch.TimestampBatchEtrog,
+		&l1_info_root,
+	)
+	if err != nil {
+		return batch, err
+	}
+	batch.TxHash = common.HexToHash(tx_hash)
+	batch.Coinbase = common.HexToAddress(coinbase)
+	batch.SequencerAddr = common.HexToAddress(sequencer_addr)
+	l1InfoRootHash := common.HexToHash(l1_info_root)
+	batch.L1InfoRoot = &l1InfoRootHash
+
+	return batch, nil
+}
+
 func scanBatchWithL2BlockStateRoot(row pgx.Row) (state.Batch, *common.Hash, error) {
 	batch := state.Batch{}
 	var (
@@ -1071,4 +1100,32 @@ func (p *PostgresStorage) GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx)
 	}
 
 	return batches, nil
+}
+
+// GetVirtualBatchDataByNumber gets virtual batch data
+func (p *PostgresStorage) GetVirtualBatchDataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.VirtualBatch, error) {
+	const query = `
+		SELECT
+			batch_num,
+			tx_hash,
+			coinbase,
+			block_num,
+			sequencer_addr,
+			timestamp_batch_etrog,
+			l1_info_root
+		FROM
+			state.virtual_batch
+		WHERE
+			batch_num = $1 
+		`
+	e := p.getExecQuerier(dbTx)
+	row := e.QueryRow(ctx, query, batchNumber)
+	vbatch, err := scanVirtualBatch(row)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	return &vbatch, nil
 }

@@ -30,10 +30,10 @@ var (
 
 // TestConvertToProcessBatchResponseV2 for test purposes
 func (s *State) TestConvertToProcessBatchResponseV2(batchResponse *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
-	return s.convertToProcessBatchResponseV2(batchResponse)
+	return s.ConvertToProcessBatchResponseV2(batchResponse)
 }
 
-func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
+func (s *State) ConvertToProcessBatchResponseV2(batchResponse *executor.ProcessBatchResponseV2) (*ProcessBatchResponse, error) {
 	blockResponses, isRomLevelError, isRomOOCError, err := s.convertToProcessBlockResponseV2(batchResponse.BlockResponses)
 	if err != nil {
 		return nil, err

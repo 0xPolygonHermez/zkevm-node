@@ -62,6 +62,14 @@ func NewState(cfg Config, storage storage, executorClient executor.ExecutorServi
 	return state
 }
 
+func (s *State) GetExecutorClient() executor.ExecutorServiceClient {
+	return s.executorClient
+}
+
+func (s *State) GetChainID() uint64 {
+	return s.cfg.ChainID
+}
+
 // BeginStateTransaction starts a state transaction
 func (s *State) BeginStateTransaction(ctx context.Context) (pgx.Tx, error) {
 	tx, err := s.Begin(ctx)

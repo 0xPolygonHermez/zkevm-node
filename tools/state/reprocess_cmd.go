@@ -48,12 +48,12 @@ func reprocessCmd(cliCtx *cli.Context) error {
 	}
 	st.UpdateForkIDIntervalsInMemory(forksIdIntervals)
 
-	action := reprocessAction{
+	action := reprocessActionEtrog{
 		firstBatchNumber:         getFirstBatchNumber(cliCtx),
 		lastBatchNumber:          getLastBatchNumber(cliCtx, cliCtx.Context, st),
 		l2ChainId:                l2ChainID,
 		updateHasbDB:             getUpdateHashDB(cliCtx),
-		st:                       st,
+		state:                    st,
 		ctx:                      cliCtx.Context,
 		output:                   &reprocessingOutputPretty{},
 		flushIdCtrl:              NewFlushIDController(st, cliCtx.Context),
