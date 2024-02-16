@@ -33,6 +33,7 @@ type ProcessingContextV2 struct {
 	ForcedBlockHashL1    *common.Hash
 	SkipVerifyL1InfoRoot uint32
 	GlobalExitRoot       common.Hash // GlobalExitRoot is not use for execute but use to OpenBatch (data on  DB)
+	ExecutionMode        uint64
 }
 
 // ProcessBatchV2 processes a batch for forkID >= ETROG
@@ -67,6 +68,7 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		ChainId:           s.cfg.ChainID,
 		ForkId:            request.ForkID,
 		ContextId:         uuid.NewString(),
+		ExecutionMode:     request.ExecutionMode,
 	}
 
 	if request.SkipFirstChangeL2Block_V2 {
@@ -129,6 +131,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 		ForkId:               forkId,
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
+		ExecutionMode:        executor.ExecutionMode1,
 	}
 
 	if forcedBlockHashL1 != nil {
@@ -229,6 +232,7 @@ func (s *State) processBatchV2(ctx context.Context, processingCtx *ProcessingCon
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: processingCtx.SkipVerifyL1InfoRoot,
 		L1InfoRoot:           processingCtx.L1InfoRoot.Bytes(),
+		ExecutionMode:        processingCtx.ExecutionMode,
 	}
 
 	if processingCtx.ForcedBlockHashL1 != nil {
