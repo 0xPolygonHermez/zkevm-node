@@ -519,6 +519,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		TimestampLimit:         uint64(time.Now().Unix()),
 		SkipFirstChangeL2Block: cFalse,
 		SkipWriteBlockInfoRoot: cTrue,
+		ExecutionMode:          executor.ExecutionMode0,
 	}
 	if noZKEVMCounters {
 		processBatchRequestV2.NoCounters = cTrue
@@ -990,6 +991,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 		TimestampLimit:         uint64(time.Now().Unix()),
 		SkipFirstChangeL2Block: cTrue,
 		SkipWriteBlockInfoRoot: cTrue,
+		ExecutionMode:          executor.ExecutionMode0,
 	}
 
 	log.Debugf("EstimateGas[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
