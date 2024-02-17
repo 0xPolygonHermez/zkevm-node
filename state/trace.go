@@ -187,8 +187,13 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 				traceConfigRequestV2.EnableReturnData = cFalse
 			}
 		}
-		deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
-		transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
+
+		l1InfoTree, err := s.GetL1InfoRootLeafByL1InfoRoot(ctx, l2Block.BlockInfoRoot(), nil)
+		if err != nil {
+			return nil, err
+		}
+		deltaTimestamp := uint32(l2Block.Time() - previousL2Block.Time())
+		transactions := s.BuildChangeL2Block(deltaTimestamp, l1InfoTree.L1InfoTreeIndex)
 
 		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
