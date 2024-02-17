@@ -501,23 +501,8 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 	}
 	nonce := loadedNonce.Uint64()
 
-	var oldStateRoot common.Hash
-	previousL2BlockNumber := uint64(0)
-	if l2Block.NumberU64() > 0 {
-		previousL2BlockNumber = l2Block.NumberU64() - 1
-	}
-	previousL2Block, err := s.GetL2BlockByNumber(ctx, previousL2BlockNumber, dbTx)
-	if err != nil {
-		return nil, err
-	}
-	oldStateRoot = previousL2Block.Root()
-
-	l1InfoTree, err := s.GetL1InfoRootLeafByL1InfoRoot(ctx, l2Block.BlockInfoRoot(), nil)
-	if err != nil {
-		return nil, err
-	}
-	deltaTimestamp := uint32(l2Block.Time() - previousL2Block.Time())
-	transactions := s.BuildChangeL2Block(deltaTimestamp, l1InfoTree.L1InfoTreeIndex)
+	deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
+	transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
 
 	batchL2Data, err := EncodeUnsignedTransaction(*tx, s.cfg.ChainID, &nonce, forkID)
 	if err != nil {
@@ -531,7 +516,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 	processBatchRequestV2 := &executor.ProcessBatchRequestV2{
 		From:             senderAddress.String(),
 		OldBatchNum:      batch.BatchNumber,
-		OldStateRoot:     oldStateRoot.Bytes(),
+		OldStateRoot:     l2Block.Root().Bytes(),
 		OldAccInputHash:  batch.AccInputHash.Bytes(),
 		Coinbase:         batch.Coinbase.String(),
 		ForkId:           forkID,
