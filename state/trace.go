@@ -188,12 +188,32 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			}
 		}
 
-		l1InfoTree, err := s.GetL1InfoRootLeafByL1InfoRoot(ctx, l2Block.BlockInfoRoot(), nil)
+		// build the raw batch so we can get the index l1 info tree for the l2 block
+		rawBatch, err := DecodeBatchV2(batch.BatchL2Data)
 		if err != nil {
+			log.Errorf("error decoding BatchL2Data for batch %d, error: %v", batch.BatchNumber, err)
 			return nil, err
 		}
+
+		// identify the first l1 block number so we can identify the
+		// current l2 block index in the block array
+		firstBlockNumberForBatch, err := s.GetFirstL2BlockNumberForBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			log.Errorf("failed to get first l2 block number for batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// computes the l2 block index
+		rawL2BlockIndex := l2Block.NumberU64() - firstBlockNumberForBatch
+		if rawL2BlockIndex > uint64(len(rawBatch.Blocks)-1) {
+			log.Errorf("computed rawL2BlockIndex is greater than the number of blocks we have in the batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// builds the ChangeL2Block transaction with the correct timestamp and IndexL1InfoTree
+		rawL2Block := rawBatch.Blocks[rawL2BlockIndex]
 		deltaTimestamp := uint32(l2Block.Time() - previousL2Block.Time())
-		transactions := s.BuildChangeL2Block(deltaTimestamp, l1InfoTree.L1InfoTreeIndex)
+		transactions := s.BuildChangeL2Block(deltaTimestamp, rawL2Block.IndexL1InfoTree)
 
 		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
@@ -223,6 +243,24 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			SkipFirstChangeL2Block: cFalse,
 			SkipWriteBlockInfoRoot: cTrue,
 			ExecutionMode:          executor.ExecutionMode0,
+		}
+
+		// gets the L1InfoTreeData for the transactions
+		l1InfoTreeData, _, _, err := s.GetL1InfoTreeDataFromBatchL2Data(ctx, transactions, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		// In case we have any l1InfoTreeData, add them to the request
+		if len(l1InfoTreeData) > 0 {
+			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
+			for k, v := range l1InfoTreeData {
+				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
+					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
+					BlockHashL1:    v.BlockHashL1.Bytes(),
+					MinTimestamp:   v.MinTimestamp,
+				}
+			}
 		}
 
 		// Send Batch to the Executor
