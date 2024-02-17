@@ -166,12 +166,28 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 		if err != nil {
 			log.Fatal("error executing batch: ", err)
 		}
-		log.Infof("BlockNumber: %d", processBatchResponse.BlockResponses[3].BlockNumber)
-		log.Infof("TXHash: %s", hex.EncodeToHex(processBatchResponse.BlockResponses[3].Responses[1].TxHash))
-		log.Infof("nlogs: %d", len(processBatchResponse.BlockResponses[3].Responses[1].Logs))
-		if len(processBatchResponse.BlockResponses[3].Responses[1].Logs) == 0 {
-			log.Fatal("No logs")
+		if processBatchRequest.OldBatchNum == 1984786-1 {
+			txHash := hex.EncodeToHex(processBatchResponse.BlockResponses[3].Responses[1].TxHash)
+
+			log.Infof("BlockNumber: %d", processBatchResponse.BlockResponses[3].BlockNumber)
+			log.Infof("TXHash: %s", hex.EncodeToHex(processBatchResponse.BlockResponses[3].Responses[1].TxHash))
+			log.Infof("Error: %d", processBatchResponse.BlockResponses[3].Responses[1].Error)
+			log.Infof("nlogs: %d", len(processBatchResponse.BlockResponses[3].Responses[1].Logs))
+			if processBatchResponse.BlockResponses[3].Responses[1].Error != 7 {
+				log.Fatal("Txhash is not a revert")
+			}
+			if txHash != "0xac9220e315ffd4836aa74c722eca85ef22926c1e543b709148d1059d7fa8340f" {
+
+				log.Fatal("Txhash no match")
+			}
+			if len(processBatchResponse.BlockResponses[3].Responses[1].Logs) == 0 {
+				log.Fatal("No logs")
+			}
+			log.Infof("ok")
+		} else {
+			break
 		}
+
 	}
 	if err != nil {
 		log.Error("error executing batch: ", err)
