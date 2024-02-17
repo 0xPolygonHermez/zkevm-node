@@ -383,7 +383,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 
 	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
-		L1InfoRoot_V2:           mockL1InfoRoot,
+		L1InfoRoot_V2:           state.GetMockL1InfoRoot(),
 		OldStateRoot:            initialStateRoot,
 		Transactions:            batch.BatchL2Data,
 		Coinbase:                batch.Coinbase,
