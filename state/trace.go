@@ -238,7 +238,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			ContextId:        uuid.NewString(),
 
 			// v2 fields
-			L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
+			L1InfoRoot:             GetMockL1InfoRoot().Bytes(),
 			TimestampLimit:         uint64(time.Now().Unix()),
 			SkipFirstChangeL2Block: cFalse,
 			SkipWriteBlockInfoRoot: cTrue,
