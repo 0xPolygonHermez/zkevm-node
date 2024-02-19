@@ -46,6 +46,8 @@ type SequencedBatch struct {
 	*oldpolygonzkevm.PolygonZkEVMBatchData
 	// Struct used in Etrog
 	*polygonzkevm.PolygonRollupBaseEtrogBatchData
+	// Struct used in Elderberry
+	*polygonzkevm.PolygonRollupBaseElderberryBatchData
 }
 
 // UpdateEtrogSequence represents the first etrog sequence
