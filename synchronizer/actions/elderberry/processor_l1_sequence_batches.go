@@ -42,12 +42,12 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 		return nil
 	}
 	sbatch := l1Block.SequencedBatches[order.Pos][0]
-	if sbatch.PolygonRollupBaseElderberryBatchData == nil {
+	if sbatch.SequencedBatchElderberryData == nil {
 		log.Errorf("No elderberry sequenced batch data for batch %d", sbatch.BatchNumber)
 		return fmt.Errorf("no elderberry sequenced batch data for batch %d", sbatch.BatchNumber)
 	}
 	// We known that the MaxSequenceTimestamp is the same for all the batches
-	timeLimit := time.Unix(int64(sbatch.PolygonRollupBaseElderberryBatchData.MaxSequenceTimestamp), 0)
+	timeLimit := time.Unix(int64(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp), 0)
 	err := g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, timeLimit, dbTx)
 	return err
 }
