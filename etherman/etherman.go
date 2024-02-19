@@ -103,7 +103,7 @@ var (
 	// methodIDSequenceBatchesEtrog: MethodID for sequenceBatches in Etrog
 	methodIDSequenceBatchesEtrog = []byte{0xec, 0xef, 0x3f, 0x99} // 0xecef3f99
 	// methodIDSequenceBatchesElderberry: MethodID for sequenceBatches in Elderberry
-	methodIDSequenceBatchesElderberry = []byte{0xec, 0xef, 0x3f, 0x04} // TODO: set this signature
+	methodIDSequenceBatchesElderberry = []byte{0xde, 0xf5, 0x7e, 0x54} // 0xdef57e54 sequenceBatches((bytes,bytes32,uint64,bytes32)[],uint64,uint64,address)
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("not found")
@@ -180,6 +180,7 @@ type externalGasProviders struct {
 type Client struct {
 	EthClient                ethereumClient
 	OldZkEVM                 *oldpolygonzkevm.Oldpolygonzkevm
+	EtrogZKEVM               *etrogpolygonzkevm.Etrogpolygonzkevm
 	ZkEVM                    *polygonzkevm.Polygonzkevm
 	RollupManager            *polygonrollupmanager.Polygonrollupmanager
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
@@ -208,6 +209,11 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
+		return nil, err
+	}
+	etrogkevm, err := polygonzkevmEtrog.NewEtrogPolygonzkevm(l1Config.RollupManagerAddr, ethClient)
+	if err != nil {
+		log.Errorf("error creating NewEtrogPolygonzkevm client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
 	}
 	oldZkevm, err := oldpolygonzkevm.NewOldpolygonzkevm(l1Config.RollupManagerAddr, ethClient)
@@ -1326,13 +1332,15 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 		return nil, err
 	}
 	maxSequenceTimestamp := data[1].(uint64)
-	//currentSequenceNumber:= data[2].(uint64)
+	initSequencedBatchNumber := data[2].(uint64)
 	coinbase := (data[3]).(common.Address)
 	sequencedBatches := make([]SequencedBatch, len(sequences))
-	elderberry := polygonzkevm.PolygonRollupBaseElderberryBatchData{
-		MaxSequenceTimestamp: maxSequenceTimestamp,
-	}
+
 	for i, seq := range sequences {
+		elderberry := polygonzkevm.PolygonRollupBaseElderberryBatchData{
+			MaxSequenceTimestamp:     maxSequenceTimestamp,
+			InitSequencedBatchNumber: initSequencedBatchNumber,
+		}
 		bn := lastBatchNumber - uint64(len(sequences)-(i+1))
 		s := seq
 		sequencedBatches[i] = SequencedBatch{
