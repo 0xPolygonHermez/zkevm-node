@@ -100,8 +100,9 @@ var (
 	beaconUpgradedSignatureHash   = crypto.Keccak256Hash([]byte("BeaconUpgraded(address)"))
 	upgradedSignatureHash         = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
-	// MethodID for sequenceBatches
-	methodIDSequenceBatchesEtrog      = []byte{0xec, 0xef, 0x3f, 0x99} // 0xecef3f99
+	// methodIDSequenceBatchesEtrog: MethodID for sequenceBatches in Etrog
+	methodIDSequenceBatchesEtrog = []byte{0xec, 0xef, 0x3f, 0x99} // 0xecef3f99
+	// methodIDSequenceBatchesElderberry: MethodID for sequenceBatches in Elderberry
 	methodIDSequenceBatchesElderberry = []byte{0xec, 0xef, 0x3f, 0x04} // TODO: set this signature
 
 	// ErrNotFound is used when the object is not found
@@ -1205,10 +1206,14 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		methodId := tx.Data()[:4]
 		log.Debugf("MethodId: %s", common.Bytes2Hex(methodId))
 		if bytes.Equal(methodId, methodIDSequenceBatchesEtrog) {
-
 			sequences, err = decodeSequencesEtrog(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
 			if err != nil {
-				return fmt.Errorf("error decoding the sequences: %v", err)
+				return fmt.Errorf("error decoding the sequences (etrog): %v", err)
+			}
+		} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) {
+			sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
+			if err != nil {
+				return fmt.Errorf("error decoding the sequences (elderberry): %v", err)
 			}
 		} else {
 			return fmt.Errorf("error decoding the sequences: methodId %s unknown", common.Bytes2Hex(methodId))

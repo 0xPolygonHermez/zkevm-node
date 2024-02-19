@@ -11,16 +11,18 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// PreviousProcessor is the interface that the previous processor (Etrog)
 type PreviousProcessor interface {
 	ProcessSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error
 }
 
+// ProcessorL1SequenceBatchesElderberry is the processor for SequenceBatches for Elderberry
 type ProcessorL1SequenceBatchesElderberry struct {
 	actions.ProcessorBase[ProcessorL1SequenceBatchesElderberry]
 	previousProcessor PreviousProcessor
 }
 
-// NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
+// NewProcessorL1SequenceBatchesElderberry returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatchesElderberry(previousProcessor PreviousProcessor) *ProcessorL1SequenceBatchesElderberry {
 	return &ProcessorL1SequenceBatchesElderberry{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesElderberry]{
