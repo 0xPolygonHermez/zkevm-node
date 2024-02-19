@@ -764,7 +764,7 @@ func (p *PostgresStorage) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx)
 
 // GetVirtualBatchToProve return the next batch that is not proved, neither in
 // proved process.
-func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const query = `
 		SELECT
 			b.batch_num,
@@ -783,6 +783,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			state.virtual_batch v
 		WHERE
 			b.batch_num > $1 AND b.batch_num = v.batch_num AND
+			v.block_num <= $2 AND
 			NOT EXISTS (
 				SELECT p.batch_num FROM state.proof p 
 				WHERE v.batch_num >= p.batch_num AND v.batch_num <= p.batch_num_final
@@ -790,7 +791,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 		ORDER BY b.batch_num ASC LIMIT 1
 		`
 	e := p.getExecQuerier(dbTx)
-	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber)
+	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber, maxL1Block)
 	batch, err := scanBatch(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
