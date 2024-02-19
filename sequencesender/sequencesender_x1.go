@@ -30,7 +30,11 @@ func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
 	}
 
 	// Check if synchronizer is up to date
-	if !s.isSynced(ctx) {
+	synced, err := s.isSynced(ctx, retriesSanityCheck, waitRetrySanityCheck)
+	if err != nil {
+		s.halt(ctx, err)
+	}
+	if !synced {
 		log.Info("wait virtual state to be synced...")
 		time.Sleep(5 * time.Second) // nolint:gomnd
 		return
@@ -254,6 +258,7 @@ func (s *SequenceSender) getSequencesToSendX1(ctx context.Context) ([]types.Sequ
 	return nil, nil
 }
 
+// SetDataProvider sets the data provider
 func (s *SequenceSender) SetDataProvider(da dataAbilitier) {
 	s.da = da
 }

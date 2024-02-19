@@ -601,7 +601,7 @@ func (e *EthEndpoints) GetTransactionByBlockHashAndIndex(hash types.ArgHash, ind
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
 			}
-			l2Hash = &l2h
+			l2Hash = l2h
 		}
 
 		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
@@ -643,7 +643,7 @@ func (e *EthEndpoints) GetTransactionByBlockNumberAndIndex(number *types.BlockNu
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
 			}
-			l2Hash = &l2h
+			l2Hash = l2h
 		}
 
 		res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
@@ -677,7 +677,7 @@ func (e *EthEndpoints) GetTransactionByHash(hash types.ArgHash, includeExtraInfo
 				if err != nil {
 					return RPCErrorResponse(types.DefaultErrorCode, "failed to get l2 transaction hash", err, true)
 				}
-				l2Hash = &l2h
+				l2Hash = l2h
 			}
 
 			res, err := types.NewTransaction(*tx, receipt, false, l2Hash)
@@ -947,7 +947,7 @@ func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (in
 	//X1 handle
 	return e.newPendingTransactionFilterX1(wsConn)
 
-	return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
+	// return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
 	// id, err := e.storage.NewPendingTransactionFilter(wsConn)
 	// if err != nil {
 	// 	return rpcErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err)
