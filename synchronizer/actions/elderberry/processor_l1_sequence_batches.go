@@ -2,9 +2,11 @@ package elderberry
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	"github.com/jackc/pgx/v4"
 )
@@ -33,6 +35,17 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
 		return actions.ErrInvalidParams
 	}
-	err := g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
+	if len(l1Block.SequencedBatches[order.Pos]) == 0 {
+		log.Warnf("No sequenced batches for position")
+		return nil
+	}
+	sbatch := l1Block.SequencedBatches[order.Pos][0]
+	if sbatch.PolygonRollupBaseElderberryBatchData == nil {
+		log.Errorf("No elderberry sequenced batch data for batch %d", sbatch.BatchNumber)
+		return fmt.Errorf("no elderberry sequenced batch data for batch %d", sbatch.BatchNumber)
+	}
+	// We known that the MaxSequenceTimestamp is the same for all the batches
+	timeLimit := time.Unix(int64(sbatch.PolygonRollupBaseElderberryBatchData.MaxSequenceTimestamp), 0)
+	err := g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, timeLimit, dbTx)
 	return err
 }
