@@ -95,7 +95,7 @@ func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckExpectedSequence(initi
 		log.Errorf("Error getting last virtual batch number: %s", err)
 		return err
 	}
-	if lastVirtualBatchNum+1 != initialBatchNumber {
+	if lastVirtualBatchNum != initialBatchNumber {
 		log.Errorf("The last virtual batch number is not the expected one. Expected: %d (last on DB), got: %d (L1 event)", lastVirtualBatchNum+1, initialBatchNumber)
 		return fmt.Errorf("the last virtual batch number is not the expected one. Expected: %d (last on DB), got: %d (L1 event) err:%w", lastVirtualBatchNum+1, initialBatchNumber, ErrInvalidInitialBatchNumber)
 	}
