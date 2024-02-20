@@ -167,7 +167,7 @@ func TestTxGetMinedAfterReviewed(t *testing.T) {
 	etherman.
 		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
-		Once()
+		Twice()
 
 	firstGasEstimation := uint64(1)
 	etherman.
@@ -333,7 +333,7 @@ func TestTxGetMinedAfterConfirmedAndReorged(t *testing.T) {
 	etherman.
 		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
-		Once()
+		Twice()
 
 	estimatedGas := uint64(1)
 	etherman.
@@ -749,12 +749,6 @@ func TestGasPriceMarginAndLimit(t *testing.T) {
 
 			ctx := context.Background()
 
-			currentNonce := uint64(1)
-			etherman.
-				On("CurrentNonce", ctx, from).
-				Return(currentNonce, nil).
-				Once()
-
 			estimatedGas := uint64(1)
 			etherman.
 				On("EstimateGas", ctx, from, to, value, data).
@@ -829,12 +823,6 @@ func TestGasOffset(t *testing.T) {
 			var data []byte = nil
 
 			ctx := context.Background()
-
-			currentNonce := uint64(1)
-			etherman.
-				On("CurrentNonce", ctx, from).
-				Return(currentNonce, nil).
-				Once()
 
 			etherman.
 				On("EstimateGas", ctx, from, to, value, data).
