@@ -66,8 +66,6 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 		return err
 	}
 	// We known that the MaxSequenceTimestamp is the same for all the batches so we can use the first one
-	timeLimitUnix := 
-	timeLimit := time.Unix(int64(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp), 0)
 	err = g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, time.Unix(int64(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp), 0), dbTx)
 	// The last L2block timestamp must match MaxSequenceTimestamp
 	if err != nil {
@@ -108,7 +106,7 @@ func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckTstampLastL2Block(time
 		return nil
 	}
 	lastL2Block := l2blocks[len(l2blocks)-1]
-	if lastL2Block.ReceivedAt.Unix() <= timeLimit {
+	if uint64(lastL2Block.ReceivedAt.Unix()) <= timeLimit {
 		log.Errorf("The last L2 block timestamp can't be greater than timeLimit. Expected: %d (L1 event), got: %d (last L2Block)", timeLimit, lastL2Block.ReceivedAt.Unix())
 		return fmt.Errorf("wrong timestamp of  last L2 block timestamp with L1 event timestamp")
 	}
