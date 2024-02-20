@@ -255,7 +255,7 @@ type Block struct {
 	Timestamp       ArgUint64           `json:"timestamp"`
 	ExtraData       ArgBytes            `json:"extraData"`
 	MixHash         common.Hash         `json:"mixHash"`
-	Nonce           ArgBytes            `json:"nonce"`
+	Nonce           *ArgBytes           `json:"nonce"`
 	Hash            *common.Hash        `json:"hash"`
 	Transactions    []TransactionOrHash `json:"transactions"`
 	Uncles          []common.Hash       `json:"uncles"`
@@ -267,32 +267,28 @@ type Block struct {
 func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *state.L2Block, receipts []types.Receipt, fullTx, includeReceipts bool, includeExtraInfo *bool, dbTx pgx.Tx) (*Block, error) {
 	h := b.Header()
 
-	var miner *common.Address
-	if h.Coinbase.String() != state.ZeroAddress.String() {
-		cb := h.Coinbase
-		miner = &cb
-	}
-
 	n := big.NewInt(0).SetUint64(h.Nonce.Uint64())
-	nonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
+	nonce := ArgBytes(common.LeftPadBytes(n.Bytes(), 8)) //nolint:gomnd
 
-	difficulty := ArgUint64(0)
-	var totalDifficulty *ArgUint64
-	if h.Difficulty != nil && h.Difficulty.Uint64() > 0 {
-		difficulty = ArgUint64(h.Difficulty.Uint64())
-		totalDifficulty = &difficulty
+	var difficulty uint64
+	if h.Difficulty != nil {
+		difficulty = h.Difficulty.Uint64()
+	} else {
+		difficulty = uint64(0)
 	}
+
+	totalDifficult := ArgUint64(difficulty)
 
 	res := &Block{
 		ParentHash:      h.ParentHash,
 		Sha3Uncles:      h.UncleHash,
-		Miner:           miner,
+		Miner:           &h.Coinbase,
 		StateRoot:       h.Root,
 		TxRoot:          h.TxHash,
 		ReceiptsRoot:    h.ReceiptHash,
 		LogsBloom:       h.Bloom,
-		Difficulty:      difficulty,
-		TotalDifficulty: totalDifficulty,
+		Difficulty:      ArgUint64(difficulty),
+		TotalDifficulty: &totalDifficult,
 		Size:            ArgUint64(b.Size()),
 		Number:          ArgUint64(b.Number().Uint64()),
 		GasLimit:        ArgUint64(h.GasLimit),
@@ -300,7 +296,7 @@ func NewBlock(ctx context.Context, st StateInterface, hash *common.Hash, b *stat
 		Timestamp:       ArgUint64(h.Time),
 		ExtraData:       ArgBytes(h.Extra),
 		MixHash:         h.MixDigest,
-		Nonce:           nonce,
+		Nonce:           &nonce,
 		Hash:            hash,
 		Transactions:    []TransactionOrHash{},
 		Uncles:          []common.Hash{},
