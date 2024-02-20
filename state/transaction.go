@@ -596,21 +596,18 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, err
 	}
 
+	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+	if err != nil {
+		return nil, err
+	}
+
 	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 		err = executor.RomErr(processBatchResponseV2.ErrorRom)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		if executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
-			response := &ProcessBatchResponse{
-				UsedZkCounters: convertToCountersV2(processBatchResponseV2),
-			}
 			return response, err
 		}
 
-		return nil, err
-	}
-
-	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
-	if err != nil {
 		return nil, err
 	}
 
