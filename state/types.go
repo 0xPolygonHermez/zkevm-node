@@ -65,7 +65,6 @@ type ProcessBatchResponse struct {
 	ForkID               uint64
 	InvalidBatch_V2      bool
 	RomError_V2          error
-	CloseBatch_V2        bool
 }
 
 // ProcessBlockResponse represents the response of a block
