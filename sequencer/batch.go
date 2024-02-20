@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -412,7 +410,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrProcessBatch
 	}
 
-	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
+	if batchResponse.ExecutorError != nil {
 		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, batchResponse.ExecutorError)
 		reprocessError(batch)
 		return nil, ErrExecutorError

@@ -269,7 +269,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		endTime = time.Now()
 		if err != nil {
 			return nil, err
-		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponseV2.Error)
 			s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 			return nil, err
@@ -539,7 +539,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult,
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
 			var gasUsed uint64
 			var err error
-			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) || errors.Is(previousStep.Error, runtime.ErrExecutorErrorOOG2) {
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
 				itCtx, err := internalTxSteps.Pop()
 				if err != nil {
 					return nil, err
