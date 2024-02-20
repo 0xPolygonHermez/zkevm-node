@@ -36,39 +36,37 @@ var (
 	ErrExecutionReverted = errors.New("execution reverted")
 )
 
-// nonceMap is a struct that represents a mapping of Ethereum addresses to nonces.
-type nonceMap struct {
+// nonceStore is a struct that represents a mapping of Ethereum addresses to nonces.
+type nonceStore struct {
 	m map[common.Address]uint64
 
 	lock sync.RWMutex
 }
 
-// newNonceMap creates a new instance of nonceMap.
-// It returns a pointer to the newly created nonceMap.
-func newNonceMap() *nonceMap {
-	return &nonceMap{
+// newNonceStore creates a new instance of nonceStore.
+// It returns a pointer to the newly created nonceStore.
+func newNonceStore() *nonceStore {
+	return &nonceStore{
 		m: make(map[common.Address]uint64, 0),
 	}
 }
 
 // get retrieves the nonce value for the given address.
 // It returns the nonce value and a boolean indicating whether the nonce exists in the map.
-func (n *nonceMap) get(addr common.Address) (uint64, bool) {
+func (n *nonceStore) get(addr common.Address) (uint64, bool) {
 	n.lock.RLock()
-	defer n.lock.RUnlock()
-
 	nonce, hasNonce := n.m[addr]
+	n.lock.RUnlock()
 
 	return nonce, hasNonce
 }
 
 // set updates the nonce value for the given address in the nonceMap.
 // It acquires a lock to ensure thread safety and then updates the nonce value.
-func (n *nonceMap) set(addr common.Address, nonce uint64) {
+func (n *nonceStore) set(addr common.Address, nonce uint64) {
 	n.lock.Lock()
-	defer n.lock.Unlock()
-
 	n.m[addr] = nonce
+	n.lock.Unlock()
 }
 
 // Client for eth tx manager
@@ -282,7 +280,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	log.Infof("found %v monitored tx to process", len(mTxs))
 
-	nonceMap := newNonceMap()
+	nonceMap := newNonceStore()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(mTxs))
@@ -305,7 +303,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 }
 
 // monitorTx does all the monitoring steps to the monitored tx
-func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger, nonceMap *nonceMap) {
+func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger, nonceMap *nonceStore) {
 	var err error
 	logger.Info("processing")
 	// check if any of the txs in the history was confirmed
@@ -585,7 +583,7 @@ func (c *Client) reviewMonitoredTx(ctx context.Context, mTx *monitoredTx, mTxLog
 // IMPORTANT: Nonce is reviewed apart from the other fields because it is a very
 // sensible information and can make duplicated data to be sent to the blockchain,
 // causing possible side effects and wasting resources.
-func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger, nonceMap *nonceMap) error {
+func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger, nonceMap *nonceStore) error {
 	mTxLogger.Debug("reviewing nonce")
 
 	var (
