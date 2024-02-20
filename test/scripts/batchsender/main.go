@@ -173,6 +173,7 @@ func sendBatches(cliCtx *cli.Context) error {
 		for i := 0; i < nb; i++ {
 			// empty rollup
 			seqs = append(seqs, ethmanTypes.Sequence{
+				BatchNumber:    uint64(i),
 				GlobalExitRoot: common.HexToHash("0x"),
 				BatchL2Data:    []byte{},
 				Timestamp:      int64(currentBlock.Time() - 1), // fit in latest-sequence < > current-block rage
@@ -180,7 +181,9 @@ func sendBatches(cliCtx *cli.Context) error {
 		}
 
 		// send to L1
-		to, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs, auth.From)
+		firstSequence := seqs[0]
+		lastSequence := seqs[len(seqs)-1]
+		to, data, err := ethMan.BuildSequenceBatchesTxData(auth.From, seqs, uint64(lastSequence.Timestamp), firstSequence.BatchNumber, auth.From)
 		if err != nil {
 			return err
 		}

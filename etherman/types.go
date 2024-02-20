@@ -34,6 +34,7 @@ type GlobalExitRoot struct {
 	PreviousBlockHash common.Hash
 }
 
+// SequencedBatchElderberryData represents an Elderberry sequenced batch data
 type SequencedBatchElderberryData struct {
 	MaxSequenceTimestamp     uint64
 	InitSequencedBatchNumber uint64
