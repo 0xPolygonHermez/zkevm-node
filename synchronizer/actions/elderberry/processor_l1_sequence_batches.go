@@ -24,6 +24,7 @@ type PreviousProcessor interface {
 	ProcessSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error
 }
 
+// StateL1SequenceBatchesElderberry state interface
 type StateL1SequenceBatchesElderberry interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error)

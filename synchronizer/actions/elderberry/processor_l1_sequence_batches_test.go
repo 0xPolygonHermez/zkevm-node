@@ -12,5 +12,4 @@ func TestProcessorL1InfoTreeUpdate_Process(t *testing.T) {
 	mockPreviousProcessor := mock_elderberry.NewPreviousProcessor(t)
 
 	_ = elderberry.NewProcessorL1SequenceBatchesElderberry(mockPreviousProcessor, mockState)
-
 }
