@@ -162,4 +162,4 @@ Add a test specific for DAC, this requires new containers configured in a way to
 
 ### Upstream Version
 
-v0.5.10
+v0.5.12

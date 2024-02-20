@@ -519,6 +519,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		TimestampLimit:         uint64(time.Now().Unix()),
 		SkipFirstChangeL2Block: cFalse,
 		SkipWriteBlockInfoRoot: cTrue,
+		ExecutionMode:          executor.ExecutionMode0,
 	}
 	if noZKEVMCounters {
 		processBatchRequestV2.NoCounters = cTrue
@@ -580,7 +581,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		}
 	}
 
-	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return nil, err
@@ -990,6 +991,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 		TimestampLimit:         uint64(time.Now().Unix()),
 		SkipFirstChangeL2Block: cTrue,
 		SkipWriteBlockInfoRoot: cTrue,
+		ExecutionMode:          executor.ExecutionMode0,
 	}
 
 	log.Debugf("EstimateGas[processBatchRequestV2.From]: %v", processBatchRequestV2.From)
@@ -1010,11 +1012,16 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 	txExecutionOnExecutorTime := time.Now()
 	processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
 	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
-	if err != nil {
+	if err != nil && !errors.Is(err, runtime.ErrExecutorErrorOOG2) {
 		log.Errorf("error estimating gas: %v", err)
 		return false, false, gasUsed, nil, err
 	}
-	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR &&
+		processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+		if processBatchResponseV2.Error == executor.ExecutorError_EXECUTOR_ERROR_OOG_2 {
+			return true, false, gasUsed, nil, nil
+		}
+
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err

@@ -305,7 +305,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		isOOC := executor.IsROMOutOfCountersError(executor.RomErrorCode(err))
-		isOOG := errors.Is(err, runtime.ErrOutOfGas)
+		isOOG := errors.Is(err, runtime.ErrOutOfGas) || errors.Is(err, runtime.ErrExecutorErrorOOG2)
 		if !isOOC && !isOOG {
 			return response, err
 		} else {
@@ -331,7 +331,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			if executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck)) {
 				response.OOCError = err
 			}
-			if errors.Is(errorToCheck, runtime.ErrOutOfGas) {
+			if errors.Is(errorToCheck, runtime.ErrOutOfGas) || errors.Is(errorToCheck, runtime.ErrExecutorErrorOOG2) {
 				response.OOGError = err
 			}
 		} else {

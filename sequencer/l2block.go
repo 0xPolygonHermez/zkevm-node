@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -251,7 +254,7 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              initialStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
-		L1InfoRoot_V2:             mockL1InfoRoot,
+		L1InfoRoot_V2:             state.GetMockL1InfoRoot(),
 		TimestampLimit_V2:         l2Block.timestamp,
 		Transactions:              batchL2Data,
 		SkipFirstChangeL2Block_V2: false,
@@ -260,6 +263,7 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipVerifyL1InfoRoot_V2:   true,
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
+		ExecutionMode:             executor.ExecutionMode0,
 	}
 	batchRequest.L1InfoTreeData_V2[l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
 		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
@@ -279,13 +283,13 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		return nil, 0, err
 	}
 
-	if batchResponse.ExecutorError != nil {
-		executeL2BLockError(err)
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
+		executeL2BLockError(batchResponse.ExecutorError)
 		return nil, 0, ErrExecutorError
 	}
 
 	if batchResponse.IsRomOOCError {
-		executeL2BLockError(err)
+		executeL2BLockError(batchResponse.RomError_V2)
 		return nil, 0, ErrProcessBatchOOC
 	}
 
@@ -534,7 +538,7 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
-		L1InfoRoot_V2:             mockL1InfoRoot,
+		L1InfoRoot_V2:             state.GetMockL1InfoRoot(),
 		TimestampLimit_V2:         f.wipL2Block.timestamp,
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
@@ -543,6 +547,7 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		SkipFirstChangeL2Block_V2: false,
 		Transactions:              f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.getL1InfoTreeIndex()),
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
+		ExecutionMode:             executor.ExecutionMode0,
 	}
 
 	batchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
@@ -557,7 +562,7 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		return nil, err
 	}
 
-	if batchResponse.ExecutorError != nil {
+	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
 		return nil, ErrExecutorError
 	}
 
