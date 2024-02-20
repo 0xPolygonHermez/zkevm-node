@@ -56,7 +56,7 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		FlushID:              batchResponse.FlushId,
 		StoredFlushID:        batchResponse.StoredFlushId,
 		ProverID:             batchResponse.ProverId,
-		IsExecutorLevelError: (batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
+		IsExecutorLevelError: batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR,
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
 		GasUsed_V2:           batchResponse.GasUsed,

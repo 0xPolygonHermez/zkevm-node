@@ -1019,7 +1019,6 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
 	}
-
 	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 		err = executor.RomErr(processBatchResponseV2.ErrorRom)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)

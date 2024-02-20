@@ -446,6 +446,14 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorInvalidL1InfoTreeIndex
 	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE:
 		return runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue
+	case ExecutorError_EXECUTOR_ERROR_INVALID_WITNESS:
+		return runtime.ErrExecutorErrorInvalidWitness
+	case ExecutorError_EXECUTOR_ERROR_INVALID_CBOR:
+		return runtime.ErrExecutorErrorInvalidCBOR
+	case ExecutorError_EXECUTOR_ERROR_INVALID_DATA_STREAM:
+		return runtime.ErrExecutorErrorInvalidDataStream
+	case ExecutorError_EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE:
+		return runtime.ErrExecutorErrorInvalidUpdateMerkleTree
 	}
 	return ErrExecutorUnknown
 }
@@ -678,6 +686,14 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX
 	case runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue:
 		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE
+	case runtime.ErrExecutorErrorInvalidWitness:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_WITNESS
+	case runtime.ErrExecutorErrorInvalidCBOR:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_CBOR
+	case runtime.ErrExecutorErrorInvalidDataStream:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_DATA_STREAM
+	case runtime.ErrExecutorErrorInvalidUpdateMerkleTree:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE
 	}
 
 	return ErrCodeExecutorUnknown

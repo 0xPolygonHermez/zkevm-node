@@ -280,7 +280,7 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 	}
 
 	if batchResponse.ExecutorError != nil {
-		executeL2BLockError(err)
+		executeL2BLockError(batchResponse.ExecutorError)
 		return nil, 0, ErrExecutorError
 	}
 
