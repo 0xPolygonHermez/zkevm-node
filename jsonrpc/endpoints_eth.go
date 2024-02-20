@@ -351,6 +351,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
 
+			// clean fields that are not available for pending block
+			rpcBlock.Hash = nil
+			rpcBlock.Miner = nil
+			rpcBlock.Nonce = nil
+			rpcBlock.TotalDifficulty = nil
+
 			return rpcBlock, nil
 		}
 		var err error
