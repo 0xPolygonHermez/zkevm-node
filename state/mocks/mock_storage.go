@@ -6950,9 +6950,9 @@ func (_c *StorageMock_GetVirtualBatchParentHash_Call) RunAndReturn(run func(cont
 	return _c
 }
 
-// GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
-func (_m *StorageMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
-	ret := _m.Called(ctx, lastVerfiedBatchNumber, dbTx)
+// GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, maxL1Block, dbTx
+func (_m *StorageMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	ret := _m.Called(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVirtualBatchToProve")
@@ -6960,19 +6960,19 @@ func (_m *StorageMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBa
 
 	var r0 *state.Batch
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Batch, error)); ok {
-		return rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) (*state.Batch, error)); ok {
+		return rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Batch); ok {
-		r0 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) *state.Batch); ok {
+		r0 = rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.Batch)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -6988,14 +6988,15 @@ type StorageMock_GetVirtualBatchToProve_Call struct {
 // GetVirtualBatchToProve is a helper method to define mock.On call
 //   - ctx context.Context
 //   - lastVerfiedBatchNumber uint64
+//   - maxL1Block uint64
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) GetVirtualBatchToProve(ctx interface{}, lastVerfiedBatchNumber interface{}, dbTx interface{}) *StorageMock_GetVirtualBatchToProve_Call {
-	return &StorageMock_GetVirtualBatchToProve_Call{Call: _e.mock.On("GetVirtualBatchToProve", ctx, lastVerfiedBatchNumber, dbTx)}
+func (_e *StorageMock_Expecter) GetVirtualBatchToProve(ctx interface{}, lastVerfiedBatchNumber interface{}, maxL1Block interface{}, dbTx interface{}) *StorageMock_GetVirtualBatchToProve_Call {
+	return &StorageMock_GetVirtualBatchToProve_Call{Call: _e.mock.On("GetVirtualBatchToProve", ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)}
 }
 
-func (_c *StorageMock_GetVirtualBatchToProve_Call) Run(run func(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx)) *StorageMock_GetVirtualBatchToProve_Call {
+func (_c *StorageMock_GetVirtualBatchToProve_Call) Run(run func(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx)) *StorageMock_GetVirtualBatchToProve_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64), args[3].(pgx.Tx))
 	})
 	return _c
 }
@@ -7005,7 +7006,7 @@ func (_c *StorageMock_GetVirtualBatchToProve_Call) Return(_a0 *state.Batch, _a1 
 	return _c
 }
 
-func (_c *StorageMock_GetVirtualBatchToProve_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (*state.Batch, error)) *StorageMock_GetVirtualBatchToProve_Call {
+func (_c *StorageMock_GetVirtualBatchToProve_Call) RunAndReturn(run func(context.Context, uint64, uint64, pgx.Tx) (*state.Batch, error)) *StorageMock_GetVirtualBatchToProve_Call {
 	_c.Call.Return(run)
 	return _c
 }

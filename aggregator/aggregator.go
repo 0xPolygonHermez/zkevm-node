@@ -756,8 +756,23 @@ func (a *Aggregator) getAndLockBatchToProve(ctx context.Context, prover proverIn
 		return nil, nil, err
 	}
 
+	// Get header of the last L1 block
+	lastL1BlockHeader, err := a.Ethman.GetLatestBlockHeader(ctx)
+	if err != nil {
+		log.Errorf("Failed to get last L1 block header, err: %v", err)
+		return nil, nil, err
+	}
+	lastL1BlockNumber := lastL1BlockHeader.Number.Uint64()
+
+	// Calculate max L1 block number for getting next virtual batch to prove
+	maxL1BlockNumber := uint64(0)
+	if a.cfg.BatchProofL1BlockConfirmations <= lastL1BlockNumber {
+		maxL1BlockNumber = lastL1BlockNumber - a.cfg.BatchProofL1BlockConfirmations
+	}
+	log.Debugf("Max L1 block number for getting next virtual batch to prove: %d", maxL1BlockNumber)
+
 	// Get virtual batch pending to generate proof
-	batchToVerify, err := a.State.GetVirtualBatchToProve(ctx, lastVerifiedBatch.BatchNumber, nil)
+	batchToVerify, err := a.State.GetVirtualBatchToProve(ctx, lastVerifiedBatch.BatchNumber, maxL1BlockNumber, nil)
 	if err != nil {
 		return nil, nil, err
 	}
