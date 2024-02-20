@@ -423,6 +423,22 @@
             "$ref": "#/components/schemas/Keccak"
           }
       }
+    },
+    {
+      "name": "zkevm_estimateCounters",
+      "summary": "Estimates the transaction ZK Counters",
+      "params": [
+        {
+          "$ref": "#/components/contentDescriptors/Transaction"
+        }
+      ],
+      "result": {
+        "name": "counters",
+        "description": "The counters used, limits and revert info when tx reverted",
+        "schema": {
+          "$ref": "#/components/schemas/ZKCountersResponse"
+        }
+      }
     }
   ],
   "components": {
@@ -470,6 +486,13 @@
         "description": "A block object",
         "schema": {
           "$ref": "#/components/schemas/Block"
+        }
+      },
+      "Transaction": {
+        "required": true,
+        "name": "transaction",
+        "schema": {
+          "$ref": "#/components/schemas/Transaction"
         }
       },
       "TransactionHash": {
@@ -1280,6 +1303,106 @@
           },
           "rollupExitRoot": {
             "$ref": "#/components/schemas/Keccak"
+          }
+        }
+      },
+      "ZKCountersResponse": {
+        "title": "ZKCountersResponse",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "countersUsed": {
+            "$ref": "#/components/schemas/ZKCountersUsed"
+          },
+          "countersLimits": {
+            "$ref": "#/components/schemas/ZKCountersLimits"
+          },
+          "revertInfo": {
+            "$ref": "#/components/schemas/RevertInfo"
+          },
+          "oocError": {
+            "type": "string"
+          }
+        }
+      },
+      "ZKCountersUsed": {
+        "title": "ZKCountersUsed",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "gasUsed": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedKeccakHashes": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedPoseidonHashes": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedPoseidonPaddings": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedMemAligns": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedArithmetics": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedBinaries": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedSteps": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "usedSHA256Hashes": {
+            "$ref": "#/components/schemas/Integer"
+          }
+        }
+      },
+      "ZKCountersLimits":{
+        "title": "ZKCountersLimits",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "maxGasUsed": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedKeccakHashes": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedPoseidonHashes": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedPoseidonPaddings": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedMemAligns": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedArithmetics": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedBinaries": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedSteps": {
+            "$ref": "#/components/schemas/Integer"
+          },
+          "maxUsedSHA256Hashes": {
+            "$ref": "#/components/schemas/Integer"
+          }
+        }
+      },
+      "RevertInfo":{
+        "title": "RevertInfo",
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Integer"
           }
         }
       }
