@@ -140,18 +140,18 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 
 	// Check if we need to wait until last L1 block timestamp is L1BlockTimestampMargin seconds above the timestamp of the last L2 block in the sequence
 	// Get last batch in the sequence
-	lastBatchNumInSequence := sequences[sequenceCount-1].BatchNumber
+	lastSequenceBatchNum := sequences[sequenceCount-1].BatchNumber
 
 	// Get L2 blocks for the last batch
-	lastBatchL2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, lastBatchNumInSequence, nil)
+	lastBatchL2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, lastSequenceBatchNum, nil)
 	if err != nil {
-		log.Errorf("failed to get L2 blocks for batch %d, err: %v", lastBatchNumInSequence, err)
+		log.Errorf("failed to get L2 blocks for batch %d, err: %v", lastSequenceBatchNum, err)
 		return
 	}
 
 	// Check there are L2 blocks for the last batch
 	if len(lastBatchL2Blocks) == 0 {
-		log.Errorf("no L2 blocks returned from the state for batch %d", lastBatchNumInSequence)
+		log.Errorf("no L2 blocks returned from the state for batch %d", lastSequenceBatchNum)
 		return
 	}
 
