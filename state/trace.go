@@ -254,6 +254,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		// In case we have any l1InfoTreeData, add them to the request
 		if len(l1InfoTreeData) > 0 {
 			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
+			processBatchRequestV2.SkipVerifyL1InfoRoot = cTrue
 			for k, v := range l1InfoTreeData {
 				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
 					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
