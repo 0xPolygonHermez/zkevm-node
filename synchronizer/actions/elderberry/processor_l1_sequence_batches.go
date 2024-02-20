@@ -14,6 +14,7 @@ import (
 )
 
 var (
+	// ErrInvalidInitialBatchNumber is returned when the initial batch number is not the expected one
 	ErrInvalidInitialBatchNumber = errors.New("invalid initial batch number")
 )
 
