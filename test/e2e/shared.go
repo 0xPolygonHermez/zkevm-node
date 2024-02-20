@@ -31,6 +31,7 @@ const (
 
 var (
 	toAddress = common.HexToAddress(toAddressHex)
+	opsMan    *operations.Manager
 )
 
 var networks = []struct {
@@ -65,7 +66,7 @@ func setup() {
 	}
 
 	opsCfg := operations.GetDefaultOperationsConfig()
-	opsMan, err := operations.NewManager(ctx, opsCfg)
+	opsMan, err = operations.NewManager(ctx, opsCfg)
 	if err != nil {
 		panic(err)
 	}
