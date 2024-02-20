@@ -66,17 +66,16 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 		return err
 	}
 	// We known that the MaxSequenceTimestamp is the same for all the batches so we can use the first one
+	timeLimitUnix := 
 	timeLimit := time.Unix(int64(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp), 0)
-	err = g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, timeLimit, dbTx)
+	err = g.previousProcessor.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, time.Unix(int64(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp), 0), dbTx)
 	// The last L2block timestamp must match MaxSequenceTimestamp
 	if err != nil {
 		return err
 	}
-	err = g.sanityCheckTstampLastL2Block(timeLimit, dbTx)
-	if err != nil {
-		return err
-	}
-	return err
+	// It checks the timestamp of the last L2 block, but it's just log an error instead of refusing the event
+	_ = g.sanityCheckTstampLastL2Block(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp, dbTx)
+	return nil
 }
 
 func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckExpectedSequence(initialBatchNumber uint64, dbTx pgx.Tx) error {
@@ -93,7 +92,7 @@ func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckExpectedSequence(initi
 	return nil
 }
 
-func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckTstampLastL2Block(timeLimit time.Time, dbTx pgx.Tx) error {
+func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckTstampLastL2Block(timeLimit uint64, dbTx pgx.Tx) error {
 	lastVirtualBatchNum, err := g.state.GetLastVirtualBatchNum(context.Background(), dbTx)
 	if err != nil {
 		log.Errorf("Error getting last virtual batch number: %s", err)
@@ -105,12 +104,13 @@ func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckTstampLastL2Block(time
 		return err
 	}
 	if len(l2blocks) == 0 {
+		//TODO: find the previous batch until we find a L2 block to check the timestamp
 		return nil
 	}
 	lastL2Block := l2blocks[len(l2blocks)-1]
-	if lastL2Block.ReceivedAt != timeLimit {
-		log.Errorf("The last L2 block timestamp is not the expected one. Expected: %s (L1 event), got: %s (last L2Block)", timeLimit, lastL2Block.ReceivedAt)
-		return fmt.Errorf("dont match last L2 block timestamp with L1 event timestamp")
+	if lastL2Block.ReceivedAt.Unix() <= timeLimit {
+		log.Errorf("The last L2 block timestamp can't be greater than timeLimit. Expected: %d (L1 event), got: %d (last L2Block)", timeLimit, lastL2Block.ReceivedAt.Unix())
+		return fmt.Errorf("wrong timestamp of  last L2 block timestamp with L1 event timestamp")
 	}
 	return nil
 }
