@@ -31,6 +31,7 @@ type ProcessRequest struct {
 	SkipWriteBlockInfoRoot_V2 bool
 	SkipVerifyL1InfoRoot_V2   bool
 	ForkID                    uint64
+	ExecutionMode             uint64
 }
 
 // L1DataV2 represents the L1InfoTree data used in ProcessRequest.L1InfoTreeData_V2 parameter

@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
@@ -432,6 +433,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.Pro
 		Transactions:            data.TrustedBatch.BatchL2Data,
 		ForkID:                  b.state.GetForkIDByBatchNumber(uint64(data.TrustedBatch.Number)),
 		SkipVerifyL1InfoRoot_V2: true,
+		ExecutionMode:           executor.ExecutionMode1,
 	}
 	return request
 }
