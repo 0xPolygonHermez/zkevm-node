@@ -513,18 +513,12 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v5.0.0-RC4
+    image: hermeznetwork/zkevm-prover:v4.0.14
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
     volumes:
       - ./config/test.prover.config.json:/usr/src/app/config.json
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
     command: >
       zkProver -c /usr/src/app/config.json
 
@@ -608,7 +602,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v5.0.0-RC4
+    image: hermeznetwork/zkevm-prover:v4.0.14
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
@@ -616,12 +610,6 @@ services:
       - 50078:50071 # Executor
     volumes:
       - ./config/test.permissionless.prover.config.json:/usr/src/app/config.json
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
     command: >
       zkProver -c /usr/src/app/config.json
 
