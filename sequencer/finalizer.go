@@ -2,7 +2,6 @@ package sequencer
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -446,27 +445,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	} else if err != nil {
 		log.Errorf("error received from executor, error: %v", err)
 
-		if errors.Is(err, runtime.ErrExecutorErrorUnsupportedPrecompile) {
-			payload, err := json.Marshal(batchRequest)
-			if err != nil {
-				log.Errorf("error marshaling payload, error: %v", err)
-			} else {
-				event := &event.Event{
-					ReceivedAt:  time.Now(),
-					Source:      event.Source_Node,
-					Component:   event.Component_Sequencer,
-					Level:       event.Level_Warning,
-					EventID:     event.EventID_UnsupportedPrecompile,
-					Description: string(payload),
-					Json:        batchRequest,
-				}
-				err = f.eventLog.LogEvent(ctx, event)
-				if err != nil {
-					log.Errorf("error storing payload, error: %v", err)
-				}
-			}
-		}
-
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
@@ -603,14 +581,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
 	f.wipL2Block.addTx(tx)
-
 	f.wipBatch.countOfTxs++
-
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
-
-	if result.CloseBatch_V2 {
-		return nil, true, nil
-	}
 
 	return nil, false, nil
 }
