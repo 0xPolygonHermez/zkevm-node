@@ -126,11 +126,6 @@ func TestForcedBatchEtrog(t *testing.T) {
 
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
-	forkIdInterval := state.ForkIDInterval{
-		FromBatchNumber: 0,
-		ToBatchNumber:   ^uint64(0),
-	}
-	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
 
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
@@ -765,11 +760,6 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, previousBatchInPermissionless *types.Batch,
 	needToRetrieveBatchFromDatabase bool, etrogMode bool) {
 	m.State.EXPECT().GetForkIDByBatchNumber(mock.Anything).Return(uint64(7)).Times(1)
-	forkIdInterval := state.ForkIDInterval{
-		FromBatchNumber: 0,
-		ToBatchNumber:   ^uint64(0),
-	}
-	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).

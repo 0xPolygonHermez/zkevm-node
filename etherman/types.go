@@ -34,6 +34,12 @@ type GlobalExitRoot struct {
 	PreviousBlockHash common.Hash
 }
 
+// SequencedBatchElderberryData represents an Elderberry sequenced batch data
+type SequencedBatchElderberryData struct {
+	MaxSequenceTimestamp     uint64
+	InitSequencedBatchNumber uint64 // Last sequenced batch number
+}
+
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
 	BatchNumber   uint64
@@ -46,6 +52,8 @@ type SequencedBatch struct {
 	*oldpolygonzkevm.PolygonZkEVMBatchData
 	// Struct used in Etrog
 	*polygonzkevm.PolygonRollupBaseEtrogBatchData
+	// Struct used in Elderberry
+	*SequencedBatchElderberryData
 }
 
 // UpdateEtrogSequence represents the first etrog sequence

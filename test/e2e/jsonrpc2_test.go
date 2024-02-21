@@ -589,7 +589,10 @@ func TestEstimateGas(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
+	log.Info("TestEstimateGas-------------------------------------------------------")
 	setup()
+	defer opsMan.ShowDockerLogs()
 	defer teardown()
 
 	ctx := context.Background()
@@ -729,6 +732,7 @@ func TestEstimateGas(t *testing.T) {
 
 		for _, testCase := range testCases {
 			t.Run(testCase.name, func(t *testing.T) {
+				log.Info("TestEstimateGas------------------------------------------------------- subcase: ", testCase.name)
 				msg := ethereum.CallMsg{
 					To:   txToMsg.To(),
 					Data: txToMsg.Data(),
