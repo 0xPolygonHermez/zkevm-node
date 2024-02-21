@@ -19,10 +19,10 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/0xPolygon/cdk-validium-node.Version={{ .Version }}
-      - -X github.com/0xPolygon/cdk-validium-node.GitRev={{ .Commit }}
-      - -X github.com/0xPolygon/cdk-validium-node.BuildDate={{ .Date }}
-      - -X github.com/0xPolygon/cdk-validium-node.GitBranch={{ .Branch }}
+      - -X github.com/0xPolygon/{{ .ProjectName }}.Version={{ .Version }}
+      - -X github.com/0xPolygon/{{ .ProjectName }}.GitRev={{ .Commit }}
+      - -X github.com/0xPolygon/{{ .ProjectName }}.BuildDate={{ .Date }}
+      - -X github.com/0xPolygon/{{ .ProjectName }}.GitBranch={{ .Branch }}
 
 archives:
   - files:

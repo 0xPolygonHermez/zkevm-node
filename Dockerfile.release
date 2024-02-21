@@ -1,12 +1,12 @@
 FROM alpine:3.16.0
 
-EXPOSE 8444
+EXPOSE 8123
 
 COPY zkevm-node /usr/local/bin
 
 RUN addgroup -S zkevm-group \
     && adduser -S zkevm-user -G zkevm-group
 
-USER cdk-dac-user
+USER zkevm-user
 
 ENTRYPOINT ["zkevm-node"]
