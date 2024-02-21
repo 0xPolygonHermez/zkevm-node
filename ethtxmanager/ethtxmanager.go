@@ -280,7 +280,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	log.Infof("found %v monitored tx to process", len(mTxs))
 
-	nonceMap := newNonceStore()
+	nonceStore := newNonceStore()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(mTxs))
@@ -294,7 +294,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 				}
 				wg.Done()
 			}(mTx, mTxLogger)
-			c.monitorTx(ctx, mTx, mTxLogger, nonceMap)
+			c.monitorTx(ctx, mTx, mTxLogger, nonceStore)
 		}(c, mTx)
 	}
 	wg.Wait()
@@ -303,7 +303,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 }
 
 // monitorTx does all the monitoring steps to the monitored tx
-func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger, nonceMap *nonceStore) {
+func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger, nonceStore *nonceStore) {
 	var err error
 	logger.Info("processing")
 	// check if any of the txs in the history was confirmed
@@ -349,7 +349,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Log
 	// mined successfully, we need to review the nonce
 	if !confirmed {
 		logger.Infof("nonce needs to be updated")
-		err := c.reviewMonitoredTxNonce(ctx, &mTx, logger, nonceMap)
+		err := c.reviewMonitoredTxNonce(ctx, &mTx, logger, nonceStore)
 		if err != nil {
 			logger.Errorf("failed to review monitored tx nonce: %v", err)
 			return
@@ -583,7 +583,7 @@ func (c *Client) reviewMonitoredTx(ctx context.Context, mTx *monitoredTx, mTxLog
 // IMPORTANT: Nonce is reviewed apart from the other fields because it is a very
 // sensible information and can make duplicated data to be sent to the blockchain,
 // causing possible side effects and wasting resources.
-func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger, nonceMap *nonceStore) error {
+func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger, nonceStore *nonceStore) error {
 	mTxLogger.Debug("reviewing nonce")
 
 	var (
@@ -591,9 +591,9 @@ func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, m
 		err          error
 	)
 
-	currentNonce, hasNonce := nonceMap.get(mTx.from)
+	currentNonce, hasNonce := nonceStore.get(mTx.from)
 	if !hasNonce {
-		// nonce map does not have the nonce, get it from the blockchain
+		// nonce store does not have the nonce, get it from the blockchain
 		currentNonce, err = c.etherman.CurrentNonce(ctx, mTx.from)
 		if err != nil {
 			err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
@@ -608,9 +608,9 @@ func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, m
 		mTx.nonce = currentNonce
 	}
 
-	// update nonce map with the new nonce so that other txs for this account can use the map
+	// update nonce store with the new nonce so that other txs for this account can use the map
 	// instead of querying the blockchain again
-	nonceMap.set(mTx.from, currentNonce+1)
+	nonceStore.set(mTx.from, currentNonce+1)
 
 	return nil
 }
