@@ -2,9 +2,7 @@ package l2_shared
 
 /*
 This class is a implementation of SyncTrustedStateExecutor that selects the executor to use.
-It's ready to switch between pre-etrog and etrog as soon as the forkid 7 is activated.
-
-When ForkId7 is activated, the executor will be switched to etrog for forkid7 batches.
+It have a map with the forkID and the executor class to use, if none is available skip trusted sync returning a nil
 */
 
 import (
@@ -19,44 +17,44 @@ const etrogForkId = uint64(7)
 
 type stateSyncTrustedStateExecutorSelector interface {
 	GetForkIDInMemory(forkId uint64) *state.ForkIDInterval
+	GetForkIDByBatchNumber(batchNumber uint64) uint64
 }
 
 // SyncTrustedStateExecutorSelector Implements SyncTrustedStateExecutor
 type SyncTrustedStateExecutorSelector struct {
-	executorPreEtrog syncinterfaces.SyncTrustedStateExecutor
-	executorEtrog    syncinterfaces.SyncTrustedStateExecutor
-	state            stateSyncTrustedStateExecutorSelector
+	state          stateSyncTrustedStateExecutorSelector
+	supportedForks map[uint64]syncinterfaces.SyncTrustedStateExecutor
 }
 
 // NewSyncTrustedStateExecutorSelector creates a new SyncTrustedStateExecutorSelector that implements SyncTrustedStateExecutor
 func NewSyncTrustedStateExecutorSelector(
-	preEtrog syncinterfaces.SyncTrustedStateExecutor,
-	etrog syncinterfaces.SyncTrustedStateExecutor,
+	supportedForks map[uint64]syncinterfaces.SyncTrustedStateExecutor,
 	state stateSyncTrustedStateExecutorSelector) *SyncTrustedStateExecutorSelector {
 	return &SyncTrustedStateExecutorSelector{
-		executorPreEtrog: preEtrog,
-		executorEtrog:    etrog,
-		state:            state,
+		supportedForks: supportedForks,
+		state:          state,
 	}
 }
 
 // GetExecutor returns the executor that should be used for the given batch, could be nil
 // it returns the executor and the maximum batch number that the executor can process
 func (s *SyncTrustedStateExecutorSelector) GetExecutor(latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) (syncinterfaces.SyncTrustedStateExecutor, uint64) {
-	fork := s.state.GetForkIDInMemory(etrogForkId)
+	forkIDForNextBatch := s.state.GetForkIDByBatchNumber(latestSyncedBatch + 1)
+	executor, ok := s.supportedForks[forkIDForNextBatch]
+	if !ok {
+		log.Warnf("No supported sync from Trusted Node for  forkID %d", forkIDForNextBatch)
+		return nil, 0
+	}
+	fork := s.state.GetForkIDInMemory(forkIDForNextBatch)
 	if fork == nil {
-		log.Debugf("ForkId7 not activated yet, using pre-etrog executor")
-		return s.executorPreEtrog, maximumBatchNumberToProcess
+		log.Errorf("ForkID %d range not available! that is UB", forkIDForNextBatch)
+		return nil, 0
 	}
 
-	if latestSyncedBatch+1 >= fork.FromBatchNumber {
-		log.Debugf("ForkId7 activated, batch:%d -> etrog executor", latestSyncedBatch)
-		return s.executorEtrog, maximumBatchNumberToProcess
-	}
-	maxCapped := min(maximumBatchNumberToProcess, fork.FromBatchNumber-1)
-	log.Debugf("ForkId7 activated, batch:%d -> pre-etrog executor (maxBatch from:%d to %d)",
+	maxCapped := min(maximumBatchNumberToProcess, fork.ToBatchNumber)
+	log.Debugf("using ForkID %d, lastBatch:%d  (maxBatch original:%d  capped:%d)", forkIDForNextBatch,
 		latestSyncedBatch, maximumBatchNumberToProcess, maxCapped)
-	return s.executorPreEtrog, maxCapped
+	return executor, maxCapped
 }
 
 // SyncTrustedState syncs the trusted state with the permissionless state. In this case
@@ -64,7 +62,7 @@ func (s *SyncTrustedStateExecutorSelector) GetExecutor(latestSyncedBatch uint64,
 func (s *SyncTrustedStateExecutorSelector) SyncTrustedState(ctx context.Context, latestSyncedBatch uint64, maximumBatchNumberToProcess uint64) error {
 	executor, maxBatchNumber := s.GetExecutor(latestSyncedBatch, maximumBatchNumberToProcess)
 	if executor == nil {
-		log.Warnf("No executor selected, skipping SyncTrustedState: latestSyncedBatch:%d, maximumBatchNumberToProcess:%d",
+		log.Warnf("No executor available, skipping SyncTrustedState: latestSyncedBatch:%d, maximumBatchNumberToProcess:%d",
 			latestSyncedBatch, maximumBatchNumberToProcess)
 		return nil
 	}
@@ -73,16 +71,17 @@ func (s *SyncTrustedStateExecutorSelector) SyncTrustedState(ctx context.Context,
 
 // CleanTrustedState clean cache of Batches and StateRoot
 func (s *SyncTrustedStateExecutorSelector) CleanTrustedState() {
-	if s.executorPreEtrog != nil {
-		s.executorPreEtrog.CleanTrustedState()
+	for _, executor := range s.supportedForks {
+		executor.CleanTrustedState()
 	}
-	if s.executorEtrog != nil {
-		s.executorEtrog.CleanTrustedState()
-	}
+
 }
 
 // GetCachedBatch implements syncinterfaces.SyncTrustedStateExecutor. Returns a cached batch
 func (s *SyncTrustedStateExecutorSelector) GetCachedBatch(batchNumber uint64) *state.Batch {
 	executor, _ := s.GetExecutor(batchNumber, 0)
+	if executor == nil {
+		return nil
+	}
 	return executor.GetCachedBatch(min(batchNumber))
 }

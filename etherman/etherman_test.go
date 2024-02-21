@@ -123,9 +123,6 @@ func TestForcedBatchEvent(t *testing.T) {
 	assert.Equal(t, auth.From, blocks[0].ForcedBatches[0].Sequencer)
 }
 
-// TODO: Review tests with Joan
-
-/*
 func TestSequencedBatchesEvent(t *testing.T) {
 	// Set up testing environment
 	etherman, ethBackend, auth, _, br := newTestingEnv()
@@ -165,8 +162,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	}, polygonzkevm.PolygonRollupBaseEtrogBatchData{
 		Transactions: common.Hex2Bytes(rawTxs),
 	})
-	// TODO: Fix params
-	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, 0, 0, auth.From)
+	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, uint64(time.Now().Unix()), uint64(1), auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -205,7 +201,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		Transactions: common.Hex2Bytes(rawTxs),
 	}
 	//TODO: Fix params
-	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, 0, 0, auth.From)
+	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, uint64(time.Now().Unix()), uint64(1), auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -233,7 +229,6 @@ func TestVerifyBatchEvent(t *testing.T) {
 	assert.Equal(t, 0, order[blocks[1].BlockHash][0].Pos)
 	assert.Equal(t, 0, order[blocks[1].BlockHash][1].Pos)
 }
-*/
 
 func TestSequenceForceBatchesEvent(t *testing.T) {
 	// Set up testing environment
