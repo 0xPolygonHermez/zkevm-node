@@ -62,7 +62,7 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 // getTxNonce get the nonce for the given account
 func (c *Client) getTxNonce(ctx context.Context, from common.Address) (uint64, error) {
 	// Get created transactions from the database for the given account
-	createdTxs, err := c.storage.GetBySenderAndStatus(ctx, from.String(), []MonitoredTxStatus{MonitoredTxStatusCreated}, nil)
+	createdTxs, err := c.storage.GetBySenderAndStatus(ctx, from, []MonitoredTxStatus{MonitoredTxStatusCreated}, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get created monitored txs: %w", err)
 	}
@@ -594,7 +594,7 @@ func (c *Client) reviewMonitoredTx(ctx context.Context, mTx *monitoredTx, mTxLog
 // causing possible side effects and wasting resources.
 func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger) error {
 	mTxLogger.Debug("reviewing nonce")
-	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
+	nonce, err := c.getTxNonce(ctx, mTx.from)
 	if err != nil {
 		err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
 		mTxLogger.Errorf(err.Error())

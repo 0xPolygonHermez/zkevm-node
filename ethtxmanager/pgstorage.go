@@ -124,7 +124,7 @@ func (s *PostgresStorage) GetByStatus(ctx context.Context, owner *string, status
 }
 
 // GetBySenderAndStatus loads all monitored txs of the given sender that match the provided status
-func (s *PostgresStorage) GetBySenderAndStatus(ctx context.Context, sender string, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
+func (s *PostgresStorage) GetBySenderAndStatus(ctx context.Context, sender common.Address, statuses []MonitoredTxStatus, dbTx pgx.Tx) ([]monitoredTx, error) {
 	hasStatusToFilter := len(statuses) > 0
 
 	conn := s.dbConn(dbTx)
@@ -144,9 +144,9 @@ func (s *PostgresStorage) GetBySenderAndStatus(ctx context.Context, sender strin
 	var rows pgx.Rows
 	var err error
 	if hasStatusToFilter {
-		rows, err = conn.Query(ctx, cmd, sender, statuses)
+		rows, err = conn.Query(ctx, cmd, sender.String(), statuses)
 	} else {
-		rows, err = conn.Query(ctx, cmd, sender)
+		rows, err = conn.Query(ctx, cmd, sender.String())
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
