@@ -55,7 +55,7 @@ var (
 	mtDBServiceClient                  hashdb.HashDBServiceClient
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
-		ZKCounters: state.ZKCounters{
+		UsedZKCounters: state.ZKCounters{
 			KeccakHashes: 1,
 		},
 		Bytes: 1,

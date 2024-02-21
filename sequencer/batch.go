@@ -469,7 +469,7 @@ func (f *finalizer) maxTxsPerBatchReached(batch *Batch) bool {
 
 // isBatchResourcesMarginExhausted checks if one of resources of the batch has reached the exhausted margin and returns the name of the exhausted resource
 func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResources) (bool, string) {
-	zkCounters := resources.ZKCounters
+	zkCounters := resources.UsedZKCounters
 	result := false
 	resourceName := ""
 	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
@@ -517,16 +517,16 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 // getUsedBatchResources calculates and returns the used resources of a batch from remaining resources
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:          constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
-			KeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.KeccakHashes,
-			PoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.PoseidonHashes,
-			PoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.PoseidonPaddings,
-			MemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.MemAligns,
-			Arithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.Arithmetics,
-			Binaries:         constraints.MaxBinaries - remainingResources.ZKCounters.Binaries,
-			Steps:            constraints.MaxSteps - remainingResources.ZKCounters.Steps,
-			Sha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.Sha256Hashes_V2,
+		UsedZKCounters: state.ZKCounters{
+			GasUsed:          constraints.MaxCumulativeGasUsed - remainingResources.UsedZKCounters.GasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes - remainingResources.UsedZKCounters.KeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.UsedZKCounters.PoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.UsedZKCounters.PoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns - remainingResources.UsedZKCounters.MemAligns,
+			Arithmetics:      constraints.MaxArithmetics - remainingResources.UsedZKCounters.Arithmetics,
+			Binaries:         constraints.MaxBinaries - remainingResources.UsedZKCounters.Binaries,
+			Steps:            constraints.MaxSteps - remainingResources.UsedZKCounters.Steps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.UsedZKCounters.Sha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
@@ -535,7 +535,7 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 // getMaxRemainingResources returns the max resources that can be used in a batch
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
+		UsedZKCounters: state.ZKCounters{
 			GasUsed:          constraints.MaxCumulativeGasUsed,
 			KeccakHashes:     constraints.MaxKeccakHashes,
 			PoseidonHashes:   constraints.MaxPoseidonHashes,

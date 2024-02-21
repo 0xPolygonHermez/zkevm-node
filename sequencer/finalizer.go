@@ -374,11 +374,11 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		// Save values for later logging
 		tx.EGPLog.L1GasPrice = tx.L1GasPrice
 		tx.EGPLog.L2GasPrice = txL2GasPrice
-		tx.EGPLog.GasUsedFirst = tx.BatchResources.ZKCounters.GasUsed
+		tx.EGPLog.GasUsedFirst = tx.BatchResources.UsedZKCounters.GasUsed
 		tx.EGPLog.GasPrice.Set(txGasPrice)
 
 		// Calculate EffectiveGasPrice
-		egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.ZKCounters.GasUsed, tx.L1GasPrice, txL2GasPrice)
+		egp, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, tx.BatchResources.UsedZKCounters.GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if f.effectiveGasPrice.IsEnabled() {
 				return nil, false, err
@@ -531,7 +531,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 
 	// Check remaining resources
 
-	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
+	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{UsedZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
 	if overflow {
 		log.Infof("current tx %s exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing", tx.HashStr, overflowResource)
 		if !f.batchConstraints.IsWithinConstraints(result.UsedZkCounters) {

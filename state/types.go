@@ -226,8 +226,8 @@ func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
 
 // BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
 type BatchResources struct {
-	ZKCounters ZKCounters
-	Bytes      uint64
+	UsedZKCounters ZKCounters
+	Bytes          uint64
 }
 
 // Sub subtracts the batch resources from other. if there is a resource underflow it returns true and the name of the resource that caused the overflow
@@ -238,7 +238,7 @@ func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 	}
 	bytesBackup := r.Bytes
 	r.Bytes -= other.Bytes
-	exhausted, resourceName := r.ZKCounters.Sub(other.ZKCounters)
+	exhausted, resourceName := r.UsedZKCounters.Sub(other.UsedZKCounters)
 	if exhausted {
 		r.Bytes = bytesBackup
 		return exhausted, resourceName
@@ -250,7 +250,7 @@ func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 // SumUp sum ups the batch resources from other
 func (r *BatchResources) SumUp(other BatchResources) {
 	r.Bytes += other.Bytes
-	r.ZKCounters.SumUp(other.ZKCounters)
+	r.UsedZKCounters.SumUp(other.UsedZKCounters)
 }
 
 // InfoReadWrite has information about modified addresses during the execution

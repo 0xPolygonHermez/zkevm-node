@@ -195,8 +195,8 @@ func TestWorkerGetBestTx(t *testing.T) {
 	var nilErr error
 
 	rc := state.BatchResources{
-		ZKCounters: state.ZKCounters{GasUsed: 10, KeccakHashes: 10, PoseidonHashes: 10, PoseidonPaddings: 10, MemAligns: 10, Arithmetics: 10, Binaries: 10, Steps: 10, Sha256Hashes_V2: 10},
-		Bytes:      10,
+		UsedZKCounters: state.ZKCounters{GasUsed: 10, KeccakHashes: 10, PoseidonHashes: 10, PoseidonPaddings: 10, MemAligns: 10, Arithmetics: 10, Binaries: 10, Steps: 10, Sha256Hashes_V2: 10},
+		Bytes:          10,
 	}
 
 	stateMock := NewStateMock(t)

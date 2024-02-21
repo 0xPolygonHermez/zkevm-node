@@ -52,7 +52,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	}
 
 	// Make sure the transaction's batch resources are within the constraints.
-	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
+	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.UsedZKCounters) {
 		log.Errorf("outOfCounters error (node level) for tx %s", tx.Hash.String())
 		w.workerMutex.Unlock()
 		return nil, pool.ErrOutOfCounters
