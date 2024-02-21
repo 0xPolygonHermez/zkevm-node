@@ -361,9 +361,9 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 			w.txSortedList.delete(prevReadyTx)
 		}
 
-		/*if addrQueue.IsEmpty() {
+		if addrQueue.IsEmpty() {
 			delete(w.pool, addrQueue.fromStr)
-		}*/
+		}
 	}
 	log.Debugf("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
 

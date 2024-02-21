@@ -36,6 +36,39 @@ var (
 	ErrExecutionReverted = errors.New("execution reverted")
 )
 
+// nonceStore is a struct that represents a mapping of Ethereum addresses to nonces.
+type nonceStore struct {
+	m map[common.Address]uint64
+
+	lock sync.RWMutex
+}
+
+// newNonceStore creates a new instance of nonceStore.
+// It returns a pointer to the newly created nonceStore.
+func newNonceStore() *nonceStore {
+	return &nonceStore{
+		m: make(map[common.Address]uint64, 0),
+	}
+}
+
+// get retrieves the nonce value for the given address.
+// It returns the nonce value and a boolean indicating whether the nonce exists in the map.
+func (n *nonceStore) get(addr common.Address) (uint64, bool) {
+	n.lock.RLock()
+	nonce, hasNonce := n.m[addr]
+	n.lock.RUnlock()
+
+	return nonce, hasNonce
+}
+
+// set updates the nonce value for the given address in the nonceMap.
+// It acquires a lock to ensure thread safety and then updates the nonce value.
+func (n *nonceStore) set(addr common.Address, nonce uint64) {
+	n.lock.Lock()
+	n.m[addr] = nonce
+	n.lock.Unlock()
+}
+
 // Client for eth tx manager
 type Client struct {
 	ctx    context.Context
@@ -61,13 +94,6 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 
 // Add a transaction to be sent and monitored
 func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64, dbTx pgx.Tx) error {
-	// get next nonce
-	nonce, err := c.etherman.CurrentNonce(ctx, from)
-	if err != nil {
-		err := fmt.Errorf("failed to get current nonce: %w", err)
-		log.Errorf(err.Error())
-		return err
-	}
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
 	if err != nil {
@@ -91,7 +117,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// create monitored tx
 	mTx := monitoredTx{
 		owner: owner, id: id, from: from, to: to,
-		nonce: nonce, value: value, data: data,
+		value: value, data: data,
 		gas: gas, gasOffset: gasOffset, gasPrice: gasPrice,
 		status: MonitoredTxStatusCreated,
 	}
@@ -254,6 +280,8 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 
 	log.Infof("found %v monitored tx to process", len(mTxs))
 
+	nonceStore := newNonceStore()
+
 	wg := sync.WaitGroup{}
 	wg.Add(len(mTxs))
 	for _, mTx := range mTxs {
@@ -266,7 +294,7 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 				}
 				wg.Done()
 			}(mTx, mTxLogger)
-			c.monitorTx(ctx, mTx, mTxLogger)
+			c.monitorTx(ctx, mTx, mTxLogger, nonceStore)
 		}(c, mTx)
 	}
 	wg.Wait()
@@ -275,19 +303,13 @@ func (c *Client) monitorTxs(ctx context.Context) error {
 }
 
 // monitorTx does all the monitoring steps to the monitored tx
-func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger) {
+func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Logger, nonceStore *nonceStore) {
 	var err error
 	logger.Info("processing")
 	// check if any of the txs in the history was confirmed
 	var lastReceiptChecked types.Receipt
 	// monitored tx is confirmed until we find a successful receipt
 	confirmed := false
-	// monitored tx doesn't have a failed receipt until we find a failed receipt for any
-	// tx in the monitored tx history
-	hasFailedReceipts := false
-	// all history txs are considered mined until we can't find a receipt for any
-	// tx in the monitored tx history
-	allHistoryTxsWereMined := true
 	for txHash := range mTx.history {
 		mined, receipt, err := c.etherman.CheckTxWasMined(ctx, txHash)
 		if err != nil {
@@ -297,7 +319,6 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Log
 
 		// if the tx is not mined yet, check that not all the tx were mined and go to the next
 		if !mined {
-			allHistoryTxsWereMined = false
 			continue
 		}
 
@@ -313,7 +334,6 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Log
 		// and set that we have found a failed receipt. This info will be used later
 		// to check if nonce needs to be reviewed
 		confirmed = false
-		hasFailedReceipts = true
 	}
 
 	// we need to check if we need to review the nonce carefully, to avoid sending
@@ -327,9 +347,9 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Log
 	//
 	// in case of the monitored tx is not confirmed yet, all tx were mined and none of them were
 	// mined successfully, we need to review the nonce
-	if !confirmed && hasFailedReceipts && allHistoryTxsWereMined {
+	if !confirmed {
 		logger.Infof("nonce needs to be updated")
-		err := c.reviewMonitoredTxNonce(ctx, &mTx, logger)
+		err := c.reviewMonitoredTxNonce(ctx, &mTx, logger, nonceStore)
 		if err != nil {
 			logger.Errorf("failed to review monitored tx nonce: %v", err)
 			return
@@ -563,19 +583,34 @@ func (c *Client) reviewMonitoredTx(ctx context.Context, mTx *monitoredTx, mTxLog
 // IMPORTANT: Nonce is reviewed apart from the other fields because it is a very
 // sensible information and can make duplicated data to be sent to the blockchain,
 // causing possible side effects and wasting resources.
-func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger) error {
+func (c *Client) reviewMonitoredTxNonce(ctx context.Context, mTx *monitoredTx, mTxLogger *log.Logger, nonceStore *nonceStore) error {
 	mTxLogger.Debug("reviewing nonce")
-	nonce, err := c.etherman.CurrentNonce(ctx, mTx.from)
-	if err != nil {
-		err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
-		mTxLogger.Errorf(err.Error())
-		return err
+
+	var (
+		currentNonce uint64
+		err          error
+	)
+
+	currentNonce, hasNonce := nonceStore.get(mTx.from)
+	if !hasNonce {
+		// nonce store does not have the nonce, get it from the blockchain
+		currentNonce, err = c.etherman.CurrentNonce(ctx, mTx.from)
+		if err != nil {
+			err := fmt.Errorf("failed to load current nonce for acc %v: %w", mTx.from.String(), err)
+			mTxLogger.Errorf(err.Error())
+
+			return err
+		}
 	}
 
-	if nonce > mTx.nonce {
-		mTxLogger.Infof("monitored tx nonce updated from %v to %v", mTx.nonce, nonce)
-		mTx.nonce = nonce
+	if currentNonce > mTx.nonce {
+		mTxLogger.Infof("monitored tx nonce updated from %v to %v", mTx.nonce, currentNonce)
+		mTx.nonce = currentNonce
 	}
+
+	// update nonce store with the new nonce so that other txs for this account can use the map
+	// instead of querying the blockchain again
+	nonceStore.set(mTx.from, currentNonce+1)
 
 	return nil
 }
