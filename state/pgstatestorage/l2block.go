@@ -100,9 +100,7 @@ func (p *PostgresStorage) GetLastL2BlockByBatchNumber(ctx context.Context, batch
 	q := p.getExecQuerier(dbTx)
 	row := q.QueryRow(ctx, query, batchNumber)
 	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
-	if errors.Is(err, state.ErrNotFound) {
-		return nil, state.ErrStateNotSynchronized
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
