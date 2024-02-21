@@ -311,6 +311,14 @@ var (
 	ErrExecutorErrorInvalidL1InfoTreeIndex = errors.New("invalid l1_info_tree_index")
 	// ErrExecutorErrorInvalidL1InfoTreeSmtProofValue indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
 	ErrExecutorErrorInvalidL1InfoTreeSmtProofValue = errors.New("invalid l1_info_tree_smt_proof_value")
+	// ErrExecutorErrorInvalidWitness indicates that the input parameter witness is invalid
+	ErrExecutorErrorInvalidWitness = errors.New("invalid witness")
+	// ErrExecutorErrorInvalidCBOR indicates that the input parameter cbor is invalid
+	ErrExecutorErrorInvalidCBOR = errors.New("invalid cbor")
+	// ErrExecutorErrorInvalidDataStream indicates that the input parameter data stream is invalid
+	ErrExecutorErrorInvalidDataStream = errors.New("invalid data stream")
+	// ErrExecutorErrorInvalidUpdateMerkleTree indicates that the input parameter update merkle tree is invalid
+	ErrExecutorErrorInvalidUpdateMerkleTree = errors.New("invalid update merkle tree")
 
 	// GRPC ERRORS
 	// ===========

@@ -443,6 +443,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		f.Halt(ctx, err, false)
 	} else if err != nil {
 		log.Errorf("error received from executor, error: %v", err)
+
 		// Delete tx from the worker
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
 
@@ -578,9 +579,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
 	f.wipL2Block.addTx(tx)
-
 	f.wipBatch.countOfTxs++
-
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
 
 	return nil, nil
