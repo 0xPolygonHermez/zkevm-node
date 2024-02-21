@@ -214,34 +214,36 @@ func (s *ClientSynchronizer) Sync() error {
 				return fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
 			}
 
-			// // Sync events from RollupManager that happen before rollup creation
-			// log.Info("synchronizing events from RollupManager that happen before rollup creation")
-			// for i := s.genesis.RollupManagerBlockNumber; true; i += s.cfg.SyncChunkSize {
-			// 	toBlock := min(i+s.cfg.SyncChunkSize, s.genesis.RollupBlockNumber-1)
-			// 	blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, i, &toBlock)
-			// 	if err != nil {
-			// 		log.Error("error getting rollupInfoByBlockRange before rollup genesis: ", err)
-			// 		rollbackErr := dbTx.Rollback(s.ctx)
-			// 		if rollbackErr != nil {
-			// 			log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-			// 			return rollbackErr
-			// 		}
-			// 		return err
-			// 	}
-			// 	err = s.ProcessBlockRange(blocks, order)
-			// 	if err != nil {
-			// 		log.Error("error processing blocks before the genesis: ", err)
-			// 		rollbackErr := dbTx.Rollback(s.ctx)
-			// 		if rollbackErr != nil {
-			// 			log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-			// 			return rollbackErr
-			// 		}
-			// 		return err
-			// 	}
-			// 	if toBlock == s.genesis.RollupBlockNumber-1 {
-			// 		break
-			// 	}
-			// }
+			// Sync events from RollupManager that happen before rollup creation
+			log.Info("synchronizing events from RollupManager that happen before rollup creation")
+			for i := s.genesis.RollupManagerBlockNumber; true; i += s.cfg.SyncChunkSize {
+				toBlock := min(i+s.cfg.SyncChunkSize-1, s.genesis.RollupBlockNumber-1)
+				log.Debugf("FITERACO from: %d, to: %d", i, toBlock)
+				blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, i, &toBlock)
+				if err != nil {
+					log.Error("error getting rollupInfoByBlockRange before rollup genesis: ", err)
+					rollbackErr := dbTx.Rollback(s.ctx)
+					if rollbackErr != nil {
+						log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+						return rollbackErr
+					}
+					return err
+				}
+				err = s.ProcessBlockRange(blocks, order)
+				if err != nil {
+					log.Error("error processing blocks before the genesis: ", err)
+					rollbackErr := dbTx.Rollback(s.ctx)
+					if rollbackErr != nil {
+						log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+						return rollbackErr
+					}
+					return err
+				}
+				if toBlock == s.genesis.RollupBlockNumber-1 {
+					break
+				}
+			}
+
 			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genesis.RollupBlockNumber))
 			if err != nil {
 				log.Errorf("error getting l1 block header for block %d. Error: %v", s.genesis.RollupBlockNumber, err)

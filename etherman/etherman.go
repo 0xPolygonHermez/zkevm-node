@@ -344,6 +344,11 @@ func (etherMan *Client) GetForks(ctx context.Context, genBlockNumber uint64, las
 	log.Debug("Getting forkIDs from blockNumber: ", genBlockNumber)
 	start := time.Now()
 	var logs []types.Log
+
+	if lastL1BlockSynced < genBlockNumber {
+		lastL1BlockSynced = genBlockNumber
+	}
+
 	log.Debug("Using ForkIDChunkSize: ", etherMan.cfg.ForkIDChunkSize)
 	for i := genBlockNumber; i <= lastL1BlockSynced; i = i + etherMan.cfg.ForkIDChunkSize + 1 {
 		final := i + etherMan.cfg.ForkIDChunkSize
