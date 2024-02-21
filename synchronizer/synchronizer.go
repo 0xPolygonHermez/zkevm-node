@@ -114,7 +114,11 @@ func NewSynchronizer(
 	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
 		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
 
-	res.syncTrustedStateExecutor = syncTrustedStateEtrog
+	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
+		uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
+		uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
+	}, res.state)
+
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -383,6 +387,8 @@ func (s *ClientSynchronizer) Sync() error {
 							}
 						} else if errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
 							log.Info("Syncing from trusted node need data from L1")
+						} else if errors.Is(err, syncinterfaces.ErrCantSyncFromL2) {
+							log.Info("Can't sync from L2, going to sync from L1")
 						} else {
 							// We break for resync from Trusted
 							log.Debug("Sleeping for 1 second to avoid respawn too fast, error: ", err)
