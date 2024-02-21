@@ -202,13 +202,13 @@ func TestAddAndGetBySenderAndStatus(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mTxs, err := storage.GetBySenderAndStatus(context.Background(), from.String(), []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
+	mTxs, err := storage.GetBySenderAndStatus(context.Background(), from, []MonitoredTxStatus{MonitoredTxStatusConfirmed}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(mTxs))
 	assert.Equal(t, "confirmed1", mTxs[0].id)
 	assert.Equal(t, "confirmed2", mTxs[1].id)
 
-	mTxs, err = storage.GetBySenderAndStatus(context.Background(), from.String(), []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
+	mTxs, err = storage.GetBySenderAndStatus(context.Background(), from, []MonitoredTxStatus{MonitoredTxStatusSent, MonitoredTxStatusCreated}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 4, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
@@ -216,7 +216,7 @@ func TestAddAndGetBySenderAndStatus(t *testing.T) {
 	assert.Equal(t, "created2", mTxs[2].id)
 	assert.Equal(t, "sent2", mTxs[3].id)
 
-	mTxs, err = storage.GetBySenderAndStatus(context.Background(), from.String(), []MonitoredTxStatus{}, nil)
+	mTxs, err = storage.GetBySenderAndStatus(context.Background(), from, []MonitoredTxStatus{}, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 8, len(mTxs))
 	assert.Equal(t, "created1", mTxs[0].id)
