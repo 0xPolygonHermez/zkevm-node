@@ -593,7 +593,7 @@ func TestExecutionReverted(t *testing.T) {
 
 	currentNonce = uint64(2)
 	etherman.
-		On("PendingNonce", ctx, from).
+		On("CurrentNonce", ctx, from).
 		Return(currentNonce, nil).
 		Once()
 	secondGasEstimation := uint64(2)
