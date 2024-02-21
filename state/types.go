@@ -44,11 +44,12 @@ type L1DataV2 struct {
 
 // ProcessBatchResponse represents the response of a batch process.
 type ProcessBatchResponse struct {
-	NewStateRoot     common.Hash
-	NewAccInputHash  common.Hash
-	NewLocalExitRoot common.Hash
-	NewBatchNumber   uint64
-	UsedZkCounters   ZKCounters
+	NewStateRoot       common.Hash
+	NewAccInputHash    common.Hash
+	NewLocalExitRoot   common.Hash
+	NewBatchNumber     uint64
+	UsedZkCounters     ZKCounters
+	ReservedZkCounters ZKCounters
 	// TransactionResponses_V1 []*ProcessTransactionResponse
 	BlockResponses       []*ProcessBlockResponse
 	ExecutorError        error
@@ -117,12 +118,14 @@ type ProcessTransactionResponse struct {
 	FullTrace instrumentation.FullTrace
 	// EffectiveGasPrice effective gas price used for the tx
 	EffectiveGasPrice string
-	//EffectivePercentage effective percentage used for the tx
+	// EffectivePercentage effective percentage used for the tx
 	EffectivePercentage uint32
-	//HasGaspriceOpcode flag to indicate if opcode 'GASPRICE' has been called
+	// HasGaspriceOpcode flag to indicate if opcode 'GASPRICE' has been called
 	HasGaspriceOpcode bool
-	//HasBalanceOpcode flag to indicate if opcode 'BALANCE' has been called
+	// HasBalanceOpcode flag to indicate if opcode 'BALANCE' has been called
 	HasBalanceOpcode bool
+	// Status of the transaction, 1 = success, 0 = failure
+	Status uint32
 }
 
 // EffectiveGasPriceLog contains all the data needed to calculate the effective gas price for logging purposes
