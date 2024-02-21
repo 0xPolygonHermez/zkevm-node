@@ -47,7 +47,7 @@ func TestTxGetMined(t *testing.T) {
 
 	currentNonce := uint64(1)
 	etherman.
-		On("CurrentNonce", ctx, from).
+		On("PendingNonce", ctx, from).
 		Return(currentNonce, nil).
 		Once()
 
