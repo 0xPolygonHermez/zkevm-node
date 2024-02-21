@@ -147,6 +147,7 @@ type ethereumClient interface {
 	ethereum.LogFilterer
 	ethereum.TransactionReader
 	ethereum.TransactionSender
+	ethereum.PendingStateReader
 
 	bind.DeployBackend
 }
@@ -1684,6 +1685,11 @@ func (etherMan *Client) GetL1GasPrice(ctx context.Context) *big.Int {
 // SendTx sends a tx to L1
 func (etherMan *Client) SendTx(ctx context.Context, tx *types.Transaction) error {
 	return etherMan.EthClient.SendTransaction(ctx, tx)
+}
+
+// PendingNonce returns the pending nonce for the provided account
+func (etherMan *Client) PendingNonce(ctx context.Context, account common.Address) (uint64, error) {
+	return etherMan.EthClient.PendingNonceAt(ctx, account)
 }
 
 // CurrentNonce returns the current nonce for the provided account

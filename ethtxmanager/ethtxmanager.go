@@ -92,8 +92,44 @@ func New(cfg Config, ethMan ethermanInterface, storage storageInterface, state s
 	return c
 }
 
+// getTxNonce get the nonce for the given account
+func (c *Client) getTxNonce(ctx context.Context, from common.Address) (uint64, error) {
+	// Get created transactions from the database for the given account
+	createdTxs, err := c.storage.GetBySenderAndStatus(ctx, from.String(), []MonitoredTxStatus{MonitoredTxStatusCreated}, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get created monitored txs: %w", err)
+	}
+
+	var nonce uint64
+	if len(createdTxs) > 0 {
+		// if there are pending txs, we adjust the nonce accordingly
+		for _, createdTx := range createdTxs {
+			if createdTx.nonce > nonce {
+				nonce = createdTx.nonce
+			}
+		}
+
+		nonce++
+	} else {
+		// if there are no pending txs, we get the pending nonce from the etherman
+		if nonce, err = c.etherman.PendingNonce(ctx, from); err != nil {
+			return 0, fmt.Errorf("failed to get pending nonce: %w", err)
+		}
+	}
+
+	return nonce, nil
+}
+
 // Add a transaction to be sent and monitored
 func (c *Client) Add(ctx context.Context, owner, id string, from common.Address, to *common.Address, value *big.Int, data []byte, gasOffset uint64, dbTx pgx.Tx) error {
+	// get nonce
+	nonce, err := c.getTxNonce(ctx, from)
+	if err != nil {
+		err := fmt.Errorf("failed to get nonce: %w", err)
+		log.Errorf(err.Error())
+		return err
+	}
+
 	// get gas
 	gas, err := c.etherman.EstimateGas(ctx, from, to, value, data)
 	if err != nil {
@@ -117,7 +153,7 @@ func (c *Client) Add(ctx context.Context, owner, id string, from common.Address,
 	// create monitored tx
 	mTx := monitoredTx{
 		owner: owner, id: id, from: from, to: to,
-		value: value, data: data,
+		nonce: nonce, value: value, data: data,
 		gas: gas, gasOffset: gasOffset, gasPrice: gasPrice,
 		status: MonitoredTxStatusCreated,
 	}
