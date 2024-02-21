@@ -93,6 +93,28 @@ func (p *PostgresStorage) GetL2BlocksByBatchNumber(ctx context.Context, batchNum
 	return l2Blocks, nil
 }
 
+// GetLastL2BlockByBatchNumber gets the last l2 block in a batch by batch number
+func (p *PostgresStorage) GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error) {
+	const query = "SELECT block_hash, header, uncles, received_at FROM state.l2block b WHERE batch_num = $1 ORDER BY b.block_num DESC LIMIT 1"
+
+	q := p.getExecQuerier(dbTx)
+	row := q.QueryRow(ctx, query, batchNumber)
+	header, uncles, receivedAt, err := p.scanL2BlockInfo(ctx, row, dbTx)
+	if err != nil {
+		return nil, err
+	}
+
+	transactions, err := p.GetTxsByBlockNumber(ctx, header.Number.Uint64(), dbTx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		transactions = []*types.Transaction{}
+	} else if err != nil {
+		return nil, err
+	}
+
+	block := buildBlock(header, transactions, uncles, receivedAt)
+	return block, nil
+}
+
 func (p *PostgresStorage) scanL2BlockInfo(ctx context.Context, rows pgx.Row, dbTx pgx.Tx) (header *state.L2Header, uncles []*state.L2Header, receivedAt time.Time, err error) {
 	header = &state.L2Header{}
 	uncles = []*state.L2Header{}
