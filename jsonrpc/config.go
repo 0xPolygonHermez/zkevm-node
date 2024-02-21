@@ -1,8 +1,9 @@
 package jsonrpc
 
 import (
-	"github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/0xPolygonHermez/zkevm-node/config/types"
 )
 
 // Config represents the configuration of the json rpc
@@ -89,6 +90,9 @@ type Config struct {
 
 	// RateLimit enable rate limit
 	RateLimit RateLimitConfig `mapstructure:"RateLimit"`
+
+	// DynamicGP defines the config of dynamic gas price
+	DynamicGP DynamicGPConfig `mapstructure:"DynamicGP"`
 }
 
 // RateLimitConfig has parameters to config the rate limit
