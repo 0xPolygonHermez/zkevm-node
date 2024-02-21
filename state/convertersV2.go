@@ -289,28 +289,28 @@ func convertToInstrumentationContractV2(response *executor.ContractV2) instrumen
 
 func convertToUsedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 	return ZKCounters{
-		GasUsed:              resp.GasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-		UsedSha256Hashes_V2:  resp.CntSha256Hashes,
+		GasUsed:          resp.GasUsed,
+		KeccakHashes:     resp.CntKeccakHashes,
+		PoseidonHashes:   resp.CntPoseidonHashes,
+		PoseidonPaddings: resp.CntPoseidonPaddings,
+		MemAligns:        resp.CntMemAligns,
+		Arithmetics:      resp.CntArithmetics,
+		Binaries:         resp.CntBinaries,
+		Steps:            resp.CntSteps,
+		Sha256Hashes_V2:  resp.CntSha256Hashes,
 	}
 }
 
 func convertToReservedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 	return ZKCounters{
-		UsedKeccakHashes:     resp.CntReserveKeccakHashes,
-		UsedPoseidonHashes:   resp.CntReservePoseidonHashes,
-		UsedPoseidonPaddings: resp.CntReservePoseidonPaddings,
-		UsedMemAligns:        resp.CntReserveMemAligns,
-		UsedArithmetics:      resp.CntReserveArithmetics,
-		UsedBinaries:         resp.CntReserveBinaries,
-		UsedSteps:            resp.CntReserveSteps,
-		UsedSha256Hashes_V2:  resp.CntReserveSha256Hashes,
+		KeccakHashes:     resp.CntReserveKeccakHashes,
+		PoseidonHashes:   resp.CntReservePoseidonHashes,
+		PoseidonPaddings: resp.CntReservePoseidonPaddings,
+		MemAligns:        resp.CntReserveMemAligns,
+		Arithmetics:      resp.CntReserveArithmetics,
+		Binaries:         resp.CntReserveBinaries,
+		Steps:            resp.CntReserveSteps,
+		Sha256Hashes_V2:  resp.CntReserveSha256Hashes,
 	}
 }
 

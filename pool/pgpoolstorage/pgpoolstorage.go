@@ -116,14 +116,14 @@ func (p *PostgresPoolStorage) AddTx(ctx context.Context, tx pool.Transaction) er
 		gasPrice,
 		nonce,
 		tx.GasUsed,
-		tx.UsedKeccakHashes,
-		tx.UsedPoseidonHashes,
-		tx.UsedPoseidonPaddings,
-		tx.UsedMemAligns,
-		tx.UsedArithmetics,
-		tx.UsedBinaries,
-		tx.UsedSteps,
-		tx.UsedSha256Hashes_V2,
+		tx.KeccakHashes,
+		tx.PoseidonHashes,
+		tx.PoseidonPaddings,
+		tx.MemAligns,
+		tx.Arithmetics,
+		tx.Binaries,
+		tx.Steps,
+		tx.Sha256Hashes_V2,
 		tx.ReceivedAt,
 		fromAddress,
 		tx.IsWIP,
@@ -333,15 +333,15 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		tx.Status = pool.TxStatus(status)
 		tx.ReceivedAt = receivedAt
 		tx.ZKCounters = state.ZKCounters{
-			GasUsed:              cumulativeGasUsed,
-			UsedKeccakHashes:     usedKeccakHashes,
-			UsedPoseidonHashes:   usedPoseidonHashes,
-			UsedPoseidonPaddings: usedPoseidonPaddings,
-			UsedMemAligns:        usedMemAligns,
-			UsedArithmetics:      usedArithmetics,
-			UsedBinaries:         usedBinaries,
-			UsedSteps:            usedSteps,
-			UsedSha256Hashes_V2:  usedSHA256Hashes,
+			GasUsed:          cumulativeGasUsed,
+			KeccakHashes:     usedKeccakHashes,
+			PoseidonHashes:   usedPoseidonHashes,
+			PoseidonPaddings: usedPoseidonPaddings,
+			MemAligns:        usedMemAligns,
+			Arithmetics:      usedArithmetics,
+			Binaries:         usedBinaries,
+			Steps:            usedSteps,
+			Sha256Hashes_V2:  usedSHA256Hashes,
 		}
 		tx.IsWIP = isWIP
 		tx.IP = ip
@@ -705,14 +705,14 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.IsWIP = isWIP
 	tx.IP = ip
 	tx.ZKCounters.GasUsed = cumulativeGasUsed
-	tx.ZKCounters.UsedKeccakHashes = usedKeccakHashes
-	tx.ZKCounters.UsedPoseidonHashes = usedPoseidonHashes
-	tx.ZKCounters.UsedPoseidonPaddings = usedPoseidonPaddings
-	tx.ZKCounters.UsedMemAligns = usedMemAligns
-	tx.ZKCounters.UsedArithmetics = usedArithmetics
-	tx.ZKCounters.UsedBinaries = usedBinaries
-	tx.ZKCounters.UsedSteps = usedSteps
-	tx.ZKCounters.UsedSha256Hashes_V2 = usedSHA256Hashes
+	tx.ZKCounters.KeccakHashes = usedKeccakHashes
+	tx.ZKCounters.PoseidonHashes = usedPoseidonHashes
+	tx.ZKCounters.PoseidonPaddings = usedPoseidonPaddings
+	tx.ZKCounters.MemAligns = usedMemAligns
+	tx.ZKCounters.Arithmetics = usedArithmetics
+	tx.ZKCounters.Binaries = usedBinaries
+	tx.ZKCounters.Steps = usedSteps
+	tx.ZKCounters.Sha256Hashes_V2 = usedSHA256Hashes
 	tx.FailedReason = failedReason
 
 	return tx, nil
@@ -733,9 +733,9 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 
 	sql := `SELECT cumulative_gas_used, used_keccak_hashes, used_poseidon_hashes, used_poseidon_paddings, used_mem_aligns,
 			used_arithmetics, used_binaries, used_steps, used_sha256_hashes FROM pool.transaction WHERE hash = $1`
-	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.GasUsed, &zkCounters.UsedKeccakHashes,
-		&zkCounters.UsedPoseidonHashes, &zkCounters.UsedPoseidonPaddings,
-		&zkCounters.UsedMemAligns, &zkCounters.UsedArithmetics, &zkCounters.UsedBinaries, &zkCounters.UsedSteps, &zkCounters.UsedSha256Hashes_V2)
+	err := p.db.QueryRow(ctx, sql, hash.String()).Scan(&zkCounters.GasUsed, &zkCounters.KeccakHashes,
+		&zkCounters.PoseidonHashes, &zkCounters.PoseidonPaddings,
+		&zkCounters.MemAligns, &zkCounters.Arithmetics, &zkCounters.Binaries, &zkCounters.Steps, &zkCounters.Sha256Hashes_V2)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, pool.ErrNotFound
 	} else if err != nil {

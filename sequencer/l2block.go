@@ -507,7 +507,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	// Save and sustract the resources used by the new WIP L2 block from the wip batch
 	// We need to increase the poseidon hashes to reserve in the batch the hashes needed to write the L1InfoRoot when processing the final L2 Block (SkipWriteBlockInfoRoot_V2=false)
 	f.wipL2Block.usedResources.ZKCounters = batchResponse.UsedZkCounters
-	f.wipL2Block.usedResources.ZKCounters.UsedPoseidonHashes = (batchResponse.UsedZkCounters.UsedPoseidonHashes * 2) + 2 // nolint:gomnd
+	f.wipL2Block.usedResources.ZKCounters.PoseidonHashes = (batchResponse.UsedZkCounters.PoseidonHashes * 2) + 2 // nolint:gomnd
 	f.wipL2Block.usedResources.Bytes = changeL2BlockSize
 
 	overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(f.wipL2Block.usedResources)

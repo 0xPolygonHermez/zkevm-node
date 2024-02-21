@@ -156,28 +156,28 @@ type StoreTxEGPData struct {
 
 // ZKCounters counters for the tx
 type ZKCounters struct {
-	GasUsed              uint64
-	UsedKeccakHashes     uint32
-	UsedPoseidonHashes   uint32
-	UsedPoseidonPaddings uint32
-	UsedMemAligns        uint32
-	UsedArithmetics      uint32
-	UsedBinaries         uint32
-	UsedSteps            uint32
-	UsedSha256Hashes_V2  uint32
+	GasUsed          uint64
+	KeccakHashes     uint32
+	PoseidonHashes   uint32
+	PoseidonPaddings uint32
+	MemAligns        uint32
+	Arithmetics      uint32
+	Binaries         uint32
+	Steps            uint32
+	Sha256Hashes_V2  uint32
 }
 
 // SumUp sum ups zk counters with passed tx zk counters
 func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.GasUsed += other.GasUsed
-	z.UsedKeccakHashes += other.UsedKeccakHashes
-	z.UsedPoseidonHashes += other.UsedPoseidonHashes
-	z.UsedPoseidonPaddings += other.UsedPoseidonPaddings
-	z.UsedMemAligns += other.UsedMemAligns
-	z.UsedArithmetics += other.UsedArithmetics
-	z.UsedBinaries += other.UsedBinaries
-	z.UsedSteps += other.UsedSteps
-	z.UsedSha256Hashes_V2 += other.UsedSha256Hashes_V2
+	z.KeccakHashes += other.KeccakHashes
+	z.PoseidonHashes += other.PoseidonHashes
+	z.PoseidonPaddings += other.PoseidonPaddings
+	z.MemAligns += other.MemAligns
+	z.Arithmetics += other.Arithmetics
+	z.Binaries += other.Binaries
+	z.Steps += other.Steps
+	z.Sha256Hashes_V2 += other.Sha256Hashes_V2
 }
 
 // Sub subtract zk counters with passed zk counters (not safe). if there is a counter underflow it returns true and the name of the counter that caused the overflow
@@ -186,40 +186,40 @@ func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
 	if other.GasUsed > z.GasUsed {
 		return true, "CumulativeGas"
 	}
-	if other.UsedKeccakHashes > z.UsedKeccakHashes {
+	if other.KeccakHashes > z.KeccakHashes {
 		return true, "KeccakHashes"
 	}
-	if other.UsedPoseidonHashes > z.UsedPoseidonHashes {
+	if other.PoseidonHashes > z.PoseidonHashes {
 		return true, "PoseidonHashes"
 	}
-	if other.UsedPoseidonPaddings > z.UsedPoseidonPaddings {
+	if other.PoseidonPaddings > z.PoseidonPaddings {
 		return true, "PoseidonPaddings"
 	}
-	if other.UsedMemAligns > z.UsedMemAligns {
+	if other.MemAligns > z.MemAligns {
 		return true, "UsedMemAligns"
 	}
-	if other.UsedArithmetics > z.UsedArithmetics {
+	if other.Arithmetics > z.Arithmetics {
 		return true, "UsedArithmetics"
 	}
-	if other.UsedBinaries > z.UsedBinaries {
+	if other.Binaries > z.Binaries {
 		return true, "UsedBinaries"
 	}
-	if other.UsedSteps > z.UsedSteps {
+	if other.Steps > z.Steps {
 		return true, "UsedSteps"
 	}
-	if other.UsedSha256Hashes_V2 > z.UsedSha256Hashes_V2 {
+	if other.Sha256Hashes_V2 > z.Sha256Hashes_V2 {
 		return true, "UsedSha256Hashes_V2"
 	}
 
 	z.GasUsed -= other.GasUsed
-	z.UsedKeccakHashes -= other.UsedKeccakHashes
-	z.UsedPoseidonHashes -= other.UsedPoseidonHashes
-	z.UsedPoseidonPaddings -= other.UsedPoseidonPaddings
-	z.UsedMemAligns -= other.UsedMemAligns
-	z.UsedArithmetics -= other.UsedArithmetics
-	z.UsedBinaries -= other.UsedBinaries
-	z.UsedSteps -= other.UsedSteps
-	z.UsedSha256Hashes_V2 -= other.UsedSha256Hashes_V2
+	z.KeccakHashes -= other.KeccakHashes
+	z.PoseidonHashes -= other.PoseidonHashes
+	z.PoseidonPaddings -= other.PoseidonPaddings
+	z.MemAligns -= other.MemAligns
+	z.Arithmetics -= other.Arithmetics
+	z.Binaries -= other.Binaries
+	z.Steps -= other.Steps
+	z.Sha256Hashes_V2 -= other.Sha256Hashes_V2
 
 	return false, ""
 }

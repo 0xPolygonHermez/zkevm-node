@@ -749,8 +749,8 @@ func (f *finalizer) checkIfProverRestarted(proverID string) {
 // logZKCounters returns a string with all the zkCounters values
 func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
 	return fmt.Sprintf("{gasUsed: %d, keccakHashes: %d, poseidonHashes: %d, poseidonPaddings: %d, memAligns: %d, arithmetics: %d, binaries: %d, sha256Hashes: %d, steps: %d}",
-		counters.GasUsed, counters.UsedKeccakHashes, counters.UsedPoseidonHashes, counters.UsedPoseidonPaddings, counters.UsedMemAligns, counters.UsedArithmetics,
-		counters.UsedBinaries, counters.UsedSha256Hashes_V2, counters.UsedSteps)
+		counters.GasUsed, counters.KeccakHashes, counters.PoseidonHashes, counters.PoseidonPaddings, counters.MemAligns, counters.Arithmetics,
+		counters.Binaries, counters.Sha256Hashes_V2, counters.Steps)
 }
 
 // Halt halts the finalizer
