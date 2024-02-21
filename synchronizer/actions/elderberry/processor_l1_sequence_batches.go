@@ -27,7 +27,7 @@ type PreviousProcessor interface {
 // StateL1SequenceBatchesElderberry state interface
 type StateL1SequenceBatchesElderberry interface {
 	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
-	GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error)
+	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error)
 }
 
 // ProcessorL1SequenceBatchesElderberry is the processor for SequenceBatches for Elderberry
@@ -108,16 +108,15 @@ func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckTstampLastL2Block(time
 		log.Errorf("Error getting last virtual batch number: %s", err)
 		return err
 	}
-	l2blocks, err := g.state.GetL2BlocksByBatchNumber(context.Background(), lastVirtualBatchNum, dbTx)
+	lastL2Block, err := g.state.GetLastL2BlockByBatchNumber(context.Background(), lastVirtualBatchNum, dbTx)
 	if err != nil {
 		log.Errorf("Error getting last virtual batch number: %s", err)
 		return err
 	}
-	if len(l2blocks) == 0 {
+	if lastL2Block == nil {
 		//TODO: find the previous batch until we find a L2 block to check the timestamp
 		return nil
 	}
-	lastL2Block := l2blocks[len(l2blocks)-1]
 	if uint64(lastL2Block.ReceivedAt.Unix()) > timeLimit {
 		log.Errorf("The last L2 block timestamp can't be greater than timeLimit. Expected: %d (L1 event), got: %d (last L2Block)", timeLimit, lastL2Block.ReceivedAt.Unix())
 		return fmt.Errorf("wrong timestamp of  last L2 block timestamp with L1 event timestamp")
