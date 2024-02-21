@@ -13,8 +13,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 )
 
-const etrogForkId = uint64(7)
-
 type stateSyncTrustedStateExecutorSelector interface {
 	GetForkIDInMemory(forkId uint64) *state.ForkIDInterval
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
@@ -74,7 +72,6 @@ func (s *SyncTrustedStateExecutorSelector) CleanTrustedState() {
 	for _, executor := range s.supportedForks {
 		executor.CleanTrustedState()
 	}
-
 }
 
 // GetCachedBatch implements syncinterfaces.SyncTrustedStateExecutor. Returns a cached batch
