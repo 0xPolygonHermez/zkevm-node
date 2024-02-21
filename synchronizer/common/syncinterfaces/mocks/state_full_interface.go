@@ -1216,6 +1216,66 @@ func (_c *StateFullInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn
 	return _c
 }
 
+// GetL2BlocksByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateFullInterface) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2BlocksByBatchNumber")
+	}
+
+	var r0 []state.L2Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]state.L2Block, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []state.L2Block); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]state.L2Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StateFullInterface_GetL2BlocksByBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL2BlocksByBatchNumber'
+type StateFullInterface_GetL2BlocksByBatchNumber_Call struct {
+	*mock.Call
+}
+
+// GetL2BlocksByBatchNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StateFullInterface_Expecter) GetL2BlocksByBatchNumber(ctx interface{}, batchNumber interface{}, dbTx interface{}) *StateFullInterface_GetL2BlocksByBatchNumber_Call {
+	return &StateFullInterface_GetL2BlocksByBatchNumber_Call{Call: _e.mock.On("GetL2BlocksByBatchNumber", ctx, batchNumber, dbTx)}
+}
+
+func (_c *StateFullInterface_GetL2BlocksByBatchNumber_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *StateFullInterface_GetL2BlocksByBatchNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StateFullInterface_GetL2BlocksByBatchNumber_Call) Return(_a0 []state.L2Block, _a1 error) *StateFullInterface_GetL2BlocksByBatchNumber_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StateFullInterface_GetL2BlocksByBatchNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) ([]state.L2Block, error)) *StateFullInterface_GetL2BlocksByBatchNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateFullInterface) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
