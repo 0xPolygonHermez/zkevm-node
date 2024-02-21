@@ -62,7 +62,7 @@ func (s *SyncTrustedStateExecutorSelector) SyncTrustedState(ctx context.Context,
 	if executor == nil {
 		log.Warnf("No executor available, skipping SyncTrustedState: latestSyncedBatch:%d, maximumBatchNumberToProcess:%d",
 			latestSyncedBatch, maximumBatchNumberToProcess)
-		return nil
+		return syncinterfaces.ErrCantSyncFromL2
 	}
 	return executor.SyncTrustedState(ctx, latestSyncedBatch, maxBatchNumber)
 }

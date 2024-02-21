@@ -1,6 +1,7 @@
 package test_l2_shared
 
 import (
+	"context"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -75,4 +76,24 @@ func TestExecutorSelectorEtrogBatchForkId7(t *testing.T) {
 	executor, maxBatch := sut.GetExecutor(100, 200)
 	require.Equal(t, mockIncaberry, executor)
 	require.Equal(t, uint64(200), maxBatch)
+}
+
+func TestUnsupportedForkId(t *testing.T) {
+	mockIncaberry := mock_syncinterfaces.NewSyncTrustedStateExecutor(t)
+	mock1Etrog := mock_syncinterfaces.NewSyncTrustedStateExecutor(t)
+	mockState := mock_syncinterfaces.NewStateFullInterface(t)
+
+	mockState.EXPECT().GetForkIDByBatchNumber(uint64(100 + 1)).Return(uint64(8))
+
+	sut := l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
+		uint64(6): mockIncaberry,
+		uint64(7): mock1Etrog,
+	}, mockState)
+
+	executor, _ := sut.GetExecutor(100, 200)
+	require.Equal(t, nil, executor)
+
+	err := sut.SyncTrustedState(context.Background(), 100, 200)
+	require.ErrorIs(t, err, syncinterfaces.ErrCantSyncFromL2)
+
 }
