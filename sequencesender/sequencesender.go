@@ -142,21 +142,20 @@ func (s *SequenceSender) tryToSendSequence(ctx context.Context) {
 	// Get last batch in the sequence
 	lastSequenceBatchNum := sequences[sequenceCount-1].BatchNumber
 
-	// Get L2 blocks for the last batch
-	lastBatchL2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, lastSequenceBatchNum, nil)
+	// Get last l2 block header in the batch
+	lastL2Block, err := s.state.GetLastL2BlockByBatchNumber(ctx, lastSequenceBatchNum, nil)
 	if err != nil {
 		log.Errorf("failed to get L2 blocks for batch %d, err: %v", lastSequenceBatchNum, err)
 		return
 	}
 
 	// Check there are L2 blocks for the last batch
-	if len(lastBatchL2Blocks) == 0 {
-		log.Errorf("no L2 blocks returned from the state for batch %d", lastSequenceBatchNum)
+	if lastL2Block == nil {
+		log.Errorf("no last L2 block returned from the state for batch %d", lastSequenceBatchNum)
 		return
 	}
 
 	// Get timestamp of the last L2 block in the sequence
-	lastL2Block := lastBatchL2Blocks[len(lastBatchL2Blocks)-1]
 	lastL2BlockTimestamp := uint64(lastL2Block.ReceivedAt.Unix())
 
 	timeMargin := int64(s.cfg.L1BlockTimestampMargin.Seconds())
@@ -292,16 +291,15 @@ func (s *SequenceSender) getSequencesToSend(ctx context.Context) ([]types.Sequen
 			seq.LastL2BLockTimestamp = seq.ForcedBatchTimestamp
 		} else {
 			// Set sequence timestamps as the latest l2 block timestamp
-			l2Blocks, err := s.state.GetL2BlocksByBatchNumber(ctx, currentBatchNumToSequence, nil)
+			lastL2Block, err := s.state.GetLastL2BlockByBatchNumber(ctx, currentBatchNumToSequence, nil)
 			if err != nil {
 				return nil, err
 			}
-			if len(l2Blocks) == 0 {
-				return nil, fmt.Errorf("no L2 blocks returned from the state for batch %d", currentBatchNumToSequence)
+			if lastL2Block == nil {
+				return nil, fmt.Errorf("no last L2 block returned from the state for batch %d", currentBatchNumToSequence)
 			}
 
 			// Get timestamp of the last L2 block in the sequence
-			lastL2Block := l2Blocks[len(l2Blocks)-1]
 			seq.LastL2BLockTimestamp = lastL2Block.ReceivedAt.Unix()
 		}
 
