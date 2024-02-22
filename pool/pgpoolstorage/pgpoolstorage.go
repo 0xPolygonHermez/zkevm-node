@@ -352,7 +352,7 @@ func (p *PostgresPoolStorage) GetTxs(ctx context.Context, filterStatus pool.TxSt
 		}
 		tx.IsWIP = isWIP
 		tx.IP = ip
-		tx.ReservedZKCounters = reservedZKCounters
+		tx.ReservedZKCounters = checkReservedZKCounters(tx.ZKCounters, reservedZKCounters)
 		txs = append(txs, tx)
 	}
 
@@ -723,9 +723,19 @@ func scanTx(rows pgx.Rows) (*pool.Transaction, error) {
 	tx.ZKCounters.Steps = usedSteps
 	tx.ZKCounters.Sha256Hashes_V2 = usedSHA256Hashes
 	tx.FailedReason = failedReason
-	tx.ReservedZKCounters = reservedZKCounters
+	tx.ReservedZKCounters = checkReservedZKCounters(tx.ZKCounters, reservedZKCounters)
 
 	return tx, nil
+}
+
+func checkReservedZKCounters(usedZKCounters, reservedZKCounters state.ZKCounters) state.ZKCounters {
+	if reservedZKCounters.GasUsed == 0 && reservedZKCounters.KeccakHashes == 0 && reservedZKCounters.PoseidonHashes == 0 &&
+		reservedZKCounters.PoseidonPaddings == 0 && reservedZKCounters.MemAligns == 0 && reservedZKCounters.Arithmetics == 0 &&
+		reservedZKCounters.Binaries == 0 && reservedZKCounters.Steps == 0 && reservedZKCounters.Sha256Hashes_V2 == 0 {
+		reservedZKCounters = usedZKCounters
+	}
+
+	return reservedZKCounters
 }
 
 // DeleteTransactionByHash deletes tx by its hash
@@ -753,6 +763,7 @@ func (p *PostgresPoolStorage) GetTxZkCountersByHash(ctx context.Context, hash co
 		return nil, nil, err
 	}
 
+	reservedZKCounters = checkReservedZKCounters(usedZKCounters, reservedZKCounters)
 	return &usedZKCounters, &reservedZKCounters, nil
 }
 
