@@ -40,14 +40,16 @@ const (
 )
 
 type egpConfig struct {
-	ByteGasCost               uint64  // gas cost of 1 byte
-	ZeroGasCost               uint64  // gas cost of 1 byte zero
-	NetProfitFactor           float64 // L2 network profit factor
-	L1GasPriceFactor          float64 // L1 gas price factor
-	L2GasPriceSugFactor       float64 // L2 gas price suggester factor
-	FinalDeviationPct         uint64  // max final deviation percentage
-	MinGasPriceAllowed        uint64  // min gas price allowed
-	L2GasPriceSugFactorPreEGP float64 // L2 gas price suggester factor (pre EGP)
+	ByteGasCost                 uint64  // gas cost of 1 byte
+	ZeroGasCost                 uint64  // gas cost of 1 byte zero
+	NetProfitFactor             float64 // L2 network profit factor
+	L1GasPriceFactor            float64 // L1 gas price factor
+	L2GasPriceSugFactor         float64 // L2 gas price suggester factor
+	FinalDeviationPct           uint64  // max final deviation percentage
+	MinGasPriceAllowed          uint64  // min gas price allowed
+	L2GasPriceSugFactorPreEGP   float64 // L2 gas price suggester factor (pre EGP)
+	EthTransferGasPrice         uint64  // Gas price value for transfer (gas == 21000)
+	EthTransferL1GasPriceFactor float64 // Gas price for transfer (used if EthTransferGasPrice = 0)
 }
 
 type egpLogRecord struct {
@@ -164,14 +166,16 @@ func main() {
 // defaultConfig parses the default configuration values
 func defaultConfig() (*egpConfig, error) {
 	cfg := egpConfig{
-		ByteGasCost:               16,         // nolint:gomnd
-		ZeroGasCost:               4,          // nolint:gomnd
-		NetProfitFactor:           1.0,        // nolint:gomnd
-		L1GasPriceFactor:          0.25,       // nolint:gomnd
-		L2GasPriceSugFactor:       0.5,        // nolint:gomnd
-		FinalDeviationPct:         10,         // nolint:gomnd
-		MinGasPriceAllowed:        1000000000, // nolint:gomnd
-		L2GasPriceSugFactorPreEGP: 0.1,        // nolint:gomnd
+		ByteGasCost:                 16,         // nolint:gomnd
+		ZeroGasCost:                 4,          // nolint:gomnd
+		NetProfitFactor:             1.0,        // nolint:gomnd
+		L1GasPriceFactor:            0.25,       // nolint:gomnd
+		L2GasPriceSugFactor:         0.5,        // nolint:gomnd
+		FinalDeviationPct:           10,         // nolint:gomnd
+		MinGasPriceAllowed:          1000000000, // nolint:gomnd
+		L2GasPriceSugFactorPreEGP:   0.1,        // nolint:gomnd
+		EthTransferGasPrice:         0,          // nolint:gomnd
+		EthTransferL1GasPriceFactor: 0.10,       // nolint:gomnd
 	}
 
 	viper.SetConfigType("toml")
@@ -360,8 +364,9 @@ func runStats(ctx *cli.Context) error {
 	if egpCfg != nil {
 		logf("\nEGP SIMULATION STATS:")
 		printStats(&simulateStats)
-		logf("PARAMS: byte[%d] zero[%d] netFactor[%.2f] L1factor[%.2f] L2sugFactor[%.2f] devPct[%d] minGas[%d] L2sugPreEGP[%.2f]", egpCfg.ByteGasCost,
-			egpCfg.ZeroGasCost, egpCfg.NetProfitFactor, egpCfg.L1GasPriceFactor, egpCfg.L2GasPriceSugFactor, egpCfg.FinalDeviationPct, egpCfg.MinGasPriceAllowed, egpCfg.L2GasPriceSugFactorPreEGP)
+		logf("PARAMS: byte[%d] zero[%d] netFactor[%.4f] L1factor[%.4f] L2sugFactor[%.4f] devPct[%d] minGas[%d] L2sugPreEGP[%.4f] EthTrsfPrice[%d] EthTrsfL1Fact[%.4f]", egpCfg.ByteGasCost,
+			egpCfg.ZeroGasCost, egpCfg.NetProfitFactor, egpCfg.L1GasPriceFactor, egpCfg.L2GasPriceSugFactor, egpCfg.FinalDeviationPct, egpCfg.MinGasPriceAllowed, egpCfg.L2GasPriceSugFactorPreEGP,
+			egpCfg.EthTransferGasPrice, egpCfg.EthTransferL1GasPriceFactor)
 	}
 
 	return nil
@@ -630,11 +635,26 @@ func roundEffectiveGasPrice(gasPrice float64, pct uint64) float64 {
 
 // calcEffectiveGasPrice calculates the effective gas price
 func calcEffectiveGasPrice(gasUsed float64, tx *egpLogRecord, cfg *egpConfig) (float64, error) {
+	const ethTransferGas = 21000
+
 	// Calculate break even gas price
 	var breakEvenGasPrice float64
 	if gasUsed == 0 {
 		breakEvenGasPrice = tx.LogGasPrice
 	} else {
+		// Check if it is a transfer
+		if gasUsed == ethTransferGas {
+			if cfg.EthTransferGasPrice != 0 {
+				return float64(cfg.EthTransferGasPrice), nil
+			} else if cfg.EthTransferL1GasPriceFactor != 0 {
+				effectiveGasPrice := tx.LogL1GasPrice * cfg.EthTransferL1GasPriceFactor
+				if effectiveGasPrice == 0 {
+					effectiveGasPrice = 1
+				}
+				return effectiveGasPrice, nil
+			}
+		}
+
 		// Decode tx
 		rawBytes, err := decodeTx(tx)
 		if err != nil {
