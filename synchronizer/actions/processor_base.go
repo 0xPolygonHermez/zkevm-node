@@ -13,13 +13,6 @@ type ProcessorBase[T any] struct {
 	SupportedForkdIds *[]ForkIdType
 }
 
-var (
-	// ForksIdToIncaberry support all forkIds till incaberry
-	ForksIdToIncaberry = []ForkIdType{1, 2, 3, 4, 5, 6}
-	// ForksIdAll support all forkIds
-	ForksIdAll = []ForkIdType{WildcardForkId}
-)
-
 // Name returns the name of the struct T
 func (g *ProcessorBase[T]) Name() string {
 	var value T
