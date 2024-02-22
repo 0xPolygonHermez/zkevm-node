@@ -303,6 +303,8 @@ func convertToUsedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters
 
 func convertToReservedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 	return ZKCounters{
+		// There is no "ReserveGasUsed" in the response, so we use "GasUsed" as it will make calculations easier
+		GasUsed:          resp.GasUsed,
 		KeccakHashes:     resp.CntReserveKeccakHashes,
 		PoseidonHashes:   resp.CntReservePoseidonHashes,
 		PoseidonPaddings: resp.CntReservePoseidonPaddings,
