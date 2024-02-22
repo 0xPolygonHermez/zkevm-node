@@ -33,7 +33,7 @@ type storage interface {
 	GetTxFromAddressFromByHash(ctx context.Context, hash common.Hash) (common.Address, uint64, error)
 	GetTransactionByHash(ctx context.Context, hash common.Hash) (*Transaction, error)
 	GetTransactionByL2Hash(ctx context.Context, hash common.Hash) (*Transaction, error)
-	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
+	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, *state.ZKCounters, error)
 	DeleteTransactionByHash(ctx context.Context, hash common.Hash) error
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetAllAddressesBlocked(ctx context.Context) ([]common.Address, error)
