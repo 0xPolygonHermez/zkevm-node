@@ -529,7 +529,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	fits, overflowResource := f.wipBatch.imRemainingResources.Fits(state.BatchResources{ZKCounters: result.ReservedZkCounters, Bytes: uint64(len(tx.RawTx))})
 	if fits {
 		// Sustract the used resources from the batch
-		subOverflow, overflowResource = f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.ReservedZkCounters, Bytes: uint64(len(tx.RawTx))})
+		subOverflow, overflowResource = f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
 		if subOverflow { // Sanity check, this cannot happen as reservedZKCounters should be >= that usedZKCounters
 			log.Infof("current tx %s used resources exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing. Batch counters: %s, tx used counters: %s",
 				tx.HashStr, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(result.UsedZkCounters))
@@ -538,9 +538,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		log.Infof("current tx %s reserved resources exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing. Batch counters: %s, tx reserved counters: %s",
 			tx.HashStr, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(result.ReservedZkCounters))
 		if !f.batchConstraints.IsWithinConstraints(result.ReservedZkCounters) {
-			log.Warnf("current tx %s exceeds the max limit for batch resources (node OOC), setting tx as invalid in the pool", tx.HashStr)
+			log.Warnf("current tx %s reserved resources exceeds the max limit for batch resources (node OOC), setting tx as invalid in the pool", tx.HashStr)
 
-			f.AddEvent(ctx, event.Level_Error, event.EventID_NodeOOC,
+			f.LogEvent(ctx, event.Level_Error, event.EventID_NodeOOC,
 				fmt.Sprintf("tx: %s exceeds node max limit batch resources (node OOC), from: %s, IP: %s", tx.HashStr, tx.FromStr, tx.IP), nil)
 
 			// Delete the transaction from the txSorted list
@@ -575,7 +575,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		tx.EGPLog.GasPrice, tx.EGPLog.L1GasPrice, tx.EGPLog.L2GasPrice, tx.EGPLog.Reprocess, tx.EGPLog.GasPriceOC, tx.EGPLog.BalanceOC, egpEnabled, len(tx.RawTx), tx.HashStr, tx.EGPLog.Error)
 
 	f.wipL2Block.addTx(tx)
+
 	f.wipBatch.countOfTxs++
+
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
 
 	return nil, nil
@@ -722,7 +724,7 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 // checkIfProverRestarted checks if the proverID changed
 func (f *finalizer) checkIfProverRestarted(proverID string) {
 	if f.proverID != "" && f.proverID != proverID {
-		f.AddEvent(context.Background(), event.Level_Critical, event.EventID_FinalizerRestart,
+		f.LogEvent(context.Background(), event.Level_Critical, event.EventID_FinalizerRestart,
 			fmt.Sprintf("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor", f.proverID, proverID), nil)
 
 		log.Fatal("proverID changed from %s to %s, restarting sequencer to discard current WIP batch and work with new executor")
@@ -740,7 +742,7 @@ func (f *finalizer) logZKCounters(counters state.ZKCounters) string {
 func (f *finalizer) Halt(ctx context.Context, err error, isFatal bool) {
 	f.haltFinalizer.Store(true)
 
-	f.AddEvent(ctx, event.Level_Critical, event.EventID_FinalizerHalt, fmt.Sprintf("finalizer halted due to error, error: %s", err), nil)
+	f.LogEvent(ctx, event.Level_Critical, event.EventID_FinalizerHalt, fmt.Sprintf("finalizer halted due to error, error: %s", err), nil)
 
 	if isFatal {
 		log.Fatalf("fatal error on finalizer, error: %v", err)
@@ -752,7 +754,8 @@ func (f *finalizer) Halt(ctx context.Context, err error, isFatal bool) {
 	}
 }
 
-func (f *finalizer) AddEvent(ctx context.Context, level event.Level, eventId event.EventID, description string, json interface{}) {
+// LogEvent adds an event for runtime debugging
+func (f *finalizer) LogEvent(ctx context.Context, level event.Level, eventId event.EventID, description string, json interface{}) {
 	event := &event.Event{
 		ReceivedAt:  time.Now(),
 		Source:      event.Source_Node,
@@ -768,6 +771,6 @@ func (f *finalizer) AddEvent(ctx context.Context, level event.Level, eventId eve
 
 	eventErr := f.eventLog.LogEvent(ctx, event)
 	if eventErr != nil {
-		log.Errorf("error storing finalizer halt event, error: %v", eventErr)
+		log.Errorf("error storing log event, error: %v", eventErr)
 	}
 }

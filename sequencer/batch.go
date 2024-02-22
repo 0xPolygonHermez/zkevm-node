@@ -424,7 +424,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		if err != nil {
 			log.Errorf("error marshaling payload, error: %v", err)
 		} else {
-			f.AddEvent(ctx, event.Level_Critical, event.EventID_ReprocessFullBatchOOC, string(payload), batchRequest)
+			f.LogEvent(ctx, event.Level_Critical, event.EventID_ReprocessFullBatchOOC, string(payload), batchRequest)
 		}
 
 		return nil, ErrProcessBatchOOC
