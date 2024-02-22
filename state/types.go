@@ -262,7 +262,7 @@ type BatchResources struct {
 	Bytes      uint64
 }
 
-// Fits check if the other batch resources fits in the batch resources. If there is a resource underflow it returns false and the name of the resource that caused the overflow
+// Fits check if the other batch resources fit in the batch resources. If there is a resource underflow it returns false and the name of the resource that caused the overflow
 func (r *BatchResources) Fits(other BatchResources) (bool, string) {
 	if other.Bytes > r.Bytes {
 		return false, "Bytes"
@@ -270,7 +270,7 @@ func (r *BatchResources) Fits(other BatchResources) (bool, string) {
 	return r.ZKCounters.Fits(other.ZKCounters)
 }
 
-// Sub subtracts the batch resources from other. If there is a resource overflow it returns true and the name of the resource that caused the overflow
+// Sub subtracts the batch resources from "other". If there is a resource overflow it returns true and the name of the resource that caused the overflow
 func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 	if other.Bytes > r.Bytes {
 		return true, "Bytes"

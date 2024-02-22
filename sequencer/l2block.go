@@ -506,7 +506,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	f.wipL2Block.imStateRoot = batchResponse.NewStateRoot
 	f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 
-	// Save the resources used/reserved and sustract the ZKCounters reserved by the new WIP L2 block from the wip batch
+	// Save the resources used/reserved and subtract the ZKCounters reserved by the new WIP L2 block from the wip batch
 	// We need to increase the poseidon hashes to reserve in the batch the hashes needed to write the L1InfoRoot when processing the final L2 Block (SkipWriteBlockInfoRoot_V2=false)
 	f.wipL2Block.usedZKCounters = batchResponse.UsedZkCounters
 	f.wipL2Block.usedZKCounters.PoseidonHashes = (batchResponse.UsedZkCounters.PoseidonHashes * 2) + 2 // nolint:gomnd
@@ -527,7 +527,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 			f.wipL2Block.trackingNum, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters))
 	}
 
-	// If reserved WIP L2 block resources doesn't fits in the remaining batch resources (or we got an overflow when trying to sustract the used resources)
+	// If reserved WIP L2 block resources don't fit in the remaining batch resources (or we got an overflow when trying to subtract the used resources)
 	// we close the WIP batch and we create a new one
 	if !fits || subOverflow {
 		err := f.closeAndOpenNewWIPBatch(ctx, state.ResourceExhaustedClosingReason)

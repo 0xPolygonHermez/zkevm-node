@@ -560,7 +560,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		}
 	}
 
-	// If reserved tx resources doesn't fits in the remaining batch resources (or we got an overflow when trying to sustract the used resources)
+	// If reserved tx resources don't fit in the remaining batch resources (or we got an overflow when trying to subtract the used resources)
 	// we update the ZKCounters of the tx and returns ErrBatchResourceOverFlow error
 	if !fits || subOverflow {
 		start := time.Now()
