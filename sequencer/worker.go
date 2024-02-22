@@ -199,6 +199,8 @@ func (w *Worker) DeleteTx(txHash common.Hash, addr common.Address) {
 		if deletedReadyTx != nil {
 			log.Debugf("tx %s deleted from TxSortedList", deletedReadyTx.Hash.String())
 			w.txSortedList.delete(deletedReadyTx)
+		} else {
+			log.Warnf("tx %s not found in TxSortedList", txHash.String())
 		}
 	} else {
 		log.Warnf("addrQueue %s not found", addr.String())
@@ -339,6 +341,8 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, e
 
 	if foundAt != -1 {
 		log.Debugf("best fitting tx %s found at index %d with gasPrice %d", tx.HashStr, foundAt, tx.GasPrice)
+		addressQueue := w.pool[tx.FromStr]
+		addressQueue.executingNonce = tx.Nonce
 		return tx, nil
 	} else {
 		return nil, ErrNoFittingTransaction
