@@ -747,9 +747,10 @@ type ZKCountersResponse struct {
 // NewZKCountersResponse creates an instance of ZKCounters to be returned
 // by the RPC to the caller
 func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo, oocErr error) ZKCountersResponse {
-	var oocErrMsg string
+	var oocErrMsg *string
 	if oocErr != nil {
-		oocErrMsg = oocErr.Error()
+		s := oocErr.Error()
+		oocErrMsg = &s
 	}
 	return ZKCountersResponse{
 		CountersUsed: ZKCounters{
@@ -765,6 +766,6 @@ func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits,
 		},
 		CountersLimits: limits,
 		Revert:         revert,
-		OOCError:       &oocErrMsg,
+		OOCError:       oocErrMsg,
 	}
 }
