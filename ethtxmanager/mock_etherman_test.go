@@ -208,6 +208,34 @@ func (_m *ethermanMock) GetTxReceipt(ctx context.Context, txHash common.Hash) (*
 	return r0, r1
 }
 
+// PendingNonce provides a mock function with given fields: ctx, account
+func (_m *ethermanMock) PendingNonce(ctx context.Context, account common.Address) (uint64, error) {
+	ret := _m.Called(ctx, account)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PendingNonce")
+	}
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address) (uint64, error)); ok {
+		return rf(ctx, account)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Address) uint64); ok {
+		r0 = rf(ctx, account)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Address) error); ok {
+		r1 = rf(ctx, account)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // SendTx provides a mock function with given fields: ctx, tx
 func (_m *ethermanMock) SendTx(ctx context.Context, tx *types.Transaction) error {
 	ret := _m.Called(ctx, tx)
