@@ -1077,8 +1077,8 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		BlockResponses: []*state.ProcessBlockResponse{blockResponse},
 	}
 	remainingResources := state.BatchResources{
-		ZKCounters: state.ZKCounters{GasUsed: 9000},
-		Bytes:      10000,
+		UsedZKCounters: state.ZKCounters{GasUsed: 9000},
+		Bytes:          10000,
 	}
 	f.wipBatch.imRemainingResources = remainingResources
 	testCases := []struct {
@@ -1109,7 +1109,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 		{
 			name: "ZkCounter Resource Exceeded",
 			remaining: state.BatchResources{
-				ZKCounters: state.ZKCounters{GasUsed: 0},
+				UsedZKCounters: state.ZKCounters{GasUsed: 0},
 			},
 			overflow:             true,
 			overflowResource:     "CumulativeGas",
@@ -1128,7 +1128,7 @@ func TestFinalizer_checkRemainingResources(t *testing.T) {
 			}
 
 			// act
-			overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tc.expectedTxTracker.RawTx))})
+			overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{UsedZKCounters: result.UsedZkCounters, Bytes: uint64(len(tc.expectedTxTracker.RawTx))})
 
 			// assert
 			assert.Equal(t, tc.overflow, overflow)
@@ -1906,7 +1906,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxCumulativeGasUsed",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1
+				resources.UsedZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1914,7 +1914,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxCumulativeGasUsed",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) + 1
+				resources.UsedZKCounters.GasUsed = f.getConstraintThresholdUint64(bc.MaxCumulativeGasUsed) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -1922,7 +1922,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxSteps",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedSteps = f.getConstraintThresholdUint32(bc.MaxSteps) - 1
+				resources.UsedZKCounters.Steps = f.getConstraintThresholdUint32(bc.MaxSteps) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1930,7 +1930,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxSteps",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedSteps = f.getConstraintThresholdUint32(bc.MaxSteps) + 1
+				resources.UsedZKCounters.Steps = f.getConstraintThresholdUint32(bc.MaxSteps) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -1938,7 +1938,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxPoseidonPaddings",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedPoseidonPaddings = f.getConstraintThresholdUint32(bc.MaxPoseidonPaddings) - 1
+				resources.UsedZKCounters.PoseidonPaddings = f.getConstraintThresholdUint32(bc.MaxPoseidonPaddings) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1946,7 +1946,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxPoseidonPaddings",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedPoseidonPaddings = f.getConstraintThresholdUint32(bc.MaxPoseidonPaddings) + 1
+				resources.UsedZKCounters.PoseidonPaddings = f.getConstraintThresholdUint32(bc.MaxPoseidonPaddings) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -1954,7 +1954,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxBinaries",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedBinaries = f.getConstraintThresholdUint32(bc.MaxBinaries) - 1
+				resources.UsedZKCounters.Binaries = f.getConstraintThresholdUint32(bc.MaxBinaries) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1962,7 +1962,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxBinaries",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedBinaries = f.getConstraintThresholdUint32(bc.MaxBinaries) + 1
+				resources.UsedZKCounters.Binaries = f.getConstraintThresholdUint32(bc.MaxBinaries) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -1970,7 +1970,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxKeccakHashes",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedKeccakHashes = f.getConstraintThresholdUint32(bc.MaxKeccakHashes) - 1
+				resources.UsedZKCounters.KeccakHashes = f.getConstraintThresholdUint32(bc.MaxKeccakHashes) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1978,7 +1978,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxKeccakHashes",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedKeccakHashes = f.getConstraintThresholdUint32(bc.MaxKeccakHashes) + 1
+				resources.UsedZKCounters.KeccakHashes = f.getConstraintThresholdUint32(bc.MaxKeccakHashes) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -1986,7 +1986,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxArithmetics",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedArithmetics = f.getConstraintThresholdUint32(bc.MaxArithmetics) - 1
+				resources.UsedZKCounters.Arithmetics = f.getConstraintThresholdUint32(bc.MaxArithmetics) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -1994,7 +1994,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxArithmetics",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedArithmetics = f.getConstraintThresholdUint32(bc.MaxArithmetics) + 1
+				resources.UsedZKCounters.Arithmetics = f.getConstraintThresholdUint32(bc.MaxArithmetics) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -2002,7 +2002,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxMemAligns",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedMemAligns = f.getConstraintThresholdUint32(bc.MaxMemAligns) - 1
+				resources.UsedZKCounters.MemAligns = f.getConstraintThresholdUint32(bc.MaxMemAligns) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -2010,7 +2010,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxMemAligns",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedMemAligns = f.getConstraintThresholdUint32(bc.MaxMemAligns) + 1
+				resources.UsedZKCounters.MemAligns = f.getConstraintThresholdUint32(bc.MaxMemAligns) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -2018,7 +2018,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is ready - MaxSHA256Hashes",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedSha256Hashes_V2 = f.getConstraintThresholdUint32(bc.MaxSHA256Hashes) - 1
+				resources.UsedZKCounters.Sha256Hashes_V2 = f.getConstraintThresholdUint32(bc.MaxSHA256Hashes) - 1
 				return resources
 			},
 			expectedResult: true,
@@ -2026,7 +2026,7 @@ func TestFinalizer_isBatchAlmostFull(t *testing.T) {
 		{
 			name: "Is NOT ready - MaxSHA256Hashes",
 			modifyResourceFunc: func(resources state.BatchResources) state.BatchResources {
-				resources.ZKCounters.UsedSha256Hashes_V2 = f.getConstraintThresholdUint32(bc.MaxSHA256Hashes) + 1
+				resources.UsedZKCounters.Sha256Hashes_V2 = f.getConstraintThresholdUint32(bc.MaxSHA256Hashes) + 1
 				return resources
 			},
 			expectedResult: false,
@@ -2101,15 +2101,15 @@ func TestFinalizer_getRemainingResources(t *testing.T) {
 	remainingResources := getMaxRemainingResources(bc)
 
 	// assert
-	assert.Equal(t, remainingResources.ZKCounters.GasUsed, bc.MaxCumulativeGasUsed)
-	assert.Equal(t, remainingResources.ZKCounters.UsedKeccakHashes, bc.MaxKeccakHashes)
-	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonHashes, bc.MaxPoseidonHashes)
-	assert.Equal(t, remainingResources.ZKCounters.UsedPoseidonPaddings, bc.MaxPoseidonPaddings)
-	assert.Equal(t, remainingResources.ZKCounters.UsedMemAligns, bc.MaxMemAligns)
-	assert.Equal(t, remainingResources.ZKCounters.UsedArithmetics, bc.MaxArithmetics)
-	assert.Equal(t, remainingResources.ZKCounters.UsedBinaries, bc.MaxBinaries)
-	assert.Equal(t, remainingResources.ZKCounters.UsedSteps, bc.MaxSteps)
-	assert.Equal(t, remainingResources.ZKCounters.UsedSha256Hashes_V2, bc.MaxSHA256Hashes)
+	assert.Equal(t, remainingResources.UsedZKCounters.GasUsed, bc.MaxCumulativeGasUsed)
+	assert.Equal(t, remainingResources.UsedZKCounters.KeccakHashes, bc.MaxKeccakHashes)
+	assert.Equal(t, remainingResources.UsedZKCounters.PoseidonHashes, bc.MaxPoseidonHashes)
+	assert.Equal(t, remainingResources.UsedZKCounters.PoseidonPaddings, bc.MaxPoseidonPaddings)
+	assert.Equal(t, remainingResources.UsedZKCounters.MemAligns, bc.MaxMemAligns)
+	assert.Equal(t, remainingResources.UsedZKCounters.Arithmetics, bc.MaxArithmetics)
+	assert.Equal(t, remainingResources.UsedZKCounters.Binaries, bc.MaxBinaries)
+	assert.Equal(t, remainingResources.UsedZKCounters.Steps, bc.MaxSteps)
+	assert.Equal(t, remainingResources.UsedZKCounters.Sha256Hashes_V2, bc.MaxSHA256Hashes)
 	assert.Equal(t, remainingResources.Bytes, bc.MaxBatchBytesSize)
 }
 

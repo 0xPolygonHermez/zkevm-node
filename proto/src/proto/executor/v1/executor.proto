@@ -335,6 +335,14 @@ message ProcessBatchResponseV2 {
     uint64 fork_id = 22;
     uint32 invalid_batch = 23;
     RomError error_rom = 24;
+    uint32 cnt_reserve_keccak_hashes = 25;
+    uint32 cnt_reserve_poseidon_hashes = 26;
+    uint32 cnt_reserve_poseidon_paddings = 27;
+    uint32 cnt_reserve_mem_aligns = 28;
+    uint32 cnt_reserve_arithmetics = 29;
+    uint32 cnt_reserve_binaries = 30;
+    uint32 cnt_reserve_steps = 31;
+    uint32 cnt_reserve_sha256_hashes = 32;
 }
 
 // Trace configuration request params
@@ -528,6 +536,8 @@ message ProcessTransactionResponseV2 {
     uint32 has_gasprice_opcode = 19;
     // Flag to indicate if opcode 'BALANCE' has been called
     uint32 has_balance_opcode = 20;
+    // Receipt status of the transaction, 1 = success, 0 = failure
+    uint32 status = 21;
 }
 
 message LogV2 {
