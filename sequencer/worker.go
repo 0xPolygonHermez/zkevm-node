@@ -341,8 +341,9 @@ func (w *Worker) GetBestFittingTx(resources state.BatchResources) (*TxTracker, e
 
 	if foundAt != -1 {
 		log.Debugf("best fitting tx %s found at index %d with gasPrice %d", tx.HashStr, foundAt, tx.GasPrice)
-		addressQueue := w.pool[tx.FromStr]
-		addressQueue.executingNonce = tx.Nonce
+		if addressQueue := w.pool[tx.FromStr]; addressQueue != nil {
+			addressQueue.executingNonce = tx.Nonce
+		}
 		return tx, nil
 	} else {
 		return nil, ErrNoFittingTransaction

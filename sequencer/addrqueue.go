@@ -45,7 +45,7 @@ func (a *addrQueue) addTx(tx *TxTracker) (newReadyTx, prevReadyTx, replacedTx *T
 	var repTx *TxTracker
 
 	// if GetBestFittingTx has selected this tx to execute, we refuse new one
-	if a.executingNonce == tx.Nonce {
+	if a.executingNonce == tx.Nonce && a.executingNonce > 0 {
 		return nil, nil, nil, ErrDuplicatedNonce
 	}
 	if a.currentNonce == tx.Nonce { // Is a possible readyTx
