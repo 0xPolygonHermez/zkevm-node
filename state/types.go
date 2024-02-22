@@ -180,9 +180,41 @@ func (z *ZKCounters) SumUp(other ZKCounters) {
 	z.Sha256Hashes_V2 += other.Sha256Hashes_V2
 }
 
-// Sub subtract zk counters with passed zk counters (not safe). if there is a counter underflow it returns true and the name of the counter that caused the overflow
+// Fits checks if other zk counters fits in the zk counters. if there is a counter underflow it returns false and the name of the counter that caused the underflow
+func (z *ZKCounters) Fits(other ZKCounters) (bool, string) {
+	if other.GasUsed > z.GasUsed {
+		return false, "CumulativeGas"
+	}
+	if other.KeccakHashes > z.KeccakHashes {
+		return false, "KeccakHashes"
+	}
+	if other.PoseidonHashes > z.PoseidonHashes {
+		return false, "PoseidonHashes"
+	}
+	if other.PoseidonPaddings > z.PoseidonPaddings {
+		return false, "PoseidonPaddings"
+	}
+	if other.MemAligns > z.MemAligns {
+		return false, "UsedMemAligns"
+	}
+	if other.Arithmetics > z.Arithmetics {
+		return false, "UsedArithmetics"
+	}
+	if other.Binaries > z.Binaries {
+		return false, "UsedBinaries"
+	}
+	if other.Steps > z.Steps {
+		return false, "UsedSteps"
+	}
+	if other.Sha256Hashes_V2 > z.Sha256Hashes_V2 {
+		return false, "UsedSha256Hashes_V2"
+	}
+
+	return true, ""
+}
+
+// Sub subtract zk counters with passed zk counters (not safe). if there is a counter underflow it returns true and the name of the counter that caused the underflow
 func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
-	// ZKCounters
 	if other.GasUsed > z.GasUsed {
 		return true, "CumulativeGas"
 	}
@@ -224,21 +256,28 @@ func (z *ZKCounters) Sub(other ZKCounters) (bool, string) {
 	return false, ""
 }
 
-// BatchResources is a struct that contains the ZKEVM resources used by a batch/tx
+// BatchResources is a struct that contains the limited resources of a batch
 type BatchResources struct {
-	UsedZKCounters ZKCounters
-	Bytes          uint64
+	ZKCounters ZKCounters
+	Bytes      uint64
 }
 
-// Sub subtracts the batch resources from other. if there is a resource underflow it returns true and the name of the resource that caused the overflow
+// Fits check if the other batch resources fits in the batch resources. If there is a resource underflow it returns false and the name of the resource that caused the overflow
+func (r *BatchResources) Fits(other BatchResources) (bool, string) {
+	if other.Bytes > r.Bytes {
+		return false, "Bytes"
+	}
+	return r.ZKCounters.Fits(other.ZKCounters)
+}
+
+// Sub subtracts the batch resources from other. If there is a resource overflow it returns true and the name of the resource that caused the overflow
 func (r *BatchResources) Sub(other BatchResources) (bool, string) {
-	// Bytes
 	if other.Bytes > r.Bytes {
 		return true, "Bytes"
 	}
 	bytesBackup := r.Bytes
 	r.Bytes -= other.Bytes
-	exhausted, resourceName := r.UsedZKCounters.Sub(other.UsedZKCounters)
+	exhausted, resourceName := r.ZKCounters.Sub(other.ZKCounters)
 	if exhausted {
 		r.Bytes = bytesBackup
 		return exhausted, resourceName
@@ -250,7 +289,7 @@ func (r *BatchResources) Sub(other BatchResources) (bool, string) {
 // SumUp sum ups the batch resources from other
 func (r *BatchResources) SumUp(other BatchResources) {
 	r.Bytes += other.Bytes
-	r.UsedZKCounters.SumUp(other.UsedZKCounters)
+	r.ZKCounters.SumUp(other.ZKCounters)
 }
 
 // InfoReadWrite has information about modified addresses during the execution
