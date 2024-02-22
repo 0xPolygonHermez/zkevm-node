@@ -217,7 +217,7 @@ func (s *ClientSynchronizer) Sync() error {
 			// Sync events from RollupManager that happen before rollup creation
 			log.Info("synchronizing events from RollupManager that happen before rollup creation")
 			for i := s.genesis.RollupManagerBlockNumber; true; i += s.cfg.SyncChunkSize {
-				toBlock := min(i+s.cfg.SyncChunkSize, s.genesis.RollupBlockNumber-1)
+				toBlock := min(i+s.cfg.SyncChunkSize-1, s.genesis.RollupBlockNumber-1)
 				blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, i, &toBlock)
 				if err != nil {
 					log.Error("error getting rollupInfoByBlockRange before rollup genesis: ", err)
@@ -242,6 +242,7 @@ func (s *ClientSynchronizer) Sync() error {
 					break
 				}
 			}
+
 			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genesis.RollupBlockNumber))
 			if err != nil {
 				log.Errorf("error getting l1 block header for block %d. Error: %v", s.genesis.RollupBlockNumber, err)
