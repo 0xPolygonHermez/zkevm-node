@@ -199,10 +199,16 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) error 
 	l2Block.batchResponse = batchResponse
 
 	// Update finalRemainingResources of the batch
-	overflow, overflowResource := f.wipBatch.finalRemainingResources.Sub(state.BatchResources{ZKCounters: batchResponse.UsedZkCounters, Bytes: batchL2DataSize})
-	if overflow {
-		return fmt.Errorf("error sustracting L2 block %d [%d] resources from the batch %d, overflow resource: %s, batch remaining counters: %s, L2Block used counters: %s, batch remaining bytes: %d, L2Block used bytes: %d",
-			blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, overflowResource, f.logZKCounters(f.wipBatch.finalRemainingResources.ZKCounters), f.logZKCounters(batchResponse.UsedZkCounters), f.wipBatch.finalRemainingResources.Bytes, batchL2DataSize)
+	fits, overflowResource := f.wipBatch.finalRemainingResources.Fits(state.BatchResources{ZKCounters: batchResponse.ReservedZkCounters, Bytes: batchL2DataSize})
+	if fits {
+		subOverflow, overflowResource := f.wipBatch.finalRemainingResources.Sub(state.BatchResources{ZKCounters: batchResponse.UsedZkCounters, Bytes: batchL2DataSize})
+		if subOverflow { // Sanity check, this cannot happen as reservedZKCounters should be >= that usedZKCounters
+			return fmt.Errorf("error sustracting L2 block %d [%d] resources from the batch %d, overflow resource: %s, batch counters: %s, L2 block used counters: %s, batch bytes: %d, L2 block bytes: %d",
+				blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, overflowResource, f.logZKCounters(f.wipBatch.finalRemainingResources.ZKCounters), f.logZKCounters(batchResponse.UsedZkCounters), f.wipBatch.finalRemainingResources.Bytes, batchL2DataSize)
+		}
+	} else {
+		log.Warnf("L2 block %d [%d] reserved resources exceeds the remaining batch %d resources, overflow resource: %s, batch counters: %s, L2 block reserved counters: %s, batch bytes: %d, L2 block bytes: %d",
+			blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, overflowResource, f.logZKCounters(f.wipBatch.finalRemainingResources.ZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters), f.wipBatch.finalRemainingResources.Bytes, batchL2DataSize)
 	}
 
 	// Update finalStateRoot of the batch to the newStateRoot for the L2 block
