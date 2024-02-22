@@ -10,7 +10,7 @@ UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounte
 UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounters , '{Arithmetics}', cast(used_arithmetics as text)::jsonb, true);
 UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounters , '{Binaries}', cast(used_binaries as text)::jsonb, true);
 UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounters , '{Steps}', cast(used_steps  as text)::jsonb, true);
-UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounters , '{Sha256Hashes_V2}', cast(used_sha256_hashes  as text)::jsonb, true);
+UPDATE pool."transaction" set reserved_zkcounters  = jsonb_set(reserved_zkcounters , '{Sha256Hashes_V2}', cast(used_sha256_hashes as text)::jsonb, true);
 
 -- +migrate Down
 ALTER TABLE pool.transaction
