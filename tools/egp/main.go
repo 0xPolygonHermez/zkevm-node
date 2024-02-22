@@ -34,7 +34,7 @@ var (
 )
 
 const (
-	signatureBytes    = 65
+	signatureBytes    = 0
 	effectivePctBytes = 1
 	fixedBytesTx      = signatureBytes + effectivePctBytes
 )
@@ -567,6 +567,8 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 	// L2 and user gas price
 	egp.LogL2GasPrice = egp.LogL1GasPrice * cfg.L2GasPriceSugFactor
 	egp.LogGasPrice = egp.LogL2GasPrice
+	// Gas price effective percentage
+	egp.LogPercentage = uint64(state.MaxEffectivePercentage)
 
 	// Compute EGP
 	var err error
@@ -591,11 +593,15 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 
 		if egp.LogFinalDeviation < egp.LogMaxDeviation {
 			// Final gas: EGP
+			egp.LogPercentage = calcEffectivePercentage(egp.LogGasPrice, egp.LogValueFirst)
+			egp.LogValueFirst = roundEffectiveGasPrice(egp.LogGasPrice, egp.LogPercentage)
 			egp.LogValueFinal = egp.LogValueFirst
 		} else {
 			egp.LogReprocess = true
 			if (egp.LogValueSecond < egp.LogGasPrice) && !egp.LogGasPriceOC && !egp.LogBalanceOC {
 				// Final gas: NEGP
+				egp.LogPercentage = calcEffectivePercentage(egp.LogGasPrice, egp.LogValueSecond)
+				egp.LogValueSecond = roundEffectiveGasPrice(egp.LogGasPrice, egp.LogPercentage)
 				egp.LogValueFinal = egp.LogValueSecond
 			} else {
 				// Final gas: price signed
@@ -608,13 +614,18 @@ func simulateConfig(egp *egpLogRecord, cfg *egpConfig) {
 		// Final gas: price signed
 		egp.LogValueFinal = egp.LogGasPrice
 	}
+}
 
-	// Gas price effective percentage
-	if egp.LogGasPrice > 0 {
-		egp.LogPercentage = uint64(((egp.LogValueFinal*256)+egp.LogGasPrice-1)/egp.LogGasPrice - 1) // nolint:gomnd
+func calcEffectivePercentage(gasPrice float64, gasEffective float64) uint64 {
+	if gasPrice > 0 {
+		return uint64(((gasEffective*256)+gasPrice-1)/gasPrice - 1) // nolint:gomnd
 	} else {
-		egp.LogPercentage = 0
+		return 0
 	}
+}
+
+func roundEffectiveGasPrice(gasPrice float64, pct uint64) float64 {
+	return float64(uint64(math.Ceil(gasPrice/256)) * (pct + 1)) // nolint:gomnd
 }
 
 // calcEffectiveGasPrice calculates the effective gas price
@@ -636,9 +647,6 @@ func calcEffectiveGasPrice(gasUsed float64, tx *egpLogRecord, cfg *egpConfig) (f
 
 		// Calculates break even gas price
 		l2MinGasPrice := tx.LogL1GasPrice * cfg.L1GasPriceFactor
-		if l2MinGasPrice < float64(cfg.MinGasPriceAllowed) {
-			l2MinGasPrice = float64(cfg.MinGasPriceAllowed)
-		}
 		totalTxPrice := gasUsed*l2MinGasPrice + float64((fixedBytesTx+txNonZeroBytes)*cfg.ByteGasCost+txZeroBytes*cfg.ZeroGasCost)*tx.LogL1GasPrice
 		breakEvenGasPrice = totalTxPrice / gasUsed * cfg.NetProfitFactor
 	}
