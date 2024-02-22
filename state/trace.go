@@ -263,24 +263,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			}
 		}
 
-		// gets the L1InfoTreeData for the transactions
-		l1InfoTreeData, _, _, err := s.GetL1InfoTreeDataFromBatchL2Data(ctx, transactions, dbTx)
-		if err != nil {
-			return nil, err
-		}
-
-		// In case we have any l1InfoTreeData, add them to the request
-		if len(l1InfoTreeData) > 0 {
-			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
-			for k, v := range l1InfoTreeData {
-				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
-					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
-					BlockHashL1:    v.BlockHashL1.Bytes(),
-					MinTimestamp:   v.MinTimestamp,
-				}
-			}
-		}
-
 		// Send Batch to the Executor
 		startTime = time.Now()
 		processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
