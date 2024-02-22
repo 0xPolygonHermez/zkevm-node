@@ -151,6 +151,7 @@ SettlementBackend = "l1"
 AggLayerTxTimeout = "5m"
 AggLayerURL = ""
 SequencerPrivateKey = {}
+BatchProofL1BlockConfirmations = 2
 
 [EthTxManager]
 ForcedGas = 0

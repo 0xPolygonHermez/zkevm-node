@@ -1224,7 +1224,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	}
 
 	n := big.NewInt(0).SetUint64(l2Block.Nonce())
-	rpcBlockNonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
+	rpcBlockNonce := types.ArgBytes(common.LeftPadBytes(n.Bytes(), 8)) //nolint:gomnd
 
 	difficulty := types.ArgUint64(0)
 	var totalDifficulty *types.ArgUint64
@@ -1250,7 +1250,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		Timestamp:       types.ArgUint64(l2Block.Time()),
 		ExtraData:       l2Block.Extra(),
 		MixHash:         l2Block.MixDigest(),
-		Nonce:           rpcBlockNonce,
+		Nonce:           &rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
 		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
 		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
@@ -1423,8 +1423,10 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				tc.ExpectedResult.ExtraData = []byte{}
 				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
 				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
-				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
-				tc.ExpectedResult.Nonce = rpcBlockNonce
+				tc.ExpectedResult.Hash = nil
+				tc.ExpectedResult.Miner = nil
+				tc.ExpectedResult.Nonce = nil
+				tc.ExpectedResult.TotalDifficulty = nil
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1481,17 +1483,11 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			if result != nil || tc.ExpectedResult != nil {
 				assert.Equal(t, tc.ExpectedResult.ParentHash.String(), result.ParentHash.String())
 				assert.Equal(t, tc.ExpectedResult.Sha3Uncles.String(), result.Sha3Uncles.String())
-				if tc.ExpectedResult.Miner != nil {
-					assert.Equal(t, tc.ExpectedResult.Miner.String(), result.Miner.String())
-				} else {
-					assert.Nil(t, result.Miner)
-				}
 				assert.Equal(t, tc.ExpectedResult.StateRoot.String(), result.StateRoot.String())
 				assert.Equal(t, tc.ExpectedResult.TxRoot.String(), result.TxRoot.String())
 				assert.Equal(t, tc.ExpectedResult.ReceiptsRoot.String(), result.ReceiptsRoot.String())
 				assert.Equal(t, tc.ExpectedResult.LogsBloom, result.LogsBloom)
 				assert.Equal(t, tc.ExpectedResult.Difficulty, result.Difficulty)
-				assert.Equal(t, tc.ExpectedResult.TotalDifficulty, result.TotalDifficulty)
 				assert.Equal(t, tc.ExpectedResult.Size, result.Size)
 				assert.Equal(t, tc.ExpectedResult.Number, result.Number)
 				assert.Equal(t, tc.ExpectedResult.GasLimit, result.GasLimit)
@@ -1499,14 +1495,29 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				assert.Equal(t, tc.ExpectedResult.Timestamp, result.Timestamp)
 				assert.Equal(t, tc.ExpectedResult.ExtraData, result.ExtraData)
 				assert.Equal(t, tc.ExpectedResult.MixHash, result.MixHash)
-				assert.Equal(t, tc.ExpectedResult.Nonce, result.Nonce)
+				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
+				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
+
 				if tc.ExpectedResult.Hash != nil {
 					assert.Equal(t, tc.ExpectedResult.Hash.String(), result.Hash.String())
 				} else {
 					assert.Nil(t, result.Hash)
 				}
-				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
-				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
+				if tc.ExpectedResult.Miner != nil {
+					assert.Equal(t, tc.ExpectedResult.Miner.String(), result.Miner.String())
+				} else {
+					assert.Nil(t, result.Miner)
+				}
+				if tc.ExpectedResult.Nonce != nil {
+					assert.Equal(t, tc.ExpectedResult.Nonce, result.Nonce)
+				} else {
+					assert.Nil(t, result.Nonce)
+				}
+				if tc.ExpectedResult.TotalDifficulty != nil {
+					assert.Equal(t, tc.ExpectedResult.TotalDifficulty, result.TotalDifficulty)
+				} else {
+					assert.Nil(t, result.TotalDifficulty)
+				}
 
 				assert.Equal(t, len(tc.ExpectedResult.Transactions), len(result.Transactions))
 				assert.Equal(t, len(tc.ExpectedResult.Uncles), len(result.Uncles))

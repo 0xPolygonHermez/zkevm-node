@@ -169,6 +169,7 @@ SettlementBackend = "agglayer"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "http://zkevm-agglayer"
 SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
+BatchProofL1BlockConfirmations = 2
 
 [L2GasPriceSuggester]
 Type = "follower"

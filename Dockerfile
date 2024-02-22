@@ -12,7 +12,7 @@ RUN cd /src/db && packr2
 RUN cd /src && make build
 
 # CONTAINER FOR RUNNING BINARY
-FROM alpine:3.18.4
+FROM alpine:3.18
 COPY --from=build /src/dist/zkevm-node /app/zkevm-node
 RUN apk update && apk add postgresql15-client
 EXPOSE 8123

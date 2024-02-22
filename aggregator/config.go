@@ -111,4 +111,7 @@ type Config struct {
 
 	// SequencerPrivateKey Private key of the trusted sequencer
 	SequencerPrivateKey types.KeystoreFileConfig `mapstructure:"SequencerPrivateKey"`
+
+	// BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch
+	BatchProofL1BlockConfirmations uint64 `mapstructure:"BatchProofL1BlockConfirmations"`
 }

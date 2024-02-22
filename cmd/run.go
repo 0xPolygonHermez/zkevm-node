@@ -410,6 +410,16 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.State.Batch.Constraints.MaxCumulativeGasUsed
 	c.RPC.L2Coinbase = c.SequenceSender.L2Coinbase
+	c.RPC.ZKCountersLimits = jsonrpc.ZKCountersLimits{
+		MaxKeccakHashes:     c.State.Batch.Constraints.MaxKeccakHashes,
+		MaxPoseidonHashes:   c.State.Batch.Constraints.MaxPoseidonHashes,
+		MaxPoseidonPaddings: c.State.Batch.Constraints.MaxPoseidonPaddings,
+		MaxMemAligns:        c.State.Batch.Constraints.MaxMemAligns,
+		MaxArithmetics:      c.State.Batch.Constraints.MaxArithmetics,
+		MaxBinaries:         c.State.Batch.Constraints.MaxBinaries,
+		MaxSteps:            c.State.Batch.Constraints.MaxSteps,
+		MaxSHA256Hashes:     c.State.Batch.Constraints.MaxSHA256Hashes,
+	}
 	if !c.IsTrustedSequencer {
 		if c.RPC.SequencerNodeURI == "" {
 			log.Debug("getting trusted sequencer URL from smc")

@@ -17,6 +17,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/test/testutils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -775,7 +776,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, mock.Anything, nil).Return(&batchToProve, nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
@@ -798,6 +799,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
+				m.etherman.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{Number: new(big.Int).SetUint64(1)}, nil).Once()
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
@@ -817,7 +819,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, mock.Anything, nil).Return(&batchToProve, nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
@@ -840,6 +842,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
+				m.etherman.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{Number: new(big.Int).SetUint64(1)}, nil).Once()
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
@@ -860,7 +863,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Twice()
 				m.proverMock.On("Addr").Return(proverID)
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, mock.Anything, nil).Return(&batchToProve, nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
@@ -883,6 +886,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
+				m.etherman.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{Number: new(big.Int).SetUint64(1)}, nil).Once()
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
@@ -903,7 +907,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, mock.Anything, nil).Return(&batchToProve, nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
@@ -926,6 +930,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					L1InfoRoot:          &l1InfoRoot,
 					TimestampBatchEtrog: &t,
 				}
+				m.etherman.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{Number: new(big.Int).SetUint64(1)}, nil).Once()
 				m.stateMock.On("GetVirtualBatch", mock.Anything, lastVerifiedBatchNum+1, nil).Return(&vb, nil).Twice()
 				m.stateMock.On("GetLeafsByL1InfoRoot", mock.Anything, *vb.L1InfoRoot, nil).Return([]state.L1InfoTreeExitRootStorageEntry{}, nil).Twice()
 				expectedInputProver, err := a.buildInputProver(context.Background(), &batchToProve)
@@ -960,7 +965,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 				m.proverMock.On("ID").Return(proverID).Times(3)
 				m.proverMock.On("Addr").Return("addr")
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(&lastVerifiedBatch, nil).Once()
-				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, nil).Return(&batchToProve, nil).Once()
+				m.stateMock.On("GetVirtualBatchToProve", mock.MatchedBy(matchProverCtxFn), lastVerifiedBatchNum, mock.Anything, nil).Return(&batchToProve, nil).Once()
 				m.stateMock.On("AddGeneratedProof", mock.MatchedBy(matchProverCtxFn), mock.Anything, nil).Run(
 					func(args mock.Arguments) {
 						proof := args[1].(*state.Proof)
@@ -995,6 +1000,7 @@ func TestTryGenerateBatchProof(t *testing.T) {
 					On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).
 					Return(&state.VerifiedBatch{BatchNumber: uint64(42)}, nil).Once()
 				m.etherman.On("GetLatestVerifiedBatchNum").Return(uint64(42), nil).Once()
+				m.etherman.On("GetLatestBlockHeader", mock.Anything).Return(&types.Header{Number: new(big.Int).SetUint64(1)}, nil).Once()
 				// make tryBuildFinalProof fail ASAP
 				m.stateMock.On("GetLastVerifiedBatch", mock.MatchedBy(matchProverCtxFn), nil).Return(nil, errBanana).Once().NotBefore(isSyncedCall)
 				m.stateMock.On("UpdateGeneratedProof", mock.MatchedBy(matchAggregatorCtxFn), mock.Anything, nil).Run(
