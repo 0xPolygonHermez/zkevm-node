@@ -54,8 +54,8 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 		GasPrice: tx.GasPrice(),
 		Cost:     tx.Cost(),
 		BatchResources: state.BatchResources{
-			Bytes:      uint64(len(rawTx)) + state.EfficiencyPercentageByteLength,
-			ZKCounters: counters,
+			Bytes:          uint64(len(rawTx)) + state.EfficiencyPercentageByteLength,
+			UsedZKCounters: counters,
 		},
 		RawTx:             rawTx,
 		ReceivedAt:        time.Now(),
@@ -76,5 +76,5 @@ func newTxTracker(tx types.Transaction, counters state.ZKCounters, ip string) (*
 
 // updateZKCounters updates the counters of the tx
 func (tx *TxTracker) updateZKCounters(counters state.ZKCounters) {
-	tx.BatchResources.ZKCounters = counters
+	tx.BatchResources.UsedZKCounters = counters
 }

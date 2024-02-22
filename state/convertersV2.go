@@ -49,7 +49,8 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		NewAccInputHash:      common.BytesToHash(batchResponse.NewAccInputHash),
 		NewLocalExitRoot:     common.BytesToHash(batchResponse.NewLocalExitRoot),
 		NewBatchNumber:       batchResponse.NewBatchNum,
-		UsedZkCounters:       convertToCountersV2(batchResponse),
+		UsedZkCounters:       convertToUsedZKCountersV2(batchResponse),
+		ReservedZkCounters:   convertToReservedZKCountersV2(batchResponse),
 		BlockResponses:       blockResponses,
 		ExecutorError:        executor.ExecutorErr(batchResponse.Error),
 		ReadWriteAddresses:   readWriteAddresses,
@@ -141,6 +142,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		result.EffectivePercentage = response.EffectivePercentage
 		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
 		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
+		result.Status = response.Status
 
 		var tx *types.Transaction
 		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP {
@@ -285,17 +287,32 @@ func convertToInstrumentationContractV2(response *executor.ContractV2) instrumen
 	}
 }
 
-func convertToCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
+func convertToUsedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 	return ZKCounters{
-		GasUsed:              resp.GasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-		UsedSha256Hashes_V2:  resp.CntSha256Hashes,
+		GasUsed:          resp.GasUsed,
+		KeccakHashes:     resp.CntKeccakHashes,
+		PoseidonHashes:   resp.CntPoseidonHashes,
+		PoseidonPaddings: resp.CntPoseidonPaddings,
+		MemAligns:        resp.CntMemAligns,
+		Arithmetics:      resp.CntArithmetics,
+		Binaries:         resp.CntBinaries,
+		Steps:            resp.CntSteps,
+		Sha256Hashes_V2:  resp.CntSha256Hashes,
+	}
+}
+
+func convertToReservedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
+	return ZKCounters{
+		// There is no "ReserveGasUsed" in the response, so we use "GasUsed" as it will make calculations easier
+		GasUsed:          resp.GasUsed,
+		KeccakHashes:     resp.CntReserveKeccakHashes,
+		PoseidonHashes:   resp.CntReservePoseidonHashes,
+		PoseidonPaddings: resp.CntReservePoseidonPaddings,
+		MemAligns:        resp.CntReserveMemAligns,
+		Arithmetics:      resp.CntReserveArithmetics,
+		Binaries:         resp.CntReserveBinaries,
+		Steps:            resp.CntReserveSteps,
+		Sha256Hashes_V2:  resp.CntReserveSha256Hashes,
 	}
 }
 

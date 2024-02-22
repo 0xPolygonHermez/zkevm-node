@@ -52,7 +52,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	}
 
 	// Make sure the transaction's batch resources are within the constraints.
-	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.ZKCounters) {
+	if !w.batchConstraints.IsWithinConstraints(tx.BatchResources.UsedZKCounters) {
 		log.Errorf("outOfCounters error (node level) for tx %s", tx.Hash.String())
 		w.workerMutex.Unlock()
 		return nil, pool.ErrOutOfCounters
@@ -225,14 +225,14 @@ func (w *Worker) UpdateTxZKCounters(txHash common.Hash, addr common.Address, cou
 
 	log.Infof("update ZK counters for tx %s addr %s", txHash.String(), addr.String())
 	log.Debugf("counters.CumulativeGasUsed: %d", counters.GasUsed)
-	log.Debugf("counters.UsedKeccakHashes: %d", counters.UsedKeccakHashes)
-	log.Debugf("counters.UsedPoseidonHashes: %d", counters.UsedPoseidonHashes)
-	log.Debugf("counters.UsedPoseidonPaddings: %d", counters.UsedPoseidonPaddings)
-	log.Debugf("counters.UsedMemAligns: %d", counters.UsedMemAligns)
-	log.Debugf("counters.UsedArithmetics: %d", counters.UsedArithmetics)
-	log.Debugf("counters.UsedBinaries: %d", counters.UsedBinaries)
-	log.Debugf("counters.UsedSteps: %d", counters.UsedSteps)
-	log.Debugf("counters.UsedSha256Hashes_V2: %d", counters.UsedSha256Hashes_V2)
+	log.Debugf("counters.UsedKeccakHashes: %d", counters.KeccakHashes)
+	log.Debugf("counters.UsedPoseidonHashes: %d", counters.PoseidonHashes)
+	log.Debugf("counters.UsedPoseidonPaddings: %d", counters.PoseidonPaddings)
+	log.Debugf("counters.UsedMemAligns: %d", counters.MemAligns)
+	log.Debugf("counters.UsedArithmetics: %d", counters.Arithmetics)
+	log.Debugf("counters.UsedBinaries: %d", counters.Binaries)
+	log.Debugf("counters.UsedSteps: %d", counters.Steps)
+	log.Debugf("counters.UsedSha256Hashes_V2: %d", counters.Sha256Hashes_V2)
 
 	addrQueue, found := w.pool[addr.String()]
 

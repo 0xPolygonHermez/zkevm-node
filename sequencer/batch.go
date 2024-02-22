@@ -464,34 +464,34 @@ func (f *finalizer) maxTxsPerBatchReached(batch *Batch) bool {
 
 // isBatchResourcesMarginExhausted checks if one of resources of the batch has reached the exhausted margin and returns the name of the exhausted resource
 func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResources) (bool, string) {
-	zkCounters := resources.ZKCounters
+	zkCounters := resources.UsedZKCounters
 	result := false
 	resourceName := ""
 	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
 		resourceName = "Bytes"
 		result = true
-	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+	} else if zkCounters.Steps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
 		resourceName = "Steps"
 		result = true
-	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+	} else if zkCounters.PoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
 		resourceName = "PoseidonPaddings"
 		result = true
-	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+	} else if zkCounters.Binaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
 		resourceName = "Binaries"
 		result = true
-	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+	} else if zkCounters.KeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
 		resourceName = "KeccakHashes"
 		result = true
-	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+	} else if zkCounters.Arithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
 		resourceName = "Arithmetics"
 		result = true
-	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+	} else if zkCounters.MemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
 		resourceName = "MemAligns"
 		result = true
 	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		resourceName = "CumulativeGas"
 		result = true
-	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
+	} else if zkCounters.Sha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
 		resourceName = "SHA256Hashes"
 		result = true
 	}
@@ -512,16 +512,16 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 // getUsedBatchResources calculates and returns the used resources of a batch from remaining resources
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
-			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
-			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
+		UsedZKCounters: state.ZKCounters{
+			GasUsed:          constraints.MaxCumulativeGasUsed - remainingResources.UsedZKCounters.GasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes - remainingResources.UsedZKCounters.KeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.UsedZKCounters.PoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.UsedZKCounters.PoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns - remainingResources.UsedZKCounters.MemAligns,
+			Arithmetics:      constraints.MaxArithmetics - remainingResources.UsedZKCounters.Arithmetics,
+			Binaries:         constraints.MaxBinaries - remainingResources.UsedZKCounters.Binaries,
+			Steps:            constraints.MaxSteps - remainingResources.UsedZKCounters.Steps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.UsedZKCounters.Sha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
@@ -530,16 +530,16 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 // getMaxRemainingResources returns the max resources that can be used in a batch
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
-		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
+		UsedZKCounters: state.ZKCounters{
+			GasUsed:          constraints.MaxCumulativeGasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns,
+			Arithmetics:      constraints.MaxArithmetics,
+			Binaries:         constraints.MaxBinaries,
+			Steps:            constraints.MaxSteps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes,
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}
