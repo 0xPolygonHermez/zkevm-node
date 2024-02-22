@@ -143,6 +143,8 @@ const (
 	SequenceForceBatchesOrder EventOrder = "SequenceForceBatches"
 	// ForkIDsOrder identifies an updateZkevmVersion event
 	ForkIDsOrder EventOrder = "forkIDs"
+	// InitialSequenceBatchesOrder identifies a VerifyBatch event
+	InitialSequenceBatchesOrder EventOrder = "InitialSequenceBatches"
 )
 
 type ethereumClient interface {
@@ -800,7 +802,7 @@ func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.L
 		return fmt.Errorf("error processing SequencedBatches event")
 	}
 	or := Order{
-		Name: SequenceBatchesOrder,
+		Name: InitialSequenceBatchesOrder,
 		Pos:  len((*blocks)[len(*blocks)-1].SequencedBatches) - 1,
 	}
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)

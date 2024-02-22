@@ -42,7 +42,7 @@ func NewProcessorL1SequenceBatchesElderberry(previousProcessor PreviousProcessor
 	return &ProcessorL1SequenceBatchesElderberry{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesElderberry]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
-			SupportedForkdIds: &ForksIdOnlyElderberry},
+			SupportedForkdIds: &actions.ForksIdOnlyElderberry},
 		previousProcessor: previousProcessor,
 		state:             state,
 	}
@@ -59,10 +59,6 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 	}
 
 	sbatch := l1Block.SequencedBatches[order.Pos][0]
-	if isInitialSequenceBatch(sbatch) {
-		log.Infof("Executing initialSequenceBatch. Processing with previous processor")
-		return g.previousProcessor.Process(ctx, order, l1Block, dbTx)
-	}
 
 	if sbatch.SequencedBatchElderberryData == nil {
 		log.Errorf("No elderberry sequenced batch data for batch %d", sbatch.BatchNumber)
@@ -82,10 +78,6 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 	// It checks the timestamp of the last L2 block, but it's just log an error instead of refusing the event
 	_ = g.sanityCheckTstampLastL2Block(sbatch.SequencedBatchElderberryData.MaxSequenceTimestamp, dbTx)
 	return nil
-}
-
-func isInitialSequenceBatch(sbatch etherman.SequencedBatch) bool {
-	return sbatch.BatchNumber == 1
 }
 
 func (g *ProcessorL1SequenceBatchesElderberry) sanityCheckExpectedSequence(initialBatchNumber uint64, dbTx pgx.Tx) error {
