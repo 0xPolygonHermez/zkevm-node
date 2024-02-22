@@ -119,8 +119,8 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		LocalExitRoot: batchResponse.NewLocalExitRoot,
 		BatchL2Data:   forcedBatch.RawTxsData,
 		BatchResources: state.BatchResources{
-			ZKCounters: batchResponse.UsedZkCounters,
-			Bytes:      uint64(len(forcedBatch.RawTxsData)),
+			UsedZKCounters: batchResponse.UsedZkCounters,
+			Bytes:          uint64(len(forcedBatch.RawTxsData)),
 		},
 		ClosingReason: state.ForcedBatchClosingReason,
 	}

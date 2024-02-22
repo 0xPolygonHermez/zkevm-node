@@ -22,7 +22,7 @@ type txPool interface {
 	MarkWIPTxsAsPending(ctx context.Context) error
 	GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction, error)
 	UpdateTxStatus(ctx context.Context, hash common.Hash, newStatus pool.TxStatus, isWIP bool, failedReason *string) error
-	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error)
+	GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, *state.ZKCounters, error)
 	UpdateTxWIPStatus(ctx context.Context, hash common.Hash, isWIP bool) error
 	GetGasPrices(ctx context.Context) (pool.GasPrices, error)
 	GetDefaultMinGasPriceAllowed() uint64
