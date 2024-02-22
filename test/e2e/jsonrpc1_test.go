@@ -703,6 +703,24 @@ func Test_EstimateCounters(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			name: "transfer works successfully",
+			prepareParams: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) map[string]interface{} {
+				params := map[string]interface{}{
+					"from":  a.From.String(),
+					"to":    common.HexToAddress("0x1"),
+					"gas":   30000000,
+					"value": hex.EncodeBig(big.NewInt(10000)),
+				}
+
+				return params
+			},
+			assert: func(t *testing.T, tc *testCase, response types.ZKCountersResponse) {
+				assert.Greater(t, response.CountersUsed.UsedPoseidonHashes, expectedCountersLimits.MaxPoseidonHashes)
+				assert.Nil(t, response.Revert)
+				assert.Nil(t, response.OOCError)
+			},
+		},
+		{
 			name: "call OOC poseidon",
 			prepareParams: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) map[string]interface{} {
 				a.GasLimit = 30000000
@@ -724,7 +742,6 @@ func Test_EstimateCounters(t *testing.T) {
 				assert.Greater(t, response.CountersUsed.UsedPoseidonHashes, expectedCountersLimits.MaxPoseidonHashes)
 				assert.Nil(t, response.Revert)
 				assert.Equal(t, "not enough poseidon counters to continue the execution", *response.OOCError)
-
 			},
 		},
 	}
