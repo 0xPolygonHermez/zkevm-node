@@ -28,8 +28,7 @@ const (
 )
 
 var (
-	now            = time.Now
-	mockL1InfoRoot = common.Hash{}
+	now = time.Now
 )
 
 // finalizer represents the finalizer component of the sequencer.
@@ -138,11 +137,6 @@ func newFinalizer(
 
 // Start starts the finalizer.
 func (f *finalizer) Start(ctx context.Context) {
-	// Init mockL1InfoRoot to a mock value since it must be different to {0,0,...,0}
-	for i := 0; i < len(mockL1InfoRoot); i++ {
-		mockL1InfoRoot[i] = byte(i)
-	}
-
 	// Do sanity check for batches closed but pending to be checked
 	f.processBatchesPendingtoCheck(ctx)
 
@@ -350,7 +344,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
-		L1InfoRoot_V2:             mockL1InfoRoot,
+		L1InfoRoot_V2:             state.GetMockL1InfoRoot(),
 		TimestampLimit_V2:         f.wipL2Block.timestamp,
 		Caller:                    stateMetrics.SequencerCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),

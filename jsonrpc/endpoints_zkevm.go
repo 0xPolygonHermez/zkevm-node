@@ -15,6 +15,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
@@ -222,6 +223,12 @@ func (z *ZKEVMEndpoints) GetFullBlockByNumber(number types.BlockNumber, fullTx b
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
+
+			// clean fields that are not available for pending block
+			rpcBlock.Hash = nil
+			rpcBlock.Miner = nil
+			rpcBlock.Nonce = nil
+			rpcBlock.TotalDifficulty = nil
 
 			return rpcBlock, nil
 		}
@@ -528,6 +535,77 @@ func (z *ZKEVMEndpoints) internalEstimateGasPriceAndFee(ctx context.Context, arg
 	log.Infof("[internalEstimateGasPriceAndFee] egpEnabled: %t, fee: %d, gasPrice: %d, gas: %d", egpEnabled, fee, txGasPrice, gasEstimation)
 
 	return txGasPrice, fee, nil
+}
+
+// EstimateCounters returns an estimation of the counters that are going to be used while executing
+// this transaction.
+func (z *ZKEVMEndpoints) EstimateCounters(arg *types.TxArgs, blockArg *types.BlockNumberOrHash) (interface{}, types.Error) {
+	return z.txMan.NewDbTxScope(z.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		if arg == nil {
+			return RPCErrorResponse(types.InvalidParamsErrorCode, "missing value for required argument 0", nil, false)
+		}
+
+		block, respErr := z.getBlockByArg(ctx, blockArg, dbTx)
+		if respErr != nil {
+			return nil, respErr
+		}
+
+		var blockToProcess *uint64
+		if blockArg != nil {
+			blockNumArg := blockArg.Number()
+			if blockNumArg != nil && (*blockArg.Number() == types.LatestBlockNumber || *blockArg.Number() == types.PendingBlockNumber) {
+				blockToProcess = nil
+			} else {
+				n := block.NumberU64()
+				blockToProcess = &n
+			}
+		}
+
+		defaultSenderAddress := common.HexToAddress(state.DefaultSenderAddress)
+		sender, tx, err := arg.ToTransaction(ctx, z.state, z.cfg.MaxCumulativeGasUsed, block.Root(), defaultSenderAddress, dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to convert arguments into an unsigned transaction", err, false)
+		}
+
+		var oocErr error
+		processBatchResponse, err := z.state.PreProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, dbTx)
+		if err != nil {
+			if executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
+				oocErr = err
+			} else {
+				errMsg := fmt.Sprintf("failed to estimate counters: %v", err.Error())
+				return nil, types.NewRPCError(types.DefaultErrorCode, errMsg)
+			}
+		}
+
+		var revert *types.RevertInfo
+		if len(processBatchResponse.BlockResponses) > 0 && len(processBatchResponse.BlockResponses[0].TransactionResponses) > 0 {
+			txResponse := processBatchResponse.BlockResponses[0].TransactionResponses[0]
+			err = txResponse.RomError
+			if errors.Is(err, runtime.ErrExecutionReverted) {
+				returnValue := make([]byte, len(txResponse.ReturnValue))
+				copy(returnValue, txResponse.ReturnValue)
+				err := state.ConstructErrorFromRevert(err, returnValue)
+				revert = &types.RevertInfo{
+					Message: err.Error(),
+					Data:    state.Ptr(types.ArgBytes(returnValue)),
+				}
+			}
+		}
+
+		limits := types.ZKCountersLimits{
+			MaxGasUsed:          types.ArgUint64(state.MaxTxGasLimit),
+			MaxKeccakHashes:     types.ArgUint64(z.cfg.ZKCountersLimits.MaxKeccakHashes),
+			MaxPoseidonHashes:   types.ArgUint64(z.cfg.ZKCountersLimits.MaxPoseidonHashes),
+			MaxPoseidonPaddings: types.ArgUint64(z.cfg.ZKCountersLimits.MaxPoseidonPaddings),
+			MaxMemAligns:        types.ArgUint64(z.cfg.ZKCountersLimits.MaxMemAligns),
+			MaxArithmetics:      types.ArgUint64(z.cfg.ZKCountersLimits.MaxArithmetics),
+			MaxBinaries:         types.ArgUint64(z.cfg.ZKCountersLimits.MaxBinaries),
+			MaxSteps:            types.ArgUint64(z.cfg.ZKCountersLimits.MaxSteps),
+			MaxSHA256Hashes:     types.ArgUint64(z.cfg.ZKCountersLimits.MaxSHA256Hashes),
+		}
+		return types.NewZKCountersResponse(processBatchResponse.UsedZkCounters, limits, revert, oocErr), nil
+	})
 }
 
 func (z *ZKEVMEndpoints) getBlockByArg(ctx context.Context, blockArg *types.BlockNumberOrHash, dbTx pgx.Tx) (*state.L2Block, types.Error) {
