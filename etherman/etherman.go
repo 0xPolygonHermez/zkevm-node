@@ -1365,7 +1365,7 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	smcAbi, err := abi.JSON(strings.NewReader(etrogpolygonzkevm.EtrogpolygonzkevmABI))
 	if err != nil {
 		return nil, err
 	}
