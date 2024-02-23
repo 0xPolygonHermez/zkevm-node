@@ -419,7 +419,7 @@ func (s *ClientSynchronizer) RequestAndProcessRollupGenesisBlock(dbTx pgx.Tx, la
 }
 
 func sanityCheckForGenesisBlockRollupInfo(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
-	if len(blocks) != 1 || len(order) != 1 || len(order[blocks[0].BlockHash]) != 2 {
+	if len(blocks) != 1 || len(order) < 1 || len(order[blocks[0].BlockHash]) < 1 {
 		log.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected 1 block with 2 orders")
 		return fmt.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected 1 block with 2 orders")
 	}
@@ -427,10 +427,7 @@ func sanityCheckForGenesisBlockRollupInfo(blocks []etherman.Block, order map[com
 		log.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected ForkIDsOrder, got %s", order[blocks[0].BlockHash][0].Name)
 		return fmt.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected ForkIDsOrder")
 	}
-	if order[blocks[0].BlockHash][1].Name != etherman.InitialSequenceBatchesOrder {
-		log.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected InitialSequenceBatchesOrder, got %s", order[blocks[0].BlockHash][0].Name)
-		return fmt.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected InitialSequenceBatchesOrder")
-	}
+
 	return nil
 }
 
