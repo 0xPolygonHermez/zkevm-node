@@ -63,6 +63,9 @@ type Config struct {
 	// requests to be captured by the server.
 	EnableHttpLog bool `mapstructure:"EnableHttpLog"`
 
+	// ZKCountersLimits defines the ZK Counter limits
+	ZKCountersLimits ZKCountersLimits
+	
 	// X1 config
 	// EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
 	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
@@ -91,6 +94,18 @@ type Config struct {
 
 	// RateLimit enable rate limit
 	RateLimit RateLimitConfig `mapstructure:"RateLimit"`
+}
+
+// ZKCountersLimits defines the ZK Counter limits
+type ZKCountersLimits struct {
+	MaxKeccakHashes     uint32
+	MaxPoseidonHashes   uint32
+	MaxPoseidonPaddings uint32
+	MaxMemAligns        uint32
+	MaxArithmetics      uint32
+	MaxBinaries         uint32
+	MaxSteps            uint32
+	MaxSHA256Hashes     uint32
 }
 
 // WebSocketsConfig has parameters to config the rpc websocket support

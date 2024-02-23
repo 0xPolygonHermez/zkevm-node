@@ -196,6 +196,7 @@ func (s *SyncTrustedBatchesAction) processTrustedBatch(ctx context.Context, trus
 		OldAccInputHash: batches[1].AccInputHash,
 		Coinbase:        common.HexToAddress(trustedBatch.Coinbase.String()),
 		Timestamp_V1:    time.Unix(int64(trustedBatch.Timestamp), 0),
+		ExecutionMode:   executor.ExecutionMode1,
 	}
 	// check if batch needs to be synchronized
 	if batches[0] != nil {

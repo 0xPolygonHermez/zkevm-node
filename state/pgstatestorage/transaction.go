@@ -367,10 +367,11 @@ func (p *PostgresStorage) getTransactionLogs(ctx context.Context, transactionHas
 	q := p.getExecQuerier(dbTx)
 
 	const getTransactionLogsSQL = `
-	SELECT t.l2_block_num, b.block_hash, l.tx_hash, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
+	SELECT t.l2_block_num, b.block_hash, l.tx_hash, r.tx_index, l.log_index, l.address, l.data, l.topic0, l.topic1, l.topic2, l.topic3
 	FROM state.log l
 	INNER JOIN state.transaction t ON t.hash = l.tx_hash
 	INNER JOIN state.l2block b ON b.block_num = t.l2_block_num 
+	INNER JOIN state.receipt r ON r.tx_hash = t.hash
 	WHERE t.hash = $1
 	ORDER BY l.log_index ASC`
 	rows, err := q.Query(ctx, getTransactionLogsSQL, transactionHash.String())
@@ -391,10 +392,11 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 		}
 
 		var log types.Log
+		var txIndex uint
 		var blockHash, txHash, logAddress, logData string
 		var topic0, topic1, topic2, topic3 *string
 
-		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &log.Index,
+		err := rows.Scan(&log.BlockNumber, &blockHash, &txHash, &txIndex, &log.Index,
 			&logAddress, &logData, &topic0, &topic1, &topic2, &topic3)
 		if err != nil {
 			return nil, err
@@ -403,7 +405,7 @@ func scanLogs(rows pgx.Rows) ([]*types.Log, error) {
 		log.BlockHash = common.HexToHash(blockHash)
 		log.TxHash = common.HexToHash(txHash)
 		log.Address = common.HexToAddress(logAddress)
-		log.TxIndex = uint(0)
+		log.TxIndex = txIndex
 		log.Data, err = hex.DecodeHex(logData)
 		if err != nil {
 			return nil, err

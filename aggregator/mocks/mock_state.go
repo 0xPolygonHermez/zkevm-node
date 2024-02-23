@@ -454,9 +454,9 @@ func (_m *StateMock) GetVirtualBatchParentHash(ctx context.Context, batchNumber 
 	return r0, r1
 }
 
-// GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
-func (_m *StateMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
-	ret := _m.Called(ctx, lastVerfiedBatchNumber, dbTx)
+// GetVirtualBatchToProve provides a mock function with given fields: ctx, lastVerfiedBatchNumber, maxL1Block, dbTx
+func (_m *StateMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*state.Batch, error) {
+	ret := _m.Called(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVirtualBatchToProve")
@@ -464,19 +464,19 @@ func (_m *StateMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatc
 
 	var r0 *state.Batch
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.Batch, error)); ok {
-		return rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) (*state.Batch, error)); ok {
+		return rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.Batch); ok {
-		r0 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, pgx.Tx) *state.Batch); ok {
+		r0 = rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*state.Batch)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, lastVerfiedBatchNumber, dbTx)
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, lastVerfiedBatchNumber, maxL1Block, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}
