@@ -107,10 +107,6 @@ func (p *PostgresStorage) AddForkIDInterval(ctx context.Context, newForkID state
 
 // GetForkIDByBlockNumber returns the fork id for a given block number
 func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
-	if blockNumber == 0 {
-		blockNumber = 1
-	}
-
 	if p.cfg.AvoidForkIDInMemory {
 		const query = `
 			SELECT fork_id
@@ -137,10 +133,6 @@ func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
 
 // GetForkIDByBlockNumber returns the fork id for a given block number in memory
 func (p *PostgresStorage) GetForkIDByBlockNumberInMemory(blockNumber uint64) uint64 {
-	if blockNumber == 0 {
-		blockNumber = 1
-	}
-
 	for _, index := range sortIndexForForkdIDSortedByBlockNumber(p.cfg.ForkIDIntervals) {
 		// reverse travesal
 		interval := p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1-index]
