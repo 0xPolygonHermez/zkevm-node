@@ -211,7 +211,7 @@ func (s *Sequencer) loadFromPool(ctx context.Context) {
 }
 
 func (s *Sequencer) addTxToWorker(ctx context.Context, tx pool.Transaction) error {
-	txTracker, err := s.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
+	txTracker, err := s.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.ReservedZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}
