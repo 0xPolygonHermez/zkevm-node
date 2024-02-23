@@ -528,20 +528,24 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	subOverflow := false
 	fits, overflowResource := f.wipBatch.imRemainingResources.Fits(state.BatchResources{ZKCounters: result.ReservedZkCounters, Bytes: uint64(len(tx.RawTx))})
 	if fits {
-		// Sustract the used resources from the batch
+		// Subtract the used resources from the batch
 		subOverflow, overflowResource = f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: result.UsedZkCounters, Bytes: uint64(len(tx.RawTx))})
 		if subOverflow { // Sanity check, this cannot happen as reservedZKCounters should be >= that usedZKCounters
-			log.Infof("current tx %s used resources exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing. Batch counters: %s, tx used counters: %s",
+			sLog := fmt.Sprintf("tx %s used resources exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing. Batch counters: %s, tx used counters: %s",
 				tx.HashStr, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(result.UsedZkCounters))
+
+			log.Errorf(sLog)
+
+			f.LogEvent(ctx, event.Level_Error, event.EventID_UsedZKCountersOverflow, sLog, nil)
 		}
 	} else {
 		log.Infof("current tx %s reserved resources exceeds the remaining batch resources, overflow resource: %s, updating metadata for tx in worker and continuing. Batch counters: %s, tx reserved counters: %s",
 			tx.HashStr, overflowResource, f.logZKCounters(f.wipBatch.imRemainingResources.ZKCounters), f.logZKCounters(result.ReservedZkCounters))
 		if !f.batchConstraints.IsWithinConstraints(result.ReservedZkCounters) {
-			log.Warnf("current tx %s reserved resources exceeds the max limit for batch resources (node OOC), setting tx as invalid in the pool", tx.HashStr)
+			log.Infof("current tx %s reserved resources exceeds the max limit for batch resources (node OOC), setting tx as invalid in the pool", tx.HashStr)
 
-			f.LogEvent(ctx, event.Level_Error, event.EventID_NodeOOC,
-				fmt.Sprintf("tx: %s exceeds node max limit batch resources (node OOC), from: %s, IP: %s", tx.HashStr, tx.FromStr, tx.IP), nil)
+			f.LogEvent(ctx, event.Level_Info, event.EventID_NodeOOC,
+				fmt.Sprintf("tx %s exceeds node max limit batch resources (node OOC), from: %s, IP: %s", tx.HashStr, tx.FromStr, tx.IP), nil)
 
 			// Delete the transaction from the txSorted list
 			f.workerIntf.DeleteTx(tx.Hash, tx.From)
@@ -551,6 +555,8 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 			if err != nil {
 				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
 			}
+
+			return nil, ErrBatchResourceOverFlow
 		}
 	}
 

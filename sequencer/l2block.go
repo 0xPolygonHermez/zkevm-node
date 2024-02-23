@@ -112,7 +112,6 @@ func (f *finalizer) processPendingL2Blocks(ctx context.Context) {
 			}
 
 			err := f.processL2Block(ctx, l2Block)
-			f.dumpL2Block(l2Block)
 
 			if err != nil {
 				// Dump L2Block info
@@ -143,7 +142,6 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 			}
 
 			err := f.storeL2Block(ctx, l2Block)
-			f.dumpL2Block(l2Block)
 
 			if err != nil {
 				// Dump L2Block info
@@ -206,7 +204,7 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) error 
 	if fits {
 		subOverflow, overflowResource := f.wipBatch.finalRemainingResources.Sub(state.BatchResources{ZKCounters: batchResponse.UsedZkCounters, Bytes: batchL2DataSize})
 		if subOverflow { // Sanity check, this cannot happen as reservedZKCounters should be >= that usedZKCounters
-			return fmt.Errorf("error sustracting L2 block %d [%d] used resources from the batch %d, overflow resource: %s, batch counters: %s, L2 block used counters: %s, batch bytes: %d, L2 block bytes: %d",
+			return fmt.Errorf("error subtracting L2 block %d [%d] used resources from the batch %d, overflow resource: %s, batch counters: %s, L2 block used counters: %s, batch bytes: %d, L2 block bytes: %d",
 				blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, overflowResource, f.logZKCounters(f.wipBatch.finalRemainingResources.ZKCounters), f.logZKCounters(batchResponse.UsedZkCounters), f.wipBatch.finalRemainingResources.Bytes, batchL2DataSize)
 		}
 	} else {
