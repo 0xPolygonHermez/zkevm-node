@@ -757,7 +757,7 @@ func TestGenesis(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetForkIDforGenesisBatchAndBlock(t *testing.T) {
+func TestGetForkIDforGenesisBatch(t *testing.T) {
 	type testCase struct {
 		name           string
 		cfg            state.Config
