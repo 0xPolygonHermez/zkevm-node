@@ -107,6 +107,10 @@ func (p *PostgresStorage) AddForkIDInterval(ctx context.Context, newForkID state
 
 // GetForkIDByBlockNumber returns the fork id for a given block number
 func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
+	if blockNumber == 0 {
+		blockNumber = 1
+	}
+
 	if p.cfg.AvoidForkIDInMemory {
 		const query = `
 			SELECT fork_id
@@ -133,6 +137,10 @@ func (p *PostgresStorage) GetForkIDByBlockNumber(blockNumber uint64) uint64 {
 
 // GetForkIDByBlockNumber returns the fork id for a given block number in memory
 func (p *PostgresStorage) GetForkIDByBlockNumberInMemory(blockNumber uint64) uint64 {
+	if blockNumber == 0 {
+		blockNumber = 1
+	}
+
 	for _, index := range sortIndexForForkdIDSortedByBlockNumber(p.cfg.ForkIDIntervals) {
 		// reverse travesal
 		interval := p.cfg.ForkIDIntervals[len(p.cfg.ForkIDIntervals)-1-index]
@@ -158,6 +166,10 @@ func sortIndexForForkdIDSortedByBlockNumber(forkIDs []state.ForkIDInterval) []in
 
 // GetForkIDByBatchNumber returns the fork id for a given batch number
 func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	if batchNumber == 0 {
+		batchNumber = 1
+	}
+
 	if p.cfg.AvoidForkIDInMemory {
 		const query = `
 			SELECT fork_id FROM state.fork_id
@@ -196,6 +208,10 @@ func (p *PostgresStorage) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 
 // GetForkIDByBatchNumberInMemory returns the fork id for a given batch number
 func (p *PostgresStorage) GetForkIDByBatchNumberInMemory(batchNumber uint64) uint64 {
+	if batchNumber == 0 {
+		batchNumber = 1
+	}
+
 	// If NumBatchForkIdUpgrade is defined (!=0) we are performing forkid upgrade process
 	// In this case, if the batchNumber is the next to the NumBatchForkIdUpgrade, we need to return the
 	// new "future" forkId (ForkUpgradeNewForkId)
