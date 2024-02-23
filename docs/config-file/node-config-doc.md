@@ -1221,6 +1221,7 @@ FreeClaimGasLimit=150000
 | - [MaxLogsBlockRange](#RPC_MaxLogsBlockRange )                               | No      | integer          | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                                                                                                                                                                                    |
 | - [MaxNativeBlockHashBlockRange](#RPC_MaxNativeBlockHashBlockRange )         | No      | integer          | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit                                                                                                                                                              |
 | - [EnableHttpLog](#RPC_EnableHttpLog )                                       | No      | boolean          | No         | -          | EnableHttpLog allows the user to enable or disable the logs related to the HTTP<br />requests to be captured by the server.                                                                                                                                                                                                                        |
+| - [ZKCountersLimits](#RPC_ZKCountersLimits )                                 | No      | object           | No         | -          | ZKCountersLimits defines the ZK Counter limits                                                                                                                                                                                                                                                                                                     |
 | - [EnablePendingTransactionFilter](#RPC_EnablePendingTransactionFilter )     | No      | boolean          | No         | -          | X1 config<br />EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction                                                                                                                                                                                                                     |
 | - [Nacos](#RPC_Nacos )                                                       | No      | object           | No         | -          | Nacos configuration                                                                                                                                                                                                                                                                                                                                |
 | - [NacosWs](#RPC_NacosWs )                                                   | No      | object           | No         | -          | NacosWs configuration                                                                                                                                                                                                                                                                                                                              |
@@ -1529,7 +1530,119 @@ requests to be captured by the server.
 EnableHttpLog=true
 ```
 
-### <a name="RPC_EnablePendingTransactionFilter"></a>8.17. `RPC.EnablePendingTransactionFilter`
+### <a name="RPC_ZKCountersLimits"></a>8.17. `[RPC.ZKCountersLimits]`
+
+**Type:** : `object`
+**Description:** ZKCountersLimits defines the ZK Counter limits
+
+| Property                                                            | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [MaxKeccakHashes](#RPC_ZKCountersLimits_MaxKeccakHashes )         | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonHashes](#RPC_ZKCountersLimits_MaxPoseidonHashes )     | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonPaddings](#RPC_ZKCountersLimits_MaxPoseidonPaddings ) | No      | integer | No         | -          | -                 |
+| - [MaxMemAligns](#RPC_ZKCountersLimits_MaxMemAligns )               | No      | integer | No         | -          | -                 |
+| - [MaxArithmetics](#RPC_ZKCountersLimits_MaxArithmetics )           | No      | integer | No         | -          | -                 |
+| - [MaxBinaries](#RPC_ZKCountersLimits_MaxBinaries )                 | No      | integer | No         | -          | -                 |
+| - [MaxSteps](#RPC_ZKCountersLimits_MaxSteps )                       | No      | integer | No         | -          | -                 |
+| - [MaxSHA256Hashes](#RPC_ZKCountersLimits_MaxSHA256Hashes )         | No      | integer | No         | -          | -                 |
+
+#### <a name="RPC_ZKCountersLimits_MaxKeccakHashes"></a>8.17.1. `RPC.ZKCountersLimits.MaxKeccakHashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxKeccakHashes=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxPoseidonHashes"></a>8.17.2. `RPC.ZKCountersLimits.MaxPoseidonHashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxPoseidonHashes=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxPoseidonPaddings"></a>8.17.3. `RPC.ZKCountersLimits.MaxPoseidonPaddings`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxPoseidonPaddings=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxMemAligns"></a>8.17.4. `RPC.ZKCountersLimits.MaxMemAligns`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxMemAligns=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxArithmetics"></a>8.17.5. `RPC.ZKCountersLimits.MaxArithmetics`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxArithmetics=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxBinaries"></a>8.17.6. `RPC.ZKCountersLimits.MaxBinaries`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxBinaries=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxSteps"></a>8.17.7. `RPC.ZKCountersLimits.MaxSteps`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxSteps=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxSHA256Hashes"></a>8.17.8. `RPC.ZKCountersLimits.MaxSHA256Hashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxSHA256Hashes=0
+```
+
+### <a name="RPC_EnablePendingTransactionFilter"></a>8.18. `RPC.EnablePendingTransactionFilter`
 
 **Type:** : `boolean`
 
@@ -1544,7 +1657,7 @@ EnablePendingTransactionFilter enables pending transaction filter that can suppo
 EnablePendingTransactionFilter=false
 ```
 
-### <a name="RPC_Nacos"></a>8.18. `[RPC.Nacos]`
+### <a name="RPC_Nacos"></a>8.19. `[RPC.Nacos]`
 
 **Type:** : `object`
 **Description:** Nacos configuration
@@ -1556,7 +1669,7 @@ EnablePendingTransactionFilter=false
 | - [ApplicationName](#RPC_Nacos_ApplicationName )       | No      | string | No         | -          | ApplicationName rest application name in  nacos                                            |
 | - [ExternalListenAddr](#RPC_Nacos_ExternalListenAddr ) | No      | string | No         | -          | ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker |
 
-#### <a name="RPC_Nacos_URLs"></a>8.18.1. `RPC.Nacos.URLs`
+#### <a name="RPC_Nacos_URLs"></a>8.19.1. `RPC.Nacos.URLs`
 
 **Type:** : `string`
 
@@ -1570,7 +1683,7 @@ EnablePendingTransactionFilter=false
 URLs=""
 ```
 
-#### <a name="RPC_Nacos_NamespaceId"></a>8.18.2. `RPC.Nacos.NamespaceId`
+#### <a name="RPC_Nacos_NamespaceId"></a>8.19.2. `RPC.Nacos.NamespaceId`
 
 **Type:** : `string`
 
@@ -1584,7 +1697,7 @@ URLs=""
 NamespaceId=""
 ```
 
-#### <a name="RPC_Nacos_ApplicationName"></a>8.18.3. `RPC.Nacos.ApplicationName`
+#### <a name="RPC_Nacos_ApplicationName"></a>8.19.3. `RPC.Nacos.ApplicationName`
 
 **Type:** : `string`
 
@@ -1598,7 +1711,7 @@ NamespaceId=""
 ApplicationName=""
 ```
 
-#### <a name="RPC_Nacos_ExternalListenAddr"></a>8.18.4. `RPC.Nacos.ExternalListenAddr`
+#### <a name="RPC_Nacos_ExternalListenAddr"></a>8.19.4. `RPC.Nacos.ExternalListenAddr`
 
 **Type:** : `string`
 
@@ -1612,7 +1725,7 @@ ApplicationName=""
 ExternalListenAddr=""
 ```
 
-### <a name="RPC_NacosWs"></a>8.19. `[RPC.NacosWs]`
+### <a name="RPC_NacosWs"></a>8.20. `[RPC.NacosWs]`
 
 **Type:** : `object`
 **Description:** NacosWs configuration
@@ -1624,7 +1737,7 @@ ExternalListenAddr=""
 | - [ApplicationName](#RPC_NacosWs_ApplicationName )       | No      | string | No         | -          | ApplicationName rest application name in  nacos                                            |
 | - [ExternalListenAddr](#RPC_NacosWs_ExternalListenAddr ) | No      | string | No         | -          | ExternalListenAddr Set the rest-server external ip and port, when it is launched by Docker |
 
-#### <a name="RPC_NacosWs_URLs"></a>8.19.1. `RPC.NacosWs.URLs`
+#### <a name="RPC_NacosWs_URLs"></a>8.20.1. `RPC.NacosWs.URLs`
 
 **Type:** : `string`
 
@@ -1638,7 +1751,7 @@ ExternalListenAddr=""
 URLs=""
 ```
 
-#### <a name="RPC_NacosWs_NamespaceId"></a>8.19.2. `RPC.NacosWs.NamespaceId`
+#### <a name="RPC_NacosWs_NamespaceId"></a>8.20.2. `RPC.NacosWs.NamespaceId`
 
 **Type:** : `string`
 
@@ -1652,7 +1765,7 @@ URLs=""
 NamespaceId=""
 ```
 
-#### <a name="RPC_NacosWs_ApplicationName"></a>8.19.3. `RPC.NacosWs.ApplicationName`
+#### <a name="RPC_NacosWs_ApplicationName"></a>8.20.3. `RPC.NacosWs.ApplicationName`
 
 **Type:** : `string`
 
@@ -1666,7 +1779,7 @@ NamespaceId=""
 ApplicationName=""
 ```
 
-#### <a name="RPC_NacosWs_ExternalListenAddr"></a>8.19.4. `RPC.NacosWs.ExternalListenAddr`
+#### <a name="RPC_NacosWs_ExternalListenAddr"></a>8.20.4. `RPC.NacosWs.ExternalListenAddr`
 
 **Type:** : `string`
 
@@ -1680,7 +1793,7 @@ ApplicationName=""
 ExternalListenAddr=""
 ```
 
-### <a name="RPC_GasLimitFactor"></a>8.20. `RPC.GasLimitFactor`
+### <a name="RPC_GasLimitFactor"></a>8.21. `RPC.GasLimitFactor`
 
 **Type:** : `number`
 
@@ -1704,7 +1817,7 @@ gas limit = 110
 GasLimitFactor=1
 ```
 
-### <a name="RPC_DisableAPIs"></a>8.21. `RPC.DisableAPIs`
+### <a name="RPC_DisableAPIs"></a>8.22. `RPC.DisableAPIs`
 
 **Type:** : `array of string`
 
@@ -1718,7 +1831,7 @@ GasLimitFactor=1
 DisableAPIs=[]
 ```
 
-### <a name="RPC_RateLimit"></a>8.22. `[RPC.RateLimit]`
+### <a name="RPC_RateLimit"></a>8.23. `[RPC.RateLimit]`
 
 **Type:** : `object`
 **Description:** RateLimit enable rate limit
@@ -1731,7 +1844,7 @@ DisableAPIs=[]
 | - [RateLimitDuration](#RPC_RateLimit_RateLimitDuration ) | No      | integer         | No         | -          | RateLimitDuration defines the time window for the rate limit                      |
 | - [SpecialApis](#RPC_RateLimit_SpecialApis )             | No      | array of object | No         | -          | SpecialApis defines the apis that need to be rate limited with special rate limit |
 
-#### <a name="RPC_RateLimit_Enabled"></a>8.22.1. `RPC.RateLimit.Enabled`
+#### <a name="RPC_RateLimit_Enabled"></a>8.23.1. `RPC.RateLimit.Enabled`
 
 **Type:** : `boolean`
 
@@ -1745,7 +1858,7 @@ DisableAPIs=[]
 Enabled=false
 ```
 
-#### <a name="RPC_RateLimit_RateLimitApis"></a>8.22.2. `RPC.RateLimit.RateLimitApis`
+#### <a name="RPC_RateLimit_RateLimitApis"></a>8.23.2. `RPC.RateLimit.RateLimitApis`
 
 **Type:** : `array of string`
 
@@ -1759,7 +1872,7 @@ Enabled=false
 RateLimitApis=[]
 ```
 
-#### <a name="RPC_RateLimit_RateLimitCount"></a>8.22.3. `RPC.RateLimit.RateLimitCount`
+#### <a name="RPC_RateLimit_RateLimitCount"></a>8.23.3. `RPC.RateLimit.RateLimitCount`
 
 **Type:** : `integer`
 
@@ -1773,7 +1886,7 @@ RateLimitApis=[]
 RateLimitCount=100
 ```
 
-#### <a name="RPC_RateLimit_RateLimitDuration"></a>8.22.4. `RPC.RateLimit.RateLimitDuration`
+#### <a name="RPC_RateLimit_RateLimitDuration"></a>8.23.4. `RPC.RateLimit.RateLimitDuration`
 
 **Type:** : `integer`
 
@@ -1787,7 +1900,7 @@ RateLimitCount=100
 RateLimitDuration=1
 ```
 
-#### <a name="RPC_RateLimit_SpecialApis"></a>8.22.5. `RPC.RateLimit.SpecialApis`
+#### <a name="RPC_RateLimit_SpecialApis"></a>8.23.5. `RPC.RateLimit.SpecialApis`
 
 **Type:** : `array of object`
 
@@ -1813,7 +1926,7 @@ SpecialApis=[]
 | ----------------------------------------------------- | ---------------------------------------------------------- |
 | [SpecialApis items](#RPC_RateLimit_SpecialApis_items) | RateLimitItem defines the special rate limit for some apis |
 
-##### <a name="autogenerated_heading_3"></a>8.22.5.1. [RPC.RateLimit.SpecialApis.SpecialApis items]
+##### <a name="autogenerated_heading_3"></a>8.23.5.1. [RPC.RateLimit.SpecialApis.SpecialApis items]
 
 **Type:** : `object`
 **Description:** RateLimitItem defines the special rate limit for some apis
@@ -1824,17 +1937,17 @@ SpecialApis=[]
 | - [Count](#RPC_RateLimit_SpecialApis_items_Count )       | No      | integer | No         | -          | Count defines the maximum burst size of requests    |
 | - [Duration](#RPC_RateLimit_SpecialApis_items_Duration ) | No      | integer | No         | -          | Duration defines the time window for the rate limit |
 
-##### <a name="RPC_RateLimit_SpecialApis_items_Api"></a>8.22.5.1.1. `RPC.RateLimit.SpecialApis.SpecialApis items.Api`
+##### <a name="RPC_RateLimit_SpecialApis_items_Api"></a>8.23.5.1.1. `RPC.RateLimit.SpecialApis.SpecialApis items.Api`
 
 **Type:** : `string`
 **Description:** Api defines the api that need to be rate limited
 
-##### <a name="RPC_RateLimit_SpecialApis_items_Count"></a>8.22.5.1.2. `RPC.RateLimit.SpecialApis.SpecialApis items.Count`
+##### <a name="RPC_RateLimit_SpecialApis_items_Count"></a>8.23.5.1.2. `RPC.RateLimit.SpecialApis.SpecialApis items.Count`
 
 **Type:** : `integer`
 **Description:** Count defines the maximum burst size of requests
 
-##### <a name="RPC_RateLimit_SpecialApis_items_Duration"></a>8.22.5.1.3. `RPC.RateLimit.SpecialApis.SpecialApis items.Duration`
+##### <a name="RPC_RateLimit_SpecialApis_items_Duration"></a>8.23.5.1.3. `RPC.RateLimit.SpecialApis.SpecialApis items.Duration`
 
 **Type:** : `integer`
 **Description:** Duration defines the time window for the rate limit
@@ -3078,6 +3191,7 @@ Password="testonly"
 | - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.                                                                                                                                                                                                                                                           |
 | - [GasOffset](#Aggregator_GasOffset )                                                               | No      | integer | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
 | - [UpgradeEtrogBatchNumber](#Aggregator_UpgradeEtrogBatchNumber )                                   | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog                                                                                                                                                                                                                                                                                                                                             |
+| - [BatchProofL1BlockConfirmations](#Aggregator_BatchProofL1BlockConfirmations )                     | No      | integer | No         | -          | BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch                                                                                                                                                                                                                                                                                                               |
 
 ### <a name="Aggregator_Host"></a>12.1. `Aggregator.Host`
 
@@ -3353,6 +3467,20 @@ GasOffset=0
 ```
 [Aggregator]
 UpgradeEtrogBatchNumber=0
+```
+
+### <a name="Aggregator_BatchProofL1BlockConfirmations"></a>12.16. `Aggregator.BatchProofL1BlockConfirmations`
+
+**Type:** : `integer`
+
+**Default:** `2`
+
+**Description:** BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch
+
+**Example setting the default value** (2):
+```
+[Aggregator]
+BatchProofL1BlockConfirmations=2
 ```
 
 ## <a name="NetworkConfig"></a>13. `[NetworkConfig]`

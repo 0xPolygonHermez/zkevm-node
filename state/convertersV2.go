@@ -56,7 +56,7 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		FlushID:              batchResponse.FlushId,
 		StoredFlushID:        batchResponse.StoredFlushId,
 		ProverID:             batchResponse.ProverId,
-		IsExecutorLevelError: (batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
+		IsExecutorLevelError: (batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH),
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
 		GasUsed_V2:           batchResponse.GasUsed,
@@ -65,6 +65,7 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		ForkID:               batchResponse.ForkId,
 		InvalidBatch_V2:      batchResponse.InvalidBatch != 0,
 		RomError_V2:          executor.RomErr(batchResponse.ErrorRom),
+		CloseBatch_V2:        batchResponse.Error == executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH,
 	}, nil
 }
 

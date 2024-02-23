@@ -187,8 +187,33 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 				traceConfigRequestV2.EnableReturnData = cFalse
 			}
 		}
-		deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
-		transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
+
+		// build the raw batch so we can get the index l1 info tree for the l2 block
+		rawBatch, err := DecodeBatchV2(batch.BatchL2Data)
+		if err != nil {
+			log.Errorf("error decoding BatchL2Data for batch %d, error: %v", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// identify the first l1 block number so we can identify the
+		// current l2 block index in the block array
+		firstBlockNumberForBatch, err := s.GetFirstL2BlockNumberForBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			log.Errorf("failed to get first l2 block number for batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// computes the l2 block index
+		rawL2BlockIndex := l2Block.NumberU64() - firstBlockNumberForBatch
+		if rawL2BlockIndex > uint64(len(rawBatch.Blocks)-1) {
+			log.Errorf("computed rawL2BlockIndex is greater than the number of blocks we have in the batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// builds the ChangeL2Block transaction with the correct timestamp and IndexL1InfoTree
+		rawL2Block := rawBatch.Blocks[rawL2BlockIndex]
+		deltaTimestamp := uint32(l2Block.Time() - previousL2Block.Time())
+		transactions := s.BuildChangeL2Block(deltaTimestamp, rawL2Block.IndexL1InfoTree)
 
 		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
@@ -213,10 +238,30 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			ContextId:        uuid.NewString(),
 
 			// v2 fields
-			L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
+			L1InfoRoot:             GetMockL1InfoRoot().Bytes(),
 			TimestampLimit:         uint64(time.Now().Unix()),
 			SkipFirstChangeL2Block: cFalse,
 			SkipWriteBlockInfoRoot: cTrue,
+			ExecutionMode:          executor.ExecutionMode0,
+		}
+
+		// gets the L1InfoTreeData for the transactions
+		l1InfoTreeData, _, _, err := s.GetL1InfoTreeDataFromBatchL2Data(ctx, transactions, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		// In case we have any l1InfoTreeData, add them to the request
+		if len(l1InfoTreeData) > 0 {
+			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
+			processBatchRequestV2.SkipVerifyL1InfoRoot = cTrue
+			for k, v := range l1InfoTreeData {
+				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
+					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
+					BlockHashL1:    v.BlockHashL1.Bytes(),
+					MinTimestamp:   v.MinTimestamp,
+				}
+			}
 		}
 
 		// Send Batch to the Executor
@@ -225,7 +270,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		endTime = time.Now()
 		if err != nil {
 			return nil, err
-		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
+		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
 			err = executor.ExecutorErr(processBatchResponseV2.Error)
 			s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 			return nil, err
@@ -503,7 +548,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult,
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
 			var gasUsed uint64
 			var err error
-			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) || errors.Is(previousStep.Error, runtime.ErrExecutorErrorOOG2) {
 				itCtx, err := internalTxSteps.Pop()
 				if err != nil {
 					return nil, err

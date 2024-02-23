@@ -107,7 +107,7 @@ services:
   x1-prover:
     container_name: x1-prover
     restart: unless-stopped
-    image: hermeznetwork/zkevm-prover:v4.0.4
+    image: hermeznetwork/zkevm-prover:v4.0.14
     depends_on:
       x1-state-db:
         condition: service_healthy

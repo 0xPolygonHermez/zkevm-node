@@ -106,7 +106,7 @@ func (e *EthEndpoints) Call(arg *types.TxArgs, blockArg *types.BlockNumberOrHash
 		result, err := e.state.ProcessUnsignedTransaction(ctx, tx, sender, blockToProcess, true, dbTx)
 		if err != nil {
 			errMsg := fmt.Sprintf("failed to execute the unsigned transaction: %v", err.Error())
-			logError := !executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) && !errors.Is(err, runtime.ErrOutOfGas)
+			logError := !executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) && !(errors.Is(err, runtime.ErrOutOfGas) || errors.Is(err, runtime.ErrExecutorErrorOOG2))
 			return RPCErrorResponse(types.DefaultErrorCode, errMsg, nil, logError)
 		}
 
@@ -354,6 +354,12 @@ func (e *EthEndpoints) GetBlockByNumber(number types.BlockNumber, fullTx bool, i
 			if err != nil {
 				return RPCErrorResponse(types.DefaultErrorCode, "couldn't build the pending block response", err, true)
 			}
+
+			// clean fields that are not available for pending block
+			rpcBlock.Hash = nil
+			rpcBlock.Miner = nil
+			rpcBlock.Nonce = nil
+			rpcBlock.TotalDifficulty = nil
 
 			return rpcBlock, nil
 		}

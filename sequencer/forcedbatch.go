@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
+	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -105,6 +106,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		ForkID:                  f.stateIntf.GetForkIDByBatchNumber(lastBatchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
 		Caller:                  stateMetrics.SequencerCallerLabel,
+		ExecutionMode:           executor.ExecutionMode0,
 	}
 
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)
