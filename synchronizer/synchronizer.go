@@ -109,16 +109,19 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
-	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-		syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
+	if !isTrustedSequencer {
+		log.Info("Permissionless: creating L2 synchronization stuff")
+		L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
-		uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
-		uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
-	}, res.state)
+		syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+			syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
 
+		res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
+			uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
+			uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
+		}, res.state)
+	}
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
