@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -57,14 +58,15 @@ type SyncTrustedBatchExecutorForEtrog struct {
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker) *l2_shared.TrustedBatchesRetrieve {
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker,
+	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state:         stateBatchExecutor,
 		sync:          sync,
 		l1SyncChecker: l1SyncChecker,
 	}
 
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider)
+	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, cfg)
 	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
 	return a
 }

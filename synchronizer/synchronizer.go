@@ -112,7 +112,7 @@ func NewSynchronizer(
 	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
 	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
+		syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
 
 	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
 		uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
