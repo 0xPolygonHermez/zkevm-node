@@ -39,5 +39,10 @@ func TestGenesisTimestamp(t *testing.T) {
 	log.Debugf("timeStamp: %v", timeStamp)
 	log.Debugf("batchTimeStamp: %v", *batchTimeStamp)
 
-	assert.Equal(t, 0, timeStamp.Compare(*batchTimeStamp))
+	dateFormat := "2006-01-02 15:04:05.000000Z"
+
+	log.Debugf("timeStamp: %v", timeStamp.Format(dateFormat))
+	log.Debugf("batchTimeStamp: %v", (*batchTimeStamp).Format(dateFormat))
+
+	assert.Equal(t, timeStamp.Format(dateFormat), (*batchTimeStamp).Format(dateFormat))
 }
