@@ -111,7 +111,7 @@ func NewSynchronizer(
 	}
 
 	if !isTrustedSequencer {
-		log.Info("Permissionless: creating L2 synchronization stuff")
+		log.Info("Permissionless: creating and Initializing L2 synchronization components")
 		L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
 		syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,

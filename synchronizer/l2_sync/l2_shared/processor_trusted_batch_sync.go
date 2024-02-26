@@ -311,7 +311,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	}
 
 	if result.Mode == "" {
-		return result, fmt.Errorf("batch %v: failed to get mode for process ", trustedNodeBatch.Number)
+		return nil, fmt.Errorf("batch %v: failed to get mode for process ", trustedNodeBatch.Number)
 	}
 
 	result.BatchNumber = uint64(trustedNodeBatch.Number)
@@ -326,8 +326,9 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 		if s.Cfg.AcceptEmptyClosedBatches {
 			log.Infof("%s Batch %v: TrustedBatch Empty and closed, accepted due configuration", result.DebugPrefix, trustedNodeBatch.Number)
 		} else {
-			log.Infof("%s Batch %v: TrustedBatch Empty and closed, rejected due configuration", result.DebugPrefix, trustedNodeBatch.Number)
-			return result, fmt.Errorf("%s Batch %v: TrustedBatch Empty and closed, rejected due configuration", result.DebugPrefix, trustedNodeBatch.Number)
+			err := fmt.Errorf("%s Batch %v: TrustedBatch Empty and closed, rejected due configuration", result.DebugPrefix, trustedNodeBatch.Number)
+			log.Infof(err.Error())
+			return result, err
 		}
 	}
 
@@ -356,8 +357,9 @@ func checkProcessBatchResultMatchExpected(data *ProcessData, processBatchResp *s
 	var err error = nil
 	var trustedBatch = data.TrustedBatch
 	if trustedBatch == nil {
-		log.Error("trustedBatch is nil, it never should be nil")
-		return fmt.Errorf("trustedBatch is nil, it never should be nil")
+		err = fmt.Errorf("%s trustedBatch is nil, it never should be nil", data.DebugPrefix)
+		log.Error(err.Error())
+		return err
 	}
 	if len(trustedBatch.BatchL2Data) == 0 {
 		log.Warnf("Batch %v: BatchL2Data is empty, no checking", trustedBatch.Number)
