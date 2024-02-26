@@ -85,6 +85,7 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 		SkipVerifyL1InfoRoot: 1,
 		GlobalExitRoot:       updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
 		ExecutionMode:        executor.ExecutionMode1,
+		ClosingReason:        state.SyncL1EventUpdateEtrogSequenceClosingReason,
 	}
 
 	virtualBatch := state.VirtualBatch{

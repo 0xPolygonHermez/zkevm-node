@@ -157,6 +157,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) ProcessSequenceBatches(ctx context.Con
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
 				ExecutionMode:        executor.ExecutionMode1,
+				ClosingReason:        state.SyncL1EventSequencedForcedBatchClosingReason,
 			}
 		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {
 			log.Debug("Processing initial batch")
@@ -174,6 +175,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) ProcessSequenceBatches(ctx context.Con
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
 				ExecutionMode:        executor.ExecutionMode1,
+				ClosingReason:        state.SyncL1EventInitialBatchClosingReason,
 			}
 		} else {
 			var maxGER common.Hash
@@ -199,6 +201,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) ProcessSequenceBatches(ctx context.Con
 				SkipVerifyL1InfoRoot: 1,
 				GlobalExitRoot:       batch.GlobalExitRoot,
 				ExecutionMode:        executor.ExecutionMode1,
+				ClosingReason:        state.SyncL1EventSequencedBatchClosingReason,
 			}
 			if batch.GlobalExitRoot == (common.Hash{}) {
 				if len(leaves) > 0 {
