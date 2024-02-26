@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	test "github.com/0xPolygonHermez/zkevm-node/state/test/forkid_common"
@@ -34,6 +35,9 @@ func TestGenesisTimestamp(t *testing.T) {
 
 	batchTimeStamp, err := testState.GetBatchTimestamp(ctx, 0, nil, nil)
 	require.NoError(t, err)
+
+	log.Debugf("timeStamp: %v", timeStamp)
+	log.Debugf("batchTimeStamp: %v", *batchTimeStamp)
 
 	assert.Equal(t, 0, timeStamp.Compare(*batchTimeStamp))
 }
