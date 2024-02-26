@@ -2,6 +2,7 @@ package synchronizer
 
 import (
 	"github.com/0xPolygonHermez/zkevm-node/config/types"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 )
 
 // Config represents the configuration of the synchronizer
@@ -19,6 +20,8 @@ type Config struct {
 	L1SynchronizationMode string `jsonschema:"enum=sequential,enum=parallel"`
 	// L1ParallelSynchronization Configuration for parallel mode (if L1SynchronizationMode equal to 'parallel')
 	L1ParallelSynchronization L1ParallelSynchronizationConfig
+	// L2Synchronization Configuration for L2 synchronization
+	L2Synchronization l2_sync.Config `mapstructure:"L2Synchronization"`
 }
 
 // L1ParallelSynchronizationConfig Configuration for parallel mode (if UL1SynchronizationMode equal to 'parallel')
