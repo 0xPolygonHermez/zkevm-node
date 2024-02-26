@@ -167,7 +167,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:  "realgasprice",
-			Usage: "use real L2 gas price from egp-log instead of the calulated simulated value",
+			Usage: "use real L2 gas price from egp-log instead of the calculated simulated value",
 			Value: false,
 		},
 		&cli.StringFlag{
