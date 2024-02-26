@@ -55,7 +55,7 @@ INFO	producer: Statistics: EstimatedTimeOfArrival: 1h58m42.730543611s percent:0.
 
 
 ### The main objects are:
-- `l1SyncOrchestration`: is the entry point and the reponsable to launch the producer and consumer
+- `l1SyncOrchestration`: is the entry point and the responsible to launch the producer and consumer
 - `l1RollupInfoProducer`: this object send rollup data through the channel to the consumer
 - `l1RollupInfoConsumer`: that receive the data and execute it
 
