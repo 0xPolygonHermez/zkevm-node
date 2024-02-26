@@ -8052,54 +8052,6 @@ func (_c *StorageMock_UpdateBatchAsChecked_Call) RunAndReturn(run func(context.C
 	return _c
 }
 
-// UpdateBatchAsChecked provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StorageMock) UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateBatchAsChecked")
-	}
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// StorageMock_UpdateBatchAsChecked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBatchAsChecked'
-type StorageMock_UpdateBatchAsChecked_Call struct {
-	*mock.Call
-}
-
-// UpdateBatchAsChecked is a helper method to define mock.On call
-//   - ctx context.Context
-//   - batchNumber uint64
-//   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) UpdateBatchAsChecked(ctx interface{}, batchNumber interface{}, dbTx interface{}) *StorageMock_UpdateBatchAsChecked_Call {
-	return &StorageMock_UpdateBatchAsChecked_Call{Call: _e.mock.On("UpdateBatchAsChecked", ctx, batchNumber, dbTx)}
-}
-
-func (_c *StorageMock_UpdateBatchAsChecked_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *StorageMock_UpdateBatchAsChecked_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
-	})
-	return _c
-}
-
-func (_c *StorageMock_UpdateBatchAsChecked_Call) Return(_a0 error) *StorageMock_UpdateBatchAsChecked_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *StorageMock_UpdateBatchAsChecked_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) error) *StorageMock_UpdateBatchAsChecked_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateBatchL2Data provides a mock function with given fields: ctx, batchNumber, batchL2Data, dbTx
 func (_m *StorageMock) UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchL2Data, dbTx)

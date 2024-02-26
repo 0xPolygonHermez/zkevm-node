@@ -20,8 +20,6 @@ func (_m *stateSyncTrustedStateExecutorSelector) EXPECT() *stateSyncTrustedState
 	return &stateSyncTrustedStateExecutorSelector_Expecter{mock: &_m.Mock}
 }
 
-<<<<<<< HEAD
-=======
 // GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
 func (_m *stateSyncTrustedStateExecutorSelector) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
 	ret := _m.Called(batchNumber)
@@ -68,7 +66,6 @@ func (_c *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call) Run
 	return _c
 }
 
->>>>>>> develop
 // GetForkIDInMemory provides a mock function with given fields: forkId
 func (_m *stateSyncTrustedStateExecutorSelector) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
 	ret := _m.Called(forkId)

@@ -1669,15 +1669,6 @@ func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header
 	return header, nil
 }
 
-// GetLatestBlockHeader gets the latest block header from the ethereum
-func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
-	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
-	if err != nil || header == nil {
-		return nil, err
-	}
-	return header, nil
-}
-
 // GetLatestBlockNumber gets the latest block number from the ethereum
 func (etherMan *Client) GetLatestBlockNumber(ctx context.Context) (uint64, error) {
 	return etherMan.getBlockNumber(ctx, rpc.LatestBlockNumber)

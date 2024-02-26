@@ -31,7 +31,6 @@ const (
 	// SequentialMode is the value for L1SynchronizationMode to run in sequential mode
 	SequentialMode = "sequential"
 	maxBatchNumber = ^uint64(0)
-	maxBatchNumber = ^uint64(0)
 )
 
 // Synchronizer connects L1 and L2
