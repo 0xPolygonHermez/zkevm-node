@@ -8,6 +8,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	commonSync "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	mock_l2_shared "github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared/mocks"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,12 +19,15 @@ import (
 var (
 	hash1 = common.HexToHash("0x29e885edaf8e4b51e1d2e05f9da28161d2fb4f6b1d53827d9b80a23cf2d7d9f1")
 	hash2 = common.HexToHash("0x979b141b8bcd3ba17815cd76811f1fca1cabaa9d51f7c00712606970f81d6e37")
+	cfg   = l2_sync.Config{
+		AcceptEmptyClosedBatches: true,
+	}
 )
 
 func TestCacheEmpty(t *testing.T) {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{nil, nil},
@@ -53,7 +57,7 @@ func TestCacheJustCurrent(t *testing.T) {
 	status := l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{&batchA},
 	}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&status)
 	require.Nil(t, previous)
@@ -71,7 +75,7 @@ func TestCacheJustPrevious(t *testing.T) {
 	status := l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{nil, &batchA},
 	}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&status)
 	require.Nil(t, current)
@@ -94,7 +98,7 @@ func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessor
 	return &TestDataForProcessorTrustedBatchSync{
 		mockTimer:    mockTimer,
 		mockExecutor: mockExecutor,
-		sut:          l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer),
+		sut:          l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg),
 		stateCurrentBatch: &state.Batch{
 			BatchNumber: 123,
 			Coinbase:    common.HexToAddress("0x1230"),
@@ -187,6 +191,54 @@ func TestGetModeForProcessBatchNothing(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
 	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = false
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.FullProcessMode, processData.Mode, "no batch in DB, fullprocess")
+	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = true
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.FullProcessMode, processData.Mode, "no batch in DB, fullprocess")
+	require.Equal(t, true, processData.BatchMustBeClosed, "must be close")
+
+}
+
+func TestGetModeForEmptyAndClosedBatchConfiguredToReject(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	testData.sut.Cfg.AcceptEmptyClosedBatches = false
+	testData.stateCurrentBatch.WIP = true
+	testData.trustedNodeBatch.Closed = true
+	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.Error(t, err)
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = true
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.Error(t, err)
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = false
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.NothingProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = false
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.FullProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	require.Equal(t, false, processData.BatchMustBeClosed, "nothing to do")
+
+	testData.stateCurrentBatch.WIP = false
+	testData.trustedNodeBatch.Closed = true
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
+	require.Error(t, err)
 }
 
 func TestGetNextStatusClear(t *testing.T) {

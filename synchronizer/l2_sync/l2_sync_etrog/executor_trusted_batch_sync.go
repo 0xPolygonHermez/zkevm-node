@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -57,14 +58,15 @@ type SyncTrustedBatchExecutorForEtrog struct {
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker) *l2_shared.TrustedBatchesRetrieve {
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker,
+	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state:         stateBatchExecutor,
 		sync:          sync,
 		l1SyncChecker: l1SyncChecker,
 	}
 
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider)
+	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, cfg)
 	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
 	return a
 }
@@ -106,18 +108,28 @@ func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, d
 
 // CreateEmptyBatch create a new empty batch (no batchL2Data and WIP)
 func (b *SyncTrustedBatchExecutorForEtrog) CreateEmptyBatch(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
-	log.Debugf("%s The Batch is a WIP empty, so just creating a DB entry", data.DebugPrefix)
+	log.Debugf("%s The Batch is a empty (batchl2data=0 bytes), so just creating a DB entry", data.DebugPrefix)
 	err := b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 	if err != nil {
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	log.Debugf("%s updateWIPBatch", data.DebugPrefix)
-	err = b.updateWIPBatch(ctx, data, data.TrustedBatch.StateRoot, dbTx)
-	if err != nil {
-		log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
-		return nil, err
+	if data.BatchMustBeClosed {
+		log.Infof("%s Closing empty batch (no execution)", data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		if err != nil {
+			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
+		err = b.updateWIPBatch(ctx, data, data.TrustedBatch.StateRoot, dbTx)
+		if err != nil {
+			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
 	}
+
 	res := l2_shared.NewProcessResponse()
 	stateBatch := syncCommon.RpcBatchToStateBatch(data.TrustedBatch)
 	res.UpdateCurrentBatch(stateBatch)
@@ -127,7 +139,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) CreateEmptyBatch(ctx context.Context,
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Debugf("%s FullProcess", data.DebugPrefix)
-	if len(data.TrustedBatch.BatchL2Data) == 0 && !data.BatchMustBeClosed {
+	if len(data.TrustedBatch.BatchL2Data) == 0 {
+		data.DebugPrefix += " (emptyBatch) "
 		return b.CreateEmptyBatch(ctx, data, dbTx)
 	}
 	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)

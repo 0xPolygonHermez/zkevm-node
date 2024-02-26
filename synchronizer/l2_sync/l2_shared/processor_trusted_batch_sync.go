@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
 )
@@ -124,8 +125,6 @@ type SyncTrustedBatchExecutor interface {
 	ReProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 	// NothingProcess process a batch that is already synchronized, so we don't need to process it
 	NothingProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
-	// CloseBatch close a batch
-	//CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx) error
 }
 
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
@@ -136,14 +135,16 @@ type SyncTrustedBatchExecutor interface {
 type ProcessorTrustedBatchSync struct {
 	Steps        SyncTrustedBatchExecutor
 	timeProvider syncCommon.TimeProvider
+	Cfg          l2_sync.Config
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
 func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
-	timeProvider syncCommon.TimeProvider) *ProcessorTrustedBatchSync {
+	timeProvider syncCommon.TimeProvider, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
 	return &ProcessorTrustedBatchSync{
 		Steps:        steps,
 		timeProvider: timeProvider,
+		Cfg:          cfg,
 	}
 }
 
@@ -308,9 +309,11 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			}
 		}
 	}
+
 	if result.Mode == "" {
-		return result, fmt.Errorf("failed to get mode for process batch %v", trustedNodeBatch.Number)
+		return result, fmt.Errorf("batch %v: failed to get mode for process ", trustedNodeBatch.Number)
 	}
+
 	result.BatchNumber = uint64(trustedNodeBatch.Number)
 	result.StateBatch = stateBatch
 	result.TrustedBatch = trustedNodeBatch
@@ -318,11 +321,25 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	result.OldAccInputHash = statePreviousBatch.AccInputHash
 	result.Now = s.timeProvider.Now()
 	result.DebugPrefix = fmt.Sprintf("%s mode %s:", debugPrefix, result.Mode)
+
+	if isTrustedBatchEmptyAndClosed(trustedNodeBatch) {
+		if s.Cfg.AcceptEmptyClosedBatches {
+			log.Infof("%s Batch %v: TrustedBatch Empty and closed, accepted due configuration", result.DebugPrefix, trustedNodeBatch.Number)
+		} else {
+			log.Infof("%s Batch %v: TrustedBatch Empty and closed, rejected due configuration", result.DebugPrefix, trustedNodeBatch.Number)
+			return result, fmt.Errorf("%s Batch %v: TrustedBatch Empty and closed, rejected due configuration", result.DebugPrefix, trustedNodeBatch.Number)
+		}
+	}
+
 	return result, nil
 }
 
 func isTrustedBatchClosed(batch *types.Batch) bool {
 	return batch.Closed
+}
+
+func isTrustedBatchEmptyAndClosed(batch *types.Batch) bool {
+	return len(batch.BatchL2Data) == 0 && isTrustedBatchClosed(batch)
 }
 
 func checkStateRootAndLER(batchNumber uint64, expectedStateRoot common.Hash, expectedLER common.Hash, calculatedStateRoot common.Hash, calculatedLER common.Hash) error {
@@ -339,7 +356,12 @@ func checkProcessBatchResultMatchExpected(data *ProcessData, processBatchResp *s
 	var err error = nil
 	var trustedBatch = data.TrustedBatch
 	if trustedBatch == nil {
-		panic("trustedBatch is nil")
+		log.Error("trustedBatch is nil, it never should be nil")
+		return fmt.Errorf("trustedBatch is nil, it never should be nil")
+	}
+	if len(trustedBatch.BatchL2Data) == 0 {
+		log.Warnf("Batch %v: BatchL2Data is empty, no checking", trustedBatch.Number)
+		return nil
 	}
 	if processBatchResp == nil {
 		log.Warnf("Batch %v: Can't check  processBatchResp because is nil, then check store batch in DB", trustedBatch.Number)
