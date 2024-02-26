@@ -20,6 +20,55 @@ func (_m *stateSyncTrustedStateExecutorSelector) EXPECT() *stateSyncTrustedState
 	return &stateSyncTrustedStateExecutorSelector_Expecter{mock: &_m.Mock}
 }
 
+<<<<<<< HEAD
+=======
+// GetForkIDByBatchNumber provides a mock function with given fields: batchNumber
+func (_m *stateSyncTrustedStateExecutorSelector) GetForkIDByBatchNumber(batchNumber uint64) uint64 {
+	ret := _m.Called(batchNumber)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetForkIDByBatchNumber")
+	}
+
+	var r0 uint64
+	if rf, ok := ret.Get(0).(func(uint64) uint64); ok {
+		r0 = rf(batchNumber)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	return r0
+}
+
+// stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetForkIDByBatchNumber'
+type stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call struct {
+	*mock.Call
+}
+
+// GetForkIDByBatchNumber is a helper method to define mock.On call
+//   - batchNumber uint64
+func (_e *stateSyncTrustedStateExecutorSelector_Expecter) GetForkIDByBatchNumber(batchNumber interface{}) *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call {
+	return &stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call{Call: _e.mock.On("GetForkIDByBatchNumber", batchNumber)}
+}
+
+func (_c *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call) Run(run func(batchNumber uint64)) *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(uint64))
+	})
+	return _c
+}
+
+func (_c *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call) Return(_a0 uint64) *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call) RunAndReturn(run func(uint64) uint64) *stateSyncTrustedStateExecutorSelector_GetForkIDByBatchNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+>>>>>>> develop
 // GetForkIDInMemory provides a mock function with given fields: forkId
 func (_m *stateSyncTrustedStateExecutorSelector) GetForkIDInMemory(forkId uint64) *state.ForkIDInterval {
 	ret := _m.Called(forkId)

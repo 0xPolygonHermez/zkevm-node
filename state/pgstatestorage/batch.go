@@ -2,7 +2,6 @@ package pgstatestorage
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -558,8 +557,8 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	return &virtualBatch, nil
 }
 
-func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)"
+func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx) error {
+	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num,closing_reason, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10, FALSE)"
 
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("%w. Got %d, should be 0", state.ErrUnexpectedBatch, batch.BatchNumber)
@@ -577,6 +576,7 @@ func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Bat
 		batch.Coinbase.String(),
 		batch.BatchL2Data,
 		batch.ForcedBatchNum,
+		closingReason,
 	)
 
 	return err
@@ -764,7 +764,7 @@ func (p *PostgresStorage) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx)
 
 // GetVirtualBatchToProve return the next batch that is not proved, neither in
 // proved process.
-func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const query = `
 		SELECT
 			b.batch_num,
@@ -783,6 +783,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			state.virtual_batch v
 		WHERE
 			b.batch_num > $1 AND b.batch_num = v.batch_num AND
+			v.block_num <= $2 AND
 			NOT EXISTS (
 				SELECT p.batch_num FROM state.proof p 
 				WHERE v.batch_num >= p.batch_num AND v.batch_num <= p.batch_num_final
@@ -790,7 +791,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 		ORDER BY b.batch_num ASC LIMIT 1
 		`
 	e := p.getExecQuerier(dbTx)
-	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber)
+	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber, maxL1Block)
 	batch, err := scanBatch(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
@@ -953,25 +954,6 @@ func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context,
 		return 0, err
 	}
 	return blockNum, nil
-}
-
-// BuildChangeL2Block returns a changeL2Block tx to use in the BatchL2Data
-func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
-	changeL2BlockMark := []byte{0x0B}
-	changeL2Block := []byte{}
-
-	// changeL2Block transaction mark
-	changeL2Block = append(changeL2Block, changeL2BlockMark...)
-	// changeL2Block deltaTimeStamp
-	deltaTimestampBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
-	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
-	// changeL2Block l1InfoTreeIndexBytes
-	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, l1InfoTreeIndex)
-	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
-
-	return changeL2Block
 }
 
 // GetRawBatchTimestamps returns the timestamp of the batch with the given number.

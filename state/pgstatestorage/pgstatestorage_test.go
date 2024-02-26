@@ -56,7 +56,7 @@ var (
 	executorClientConn, mtDBClientConn *grpc.ClientConn
 	batchResources                     = state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			UsedKeccakHashes: 1,
+			KeccakHashes: 1,
 		},
 		Bytes: 1,
 	}

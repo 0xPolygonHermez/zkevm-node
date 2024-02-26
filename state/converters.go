@@ -307,13 +307,13 @@ func convertToInstrumentationContract(response *executor.Contract) instrumentati
 
 func convertToCounters(resp *executor.ProcessBatchResponse) ZKCounters {
 	return ZKCounters{
-		GasUsed:              resp.CumulativeGasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
+		GasUsed:          resp.CumulativeGasUsed,
+		KeccakHashes:     resp.CntKeccakHashes,
+		PoseidonHashes:   resp.CntPoseidonHashes,
+		PoseidonPaddings: resp.CntPoseidonPaddings,
+		MemAligns:        resp.CntMemAligns,
+		Arithmetics:      resp.CntArithmetics,
+		Binaries:         resp.CntBinaries,
+		Steps:            resp.CntSteps,
 	}
 }

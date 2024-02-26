@@ -44,6 +44,8 @@ const (
 	EventID_SequenceSenderHalt EventID = "SEQUENCESENDER HALT"
 	// EventID_NodeOOC is triggered when an OOC at node level is detected
 	EventID_NodeOOC EventID = "NODE OOC"
+	// EventID_ReservedZKCountersOverflow is triggered when reserved ZK counters exceeds remaining batch ZK counters
+	EventID_ReservedZKCountersOverflow EventID = "RESERVED ZKCOUNTERS OVERFLOW"
 	// Source_Node is the source of the event
 	Source_Node Source = "node"
 

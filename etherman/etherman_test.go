@@ -162,7 +162,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	}, polygonzkevm.PolygonRollupBaseEtrogBatchData{
 		Transactions: common.Hex2Bytes(rawTxs),
 	})
-	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, auth.From)
+	_, err = etherman.ZkEVM.SequenceBatches(auth, sequences, uint64(time.Now().Unix()), uint64(1), auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -200,7 +200,8 @@ func TestVerifyBatchEvent(t *testing.T) {
 	tx := polygonzkevm.PolygonRollupBaseEtrogBatchData{
 		Transactions: common.Hex2Bytes(rawTxs),
 	}
-	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, auth.From)
+	//TODO: Fix params
+	_, err = etherman.ZkEVM.SequenceBatches(auth, []polygonzkevm.PolygonRollupBaseEtrogBatchData{tx}, uint64(time.Now().Unix()), uint64(1), auth.From)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -310,9 +311,13 @@ func TestSendSequences(t *testing.T) {
 	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
-		BatchL2Data: batchL2Data,
+		BatchNumber:          0,
+		BatchL2Data:          batchL2Data,
+		LastL2BLockTimestamp: time.Now().Unix(),
 	}
-	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From)
+	lastL2BlockTStamp := tx1.Time().Unix()
+	// TODO: fix params
+	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, uint64(lastL2BlockTStamp), uint64(1), auth.From)
 	require.NoError(t, err)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()

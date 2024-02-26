@@ -19,9 +19,15 @@ type EthermanMock struct {
 	mock.Mock
 }
 
+<<<<<<< HEAD
 // BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, l2Coinbase
 func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, l2Coinbase common.Address) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences, l2Coinbase)
+=======
+// BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase
+func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequences []types.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64, l2Coinbase common.Address) (*common.Address, []byte, error) {
+	ret := _m.Called(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 
 	if len(ret) == 0 {
 		panic("no return value specified for BuildSequenceBatchesTxData")
@@ -30,27 +36,45 @@ func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequen
 	var r0 *common.Address
 	var r1 []byte
 	var r2 error
+<<<<<<< HEAD
 	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, common.Address) (*common.Address, []byte, error)); ok {
 		return rf(sender, sequences, l2Coinbase)
 	}
 	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, common.Address) *common.Address); ok {
 		r0 = rf(sender, sequences, l2Coinbase)
+=======
+	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) (*common.Address, []byte, error)); ok {
+		return rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+	}
+	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) *common.Address); ok {
+		r0 = rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*common.Address)
 		}
 	}
 
+<<<<<<< HEAD
 	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence, common.Address) []byte); ok {
 		r1 = rf(sender, sequences, l2Coinbase)
+=======
+	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) []byte); ok {
+		r1 = rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).([]byte)
 		}
 	}
 
+<<<<<<< HEAD
 	if rf, ok := ret.Get(2).(func(common.Address, []types.Sequence, common.Address) error); ok {
 		r2 = rf(sender, sequences, l2Coinbase)
+=======
+	if rf, ok := ret.Get(2).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) error); ok {
+		r2 = rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -58,9 +82,15 @@ func (_m *EthermanMock) BuildSequenceBatchesTxData(sender common.Address, sequen
 	return r0, r1, r2
 }
 
+<<<<<<< HEAD
 // EstimateGasSequenceBatches provides a mock function with given fields: sender, sequences, l2Coinbase
 func (_m *EthermanMock) EstimateGasSequenceBatches(sender common.Address, sequences []types.Sequence, l2Coinbase common.Address) (*coretypes.Transaction, error) {
 	ret := _m.Called(sender, sequences, l2Coinbase)
+=======
+// EstimateGasSequenceBatches provides a mock function with given fields: sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase
+func (_m *EthermanMock) EstimateGasSequenceBatches(sender common.Address, sequences []types.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64, l2Coinbase common.Address) (*coretypes.Transaction, error) {
+	ret := _m.Called(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 
 	if len(ret) == 0 {
 		panic("no return value specified for EstimateGasSequenceBatches")
@@ -68,19 +98,32 @@ func (_m *EthermanMock) EstimateGasSequenceBatches(sender common.Address, sequen
 
 	var r0 *coretypes.Transaction
 	var r1 error
+<<<<<<< HEAD
 	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, common.Address) (*coretypes.Transaction, error)); ok {
 		return rf(sender, sequences, l2Coinbase)
 	}
 	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, common.Address) *coretypes.Transaction); ok {
 		r0 = rf(sender, sequences, l2Coinbase)
+=======
+	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) (*coretypes.Transaction, error)); ok {
+		return rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+	}
+	if rf, ok := ret.Get(0).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) *coretypes.Transaction); ok {
+		r0 = rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*coretypes.Transaction)
 		}
 	}
 
+<<<<<<< HEAD
 	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence, common.Address) error); ok {
 		r1 = rf(sender, sequences, l2Coinbase)
+=======
+	if rf, ok := ret.Get(1).(func(common.Address, []types.Sequence, uint64, uint64, common.Address) error); ok {
+		r1 = rf(sender, sequences, maxSequenceTimestamp, initSequenceBatchNumber, l2Coinbase)
+>>>>>>> develop
 	} else {
 		r1 = ret.Error(1)
 	}

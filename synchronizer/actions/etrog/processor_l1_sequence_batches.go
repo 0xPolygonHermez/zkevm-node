@@ -56,8 +56,8 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 	halter syncinterfaces.CriticalErrorHandler) *ProcessorL1SequenceBatchesEtrog {
 	return &ProcessorL1SequenceBatchesEtrog{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatchesEtrog]{
-			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
-			SupportedForkdIds: &ForksIdOnlyEtrog},
+			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder, etherman.InitialSequenceBatchesOrder},
+			SupportedForkdIds: &actions.ForksIdOnlyEtrog},
 		state:        state,
 		sync:         sync,
 		timeProvider: timeProvider,
@@ -70,11 +70,12 @@ func (g *ProcessorL1SequenceBatchesEtrog) Process(ctx context.Context, order eth
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
 		return actions.ErrInvalidParams
 	}
-	err := g.processSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
+	err := g.ProcessSequenceBatches(ctx, l1Block.SequencedBatches[order.Pos], l1Block.BlockNumber, l1Block.ReceivedAt, dbTx)
 	return err
 }
 
-func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error {
+// ProcessSequenceBatches process sequence of batches
+func (p *ProcessorL1SequenceBatchesEtrog) ProcessSequenceBatches(ctx context.Context, sequencedBatches []etherman.SequencedBatch, blockNumber uint64, l1BlockTimestamp time.Time, dbTx pgx.Tx) error {
 	if len(sequencedBatches) == 0 {
 		log.Warn("Empty sequencedBatches array detected, ignoring...")
 		return nil
@@ -155,6 +156,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				BatchL2Data:          &txs,
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
+				ClosingReason:        state.SyncL1EventSequencedForcedBatchClosingReason,
 			}
 		} else if sbatch.PolygonRollupBaseEtrogBatchData.ForcedTimestamp > 0 && sbatch.BatchNumber == 1 {
 			log.Debug("Processing initial batch")
@@ -171,6 +173,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				BatchL2Data:          &txs,
 				ForcedBlockHashL1:    forcedBlockHashL1,
 				SkipVerifyL1InfoRoot: 1,
+				ClosingReason:        state.SyncL1EventInitialBatchClosingReason,
 			}
 		} else {
 			var maxGER common.Hash
@@ -195,6 +198,7 @@ func (p *ProcessorL1SequenceBatchesEtrog) processSequenceBatches(ctx context.Con
 				BatchL2Data:          &batch.BatchL2Data,
 				SkipVerifyL1InfoRoot: 1,
 				GlobalExitRoot:       batch.GlobalExitRoot,
+				ClosingReason:        state.SyncL1EventSequencedBatchClosingReason,
 			}
 			if batch.GlobalExitRoot == (common.Hash{}) {
 				if len(leaves) > 0 {

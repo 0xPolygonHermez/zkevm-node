@@ -337,19 +337,3 @@ func TestExecuteProcessBatchError(t *testing.T) {
 	_, err := testData.sut.ExecuteProcessBatch(context.Background(), &data, nil)
 	require.ErrorIs(t, returnedError, err)
 }
-
-func TestEmptyBatchClosed(t *testing.T) {
-	testData := newTestDataForProcessorTrustedBatchSync(t)
-
-	data := l2_shared.ProcessData{
-		Mode:              l2_shared.FullProcessMode,
-		BatchMustBeClosed: true,
-		TrustedBatch: &types.Batch{
-			Number: 123,
-		},
-	}
-	returnedError := errors.New("error")
-	testData.mockExecutor.EXPECT().FullProcess(mock.Anything, mock.Anything, mock.Anything).Return(nil, returnedError)
-	_, err := testData.sut.ExecuteProcessBatch(context.Background(), &data, nil)
-	require.ErrorIs(t, returnedError, err)
-}

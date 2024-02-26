@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -237,7 +238,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 	if f.wipL2Block != nil {
 		f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 		// Subtract the WIP L2 block used resources to batch
-		overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(f.wipL2Block.usedResources)
+		overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: f.wipL2Block.usedZKCounters, Bytes: f.wipL2Block.bytes})
 		if overflow {
 			return fmt.Errorf("failed to subtract L2 block [%d] used resources to new wip batch %d, overflow resource: %s",
 				f.wipL2Block.trackingNum, f.wipBatch.batchNumber, overflowResource)
@@ -305,6 +306,11 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 
 // closeWIPBatch closes the current batch in the state
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
+	// Sanity check: batch must not be empty (should have L2 blocks)
+	if f.wipBatch.isEmpty() {
+		f.Halt(ctx, fmt.Errorf("closing WIP batch %d without L2 blocks and should have at least 1", f.wipBatch.batchNumber), false)
+	}
+
 	usedResources := getUsedBatchResources(f.batchConstraints, f.wipBatch.imRemainingResources)
 	receipt := state.ProcessingReceipt{
 		BatchNumber:    f.wipBatch.batchNumber,
@@ -349,7 +355,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		for i, rawL2block := range rawL2Blocks.Blocks {
 			log.Infof("block[%d], txs: %d, deltaTimestamp: %d, l1InfoTreeIndex: %d", i, len(rawL2block.Transactions), rawL2block.DeltaTimestamp, rawL2block.IndexL1InfoTree)
 			for j, rawTx := range rawL2block.Transactions {
-				log.Infof("block[%d].tx[%d]: %s, egpPct: %d", batch.BatchNumber, i, j, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage)
+				log.Infof("block[%d].tx[%d]: %s, egpPct: %d, data: %s", batch.BatchNumber, i, j, rawTx.Tx.Hash(), rawTx.EfficiencyPercentage, hex.EncodeToHex(rawTx.Data))
 			}
 		}
 
@@ -371,7 +377,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 
 	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
-		L1InfoRoot_V2:           mockL1InfoRoot,
+		L1InfoRoot_V2:           state.GetMockL1InfoRoot(),
 		OldStateRoot:            initialStateRoot,
 		Transactions:            batch.BatchL2Data,
 		Coinbase:                batch.Coinbase,
@@ -413,19 +419,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		if err != nil {
 			log.Errorf("error marshaling payload, error: %v", err)
 		} else {
-			event := &event.Event{
-				ReceivedAt:  time.Now(),
-				Source:      event.Source_Node,
-				Component:   event.Component_Sequencer,
-				Level:       event.Level_Critical,
-				EventID:     event.EventID_ReprocessFullBatchOOC,
-				Description: string(payload),
-				Json:        batchRequest,
-			}
-			err = f.eventLog.LogEvent(ctx, event)
-			if err != nil {
-				log.Errorf("error storing payload, error: %v", err)
-			}
+			f.LogEvent(ctx, event.Level_Critical, event.EventID_ReprocessFullBatchOOC, string(payload), batchRequest)
 		}
 
 		return nil, ErrProcessBatchOOC
@@ -464,28 +458,28 @@ func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResourc
 	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
 		resourceName = "Bytes"
 		result = true
-	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+	} else if zkCounters.Steps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
 		resourceName = "Steps"
 		result = true
-	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+	} else if zkCounters.PoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
 		resourceName = "PoseidonPaddings"
 		result = true
-	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+	} else if zkCounters.Binaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
 		resourceName = "Binaries"
 		result = true
-	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+	} else if zkCounters.KeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
 		resourceName = "KeccakHashes"
 		result = true
-	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+	} else if zkCounters.Arithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
 		resourceName = "Arithmetics"
 		result = true
-	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+	} else if zkCounters.MemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
 		resourceName = "MemAligns"
 		result = true
 	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		resourceName = "CumulativeGas"
 		result = true
-	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
+	} else if zkCounters.Sha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
 		resourceName = "SHA256Hashes"
 		result = true
 	}
@@ -507,15 +501,15 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
-			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
-			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
+			GasUsed:          constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.KeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.PoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.PoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.MemAligns,
+			Arithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.Arithmetics,
+			Binaries:         constraints.MaxBinaries - remainingResources.ZKCounters.Binaries,
+			Steps:            constraints.MaxSteps - remainingResources.ZKCounters.Steps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.Sha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
@@ -525,15 +519,15 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
+			GasUsed:          constraints.MaxCumulativeGasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns,
+			Arithmetics:      constraints.MaxArithmetics,
+			Binaries:         constraints.MaxBinaries,
+			Steps:            constraints.MaxSteps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes,
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}

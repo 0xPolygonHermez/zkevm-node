@@ -279,6 +279,16 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	return nil
 }
 
+// PreProcessUnsignedTransaction processes the unsigned transaction in order to calculate its zkCounters
+func (s *State) PreProcessUnsignedTransaction(ctx context.Context, tx *types.Transaction, sender common.Address, l2BlockNumber *uint64, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
+	response, err := s.internalProcessUnsignedTransaction(ctx, tx, sender, l2BlockNumber, false, dbTx)
+	if err != nil {
+		return response, err
+	}
+
+	return response, nil
+}
+
 // PreProcessTransaction processes the transaction in order to calculate its zkCounters before adding it to the pool
 func (s *State) PreProcessTransaction(ctx context.Context, tx *types.Transaction, dbTx pgx.Tx) (*ProcessBatchResponse, error) {
 	sender, err := GetSender(*tx)
@@ -310,7 +320,7 @@ func (s *State) ProcessUnsignedTransaction(ctx context.Context, tx *types.Transa
 	result.StateRoot = r.StateRoot.Bytes()
 
 	if errors.Is(r.RomError, runtime.ErrExecutionReverted) {
-		result.Err = constructErrorFromRevert(r.RomError, r.ReturnValue)
+		result.Err = ConstructErrorFromRevert(r.RomError, r.ReturnValue)
 	} else {
 		result.Err = r.RomError
 	}
@@ -586,14 +596,18 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		return nil, err
 	}
 
-	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
-		err = executor.RomErr(processBatchResponseV2.ErrorRom)
-		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
+	if err != nil {
 		return nil, err
 	}
 
-	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
-	if err != nil {
+	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
+		err = executor.RomErr(processBatchResponseV2.ErrorRom)
+		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
+		if executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
+			return response, err
+		}
+
 		return nil, err
 	}
 
@@ -937,7 +951,7 @@ func (s *State) internalTestGasEstimationTransactionV1(ctx context.Context, batc
 			// The EVM reverted during execution, attempt to extract the
 			// error message and return it
 			returnValue := txResponse.ReturnValue
-			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+			return true, true, gasUsed, returnValue, ConstructErrorFromRevert(err, returnValue)
 		}
 
 		return true, false, gasUsed, nil, err
@@ -1019,7 +1033,6 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
 	}
-
 	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 		err = executor.RomErr(processBatchResponseV2.ErrorRom)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
@@ -1044,7 +1057,7 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 			// The EVM reverted during execution, attempt to extract the
 			// error message and return it
 			returnValue := txResponse.ReturnValue
-			return true, true, gasUsed, returnValue, constructErrorFromRevert(err, returnValue)
+			return true, true, gasUsed, returnValue, ConstructErrorFromRevert(err, returnValue)
 		}
 
 		return true, false, gasUsed, nil, err

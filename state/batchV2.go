@@ -33,6 +33,7 @@ type ProcessingContextV2 struct {
 	ForcedBlockHashL1    *common.Hash
 	SkipVerifyL1InfoRoot uint32
 	GlobalExitRoot       common.Hash // GlobalExitRoot is not use for execute but use to OpenBatch (data on  DB)
+	ClosingReason        ClosingReason
 }
 
 // ProcessBatchV2 processes a batch for forkID >= ETROG
@@ -413,5 +414,17 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
 		BatchL2Data:   *BatchL2Data,
+		ClosingReason: processingCtx.ClosingReason,
 	}, dbTx)
+}
+
+// BuildChangeL2Block returns a changeL2Block tx to use in the BatchL2Data
+func (p *State) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
+	l2block := ChangeL2BlockHeader{
+		DeltaTimestamp:  deltaTimestamp,
+		IndexL1InfoTree: l1InfoTreeIndex,
+	}
+	var data []byte
+	data = l2block.Encode(data)
+	return data
 }

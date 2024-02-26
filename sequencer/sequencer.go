@@ -114,8 +114,12 @@ func (s *Sequencer) Start(ctx context.Context) {
 
 // checkStateInconsistency checks if state inconsistency happened
 func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
+	var err error
+	s.numberOfStateInconsistencies, err = s.stateIntf.CountReorgs(ctx, nil)
+	if err != nil {
+		log.Error("failed to get initial number of reorgs, error: %v", err)
+	}
 	for {
-		time.Sleep(s.cfg.StateConsistencyCheckInterval.Duration)
 		stateInconsistenciesDetected, err := s.stateIntf.CountReorgs(ctx, nil)
 		if err != nil {
 			log.Error("failed to get number of reorgs, error: %v", err)
@@ -125,6 +129,8 @@ func (s *Sequencer) checkStateInconsistency(ctx context.Context) {
 		if stateInconsistenciesDetected != s.numberOfStateInconsistencies {
 			s.finalizer.Halt(ctx, fmt.Errorf("state inconsistency detected, halting finalizer"), false)
 		}
+
+		time.Sleep(s.cfg.StateConsistencyCheckInterval.Duration)
 	}
 }
 
@@ -205,7 +211,7 @@ func (s *Sequencer) loadFromPool(ctx context.Context) {
 }
 
 func (s *Sequencer) addTxToWorker(ctx context.Context, tx pool.Transaction) error {
-	txTracker, err := s.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.IP)
+	txTracker, err := s.worker.NewTxTracker(tx.Transaction, tx.ZKCounters, tx.ReservedZKCounters, tx.IP)
 	if err != nil {
 		return err
 	}

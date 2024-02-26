@@ -40,7 +40,7 @@ func NewProcessorL1UpdateEtrogSequence(state stateProcessUpdateEtrogSequence,
 	return &ProcessorL1UpdateEtrogSequence{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1UpdateEtrogSequence]{
 			SupportedEvent:    []etherman.EventOrder{etherman.UpdateEtrogSequenceOrder},
-			SupportedForkdIds: &ForksIdOnlyEtrog},
+			SupportedForkdIds: &actions.ForksIdOnlyEtrog},
 		state:        state,
 		sync:         sync,
 		timeProvider: timeProvider,
@@ -83,6 +83,10 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 		ForcedBlockHashL1:    forcedBlockHashL1,
 		SkipVerifyL1InfoRoot: 1,
 		GlobalExitRoot:       updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
+<<<<<<< HEAD
+=======
+		ClosingReason:        state.SyncL1EventUpdateEtrogSequenceClosingReason,
+>>>>>>> develop
 	}
 
 	virtualBatch := state.VirtualBatch{

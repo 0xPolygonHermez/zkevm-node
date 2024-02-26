@@ -29,6 +29,7 @@ const (
 	ETROG_MODE_FLAG                = true
 	RETRIEVE_BATCH_FROM_DB_FLAG    = true
 	RETRIEVE_BATCH_FROM_CACHE_FLAG = false
+	PROCESS_BATCH_SELECTOR_ENABLED = false
 )
 
 type mocks struct {
@@ -55,6 +56,13 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2, ETROG_MODE_FLAG)
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
+
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
 
 	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	// Is the first time that appears this batch, so it need to OpenBatch
@@ -88,6 +96,13 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	batch10With1Tx := createBatch(t, lastBatchNumber, 1, ETROG_MODE_FLAG)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
+
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
 
 	// This is a incremental process, permissionless have batch10With1Tx and we add a new block
 	// but the cache doesnt have this information so it need to get from db
@@ -697,9 +712,11 @@ func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, []types.T
 	transactions := []types.TransactionOrHash{}
 	for nBlock := 0; nBlock < howManyBlocks; nBlock++ {
 		block := state.L2BlockRaw{
-			DeltaTimestamp:  123,
-			IndexL1InfoTree: 456,
-			Transactions:    []state.L2TxRaw{},
+			ChangeL2BlockHeader: state.ChangeL2BlockHeader{
+				DeltaTimestamp:  123,
+				IndexL1InfoTree: 456,
+			},
+			Transactions: []state.L2TxRaw{},
 		}
 		for i := 0; i < howManyTx; i++ {
 			tx := createTransaction(uint64(i + 1))

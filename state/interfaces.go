@@ -15,7 +15,7 @@ type storage interface {
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 	Begin(ctx context.Context) (pgx.Tx, error)
-	StoreGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error
+	StoreGenesisBatch(ctx context.Context, batch Batch, closingReason string, dbTx pgx.Tx) error
 	ResetToL1BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error
 	ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
@@ -98,7 +98,7 @@ type storage interface {
 	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error)
 	AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error
 	GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error)
-	GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error)
+	GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*Batch, error)
 	CheckProofContainsCompleteSequences(ctx context.Context, proof *Proof, dbTx pgx.Tx) (bool, error)
 	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Proof, error)
 	GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*Proof, *Proof, error)
@@ -141,7 +141,6 @@ type storage interface {
 	GetForkIDByBlockNumber(blockNumber uint64) uint64
 	GetForkIDByBatchNumber(batchNumber uint64) uint64
 	GetLatestIndex(ctx context.Context, dbTx pgx.Tx) (uint32, error)
-	BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte
 	GetRawBatchTimestamps(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*time.Time, *time.Time, error)
 	GetL1InfoRootLeafByL1InfoRoot(ctx context.Context, l1InfoRoot common.Hash, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
 	GetL1InfoRootLeafByIndex(ctx context.Context, l1InfoTreeIndex uint32, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntry, error)
@@ -157,4 +156,5 @@ type storage interface {
 	IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx) ([]*Batch, error)
+	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*L2Block, error)
 }

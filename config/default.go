@@ -164,6 +164,7 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
 UpgradeEtrogBatchNumber = 0
+BatchProofL1BlockConfirmations = 2
 
 [L2GasPriceSuggester]
 Type = "follower"

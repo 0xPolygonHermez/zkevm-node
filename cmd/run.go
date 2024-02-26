@@ -326,6 +326,16 @@ func runJSONRPCServer(c config.Config, etherman *etherman.Client, chainID uint64
 	storage := jsonrpc.NewStorage()
 	c.RPC.MaxCumulativeGasUsed = c.State.Batch.Constraints.MaxCumulativeGasUsed
 	c.RPC.L2Coinbase = c.SequenceSender.L2Coinbase
+	c.RPC.ZKCountersLimits = jsonrpc.ZKCountersLimits{
+		MaxKeccakHashes:     c.State.Batch.Constraints.MaxKeccakHashes,
+		MaxPoseidonHashes:   c.State.Batch.Constraints.MaxPoseidonHashes,
+		MaxPoseidonPaddings: c.State.Batch.Constraints.MaxPoseidonPaddings,
+		MaxMemAligns:        c.State.Batch.Constraints.MaxMemAligns,
+		MaxArithmetics:      c.State.Batch.Constraints.MaxArithmetics,
+		MaxBinaries:         c.State.Batch.Constraints.MaxBinaries,
+		MaxSteps:            c.State.Batch.Constraints.MaxSteps,
+		MaxSHA256Hashes:     c.State.Batch.Constraints.MaxSHA256Hashes,
+	}
 	if !c.IsTrustedSequencer {
 		if c.RPC.SequencerNodeURI == "" {
 			log.Debug("getting trusted sequencer URL from smc")
@@ -480,13 +490,14 @@ func newState(ctx context.Context, c *config.Config, etherman *etherman.Client, 
 		AvoidForkIDInMemory:          avoidForkIDInMemory,
 	}
 	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
+
 	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil)
 	// This is to force to build cache, and check that DB is ok before starting the application
-	l1inforoot, err := st.GetCurrentL1InfoRoot(ctx, nil)
+	l1InfoRoot, err := st.GetCurrentL1InfoRoot(ctx, nil)
 	if err != nil {
 		log.Fatal("error getting current L1InfoRoot. Error: ", err)
 	}
-	log.Infof("Starting L1InfoRoot: %v", l1inforoot.String())
+	log.Infof("Starting L1InfoRoot: %v", l1InfoRoot.String())
 
 	forkIDIntervals, err := forkIDIntervals(ctx, st, etherman, c.NetworkConfig.Genesis.BlockNumber)
 	if err != nil {

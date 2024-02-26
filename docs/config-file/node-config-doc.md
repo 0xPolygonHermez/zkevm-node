@@ -913,6 +913,7 @@ ForkID=0
 | - [MaxLogsBlockRange](#RPC_MaxLogsBlockRange )                               | No      | integer          | No         | -          | MaxLogsBlockRange is a configuration to set the max range for block number when querying TXs<br />logs in a single call to the state, if zero it means no limit                       |
 | - [MaxNativeBlockHashBlockRange](#RPC_MaxNativeBlockHashBlockRange )         | No      | integer          | No         | -          | MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying<br />native block hashes in a single call to the state, if zero it means no limit |
 | - [EnableHttpLog](#RPC_EnableHttpLog )                                       | No      | boolean          | No         | -          | EnableHttpLog allows the user to enable or disable the logs related to the HTTP<br />requests to be captured by the server.                                                           |
+| - [ZKCountersLimits](#RPC_ZKCountersLimits )                                 | No      | object           | No         | -          | ZKCountersLimits defines the ZK Counter limits                                                                                                                                        |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -1213,6 +1214,118 @@ requests to be captured by the server.
 ```
 [RPC]
 EnableHttpLog=true
+```
+
+### <a name="RPC_ZKCountersLimits"></a>8.17. `[RPC.ZKCountersLimits]`
+
+**Type:** : `object`
+**Description:** ZKCountersLimits defines the ZK Counter limits
+
+| Property                                                            | Pattern | Type    | Deprecated | Definition | Title/Description |
+| ------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ----------------- |
+| - [MaxKeccakHashes](#RPC_ZKCountersLimits_MaxKeccakHashes )         | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonHashes](#RPC_ZKCountersLimits_MaxPoseidonHashes )     | No      | integer | No         | -          | -                 |
+| - [MaxPoseidonPaddings](#RPC_ZKCountersLimits_MaxPoseidonPaddings ) | No      | integer | No         | -          | -                 |
+| - [MaxMemAligns](#RPC_ZKCountersLimits_MaxMemAligns )               | No      | integer | No         | -          | -                 |
+| - [MaxArithmetics](#RPC_ZKCountersLimits_MaxArithmetics )           | No      | integer | No         | -          | -                 |
+| - [MaxBinaries](#RPC_ZKCountersLimits_MaxBinaries )                 | No      | integer | No         | -          | -                 |
+| - [MaxSteps](#RPC_ZKCountersLimits_MaxSteps )                       | No      | integer | No         | -          | -                 |
+| - [MaxSHA256Hashes](#RPC_ZKCountersLimits_MaxSHA256Hashes )         | No      | integer | No         | -          | -                 |
+
+#### <a name="RPC_ZKCountersLimits_MaxKeccakHashes"></a>8.17.1. `RPC.ZKCountersLimits.MaxKeccakHashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxKeccakHashes=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxPoseidonHashes"></a>8.17.2. `RPC.ZKCountersLimits.MaxPoseidonHashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxPoseidonHashes=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxPoseidonPaddings"></a>8.17.3. `RPC.ZKCountersLimits.MaxPoseidonPaddings`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxPoseidonPaddings=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxMemAligns"></a>8.17.4. `RPC.ZKCountersLimits.MaxMemAligns`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxMemAligns=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxArithmetics"></a>8.17.5. `RPC.ZKCountersLimits.MaxArithmetics`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxArithmetics=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxBinaries"></a>8.17.6. `RPC.ZKCountersLimits.MaxBinaries`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxBinaries=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxSteps"></a>8.17.7. `RPC.ZKCountersLimits.MaxSteps`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxSteps=0
+```
+
+#### <a name="RPC_ZKCountersLimits_MaxSHA256Hashes"></a>8.17.8. `RPC.ZKCountersLimits.MaxSHA256Hashes`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Example setting the default value** (0):
+```
+[RPC.ZKCountersLimits]
+MaxSHA256Hashes=0
 ```
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`
@@ -2370,6 +2483,7 @@ GasOffset=80000
 | - [GeneratingProofCleanupThreshold](#Aggregator_GeneratingProofCleanupThreshold )                   | No      | string  | No         | -          | GeneratingProofCleanupThreshold represents the time interval after<br />which a proof in generating state is considered to be stuck and<br />allowed to be cleared.                                                                                                                                                                                                                                                           |
 | - [GasOffset](#Aggregator_GasOffset )                                                               | No      | integer | No         | -          | GasOffset is the amount of gas to be added to the gas estimation in order<br />to provide an amount that is higher than the estimated one. This is used<br />to avoid the TX getting reverted in case something has changed in the network<br />state after the estimation which can cause the TX to require more gas to be<br />executed.<br /><br />ex:<br />gas estimation: 1000<br />gas offset: 100<br />final gas: 1100 |
 | - [UpgradeEtrogBatchNumber](#Aggregator_UpgradeEtrogBatchNumber )                                   | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog                                                                                                                                                                                                                                                                                                                                             |
+| - [BatchProofL1BlockConfirmations](#Aggregator_BatchProofL1BlockConfirmations )                     | No      | integer | No         | -          | BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch                                                                                                                                                                                                                                                                                                               |
 
 ### <a name="Aggregator_Host"></a>12.1. `Aggregator.Host`
 
@@ -2645,6 +2759,20 @@ GasOffset=0
 ```
 [Aggregator]
 UpgradeEtrogBatchNumber=0
+```
+
+### <a name="Aggregator_BatchProofL1BlockConfirmations"></a>12.16. `Aggregator.BatchProofL1BlockConfirmations`
+
+**Type:** : `integer`
+
+**Default:** `2`
+
+**Description:** BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch
+
+**Example setting the default value** (2):
+```
+[Aggregator]
+BatchProofL1BlockConfirmations=2
 ```
 
 ## <a name="NetworkConfig"></a>13. `[NetworkConfig]`
