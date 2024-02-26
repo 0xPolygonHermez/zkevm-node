@@ -31,7 +31,7 @@ archives:
 
 dockers:
   - image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ .Version }}-amd64
+      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
     dockerfile: Dockerfile.release
     use: buildx
     goos: linux
@@ -48,7 +48,7 @@ dockers:
     skip_push: false
 
   - image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ .Version }}-arm64
+      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
     dockerfile: Dockerfile.release
     use: buildx
     goos: linux
