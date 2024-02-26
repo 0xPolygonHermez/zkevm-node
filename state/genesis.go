@@ -146,7 +146,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		ForcedBatchNum: nil,
 	}
 
-	err = s.StoreGenesisBatch(ctx, batch, dbTx)
+	err = s.StoreGenesisBatch(ctx, batch, string(SyncGenesisBatchClosingReason), dbTx)
 	if err != nil {
 		return common.Hash{}, err
 	}

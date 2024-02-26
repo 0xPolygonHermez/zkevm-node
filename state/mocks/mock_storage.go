@@ -8004,17 +8004,17 @@ func (_c *StorageMock_SetLastBatchInfoSeenOnEthereum_Call) RunAndReturn(run func
 	return _c
 }
 
-// StoreGenesisBatch provides a mock function with given fields: ctx, batch, dbTx
-func (_m *StorageMock) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batch, dbTx)
+// StoreGenesisBatch provides a mock function with given fields: ctx, batch, closingReason, dbTx
+func (_m *StorageMock) StoreGenesisBatch(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batch, closingReason, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreGenesisBatch")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, pgx.Tx) error); ok {
-		r0 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, string, pgx.Tx) error); ok {
+		r0 = rf(ctx, batch, closingReason, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -8030,14 +8030,15 @@ type StorageMock_StoreGenesisBatch_Call struct {
 // StoreGenesisBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - batch state.Batch
+//   - closingReason string
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) StoreGenesisBatch(ctx interface{}, batch interface{}, dbTx interface{}) *StorageMock_StoreGenesisBatch_Call {
-	return &StorageMock_StoreGenesisBatch_Call{Call: _e.mock.On("StoreGenesisBatch", ctx, batch, dbTx)}
+func (_e *StorageMock_Expecter) StoreGenesisBatch(ctx interface{}, batch interface{}, closingReason interface{}, dbTx interface{}) *StorageMock_StoreGenesisBatch_Call {
+	return &StorageMock_StoreGenesisBatch_Call{Call: _e.mock.On("StoreGenesisBatch", ctx, batch, closingReason, dbTx)}
 }
 
-func (_c *StorageMock_StoreGenesisBatch_Call) Run(run func(ctx context.Context, batch state.Batch, dbTx pgx.Tx)) *StorageMock_StoreGenesisBatch_Call {
+func (_c *StorageMock_StoreGenesisBatch_Call) Run(run func(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx)) *StorageMock_StoreGenesisBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(state.Batch), args[2].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(state.Batch), args[2].(string), args[3].(pgx.Tx))
 	})
 	return _c
 }
@@ -8047,7 +8048,7 @@ func (_c *StorageMock_StoreGenesisBatch_Call) Return(_a0 error) *StorageMock_Sto
 	return _c
 }
 
-func (_c *StorageMock_StoreGenesisBatch_Call) RunAndReturn(run func(context.Context, state.Batch, pgx.Tx) error) *StorageMock_StoreGenesisBatch_Call {
+func (_c *StorageMock_StoreGenesisBatch_Call) RunAndReturn(run func(context.Context, state.Batch, string, pgx.Tx) error) *StorageMock_StoreGenesisBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
