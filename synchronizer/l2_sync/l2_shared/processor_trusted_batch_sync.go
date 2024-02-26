@@ -266,7 +266,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 		return ProcessData{}, fmt.Errorf("trustedNodeBatch and statePreviousBatch can't be nil")
 	}
 
-	var result ProcessData
+	var result ProcessData = ProcessData{}
 	if stateBatch == nil {
 		result = ProcessData{
 			Mode:              FullProcessMode,
@@ -311,7 +311,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	}
 
 	if result.Mode == "" {
-		return nil, fmt.Errorf("batch %v: failed to get mode for process ", trustedNodeBatch.Number)
+		return result, fmt.Errorf("batch %v: failed to get mode for process ", trustedNodeBatch.Number)
 	}
 
 	result.BatchNumber = uint64(trustedNodeBatch.Number)
