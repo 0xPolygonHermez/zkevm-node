@@ -1,14 +1,6 @@
 # .goreleaser.yaml
-project_name: cdk-validium-node
-
-release:
-  disable: false
-  draft: true
-  prerelease: auto
-
 builds:
   - main: ./cmd/
-    binary: zkevm-node
     goos:
       - linux
       - darwin
@@ -18,61 +10,13 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w
-      - -X github.com/0xPolygon/{{ .ProjectName }}.Version={{ .Version }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.GitRev={{ .Commit }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.BuildDate={{ .Date }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.GitBranch={{ .Branch }}
-
-archives:
-  - files:
-      - LICENSE
-      - README.md
-
-dockers:
-  - image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-    dockerfile: Dockerfile.release
-    use: buildx
-    goos: linux
-    goarch: amd64
-    build_flag_templates:
-      - --platform=linux/amd64
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
-      - --label=org.opencontainers.image.url=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-    skip_push: false
-
-  - image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    dockerfile: Dockerfile.release
-    use: buildx
-    goos: linux
-    goarch: arm64
-    build_flag_templates:
-      - --platform=linux/arm64
-      - --label=org.opencontainers.image.title={{ .ProjectName }}
-      - --label=org.opencontainers.image.description={{ .ProjectName }}
-      - --label=org.opencontainers.image.url=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.source=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
-      - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
-      - --label=org.opencontainers.image.revision={{ .FullCommit }}
-    skip_push: false
-
-docker_manifests:
-  - name_template: 0xpolygon/{{ .ProjectName }}:{{ .Version }}
-    image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    skip_push: false
-
-  - name_template: 0xpolygon/{{ .ProjectName }}:latest
-    image_templates:
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-      - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    skip_push: false
+      - -X github.com/0xPolygonHermez/zkevm-node.Version={{.Version}}
+      - -X github.com/0xPolygonHermez/zkevm-node.GitRev={{.Commit}}
+      - -X github.com/0xPolygonHermez/zkevm-node.BuildDate={{.Date}}
+      - -X github.com/0xPolygonHermez/zkevm-node.GitBranch={{.Branch}}
+release:
+  # If set to auto, will mark the release as not ready for production
+  # in case there is an indicator for this in the tag e.g. v1.0.0-rc1
+  # If set to true, will mark the release as not ready for production.
+  # Default is false.
+  prerelease: true
