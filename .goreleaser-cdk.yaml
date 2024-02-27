@@ -32,7 +32,7 @@ archives:
 dockers:
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.release
     use: buildx
     goos: linux
     goarch: amd64
@@ -49,7 +49,7 @@ dockers:
 
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.release
     use: buildx
     goos: linux
     goarch: arm64
