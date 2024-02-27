@@ -17,6 +17,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	timeOfLiveBatchOnCache = 5 * time.Minute
+)
+
 var (
 	// ErrNotImplemented is returned when a method is not implemented
 	ErrNotImplemented = errors.New("not implemented")
@@ -67,7 +71,7 @@ func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientT
 	}
 
 	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, cfg)
-	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
+	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, timeOfLiveBatchOnCache))
 	return a
 }
 
