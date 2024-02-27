@@ -125,6 +125,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: types.NewDuration(10 * time.Second),
 		},
 		{
+			path:          "Sequencer.Finalizer.Metrics.Interval",
+			expectedValue: types.NewDuration(60 * time.Minute),
+		},
+		{
+			path:          "Sequencer.Finalizer.Metrics.EnableLog",
+			expectedValue: true,
+		},
+		{
 			path:          "Sequencer.StreamServer.Port",
 			expectedValue: uint16(0),
 		},

@@ -1896,6 +1896,7 @@ StateConsistencyCheckInterval="5s"
 | - [HaltOnBatchNumber](#Sequencer_Finalizer_HaltOnBatchNumber )                                 | No      | integer | No         | -          | HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.<br />The Sequencer will halt after it closes the batch equal to this number |
 | - [SequentialBatchSanityCheck](#Sequencer_Finalizer_SequentialBatchSanityCheck )               | No      | boolean | No         | -          | SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a<br />sequential way (instead than in parallel)                                                       |
 | - [SequentialProcessL2Block](#Sequencer_Finalizer_SequentialProcessL2Block )                   | No      | boolean | No         | -          | SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead<br />in the processPendingL2Blocks go func                                              |
+| - [Metrics](#Sequencer_Finalizer_Metrics )                                                     | No      | object  | No         | -          | Metrics is the config for the sequencer metrics                                                                                                                                                               |
 
 #### <a name="Sequencer_Finalizer_ForcedBatchesTimeout"></a>10.7.1. `Sequencer.Finalizer.ForcedBatchesTimeout`
 
@@ -2138,6 +2139,56 @@ in the processPendingL2Blocks go func
 ```
 [Sequencer.Finalizer]
 SequentialProcessL2Block=true
+```
+
+#### <a name="Sequencer_Finalizer_Metrics"></a>10.7.13. `[Sequencer.Finalizer.Metrics]`
+
+**Type:** : `object`
+**Description:** Metrics is the config for the sequencer metrics
+
+| Property                                               | Pattern | Type    | Deprecated | Definition | Title/Description                                  |
+| ------------------------------------------------------ | ------- | ------- | ---------- | ---------- | -------------------------------------------------- |
+| - [Interval](#Sequencer_Finalizer_Metrics_Interval )   | No      | string  | No         | -          | Duration                                           |
+| - [EnableLog](#Sequencer_Finalizer_Metrics_EnableLog ) | No      | boolean | No         | -          | EnableLog is a flag to enable/disable metrics logs |
+
+##### <a name="Sequencer_Finalizer_Metrics_Interval"></a>10.7.13.1. `Sequencer.Finalizer.Metrics.Interval`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"1h0m0s"`
+
+**Description:** Interval is the interval of time to calculate sequencer metrics
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("1h0m0s"):
+```
+[Sequencer.Finalizer.Metrics]
+Interval="1h0m0s"
+```
+
+##### <a name="Sequencer_Finalizer_Metrics_EnableLog"></a>10.7.13.2. `Sequencer.Finalizer.Metrics.EnableLog`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** EnableLog is a flag to enable/disable metrics logs
+
+**Example setting the default value** (true):
+```
+[Sequencer.Finalizer.Metrics]
+EnableLog=true
 ```
 
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`

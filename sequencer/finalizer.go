@@ -14,7 +14,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -72,6 +71,10 @@ type finalizer struct {
 	storedFlushIDCond  *sync.Cond //Condition to wait until storedFlushID has been updated
 	lastPendingFlushID uint64
 	pendingFlushIDCond *sync.Cond
+	// worker ready txs condition
+	workerReadyTxsCond *timeoutCond
+	// interval metrics
+	metrics *intervalMetrics
 	// stream server
 	streamServer *datastreamer.StreamServer
 	dataToStream chan interface{}
@@ -90,6 +93,7 @@ func newFinalizer(
 	batchConstraints state.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 	streamServer *datastreamer.StreamServer,
+	workerReadyTxsCond *timeoutCond,
 	dataToStream chan interface{},
 ) *finalizer {
 	f := finalizer{
@@ -125,6 +129,10 @@ func newFinalizer(
 		storedFlushIDCond:  sync.NewCond(&sync.Mutex{}),
 		lastPendingFlushID: 0,
 		pendingFlushIDCond: sync.NewCond(&sync.Mutex{}),
+		// worker ready txs condition
+		workerReadyTxsCond: workerReadyTxsCond,
+		// metrics
+		metrics: newIntervalMetrics(cfg.Metrics.Interval.Duration),
 		// stream server
 		streamServer: streamServer,
 		dataToStream: dataToStream,
@@ -263,7 +271,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 	log.Debug("finalizer init loop")
 	showNotFoundTxLog := true // used to log debug only the first message when there is no txs to process
 	for {
-		start := now()
 		// We have reached the L2 block time, we need to close the current L2 block and open a new one
 		if f.wipL2Block.timestamp+uint64(f.cfg.L2BlockMaxDeltaTimestamp.Seconds()) <= uint64(time.Now().Unix()) {
 			f.finalizeWIPL2Block(ctx)
@@ -277,7 +284,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			continue
 		}
 
-		metrics.WorkerProcessingTime(time.Since(start))
 		if tx != nil {
 			showNotFoundTxLog = true
 
@@ -301,14 +307,20 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 				break
 			}
 		} else {
-			// wait for new txs
+			idleTime := time.Now()
+
 			if showNotFoundTxLog {
 				log.Debug("no transactions to be processed. Waiting...")
 				showNotFoundTxLog = false
 			}
-			if f.cfg.NewTxsWaitInterval.Duration > 0 {
-				time.Sleep(f.cfg.NewTxsWaitInterval.Duration)
-			}
+
+			// wait for new ready txs in worker
+			f.workerReadyTxsCond.L.Lock()
+			f.workerReadyTxsCond.WaitOrTimeout(f.cfg.NewTxsWaitInterval.Duration)
+			f.workerReadyTxsCond.L.Unlock()
+
+			// Increase idle time of the WIP L2Block
+			f.wipL2Block.metrics.idleTime += time.Since(idleTime)
 		}
 
 		if f.haltFinalizer.Load() {
@@ -333,9 +345,6 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, err error) {
 	start := time.Now()
-	defer func() {
-		metrics.ProcessingTime(time.Since(start))
-	}()
 
 	log.Infof("processing tx %s, batchNumber: %d, l2Block: [%d], oldStateRoot: %s, L1InfoRootIndex: %d",
 		tx.HashStr, f.wipBatch.batchNumber, f.wipL2Block.trackingNum, f.wipBatch.imStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
@@ -346,7 +355,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             state.GetMockL1InfoRoot(),
 		TimestampLimit_V2:         f.wipL2Block.timestamp,
-		Caller:                    stateMetrics.SequencerCallerLabel,
+		Caller:                    stateMetrics.DiscardCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		Transactions:              tx.RawTx,
 		SkipFirstChangeL2Block_V2: true,
@@ -427,7 +436,10 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 	batchRequest.Transactions = append(batchRequest.Transactions, effectivePercentageAsDecodedHex...)
 
+	executionStart := time.Now()
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+	executionTime := time.Since(executionStart)
+	f.wipL2Block.metrics.transactionsTimes.executor += executionTime
 
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
 		log.Errorf("failed to process tx %s, error: %v", tx.HashStr, err)
@@ -446,8 +458,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
 		if err != nil {
 			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
-		} else {
-			metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 		}
 		return nil, err
 	}
@@ -463,9 +473,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	// Update imStateRoot
 	f.wipBatch.imStateRoot = batchResponse.NewStateRoot
 
-	log.Infof("processed tx %s, batchNumber: %d, l2Block: [%d], newStateRoot: %s, oldStateRoot: %s, used counters: %s, reserved counters: %s",
+	log.Infof("processed tx %s, batchNumber: %d, l2Block: [%d], newStateRoot: %s, oldStateRoot: %s, time: {process: %v, executor: %v}, used counters: %s, reserved counters: %s",
 		tx.HashStr, batchRequest.BatchNumber, f.wipL2Block.trackingNum, batchResponse.NewStateRoot.String(), batchRequest.OldStateRoot.String(),
-		f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
+		time.Since(start), executionTime, f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
 
 	return nil, nil
 }
@@ -561,9 +571,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	// If reserved tx resources don't fit in the remaining batch resources (or we got an overflow when trying to subtract the used resources)
 	// we update the ZKCounters of the tx and returns ErrBatchResourceOverFlow error
 	if !fits || subOverflow {
-		start := time.Now()
 		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters, result.ReservedZkCounters)
-		metrics.WorkerProcessingTime(time.Since(start))
 		return nil, ErrBatchResourceOverFlow
 	}
 
@@ -642,7 +650,6 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 		log.Debugf("tx %s deleted from address %s", txHash.String(), txFrom.Hex())
 	}
 
-	start := time.Now()
 	txsToDelete := f.workerIntf.UpdateAfterSingleSuccessfulTxExecution(txFrom, result.ReadWriteAddresses)
 	for _, txToDelete := range txsToDelete {
 		err := f.poolIntf.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, txToDelete.FailedReason)
@@ -650,9 +657,7 @@ func (f *finalizer) updateWorkerAfterSuccessfulProcessing(ctx context.Context, t
 			log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", txToDelete.Hash.String(), err)
 			continue
 		}
-		metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 	}
-	metrics.WorkerProcessingTime(time.Since(start))
 }
 
 // handleProcessTransactionError handles the error of a transaction
@@ -665,9 +670,8 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 	failedReason := executor.RomErr(errorCode).Error()
 	if executor.IsROMOutOfCountersError(errorCode) {
 		log.Errorf("ROM out of counters error, marking tx %s as invalid, errorCode: %d", tx.HashStr, errorCode)
-		start := time.Now()
+
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
-		metrics.WorkerProcessingTime(time.Since(start))
 
 		wg.Add(1)
 		go func() {
@@ -675,8 +679,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			err := f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.HashStr, err)
-			} else {
-				metrics.TxProcessed(metrics.TxProcessedLabelInvalid, 1)
 			}
 		}()
 	} else if executor.IsInvalidNonceError(errorCode) || executor.IsInvalidBalanceError(errorCode) {
@@ -688,7 +690,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			nonce = addressInfo.Nonce
 			balance = addressInfo.Balance
 		}
-		start := time.Now()
 		log.Errorf("intrinsic error, moving tx %s to not ready: nonce: %d, balance: %d. gasPrice: %d, error: %v", tx.Hash, nonce, balance, tx.GasPrice, txResponse.RomError)
 		txsToDelete := f.workerIntf.MoveTxToNotReady(tx.Hash, tx.From, nonce, balance)
 		for _, txToDelete := range txsToDelete {
@@ -697,13 +698,11 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			go func() {
 				defer wg.Done()
 				err := f.poolIntf.UpdateTxStatus(ctx, txToDelete.Hash, pool.TxStatusFailed, false, &failedReason)
-				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 				if err != nil {
 					log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", txToDelete.Hash.String(), err)
 				}
 			}()
 		}
-		metrics.WorkerProcessingTime(time.Since(start))
 	} else {
 		// Delete the transaction from the txSorted list
 		f.workerIntf.DeleteTx(tx.Hash, tx.From)
@@ -716,8 +715,6 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			err := f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusFailed, false, &failedReason)
 			if err != nil {
 				log.Errorf("failed to update status to failed in the pool for tx %s, error: %v", tx.Hash.String(), err)
-			} else {
-				metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 			}
 		}()
 	}

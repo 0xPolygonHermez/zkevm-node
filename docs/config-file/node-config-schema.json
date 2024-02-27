@@ -795,6 +795,28 @@
 							"type": "boolean",
 							"description": "SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead\nin the processPendingL2Blocks go func",
 							"default": true
+						},
+						"Metrics": {
+							"properties": {
+								"Interval": {
+									"type": "string",
+									"title": "Duration",
+									"description": "Interval is the interval of time to calculate sequencer metrics",
+									"default": "1h0m0s",
+									"examples": [
+										"1m",
+										"300ms"
+									]
+								},
+								"EnableLog": {
+									"type": "boolean",
+									"description": "EnableLog is a flag to enable/disable metrics logs",
+									"default": true
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Metrics is the config for the sequencer metrics"
 						}
 					},
 					"additionalProperties": false,
