@@ -265,7 +265,7 @@ func TestCloseBatchGivenAlreadyClosedAndTheDataAreRightThenNoError(t *testing.T)
 	require.NoError(t, res)
 }
 
-func TestEmptyBatch(t *testing.T) {
+func TestEmptyWIPBatch(t *testing.T) {
 	testData := newTestData(t)
 	// Arrange
 	expectedBatch := state.Batch{

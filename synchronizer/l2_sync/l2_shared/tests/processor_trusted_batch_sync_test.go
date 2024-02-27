@@ -211,6 +211,7 @@ func TestGetModeForProcessBatchNothing(t *testing.T) {
 func TestGetModeForEmptyAndClosedBatchConfiguredToReject(t *testing.T) {
 	testData := newTestDataForProcessorTrustedBatchSync(t)
 	testData.sut.Cfg.AcceptEmptyClosedBatches = false
+	testData.sut.Cfg.ReprocessFullBatchOnClose = true
 	testData.stateCurrentBatch.WIP = true
 	testData.trustedNodeBatch.Closed = true
 	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
@@ -239,6 +240,32 @@ func TestGetModeForEmptyAndClosedBatchConfiguredToReject(t *testing.T) {
 	testData.trustedNodeBatch.Closed = true
 	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
 	require.Error(t, err)
+}
+
+func TestGetModeReprocessFullBatchOnCloseTrue(t *testing.T) {
+	testData := newTestDataForProcessorTrustedBatchSync(t)
+	testData.sut.Cfg.AcceptEmptyClosedBatches = true
+	testData.sut.Cfg.ReprocessFullBatchOnClose = true
+	testData.stateCurrentBatch.WIP = true
+	testData.stateCurrentBatch.BatchL2Data = common.Hex2Bytes("112233")
+	testData.trustedNodeBatch.BatchL2Data = common.Hex2Bytes("11223344")
+	testData.trustedNodeBatch.Closed = true
+	// Is a incremental converted to reprocess
+	testData.sut.Cfg.ReprocessFullBatchOnClose = true
+	processData, err := testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.ReprocessProcessMode, processData.Mode, "current batch and trusted batch are the same, just need to be closed")
+	// Is a incremental to close
+	testData.sut.Cfg.ReprocessFullBatchOnClose = false
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, testData.stateCurrentBatch, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.IncrementalProcessMode, processData.Mode, "increment of batchl2data, need to incremental execution")
+	// No previous batch, is a fullprocess
+	testData.sut.Cfg.ReprocessFullBatchOnClose = true
+	processData, err = testData.sut.GetModeForProcessBatch(testData.trustedNodeBatch, nil, testData.statePreviousBatch, "test")
+	require.NoError(t, err)
+	require.Equal(t, l2_shared.FullProcessMode, processData.Mode, "no previous batch and close, fullprocess")
+
 }
 
 func TestGetNextStatusClear(t *testing.T) {
