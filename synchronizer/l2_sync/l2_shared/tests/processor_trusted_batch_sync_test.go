@@ -27,7 +27,7 @@ var (
 func TestCacheEmpty(t *testing.T) {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
-	mockL1SyncChecker := mock_l2_shared.NewL1SyncChecker(t)
+	mockL1SyncChecker := mock_l2_shared.NewL1SyncGlobalExitRootChecker(t)
 	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, mockL1SyncChecker, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&l2_shared.TrustedState{
