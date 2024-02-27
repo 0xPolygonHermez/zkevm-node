@@ -9,7 +9,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -18,6 +17,7 @@ import (
 
 // L2Block represents a wip or processed L2 block
 type L2Block struct {
+	createdAt                 time.Time
 	trackingNum               uint64
 	timestamp                 uint64
 	deltaTimestamp            uint32
@@ -29,6 +29,7 @@ type L2Block struct {
 	reservedZKCounters        state.ZKCounters
 	transactions              []*TxTracker
 	batchResponse             *state.ProcessBatchResponse
+	metrics                   metrics
 }
 
 func (b *L2Block) isEmpty() bool {
@@ -162,7 +163,7 @@ func (f *finalizer) storePendingL2Blocks(ctx context.Context) {
 
 // processL2Block process a L2 Block and adds it to the pendingL2BlocksToStore channel
 func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) error {
-	startProcessing := time.Now()
+	processStart := time.Now()
 
 	initialStateRoot := f.wipBatch.finalStateRoot
 
@@ -223,11 +224,20 @@ func (f *finalizer) processL2Block(ctx context.Context, l2Block *L2Block) error 
 
 	f.addPendingL2BlockToStore(ctx, l2Block)
 
-	endProcessing := time.Now()
+	// metrics
+	l2Block.metrics.l2BlockTimes.sequencer = time.Since(processStart) - l2Block.metrics.l2BlockTimes.executor
+	l2Block.metrics.close(l2Block.createdAt, int64(len(l2Block.transactions)))
+	f.metrics.addL2BlockMetrics(l2Block.metrics)
 
-	log.Infof("processed L2 block %d [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, initialStateRoot: %s, newStateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, time: %v, used counters: %s, reserved counters: %s",
+	log.Infof("processed L2 block %d [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, initialStateRoot: %s, newStateRoot: %s, txs: %d/%d, blockHash: %s, infoRoot: %s, used counters: %s, reserved counters: %s",
 		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.deltaTimestamp, l2Block.timestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex, l2Block.l1InfoTreeExitRootChanged, initialStateRoot, l2Block.batchResponse.NewStateRoot,
-		len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot, endProcessing.Sub(startProcessing), f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
+		len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot,
+		f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
+
+	if f.cfg.Metrics.EnableLog {
+		log.Infof("metrics-log: {l2block: {num: %d, trackingNum: %d, metrics: {%s}}, interval: {startAt: %d, metrics: {%s}}}",
+			blockResponse.BlockNumber, l2Block.trackingNum, l2Block.metrics.log(), f.metrics.startsAt().Unix(), f.metrics.log())
+	}
 
 	return nil
 }
@@ -287,7 +297,9 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		batchResponse *state.ProcessBatchResponse
 	)
 
+	executionStart := time.Now()
 	batchResponse, err = f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)
+	l2Block.metrics.l2BlockTimes.executor = time.Since(executionStart)
 
 	if err != nil {
 		executeL2BLockError(err)
@@ -467,7 +479,10 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 
 // openNewWIPL2Block opens a new wip L2 block
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64, prevL1InfoTreeIndex *uint32) {
+	processStart := time.Now()
+
 	newL2Block := &L2Block{}
+	newL2Block.createdAt = time.Now()
 
 	// Tracking number
 	f.l2BlockCounter++
@@ -547,6 +562,8 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 		}
 	}
 
+	f.wipL2Block.metrics.newL2BlockTimes.sequencer = time.Since(processStart) - f.wipL2Block.metrics.newL2BlockTimes.executor
+
 	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, imStateRoot: %s, used counters: %s, reserved counters: %s",
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, oldIMStateRoot, f.wipL2Block.imStateRoot, f.logZKCounters(f.wipL2Block.usedZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters))
@@ -554,18 +571,13 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 
 // executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor
 func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBatchResponse, error) {
-	start := time.Now()
-	defer func() {
-		metrics.ProcessingTime(time.Since(start))
-	}()
-
 	batchRequest := state.ProcessRequest{
 		BatchNumber:               f.wipBatch.batchNumber,
 		OldStateRoot:              f.wipBatch.imStateRoot,
 		Coinbase:                  f.wipBatch.coinbase,
 		L1InfoRoot_V2:             state.GetMockL1InfoRoot(),
 		TimestampLimit_V2:         f.wipL2Block.timestamp,
-		Caller:                    stateMetrics.SequencerCallerLabel,
+		Caller:                    stateMetrics.DiscardCallerLabel,
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipWriteBlockInfoRoot_V2: true,
 		SkipVerifyL1InfoRoot_V2:   true,
@@ -581,7 +593,9 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		MinTimestamp:   uint64(f.wipL2Block.l1InfoTreeExitRoot.GlobalExitRoot.Timestamp.Unix()),
 	}
 
+	executorTime := time.Now()
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, false)
+	f.wipL2Block.metrics.newL2BlockTimes.executor = time.Since(executorTime)
 
 	if err != nil {
 		return nil, err

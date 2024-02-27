@@ -8,7 +8,6 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
@@ -145,11 +144,6 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
-	start := time.Now()
-	defer func() {
-		metrics.ProcessingTime(time.Since(start))
-	}()
-
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
 
@@ -185,7 +179,6 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
 	elapsed := time.Since(startWait)
-	stateMetrics.ExecutorProcessingTime(string(stateMetrics.SequencerCallerLabel), elapsed)
 	log.Debugf("waiting for pending L2 blocks to be processed took: %v", elapsed)
 
 	// Wait until all L2 blocks are store
@@ -374,11 +367,6 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrGetBatchByNumber
 	}
 
-	caller := stateMetrics.DiscardCallerLabel
-	if f.cfg.SequentialBatchSanityCheck {
-		caller = stateMetrics.SequencerCallerLabel
-	}
-
 	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
 		L1InfoRoot_V2:           state.GetMockL1InfoRoot(),
@@ -388,7 +376,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		TimestampLimit_V2:       uint64(time.Now().Unix()),
 		ForkID:                  f.stateIntf.GetForkIDByBatchNumber(batch.BatchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
-		Caller:                  caller,
+		Caller:                  stateMetrics.DiscardCallerLabel,
 		ExecutionMode:           executor.ExecutionMode0,
 	}
 	batchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)

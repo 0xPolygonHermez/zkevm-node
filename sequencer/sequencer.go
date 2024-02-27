@@ -3,13 +3,13 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-data-streamer/datastreamer"
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -30,6 +30,8 @@ type Sequencer struct {
 	etherman  etherman
 	worker    *Worker
 	finalizer *finalizer
+
+	workerReadyTxsCond *timeoutCond
 
 	streamServer *datastreamer.StreamServer
 	dataToStream chan interface{}
@@ -70,7 +72,6 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Infof("waiting for synchronizer to sync...")
 		time.Sleep(time.Second)
 	}
-	metrics.Register()
 
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
@@ -98,8 +99,9 @@ func (s *Sequencer) Start(ctx context.Context) {
 		go s.sendDataToStreamer(s.cfg.StreamServer.ChainID)
 	}
 
-	s.worker = NewWorker(s.stateIntf, s.batchCfg.Constraints)
-	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateIntf, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.dataToStream)
+	s.workerReadyTxsCond = newTimeoutCond(&sync.Mutex{})
+	s.worker = NewWorker(s.stateIntf, s.batchCfg.Constraints, s.workerReadyTxsCond)
+	s.finalizer = newFinalizer(s.cfg.Finalizer, s.poolCfg, s.worker, s.pool, s.stateIntf, s.etherman, s.address, s.isSynced, s.batchCfg.Constraints, s.eventLog, s.streamServer, s.workerReadyTxsCond, s.dataToStream)
 	go s.finalizer.Start(ctx)
 
 	go s.deleteOldPoolTxs(ctx)
@@ -183,7 +185,6 @@ func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 		failedReason := ErrExpiredTransaction.Error()
 		for _, txTracker := range txTrackers {
 			err := s.pool.UpdateTxStatus(ctx, txTracker.Hash, pool.TxStatusFailed, false, &failedReason)
-			metrics.TxProcessed(metrics.TxProcessedLabelFailed, 1)
 			if err != nil {
 				log.Errorf("failed to update tx status, error: %v", err)
 			}
@@ -194,8 +195,6 @@ func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 // loadFromPool keeps loading transactions from the pool
 func (s *Sequencer) loadFromPool(ctx context.Context) {
 	for {
-		time.Sleep(s.cfg.LoadPoolTxsCheckInterval.Duration)
-
 		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx)
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("error loading txs from pool, error: %v", err)
@@ -206,6 +205,10 @@ func (s *Sequencer) loadFromPool(ctx context.Context) {
 			if err != nil {
 				log.Errorf("error adding transaction to worker, error: %v", err)
 			}
+		}
+
+		if len(poolTransactions) == 0 {
+			time.Sleep(s.cfg.LoadPoolTxsCheckInterval.Duration)
 		}
 	}
 }
