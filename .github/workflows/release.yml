@@ -5,6 +5,7 @@ on:
     tags:
       # run only against tags that follow semver (https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string)
       - 'v[0-9]+.[0-9]+.[0-9]+*'
+      - 'v[0-9]+.[0-9]+.[0-9]+*.[0-9]+'
 
 permissions:
   contents: write
