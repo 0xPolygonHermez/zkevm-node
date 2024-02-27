@@ -642,7 +642,7 @@ func (etherMan *Client) updateZkevmVersion(ctx context.Context, vLog types.Log, 
 		log.Error("error parsing UpdateZkEVMVersion event. Error: ", err)
 		return err
 	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, zkevmVersion.NumBatch, zkevmVersion.ForkID, zkevmVersion.Version)
+	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, zkevmVersion.NumBatch, zkevmVersion.ForkID, zkevmVersion.Version, etherMan.RollupID)
 }
 
 func (etherMan *Client) updateRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -656,7 +656,7 @@ func (etherMan *Client) updateRollup(ctx context.Context, vLog types.Log, blocks
 	if err != nil {
 		return err
 	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, updateRollup.LastVerifiedBatchBeforeUpgrade, rollupType.ForkID, "")
+	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, updateRollup.LastVerifiedBatchBeforeUpgrade, rollupType.ForkID, "", updateRollup.RollupID)
 }
 
 func (etherMan *Client) createNewRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -670,7 +670,7 @@ func (etherMan *Client) createNewRollup(ctx context.Context, vLog types.Log, blo
 	if err != nil {
 		return err
 	}
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, 0, rollupType.ForkID, "")
+	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, 0, rollupType.ForkID, "", createRollup.RollupID)
 }
 
 func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -680,18 +680,8 @@ func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, b
 		log.Error("error parsing createNewRollup event. Error: ", err)
 		return err
 	}
-	if etherMan.RollupID != addExistingRollup.RollupID {
-		return nil
-	}
-	// TODO Delete after upgrade Get RollupID
-	rollupID, err := etherMan.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, etherMan.SCAddresses[0])
-	if err != nil {
-		log.Error("error getting rollupID. Error: ", err)
-		return err
-	}
-	log.Debug("rollupID: ", rollupID)
 
-	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "")
+	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "", addExistingRollup.RollupID)
 }
 
 func (etherMan *Client) updateEtrogSequence(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -808,7 +798,11 @@ func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.L
 	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
 	return nil
 }
-func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order, batchNum, forkID uint64, version string) error {
+func (etherMan *Client) updateForkId(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order, batchNum, forkID uint64, version string, affectedRollupID uint32) error {
+	if etherMan.RollupID != affectedRollupID {
+		log.Debug("ignoring this event because it is related to another rollup %d, we are rollupID %d", affectedRollupID, etherMan.RollupID)
+		return nil
+	}
 	fork := ForkID{
 		BatchNumber: batchNum,
 		ForkID:      forkID,
