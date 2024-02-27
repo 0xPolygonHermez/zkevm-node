@@ -17,6 +17,10 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+const (
+	timeOfLiveBatchOnCache = 5 * time.Minute
+)
+
 var (
 	// ErrNotImplemented is returned when a method is not implemented
 	ErrNotImplemented = errors.New("not implemented")
@@ -40,34 +44,28 @@ type StateInterface interface {
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)
-}
-
-// L1SyncChecker is the interface to check if we are synced from L1 to process a batch
-type L1SyncChecker interface {
-	CheckL1SyncStatusEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
+	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 // SyncTrustedBatchExecutorForEtrog is the implementation of the SyncTrustedStateBatchExecutorSteps that
 // have the functions to sync a fullBatch, incrementalBatch and reprocessBatch
 type SyncTrustedBatchExecutorForEtrog struct {
-	state         StateInterface
-	sync          syncinterfaces.SynchronizerFlushIDManager
-	l1SyncChecker L1SyncChecker
+	state StateInterface
+	sync  syncinterfaces.SynchronizerFlushIDManager
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker,
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker l2_shared.L1SyncGlobalExitRootChecker,
 	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
-		state:         stateBatchExecutor,
-		sync:          sync,
-		l1SyncChecker: l1SyncChecker,
+		state: stateBatchExecutor,
+		sync:  sync,
 	}
 
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, cfg)
-	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
+	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, l1SyncChecker, cfg)
+	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, timeOfLiveBatchOnCache))
 	return a
 }
 
@@ -143,12 +141,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		data.DebugPrefix += " (emptyBatch) "
 		return b.CreateEmptyBatch(ctx, data, dbTx)
 	}
-	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
-	if err != nil {
-		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
-		return nil, err
-	}
-	err = b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+	err := b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 	if err != nil {
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
@@ -208,11 +201,6 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		log.Errorf("%s error checkThatL2DataIsIncremental. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	err = b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
-	if err != nil {
-		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
-		return nil, err
-	}
 
 	PartialBatchL2Data, err := b.composePartialBatch(data.StateBatch, data.TrustedBatch)
 	if err != nil {
@@ -259,19 +247,15 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	}
 
 	updatedBatch := *data.StateBatch
+	updatedBatch.LocalExitRoot = data.TrustedBatch.LocalExitRoot
+	updatedBatch.AccInputHash = data.TrustedBatch.AccInputHash
+	updatedBatch.GlobalExitRoot = data.TrustedBatch.GlobalExitRoot
 	updatedBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	updatedBatch.WIP = !data.BatchMustBeClosed
+
 	res := l2_shared.NewProcessResponse()
 	res.UpdateCurrentBatchWithExecutionResult(&updatedBatch, processBatchResp)
 	return &res, nil
-}
-
-func (b *SyncTrustedBatchExecutorForEtrog) checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) error {
-	if b.l1SyncChecker == nil {
-		log.Infof("Disabled check L1 sync status for process batch")
-		return nil
-	}
-	return b.l1SyncChecker.CheckL1SyncStatusEnoughToProcessBatch(ctx, data.BatchNumber, data.TrustedBatch.GlobalExitRoot, dbTx)
 }
 
 func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, NewStateRoot common.Hash, dbTx pgx.Tx) error {
@@ -295,7 +279,17 @@ func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, d
 // ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
 func (b *SyncTrustedBatchExecutorForEtrog) ReProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Warnf("%s needs to be reprocessed! deleting batches from this batch, because it was partially processed but the intermediary stateRoot is lost", data.DebugPrefix)
-	err := b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
+	// Check that there are no VirtualBatches neither VerifiedBatches that are newer than this batch
+	lastVirtualBatchNum, err := b.state.GetLastVirtualBatchNum(ctx, dbTx)
+	if err != nil {
+		log.Errorf("%s error getting lastVirtualBatchNum. Error: %v", data.DebugPrefix, err)
+		return nil, err
+	}
+	if lastVirtualBatchNum >= uint64(data.TrustedBatch.Number) {
+		log.Errorf("%s there are newer or equal virtualBatches than this batch. Can't reprocess because then will delete a virtualBatch", data.DebugPrefix)
+		return nil, syncinterfaces.ErrMissingSyncFromL1
+	}
+	err = b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
 	if err != nil {
 		log.Warnf("%s error deleting batches from this batch: %v", data.DebugPrefix, err)
 		return nil, err

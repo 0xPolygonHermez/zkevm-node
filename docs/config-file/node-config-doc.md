@@ -1683,9 +1683,10 @@ FallbackToSequentialModeOnSynchronized=false
 **Type:** : `object`
 **Description:** L2Synchronization Configuration for L2 synchronization
 
-| Property                                                                                | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                   |
-| --------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| - [AcceptEmptyClosedBatches](#Synchronizer_L2Synchronization_AcceptEmptyClosedBatches ) | No      | boolean | No         | -          | AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.<br />if true, the synchronizer will accept empty batches and process them. |
+| Property                                                                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [AcceptEmptyClosedBatches](#Synchronizer_L2Synchronization_AcceptEmptyClosedBatches )   | No      | boolean | No         | -          | AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.<br />if true, the synchronizer will accept empty batches and process them. |
+| - [ReprocessFullBatchOnClose](#Synchronizer_L2Synchronization_ReprocessFullBatchOnClose ) | No      | boolean | No         | -          | ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again                                                                             |
 
 #### <a name="Synchronizer_L2Synchronization_AcceptEmptyClosedBatches"></a>9.6.1. `Synchronizer.L2Synchronization.AcceptEmptyClosedBatches`
 
@@ -1700,6 +1701,20 @@ if true, the synchronizer will accept empty batches and process them.
 ```
 [Synchronizer.L2Synchronization]
 AcceptEmptyClosedBatches=false
+```
+
+#### <a name="Synchronizer_L2Synchronization_ReprocessFullBatchOnClose"></a>9.6.2. `Synchronizer.L2Synchronization.ReprocessFullBatchOnClose`
+
+**Type:** : `boolean`
+
+**Default:** `true`
+
+**Description:** ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again
+
+**Example setting the default value** (true):
+```
+[Synchronizer.L2Synchronization]
+ReprocessFullBatchOnClose=true
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
