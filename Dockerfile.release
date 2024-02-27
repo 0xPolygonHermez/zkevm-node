@@ -1,0 +1,14 @@
+FROM alpine:3.18
+
+RUN apk update && apk add postgresql15-client
+
+EXPOSE 8123
+
+COPY dist/zkevm-node /app/zkevm-node
+
+RUN addgroup -S zkevm-group \
+    && adduser -S zkevm-user -G zkevm-group
+
+USER zkevm-user
+
+CMD ["/bin/sh", "-c", "/app/zkevm-node run"]
