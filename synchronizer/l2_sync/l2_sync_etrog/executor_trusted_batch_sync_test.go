@@ -239,7 +239,6 @@ func TestReprocessRejectDeleteVirtualBatch(t *testing.T) {
 	testData.stateMock.EXPECT().GetLastVirtualBatchNum(testData.ctx, mock.Anything).Return(uint64(123), nil).Maybe()
 	_, err := testData.sut.ReProcess(testData.ctx, &data, nil)
 	require.Error(t, err)
-
 }
 
 func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {

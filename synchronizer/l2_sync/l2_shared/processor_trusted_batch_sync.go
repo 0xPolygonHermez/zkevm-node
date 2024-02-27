@@ -127,24 +127,31 @@ type SyncTrustedBatchExecutor interface {
 	NothingProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 }
 
+// L1SyncChecker is the interface to check if we are enough synced from L1 to process a batch
+type L1SyncChecker interface {
+	CheckL1SyncStatusEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
+}
+
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
 //
 //	  that is the one that execute the sync process
 //
 //		the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
 type ProcessorTrustedBatchSync struct {
-	Steps        SyncTrustedBatchExecutor
-	timeProvider syncCommon.TimeProvider
-	Cfg          l2_sync.Config
+	Steps         SyncTrustedBatchExecutor
+	timeProvider  syncCommon.TimeProvider
+	l1SyncChecker L1SyncChecker
+	Cfg           l2_sync.Config
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
 func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
-	timeProvider syncCommon.TimeProvider, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
+	timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
 	return &ProcessorTrustedBatchSync{
-		Steps:        steps,
-		timeProvider: timeProvider,
-		Cfg:          cfg,
+		Steps:         steps,
+		timeProvider:  timeProvider,
+		l1SyncChecker: l1SyncChecker,
+		Cfg:           cfg,
 	}
 }
 
@@ -152,6 +159,15 @@ func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error) {
 	log.Debugf("%s Processing trusted batch: %v", debugPrefix, trustedBatch.Number)
 	stateCurrentBatch, statePreviousBatch := s.GetCurrentAndPreviousBatchFromCache(&status)
+	if s.l1SyncChecker != nil {
+		err := s.l1SyncChecker.CheckL1SyncStatusEnoughToProcessBatch(ctx, uint64(trustedBatch.Number), trustedBatch.GlobalExitRoot, dbTx)
+		if err != nil {
+			log.Errorf("%s error checking GlobalExitRoot from TrustedBatch. Error: ", debugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Infof("Disabled check L1 sync status for process batch")
+	}
 	processMode, err := s.GetModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch, debugPrefix)
 	if err != nil {
 		log.Error("%s error getting processMode. Error: ", debugPrefix, trustedBatch.Number, err)

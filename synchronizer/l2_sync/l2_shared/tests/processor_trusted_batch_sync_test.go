@@ -27,7 +27,8 @@ var (
 func TestCacheEmpty(t *testing.T) {
 	mockExecutor := mock_l2_shared.NewSyncTrustedBatchExecutor(t)
 	mockTimer := &commonSync.MockTimerProvider{}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
+	mockL1SyncChecker := mock_l2_shared.NewL1SyncChecker(t)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, mockL1SyncChecker, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{nil, nil},
@@ -57,7 +58,7 @@ func TestCacheJustCurrent(t *testing.T) {
 	status := l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{&batchA},
 	}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, nil, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&status)
 	require.Nil(t, previous)
@@ -75,7 +76,7 @@ func TestCacheJustPrevious(t *testing.T) {
 	status := l2_shared.TrustedState{
 		LastTrustedBatches: []*state.Batch{nil, &batchA},
 	}
-	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg)
+	sut := l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, nil, cfg)
 
 	current, previous := sut.GetCurrentAndPreviousBatchFromCache(&status)
 	require.Nil(t, current)
@@ -98,7 +99,7 @@ func newTestDataForProcessorTrustedBatchSync(t *testing.T) *TestDataForProcessor
 	return &TestDataForProcessorTrustedBatchSync{
 		mockTimer:    mockTimer,
 		mockExecutor: mockExecutor,
-		sut:          l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, cfg),
+		sut:          l2_shared.NewProcessorTrustedBatchSync(mockExecutor, mockTimer, nil, cfg),
 		stateCurrentBatch: &state.Batch{
 			BatchNumber: 123,
 			Coinbase:    common.HexToAddress("0x1230"),
