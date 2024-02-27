@@ -127,9 +127,9 @@ type SyncTrustedBatchExecutor interface {
 	NothingProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 }
 
-// L1SyncChecker is the interface to check if we are enough synced from L1 to process a batch
-type L1SyncChecker interface {
-	CheckL1SyncStatusEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
+// L1SyncGlobalExitRootChecker is the interface to check if the required GlobalExitRoot is already synced from L1
+type L1SyncGlobalExitRootChecker interface {
+	CheckL1SyncGlobalExitRootEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
 }
 
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
@@ -140,13 +140,13 @@ type L1SyncChecker interface {
 type ProcessorTrustedBatchSync struct {
 	Steps         SyncTrustedBatchExecutor
 	timeProvider  syncCommon.TimeProvider
-	l1SyncChecker L1SyncChecker
+	l1SyncChecker L1SyncGlobalExitRootChecker
 	Cfg           l2_sync.Config
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
 func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
-	timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
+	timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncGlobalExitRootChecker, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
 	return &ProcessorTrustedBatchSync{
 		Steps:         steps,
 		timeProvider:  timeProvider,
@@ -160,7 +160,7 @@ func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, tru
 	log.Debugf("%s Processing trusted batch: %v", debugPrefix, trustedBatch.Number)
 	stateCurrentBatch, statePreviousBatch := s.GetCurrentAndPreviousBatchFromCache(&status)
 	if s.l1SyncChecker != nil {
-		err := s.l1SyncChecker.CheckL1SyncStatusEnoughToProcessBatch(ctx, uint64(trustedBatch.Number), trustedBatch.GlobalExitRoot, dbTx)
+		err := s.l1SyncChecker.CheckL1SyncGlobalExitRootEnoughToProcessBatch(ctx, uint64(trustedBatch.Number), trustedBatch.GlobalExitRoot, dbTx)
 		if err != nil {
 			log.Errorf("%s error checking GlobalExitRoot from TrustedBatch. Error: ", debugPrefix, err)
 			return nil, err

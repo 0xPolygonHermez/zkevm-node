@@ -57,7 +57,7 @@ type SyncTrustedBatchExecutorForEtrog struct {
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker l2_shared.L1SyncChecker,
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker l2_shared.L1SyncGlobalExitRootChecker,
 	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
 		state: stateBatchExecutor,
