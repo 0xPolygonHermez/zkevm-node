@@ -118,7 +118,7 @@ L1SynchronizationMode = "sequential"
 			ApplyAfterNumRollupReceived = 10
 	[Synchronizer.L2Synchronization]
 		AcceptEmptyClosedBatches = false
-		ReprocessFullBatchOnClose = true
+		ReprocessFullBatchOnClose = false
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100
