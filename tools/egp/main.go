@@ -32,7 +32,7 @@ var (
 	showAlways        bool
 	showOnlyCfg       bool
 	useRealL2GasPrice bool
-	showDiscrepancy   bool
+	showDiscrepancy   uint64
 	showEncoded       bool
 )
 
@@ -149,10 +149,10 @@ func main() {
 			Usage: "show always full detailed record",
 			Value: false,
 		},
-		&cli.BoolFlag{
+		&cli.Uint64Flag{
 			Name:  "showdiscrepancy",
-			Usage: "show discrepancies between real and simulated",
-			Value: false,
+			Usage: "show discrepancies between real and simulated (0:none, 1:reprocess, 2:gasprice, 3:all)",
+			Value: ^uint64(0),
 		},
 		&cli.StringFlag{
 			Name:     "cfg",
@@ -269,7 +269,7 @@ func runStats(ctx *cli.Context) error {
 	showAlways = ctx.Bool("showalways")
 	showOnlyCfg = ctx.Bool("onlycfg")
 	useRealL2GasPrice = ctx.Bool("realgasprice")
-	showDiscrepancy = ctx.Bool("showdiscrepancy")
+	showDiscrepancy = ctx.Uint64("showdiscrepancy")
 	showEncoded = ctx.Bool("showencoded")
 
 	// Load simulation config file
@@ -520,13 +520,13 @@ func countStats(i uint64, block uint64, egp *egpLogRecord, stats *egpStats, cfg 
 		}
 
 		// Show discrepancies
-		if showDiscrepancy && compareEgp != nil {
+		if showDiscrepancy > 0 && compareEgp != nil {
 			var discrepancy bool
-			if egp.realGasPrice != compareEgp.realGasPrice {
+			if (showDiscrepancy == 2 || showDiscrepancy == 3) && egp.realGasPrice != compareEgp.realGasPrice {
 				discrepancy = true
 				fmt.Printf("egp-disc:realgas:#%d:(L2 block [%d] %v):sim=%0.f, real=%0.f\n", i, block, egp.l2BlockReceived, egp.realGasPrice, compareEgp.realGasPrice)
 			}
-			if egp.LogReprocess != compareEgp.LogReprocess {
+			if (showDiscrepancy == 1 || showDiscrepancy == 3) && egp.LogReprocess != compareEgp.LogReprocess {
 				discrepancy = true
 				fmt.Printf("egp-disc:reprocess:#%d:(L2 block [%d] %v):sim=%t, real=%t\n", i, block, egp.l2BlockReceived, egp.LogReprocess, compareEgp.LogReprocess)
 			}
