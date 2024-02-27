@@ -109,16 +109,19 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
-	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
+	if !isTrustedSequencer {
+		log.Info("Permissionless: creating and Initializing L2 synchronization components")
+		L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
-		uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
-		uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
-	}, res.state)
+		syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+			syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
 
+		res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
+			uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
+			uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
+		}, res.state)
+	}
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -161,7 +164,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []syncinte
 	l1SyncOrchestration := l1_parallel_sync.NewL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
 	if runExternalControl {
 		log.Infof("Starting external control")
-		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+		externalControl := newExternalCmdControl(l1DataRetriever, l1SyncOrchestration)
 		externalControl.start()
 	}
 	return l1SyncOrchestration
@@ -367,6 +370,7 @@ func (s *ClientSynchronizer) Sync() error {
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
+				s.CleanTrustedState()
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)

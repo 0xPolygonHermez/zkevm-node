@@ -116,6 +116,9 @@ L1SynchronizationMode = "sequential"
 		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
 			AceptableInacctivityTime = "5s"
 			ApplyAfterNumRollupReceived = 10
+	[Synchronizer.L2Synchronization]
+		AcceptEmptyClosedBatches = false
+		ReprocessFullBatchOnClose = false
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100

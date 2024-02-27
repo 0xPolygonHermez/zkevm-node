@@ -173,7 +173,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return err
 	}
 	if prevTimestamp.Unix() > processingContext.Timestamp.Unix() {
-		return ErrTimestampGE
+		return fmt.Errorf(" oldBatch(%d) tstamp=%d > openingBatch(%d)=%d err: %w", lastBatchNum, prevTimestamp.Unix(), processingContext.BatchNumber, processingContext.Timestamp.Unix(), ErrTimestampGE)
 	}
 	return s.OpenBatchInStorage(ctx, processingContext, dbTx)
 }

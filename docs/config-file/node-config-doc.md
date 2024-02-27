@@ -1341,6 +1341,7 @@ because depending of this values is going to ask to a trusted node for trusted t
 | - [TrustedSequencerURL](#Synchronizer_TrustedSequencerURL )             | No      | string           | No         | -          | TrustedSequencerURL is the rpc url to connect and sync the trusted state                                                                                                                                                                                |
 | - [L1SynchronizationMode](#Synchronizer_L1SynchronizationMode )         | No      | enum (of string) | No         | -          | L1SynchronizationMode define how to synchronize with L1:<br />- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data<br />- sequential: Request data to L1 and execute |
 | - [L1ParallelSynchronization](#Synchronizer_L1ParallelSynchronization ) | No      | object           | No         | -          | L1ParallelSynchronization Configuration for parallel mode (if L1SynchronizationMode equal to 'parallel')                                                                                                                                                |
+| - [L2Synchronization](#Synchronizer_L2Synchronization )                 | No      | object           | No         | -          | L2Synchronization Configuration for L2 synchronization                                                                                                                                                                                                  |
 
 ### <a name="Synchronizer_SyncInterval"></a>9.1. `Synchronizer.SyncInterval`
 
@@ -1675,6 +1676,45 @@ RollupInfoRetriesSpacing="5s"
 ```
 [Synchronizer.L1ParallelSynchronization]
 FallbackToSequentialModeOnSynchronized=false
+```
+
+### <a name="Synchronizer_L2Synchronization"></a>9.6. `[Synchronizer.L2Synchronization]`
+
+**Type:** : `object`
+**Description:** L2Synchronization Configuration for L2 synchronization
+
+| Property                                                                                  | Pattern | Type    | Deprecated | Definition | Title/Description                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| - [AcceptEmptyClosedBatches](#Synchronizer_L2Synchronization_AcceptEmptyClosedBatches )   | No      | boolean | No         | -          | AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.<br />if true, the synchronizer will accept empty batches and process them. |
+| - [ReprocessFullBatchOnClose](#Synchronizer_L2Synchronization_ReprocessFullBatchOnClose ) | No      | boolean | No         | -          | ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again                                                                             |
+
+#### <a name="Synchronizer_L2Synchronization_AcceptEmptyClosedBatches"></a>9.6.1. `Synchronizer.L2Synchronization.AcceptEmptyClosedBatches`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.
+if true, the synchronizer will accept empty batches and process them.
+
+**Example setting the default value** (false):
+```
+[Synchronizer.L2Synchronization]
+AcceptEmptyClosedBatches=false
+```
+
+#### <a name="Synchronizer_L2Synchronization_ReprocessFullBatchOnClose"></a>9.6.2. `Synchronizer.L2Synchronization.ReprocessFullBatchOnClose`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again
+
+**Example setting the default value** (false):
+```
+[Synchronizer.L2Synchronization]
+ReprocessFullBatchOnClose=false
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
