@@ -631,6 +631,11 @@
 							"type": "boolean",
 							"description": "AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.\nif true, the synchronizer will accept empty batches and process them.",
 							"default": false
+						},
+						"ReprocessFullBatchOnClose": {
+							"type": "boolean",
+							"description": "ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again",
+							"default": true
 						}
 					},
 					"additionalProperties": false,

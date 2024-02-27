@@ -164,7 +164,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []syncinte
 	l1SyncOrchestration := l1_parallel_sync.NewL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
 	if runExternalControl {
 		log.Infof("Starting external control")
-		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+		externalControl := newExternalCmdControl(l1DataRetriever, l1SyncOrchestration)
 		externalControl.start()
 	}
 	return l1SyncOrchestration
@@ -370,6 +370,7 @@ func (s *ClientSynchronizer) Sync() error {
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
+				s.CleanTrustedState()
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)

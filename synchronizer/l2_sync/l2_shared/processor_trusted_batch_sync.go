@@ -127,24 +127,31 @@ type SyncTrustedBatchExecutor interface {
 	NothingProcess(ctx context.Context, data *ProcessData, dbTx pgx.Tx) (*ProcessResponse, error)
 }
 
+// L1SyncGlobalExitRootChecker is the interface to check if the required GlobalExitRoot is already synced from L1
+type L1SyncGlobalExitRootChecker interface {
+	CheckL1SyncGlobalExitRootEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
+}
+
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
 //
 //	  that is the one that execute the sync process
 //
 //		the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
 type ProcessorTrustedBatchSync struct {
-	Steps        SyncTrustedBatchExecutor
-	timeProvider syncCommon.TimeProvider
-	Cfg          l2_sync.Config
+	Steps         SyncTrustedBatchExecutor
+	timeProvider  syncCommon.TimeProvider
+	l1SyncChecker L1SyncGlobalExitRootChecker
+	Cfg           l2_sync.Config
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
 func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
-	timeProvider syncCommon.TimeProvider, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
+	timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncGlobalExitRootChecker, cfg l2_sync.Config) *ProcessorTrustedBatchSync {
 	return &ProcessorTrustedBatchSync{
-		Steps:        steps,
-		timeProvider: timeProvider,
-		Cfg:          cfg,
+		Steps:         steps,
+		timeProvider:  timeProvider,
+		l1SyncChecker: l1SyncChecker,
+		Cfg:           cfg,
 	}
 }
 
@@ -152,6 +159,15 @@ func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 func (s *ProcessorTrustedBatchSync) ProcessTrustedBatch(ctx context.Context, trustedBatch *types.Batch, status TrustedState, dbTx pgx.Tx, debugPrefix string) (*TrustedState, error) {
 	log.Debugf("%s Processing trusted batch: %v", debugPrefix, trustedBatch.Number)
 	stateCurrentBatch, statePreviousBatch := s.GetCurrentAndPreviousBatchFromCache(&status)
+	if s.l1SyncChecker != nil {
+		err := s.l1SyncChecker.CheckL1SyncGlobalExitRootEnoughToProcessBatch(ctx, uint64(trustedBatch.Number), trustedBatch.GlobalExitRoot, dbTx)
+		if err != nil {
+			log.Errorf("%s error checking GlobalExitRoot from TrustedBatch. Error: ", debugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Infof("Disabled check L1 sync status for process batch")
+	}
 	processMode, err := s.GetModeForProcessBatch(trustedBatch, stateCurrentBatch, statePreviousBatch, debugPrefix)
 	if err != nil {
 		log.Error("%s error getting processMode. Error: ", debugPrefix, trustedBatch.Number, err)
@@ -275,7 +291,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			Description:       "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		_, strDiffsBatches := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
+		areBatchesExactlyEqual, strDiffsBatches := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
 		newL2DataFlag, err := ThereAreNewBatchL2Data(stateBatch.BatchL2Data, trustedNodeBatch.BatchL2Data)
 		if err != nil {
 			return ProcessData{}, err
@@ -287,6 +303,10 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 				OldStateRoot:      common.Hash{},
 				BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch) && stateBatch.WIP,
 				Description:       "no new data on batch. Diffs: " + strDiffsBatches,
+			}
+			if areBatchesExactlyEqual {
+				result.BatchMustBeClosed = false
+				result.Description = "exactly batches: " + strDiffsBatches
 			}
 		} else {
 			// We have a previous batch, but in node something change
@@ -307,6 +327,16 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 					Description:       "batch exists + StateRoot==Zero" + strDiffsBatches,
 				}
 			}
+		}
+	}
+
+	if s.Cfg.ReprocessFullBatchOnClose && result.BatchMustBeClosed {
+		if result.Mode == IncrementalProcessMode || result.Mode == NothingProcessMode {
+			result.Description = "forced reprocess due to batch closed and ReprocessFullBatchOnClose"
+			log.Infof("%s Batch %v: Converted mode %s to %s because cfg.ReprocessFullBatchOnClose", debugPrefix, trustedNodeBatch.Number, result.Mode, ReprocessProcessMode)
+			result.Mode = ReprocessProcessMode
+			result.OldStateRoot = statePreviousBatch.StateRoot
+			result.BatchMustBeClosed = true
 		}
 	}
 

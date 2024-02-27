@@ -57,6 +57,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: false,
 		},
 		{
+			path:          "Synchronizer.L2Synchronization.ReprocessFullBatchOnClose",
+			expectedValue: true,
+		},
+		{
 			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
 			expectedValue: uint64(100),
 		},
