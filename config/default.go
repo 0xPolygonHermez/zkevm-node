@@ -137,6 +137,9 @@ StateConsistencyCheckInterval = "5s"
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
 		SequentialProcessL2Block = true
+	[Sequencer.Finalizer.Metrics]
+		Interval = "60m"
+		EnableLog = true
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

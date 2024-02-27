@@ -117,7 +117,7 @@ func TestNewFinalizer(t *testing.T) {
 	poolMock.On("GetLastSentFlushID", context.Background()).Return(uint64(0), nil)
 
 	// arrange and act
-	f = newFinalizer(cfg, poolCfg, workerMock, poolMock, stateMock, ethermanMock, seqAddr, isSynced, bc, eventLog, nil, nil)
+	f = newFinalizer(cfg, poolCfg, workerMock, poolMock, stateMock, ethermanMock, seqAddr, isSynced, bc, eventLog, nil, newTimeoutCond(&sync.Mutex{}), nil)
 
 	// assert
 	assert.NotNil(t, f)
