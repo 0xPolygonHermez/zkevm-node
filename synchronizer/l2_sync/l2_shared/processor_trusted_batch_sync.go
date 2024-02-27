@@ -311,8 +311,9 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 	}
 	if s.Cfg.ReprocessFullBatchOnClose && isTrustedBatchClosed(trustedNodeBatch) {
 		if result.Mode == IncrementalProcessMode || result.Mode == NothingProcessMode {
-			result.Mode = ReprocessProcessMode
 			result.Description = "forced reprocess due to batch closed and ReprocessFullBatchOnClose"
+			log.Infof("%s Batch %v: Converted mode %s to %s because cfg.ReprocessFullBatchOnClose", debugPrefix, trustedNodeBatch.Number, result.Mode, ReprocessProcessMode)
+			result.Mode = ReprocessProcessMode
 		}
 	}
 
