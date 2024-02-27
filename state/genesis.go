@@ -158,6 +158,11 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		Coinbase:    ZeroAddress,
 		BlockNumber: block.BlockNumber,
 	}
+	forkID := s.GetForkIDByBatchNumber(0)
+	if forkID >= FORKID_ETROG {
+		virtualBatch.TimestampBatchEtrog = &block.ReceivedAt
+	}
+
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
 		return common.Hash{}, err
