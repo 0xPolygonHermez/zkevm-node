@@ -47,14 +47,14 @@ func (c *CheckSyncStatusToProcessBatch) CheckL1SyncGlobalExitRootEnoughToProcess
 		return nil
 	}
 	debugStr := fmt.Sprintf("CheckL1SyncStatusEnoughToProcessBatch batchNumber:%d globalExitRoot: %s ", batchNumber, globalExitRoot.Hex())
-	_, err := c.state.GetExitRootByGlobalExitRoot(ctx, globalExitRoot, dbTx)
+	localGERInfo, err := c.state.GetExitRootByGlobalExitRoot(ctx, globalExitRoot, dbTx)
 	if err != nil && !errors.Is(err, state.ErrNotFound) {
 		log.Errorf("error getting GetExitRootByGlobalExitRoot %s . Error: ", debugStr, err)
 		return err
 	}
 	if err == nil {
 		// We have this GlobalExitRoot, so we are synced from L1
-		log.Infof("We have this GlobalExitRoot, so we are synced from L1 %s", debugStr)
+		log.Infof("We have this GlobalExitRoot (%s) in L1block %d, so we are synced from L1 %s", globalExitRoot.String(), localGERInfo.BlockNumber, debugStr)
 		return nil
 	}
 	// this means err != state.ErrNotFound -> so we have to ask to zkevm-RPC the block number of this GlobalExitRoot
