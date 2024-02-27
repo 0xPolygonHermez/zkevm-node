@@ -123,6 +123,8 @@ func (i *intervalMetrics) cleanUp() {
 				i.estimatedTxsPerSecAcc -= i.estimatedTxsPerSec
 				i.estimatedTxsPerSecCount--
 			}
+			// Remove from l2Blocks
+			i.l2Blocks = i.l2Blocks[1:]
 			ct++
 		} else {
 			break
@@ -130,8 +132,6 @@ func (i *intervalMetrics) cleanUp() {
 	}
 
 	if ct > 0 {
-		// Remove from l2Blocks
-		i.l2Blocks = i.l2Blocks[ct:]
 		// Compute performance
 		i.computeEstimatedTxsPerSec()
 	}
