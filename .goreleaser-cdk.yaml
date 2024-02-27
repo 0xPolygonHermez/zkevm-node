@@ -6,6 +6,12 @@ release:
   draft: true
   prerelease: auto
 
+before:
+  hooks:
+    - go mod download
+    - go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
+    - ( cd db && packr2 )
+
 builds:
   - main: ./cmd/
     binary: zkevm-node
