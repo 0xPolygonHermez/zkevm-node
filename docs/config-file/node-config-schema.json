@@ -635,7 +635,7 @@
 						"ReprocessFullBatchOnClose": {
 							"type": "boolean",
 							"description": "ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again",
-							"default": true
+							"default": false
 						}
 					},
 					"additionalProperties": false,

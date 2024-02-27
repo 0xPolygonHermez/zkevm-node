@@ -1707,14 +1707,14 @@ AcceptEmptyClosedBatches=false
 
 **Type:** : `boolean`
 
-**Default:** `true`
+**Default:** `false`
 
 **Description:** ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again
 
-**Example setting the default value** (true):
+**Example setting the default value** (false):
 ```
 [Synchronizer.L2Synchronization]
-ReprocessFullBatchOnClose=true
+ReprocessFullBatchOnClose=false
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
