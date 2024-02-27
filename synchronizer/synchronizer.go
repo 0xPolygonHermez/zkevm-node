@@ -370,6 +370,7 @@ func (s *ClientSynchronizer) Sync() error {
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
+				s.CleanTrustedState()
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)

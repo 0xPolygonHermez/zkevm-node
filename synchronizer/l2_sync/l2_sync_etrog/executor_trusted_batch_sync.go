@@ -44,6 +44,7 @@ type StateInterface interface {
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
 	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)
+	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 // L1SyncChecker is the interface to check if we are synced from L1 to process a batch
@@ -299,7 +300,17 @@ func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, d
 // ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
 func (b *SyncTrustedBatchExecutorForEtrog) ReProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Warnf("%s needs to be reprocessed! deleting batches from this batch, because it was partially processed but the intermediary stateRoot is lost", data.DebugPrefix)
-	err := b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
+	// Check that there are no VirtualBatches neither VerifiedBatches that are newer than this batch
+	lastVirtualBatchNum, err := b.state.GetLastVirtualBatchNum(ctx, dbTx)
+	if err != nil {
+		log.Errorf("%s error getting lastVirtualBatchNum. Error: %v", data.DebugPrefix, err)
+		return nil, err
+	}
+	if lastVirtualBatchNum >= uint64(data.TrustedBatch.Number) {
+		log.Errorf("%s there are newer or equal virtualBatches than this batch. Can't reprocess because then will delete a virtualBatch", data.DebugPrefix)
+		return nil, syncinterfaces.ErrMissingSyncFromL1
+	}
+	err = b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
 	if err != nil {
 		log.Warnf("%s error deleting batches from this batch: %v", data.DebugPrefix, err)
 		return nil, err

@@ -197,7 +197,8 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 		}
 		uncles = string(unclesBytes)
 	}
-
+	l2blockNumber := l2Block.Number().Uint64()
+	log.Debugf("[AddL2Block] adding L2 block %d", l2blockNumber)
 	if _, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
 		l2Block.ParentHash().String(), l2Block.Root().String(),

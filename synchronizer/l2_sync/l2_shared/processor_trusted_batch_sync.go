@@ -275,7 +275,7 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			Description:       "Batch is not on database, so is the first time we process it",
 		}
 	} else {
-		_, strDiffsBatches := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
+		areBatchesExactlyEqual, strDiffsBatches := AreEqualStateBatchAndTrustedBatch(stateBatch, trustedNodeBatch, CMP_BATCH_IGNORE_TSTAMP)
 		newL2DataFlag, err := ThereAreNewBatchL2Data(stateBatch.BatchL2Data, trustedNodeBatch.BatchL2Data)
 		if err != nil {
 			return ProcessData{}, err
@@ -287,6 +287,10 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 				OldStateRoot:      common.Hash{},
 				BatchMustBeClosed: isTrustedBatchClosed(trustedNodeBatch) && stateBatch.WIP,
 				Description:       "no new data on batch. Diffs: " + strDiffsBatches,
+			}
+			if areBatchesExactlyEqual {
+				result.BatchMustBeClosed = false
+				result.Description = "exactly batches: " + strDiffsBatches
 			}
 		} else {
 			// We have a previous batch, but in node something change
@@ -309,11 +313,14 @@ func (s *ProcessorTrustedBatchSync) GetModeForProcessBatch(trustedNodeBatch *typ
 			}
 		}
 	}
+
 	if s.Cfg.ReprocessFullBatchOnClose && isTrustedBatchClosed(trustedNodeBatch) {
 		if result.Mode == IncrementalProcessMode || result.Mode == NothingProcessMode {
 			result.Description = "forced reprocess due to batch closed and ReprocessFullBatchOnClose"
 			log.Infof("%s Batch %v: Converted mode %s to %s because cfg.ReprocessFullBatchOnClose", debugPrefix, trustedNodeBatch.Number, result.Mode, ReprocessProcessMode)
 			result.Mode = ReprocessProcessMode
+			result.OldStateRoot = statePreviousBatch.StateRoot
+			result.BatchMustBeClosed = true
 		}
 	}
 

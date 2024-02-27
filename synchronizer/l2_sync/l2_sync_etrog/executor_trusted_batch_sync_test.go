@@ -196,6 +196,7 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 			StateRoot:   common.HexToHash(hashExamplesValues[2]),
 		},
 	}
+	testData.stateMock.EXPECT().GetLastVirtualBatchNum(testData.ctx, mock.Anything).Return(uint64(122), nil).Maybe()
 	testData.stateMock.EXPECT().ResetTrustedState(testData.ctx, data.BatchNumber-1, mock.Anything).Return(nil).Once()
 	testData.stateMock.EXPECT().OpenBatch(testData.ctx, mock.Anything, mock.Anything).Return(nil).Once()
 	testData.stateMock.EXPECT().GetL1InfoTreeDataFromBatchL2Data(testData.ctx, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, common.Hash{}, nil).Once()
@@ -209,6 +210,36 @@ func TestNothingProcessDoesntMatchBatchReprocess(t *testing.T) {
 	testData.stateMock.EXPECT().GetBatchByNumber(testData.ctx, data.BatchNumber, mock.Anything).Return(&state.Batch{}, nil).Once()
 	_, err := testData.sut.NothingProcess(testData.ctx, &data, nil)
 	require.NoError(t, err)
+}
+
+func TestReprocessRejectDeleteVirtualBatch(t *testing.T) {
+	testData := newTestData(t)
+	// Arrange
+	data := l2_shared.ProcessData{
+		BatchNumber:       123,
+		Mode:              l2_shared.NothingProcessMode,
+		BatchMustBeClosed: false,
+		DebugPrefix:       "test",
+		StateBatch: &state.Batch{
+			BatchNumber: 123,
+			StateRoot:   common.HexToHash(hashExamplesValues[1]),
+			BatchL2Data: []byte{1, 2, 3, 4},
+			WIP:         true,
+		},
+		TrustedBatch: &types.Batch{
+			Number:      123,
+			StateRoot:   common.HexToHash(hashExamplesValues[0]),
+			BatchL2Data: []byte{1, 2, 3, 4},
+		},
+		PreviousStateBatch: &state.Batch{
+			BatchNumber: 122,
+			StateRoot:   common.HexToHash(hashExamplesValues[2]),
+		},
+	}
+	testData.stateMock.EXPECT().GetLastVirtualBatchNum(testData.ctx, mock.Anything).Return(uint64(123), nil).Maybe()
+	_, err := testData.sut.ReProcess(testData.ctx, &data, nil)
+	require.Error(t, err)
+
 }
 
 func TestNothingProcessIfBatchMustBeClosedThenCloseBatch(t *testing.T) {
