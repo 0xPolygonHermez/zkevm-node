@@ -65,7 +65,7 @@ dockers:
     skip_push: false
 
 docker_manifests:
-  - name_template: 0xpolygon/{{ .ProjectName }}:{{ .Version }}
+  - name_template: 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}
     image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
