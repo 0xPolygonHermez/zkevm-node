@@ -19,7 +19,7 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/0xPolygon/{{ .ProjectName }}.Version={{ .Version }}
+      - -X github.com/0xPolygon/{{ .ProjectName }}.Version={{ replace .Version "+" "-" }}
       - -X github.com/0xPolygon/{{ .ProjectName }}.GitRev={{ .Commit }}
       - -X github.com/0xPolygon/{{ .ProjectName }}.BuildDate={{ .Date }}
       - -X github.com/0xPolygon/{{ .ProjectName }}.GitBranch={{ .Branch }}
@@ -32,7 +32,7 @@ archives:
 dockers:
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-    dockerfile: Dockerfile.release
+    dockerfile: Dockerfile
     use: buildx
     goos: linux
     goarch: amd64
@@ -42,14 +42,14 @@ dockers:
       - --label=org.opencontainers.image.description={{ .ProjectName }}
       - --label=org.opencontainers.image.url=https://github.com/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.version={{ replace .Version "+" "-" }}
       - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
       - --label=org.opencontainers.image.revision={{ .FullCommit }}
     skip_push: false
 
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    dockerfile: Dockerfile.release
+    dockerfile: Dockerfile
     use: buildx
     goos: linux
     goarch: arm64
@@ -59,7 +59,7 @@ dockers:
       - --label=org.opencontainers.image.description={{ .ProjectName }}
       - --label=org.opencontainers.image.url=https://github.com/{{ .ProjectName }}
       - --label=org.opencontainers.image.source=https://github.com/{{ .ProjectName }}
-      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.version={{ replace .Version "+" "-" }}
       - --label=org.opencontainers.image.created={{ time "2006-01-02T15:04:05Z07:00" }}
       - --label=org.opencontainers.image.revision={{ .FullCommit }}
     skip_push: false
