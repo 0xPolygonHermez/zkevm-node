@@ -247,8 +247,12 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	}
 
 	updatedBatch := *data.StateBatch
+	updatedBatch.LocalExitRoot = data.TrustedBatch.LocalExitRoot
+	updatedBatch.AccInputHash = data.TrustedBatch.AccInputHash
+	updatedBatch.GlobalExitRoot = data.TrustedBatch.GlobalExitRoot
 	updatedBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	updatedBatch.WIP = !data.BatchMustBeClosed
+
 	res := l2_shared.NewProcessResponse()
 	res.UpdateCurrentBatchWithExecutionResult(&updatedBatch, processBatchResp)
 	return &res, nil
