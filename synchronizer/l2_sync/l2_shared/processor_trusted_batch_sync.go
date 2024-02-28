@@ -132,16 +132,22 @@ type L1SyncGlobalExitRootChecker interface {
 	CheckL1SyncGlobalExitRootEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
 }
 
+// PostClosedBatchChecker is the interface to implement a checker post closed batch
+type PostClosedBatchChecker interface {
+	CheckPostClosedBatch(ctx context.Context, processData ProcessData, dbTx pgx.Tx) error
+}
+
 // ProcessorTrustedBatchSync is a template to sync trusted state. It classify what kind of update is needed and call to SyncTrustedStateBatchExecutorSteps
 //
 //	  that is the one that execute the sync process
 //
 //		the real implementation of the steps is in the SyncTrustedStateBatchExecutorSteps interface that known how to process a batch
 type ProcessorTrustedBatchSync struct {
-	Steps         SyncTrustedBatchExecutor
-	timeProvider  syncCommon.TimeProvider
-	l1SyncChecker L1SyncGlobalExitRootChecker
-	Cfg           l2_sync.Config
+	Steps              SyncTrustedBatchExecutor
+	timeProvider       syncCommon.TimeProvider
+	l1SyncChecker      L1SyncGlobalExitRootChecker
+	postClosedCheckers []PostClosedBatchChecker
+	Cfg                l2_sync.Config
 }
 
 // NewProcessorTrustedBatchSync creates a new SyncTrustedStateBatchExecutorTemplate
@@ -153,6 +159,14 @@ func NewProcessorTrustedBatchSync(steps SyncTrustedBatchExecutor,
 		l1SyncChecker: l1SyncChecker,
 		Cfg:           cfg,
 	}
+}
+
+// AddPostChecker add a post closed batch checker
+func (s *ProcessorTrustedBatchSync) AddPostChecker(checker PostClosedBatchChecker) {
+	if s.postClosedCheckers == nil {
+		s.postClosedCheckers = make([]PostClosedBatchChecker, 0)
+	}
+	s.postClosedCheckers = append(s.postClosedCheckers, checker)
 }
 
 // ProcessTrustedBatch processes a trusted batch and return the new state
@@ -240,6 +254,15 @@ func (s *ProcessorTrustedBatchSync) ExecuteProcessBatch(ctx context.Context, pro
 		if err != nil {
 			log.Error("%s error verifying batch result!  Error: ", processMode.DebugPrefix, err)
 			return nil, err
+		}
+		if s.postClosedCheckers != nil && len(s.postClosedCheckers) > 0 {
+			for _, checker := range s.postClosedCheckers {
+				err := checker.CheckPostClosedBatch(ctx, *processMode, dbTx)
+				if err != nil {
+					log.Errorf("%s error checking post closed batch. Error: ", processMode.DebugPrefix, err)
+					return nil, err
+				}
+			}
 		}
 	}
 	return processBatchResp, err

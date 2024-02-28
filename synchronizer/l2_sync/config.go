@@ -8,4 +8,7 @@ type Config struct {
 
 	// ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again
 	ReprocessFullBatchOnClose bool `mapstructure:"ReprocessFullBatchOnClose"`
+
+	// CheckLastL2BlockHashOnCloseBatch if is true when a batch is closed is force to check the last L2Block hash
+	CheckLastL2BlockHashOnCloseBatch bool `mapstructure:"CheckLastL2BlockHashOnCloseBatch"`
 }
