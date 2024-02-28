@@ -1722,14 +1722,14 @@ ReprocessFullBatchOnClose=true
 
 **Type:** : `boolean`
 
-**Default:** `false`
+**Default:** `true`
 
 **Description:** CheckLastL2BlockHashOnCloseBatch if is true when a batch is closed is force to check the last L2Block hash
 
-**Example setting the default value** (false):
+**Example setting the default value** (true):
 ```
 [Synchronizer.L2Synchronization]
-CheckLastL2BlockHashOnCloseBatch=false
+CheckLastL2BlockHashOnCloseBatch=true
 ```
 
 ## <a name="Sequencer"></a>10. `[Sequencer]`
