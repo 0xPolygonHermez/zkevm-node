@@ -19,7 +19,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/prometheus/client_model v0.6.0
-	github.com/prometheus/common v0.47.0
+	github.com/prometheus/common v0.48.0
 	github.com/rubenv/sql-migrate v1.6.1
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/viper v1.17.0
@@ -171,6 +171,6 @@ require (
 require (
 	github.com/fatih/color v1.16.0
 	github.com/joho/godotenv v1.5.1
-	github.com/prometheus/client_golang v1.18.0
+	github.com/prometheus/client_golang v1.19.0
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 )
