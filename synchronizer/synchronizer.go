@@ -211,11 +211,6 @@ func (s *ClientSynchronizer) SynchronizePreGenesisRollupEvents(ctx context.Conte
 		blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, i, &toBlock)
 		if err != nil {
 			log.Error("error getting rollupInfoByBlockRange before rollup genesis: ", err)
-			rollbackErr := dbTx.Rollback(s.ctx)
-			if rollbackErr != nil {
-				log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-				return rollbackErr
-			}
 			return err
 		}
 		//TODO: Check ForkId to process events??
