@@ -1,0 +1,15 @@
+FROM alpine:3.18
+
+COPY dist/zkevm-node /app/zkevm-node
+
+EXPOSE 8123
+
+RUN addgroup -S zkevm-group \
+    && adduser -S zkevm-user -G zkevm-group
+
+RUN chown -R /app zkevm-user:zkevm-group
+
+USER zkevm-user
+
+CMD ["/bin/sh", "-c", "/app/zkevm-node"]
+

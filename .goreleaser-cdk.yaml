@@ -6,9 +6,15 @@ release:
   draft: true
   prerelease: auto
 
+before:
+  hooks:
+    - go mod download
+    - go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
+    - ( cd db && packr2 )
+
 builds:
   - main: ./cmd/
-    binary: zkevm-node
+    binary: dist/zkevm-node
     goos:
       - linux
       - darwin
@@ -32,7 +38,7 @@ archives:
 dockers:
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-amd64
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.release
     use: buildx
     goos: linux
     goarch: amd64
@@ -49,7 +55,7 @@ dockers:
 
   - image_templates:
       - 0xpolygon/{{ .ProjectName }}:{{ replace .Version "+" "-" }}-arm64
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.release
     use: buildx
     goos: linux
     goarch: arm64
