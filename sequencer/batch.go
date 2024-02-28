@@ -457,6 +457,9 @@ func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResourc
 	} else if zkCounters.PoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
 		resourceName = "PoseidonPaddings"
 		result = true
+	} else if zkCounters.PoseidonHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonHashes) {
+		resourceName = "PoseidonHashes"
+		result = true
 	} else if zkCounters.Binaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
 		resourceName = "Binaries"
 		result = true
