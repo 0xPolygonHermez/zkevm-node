@@ -11,7 +11,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/pool"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -284,7 +283,6 @@ func (f *finalizer) executeL2Block(ctx context.Context, initialStateRoot common.
 		ForkID:                    f.stateIntf.GetForkIDByBatchNumber(f.wipBatch.batchNumber),
 		SkipVerifyL1InfoRoot_V2:   true,
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
-		ExecutionMode:             executor.ExecutionMode0,
 	}
 	batchRequest.L1InfoTreeData_V2[l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{
 		GlobalExitRoot: l2Block.l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot,
@@ -584,7 +582,6 @@ func (f *finalizer) executeNewWIPL2Block(ctx context.Context) (*state.ProcessBat
 		SkipFirstChangeL2Block_V2: false,
 		Transactions:              f.stateIntf.BuildChangeL2Block(f.wipL2Block.deltaTimestamp, f.wipL2Block.getL1InfoTreeIndex()),
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
-		ExecutionMode:             executor.ExecutionMode0,
 	}
 
 	batchRequest.L1InfoTreeData_V2[f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex] = state.L1DataV2{

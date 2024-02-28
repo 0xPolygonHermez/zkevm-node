@@ -242,7 +242,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			TimestampLimit:         uint64(time.Now().Unix()),
 			SkipFirstChangeL2Block: cFalse,
 			SkipWriteBlockInfoRoot: cTrue,
-			ExecutionMode:          executor.ExecutionMode0,
 		}
 
 		// gets the L1InfoTreeData for the transactions

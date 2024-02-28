@@ -292,7 +292,6 @@ message ProcessBatchRequestV2 {
     // prior to executing the call.
     map<string, OverrideAccountV2> state_override = 23;
     DebugV2 debug = 24;
-    uint64 execution_mode = 25;   
 }
 
 message L1DataV2 {

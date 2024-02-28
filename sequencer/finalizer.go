@@ -363,7 +363,6 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		SkipWriteBlockInfoRoot_V2: true,
 		SkipVerifyL1InfoRoot_V2:   true,
 		L1InfoTreeData_V2:         map[uint32]state.L1DataV2{},
-		ExecutionMode:             executor.ExecutionMode0,
 	}
 
 	txGasPrice := tx.GasPrice
