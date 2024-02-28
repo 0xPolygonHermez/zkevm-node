@@ -720,24 +720,22 @@ func calcEffectiveGasPrice(gasUsed float64, tx *egpLogRecord, cfg *egpConfig) (f
 	tx.txZeroCount = txZeroBytes
 	tx.txNonZeroCount = txNonZeroBytes
 
+	// Calculate break even gas price
+	var breakEvenGasPrice float64
 	if gasUsed == ethTransferGasValue {
 		// Transfer
 		if cfg.EthTransferGasPrice != 0 {
-			return float64(cfg.EthTransferGasPrice), nil
+			breakEvenGasPrice = float64(cfg.EthTransferGasPrice)
 		} else if cfg.EthTransferL1GasPriceFactor != 0 {
 			if tx.LogL1GasPrice == 0 {
-				return 1, nil
+				breakEvenGasPrice = 1
+			} else {
+				breakEvenGasPrice = tx.LogL1GasPrice * cfg.EthTransferL1GasPriceFactor
 			}
-			return tx.LogL1GasPrice * cfg.EthTransferL1GasPriceFactor, nil
 		}
-	}
-
-	// Calculate break even gas price
-	var breakEvenGasPrice float64
-	if gasUsed == 0 {
+	} else if gasUsed == 0 {
 		breakEvenGasPrice = tx.LogGasPrice
 	} else {
-		// Calculates break even gas price
 		l2MinGasPrice := tx.LogL1GasPrice * cfg.L1GasPriceFactor
 		totalTxPrice := gasUsed*l2MinGasPrice + float64((fixedBytesTx+txNonZeroBytes)*cfg.ByteGasCost+txZeroBytes*cfg.ZeroGasCost)*tx.LogL1GasPrice
 		breakEvenGasPrice = totalTxPrice / gasUsed * cfg.NetProfitFactor
