@@ -50,14 +50,15 @@ func TestStateOverride(t *testing.T) {
 
 		testCases := []testCase{
 			{
-				name: "override sender balance",
+				name: "override address balance",
 				execute: func(t *testing.T, tc *testCase) {
-					address := auth.From
+					address := common.HexToAddress("0x123456789")
 					currentBalance, err := ethereumClient.BalanceAt(ctx, address, nil)
 					require.NoError(t, err)
 
-					methodSignature := []byte("addrBalance(address)") // do not include spaces in the string
+					assert.Equal(t, uint64(0), currentBalance.Uint64())
 
+					methodSignature := []byte("addrBalance(address)")
 					hash := sha3.NewLegacyKeccak256()
 					hash.Write(methodSignature)
 					methodID := hash.Sum(nil)[:4]
@@ -67,7 +68,6 @@ func TestStateOverride(t *testing.T) {
 					var data []byte
 					data = append(data, methodID...)
 					data = append(data, paddedAddress...)
-
 					msg := map[string]interface{}{
 						"from":     auth.From.String(),
 						"to":       scAddr.String(),
@@ -96,11 +96,11 @@ func TestStateOverride(t *testing.T) {
 					require.NoError(t, err)
 					result := hex.DecodeBig(notPaddedResultHex)
 
-					s1, s2, s3 := currentBalance.String(), result.String(), common.Big0.Sub(currentBalance, result).Uint64()
-					log.Debug(s1, "-", s2, "=", s3)
+					s1, s2 := currentBalance.String(), result.String()
+					log.Debug(s1, " | ", s2)
 					assert.Equal(t, s1, s2)
 
-					newBalance := common.Big0.Quo(currentBalance, common.Big2)
+					newBalance := common.Big0.SetUint64(1234567890)
 					stateOverride := map[string]interface{}{
 						address.String(): map[string]interface{}{
 							"balance": hex.EncodeBig(newBalance),
@@ -116,8 +116,8 @@ func TestStateOverride(t *testing.T) {
 					require.NoError(t, err)
 					result = hex.DecodeBig(notPaddedResultHex)
 
-					s1, s2, s3 = newBalance.String(), result.String(), common.Big0.Sub(newBalance, result).Uint64()
-					log.Debug(s1, "-", s2, "=", s3)
+					s1, s2 = newBalance.String(), result.String()
+					log.Debug(s1, " | ", s2)
 					assert.Equal(t, s1, s2)
 				},
 			},
