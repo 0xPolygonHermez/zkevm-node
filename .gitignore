@@ -27,3 +27,7 @@ cmd/__debug_bin
 
 *metrics.txt
 coverage.out
+
+db/db-packr.go
+db/packrd/
+packrd/
