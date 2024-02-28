@@ -11,5 +11,5 @@ RUN chown -R /app zkevm-user:zkevm-group
 
 USER zkevm-user
 
-CMD ["/bin/sh", "-c", "/app/zkevm-node run"]
+CMD ["/bin/sh", "-c", "/app/zkevm-node"]
 
