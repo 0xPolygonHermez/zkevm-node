@@ -18,9 +18,6 @@ jobs:
         with:
           go-version: 1.21
 
-      - name: Get packr
-        run: go install github.com/gobuffalo/packr/v2/packr2@v2.8.3
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:

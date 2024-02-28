@@ -2,13 +2,13 @@ package pool_migrations_test
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/db"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/test/dbutils"
-	"github.com/gobuffalo/packr/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	migrate "github.com/rubenv/sql-migrate"
@@ -43,11 +43,8 @@ type migrationTester interface {
 	RunAssertsAfterMigrationDown(*testing.T, *sql.DB)
 }
 
-var (
-	packrMigrations = map[string]*packr.Box{
-		db.PoolMigrationName: packr.New(db.PoolMigrationName, "./migrations/pool"),
-	}
-)
+//go:embed ./*.sql
+var f embed.FS
 
 func runMigrationTest(t *testing.T, migrationNumber int, miter migrationTester) {
 	// Initialize an empty DB
@@ -81,13 +78,16 @@ func initCleanSQLDB(config db.Config) (*sql.DB, error) {
 	return sqlDB, nil
 }
 
-func runMigrationsUp(d *sql.DB, n int, packrName string) error {
-	box, ok := packrMigrations[packrName]
+func runMigrationsUp(d *sql.DB, n int, name string) error {
+	path, ok := migrations[name]
 	if !ok {
-		return fmt.Errorf("packr box not found with name: %v", packrName)
+		return fmt.Errorf("migration not found with name: %v", name)
 	}
 
-	var migrations = &migrate.PackrMigrationSource{Box: box}
+	var migrations = &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: f,
+		Root:       path,
+	}
 	nMigrations, err := migrate.ExecMax(d, "postgres", migrations, migrate.Up, n)
 	if err != nil {
 		return err
@@ -98,13 +98,16 @@ func runMigrationsUp(d *sql.DB, n int, packrName string) error {
 	return nil
 }
 
-func runMigrationsDown(d *sql.DB, n int, packrName string) error {
-	box, ok := packrMigrations[packrName]
+func runMigrationsDown(d *sql.DB, n int, name string) error {
+	path, ok := migrations[name]
 	if !ok {
-		return fmt.Errorf("packr box not found with name: %v", packrName)
+		return fmt.Errorf("migration box not found with name: %s", name)
 	}
 
-	var migrations = &migrate.PackrMigrationSource{Box: box}
+	var migrations = &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: f,
+		Root:       path,
+	}
 	nMigrations, err := migrate.ExecMax(d, "postgres", migrations, migrate.Down, n)
 	if err != nil {
 		return err

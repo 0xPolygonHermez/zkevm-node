@@ -2,10 +2,10 @@ package db
 
 import (
 	"context"
+	"embed"
 	"fmt"
 
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/gobuffalo/packr/v2"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/jackc/pgx/v4/stdlib"
@@ -13,16 +13,19 @@ import (
 )
 
 const (
-	// StateMigrationName is the name of the migration used by packr to pack the migration file
+	// StateMigrationName is the name of the migration for state DB
 	StateMigrationName = "zkevm-state-db"
-	// PoolMigrationName is the name of the migration used by packr to pack the migration file
+	// PoolMigrationName is the name of the migration for pool DB
 	PoolMigrationName = "zkevm-pool-db"
 )
 
-var packrMigrations = map[string]*packr.Box{
-	StateMigrationName: packr.New(StateMigrationName, "./migrations/state"),
-	PoolMigrationName:  packr.New(PoolMigrationName, "./migrations/pool"),
+var Migrations = map[string]string{
+	StateMigrationName: "./migrations/state",
+	PoolMigrationName:  "./migrations/pool",
 }
+
+//go:embed migrations
+var f embed.FS
 
 // NewSQLDB creates a new SQL DB
 func NewSQLDB(cfg Config) (*pgxpool.Pool, error) {
@@ -62,19 +65,22 @@ func RunMigrationsDown(cfg Config, name string) error {
 // runMigrations will execute pending migrations if needed to keep
 // the database updated with the latest changes in either direction,
 // up or down.
-func runMigrations(cfg Config, packrName string, direction migrate.MigrationDirection) error {
+func runMigrations(cfg Config, name string, direction migrate.MigrationDirection) error {
 	c, err := pgx.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
 	if err != nil {
 		return err
 	}
 	db := stdlib.OpenDB(*c)
 
-	box, ok := packrMigrations[packrName]
+	path, ok := migrations[name]
 	if !ok {
-		return fmt.Errorf("packr box not found with name: %v", packrName)
+		return fmt.Errorf("migration not found with name: %v", name)
 	}
 
-	var migrations = &migrate.PackrMigrationSource{Box: box}
+	var migrations = &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: f,
+		Root:       path,
+	}
 	nMigrations, err := migrate.Exec(db, "postgres", migrations, direction)
 	if err != nil {
 		return err
@@ -84,19 +90,22 @@ func runMigrations(cfg Config, packrName string, direction migrate.MigrationDire
 	return nil
 }
 
-func checkMigrations(cfg Config, packrName string, direction migrate.MigrationDirection) error {
+func checkMigrations(cfg Config, name string, direction migrate.MigrationDirection) error {
 	c, err := pgx.ParseConfig(fmt.Sprintf("postgres://%s:%s@%s:%s/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name))
 	if err != nil {
 		return err
 	}
 	db := stdlib.OpenDB(*c)
 
-	box, ok := packrMigrations[packrName]
+	path, ok := migrations[name]
 	if !ok {
-		return fmt.Errorf("packr box not found with name: %v", packrName)
+		return fmt.Errorf("migration not found with name: %v", name)
 	}
 
-	migrationSource := &migrate.PackrMigrationSource{Box: box}
+	migrationSource := &migrate.EmbedFileSystemMigrationSource{
+		FileSystem: f,
+		Root:       path,
+	}
 	migrations, err := migrationSource.FindMigrations()
 	if err != nil {
 		log.Errorf("error getting migrations from source: %v", err)
