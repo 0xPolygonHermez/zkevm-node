@@ -58,6 +58,14 @@ func newTestingEnv() (ethman *Client, ethBackend *simulated.Backend, auth *bind.
 	return ethman, ethBackend, auth, polAddr, br
 }
 
+func TestExploratoryFindL1BlockUpgradeLxLy(t *testing.T) {
+	cfg := Config{
+		InfuraURL: "https://mainnet.infura.io/v3/your-infura-key",
+	etherman := NewClient()
+	ctx := context.Background()
+	etherman.FindL1BlockUpgradeLxLy(ctx, uint64(10000))
+}
+
 func TestGEREvent(t *testing.T) {
 	// Set up testing environment
 	etherman, ethBackend, auth, _, br := newTestingEnv()

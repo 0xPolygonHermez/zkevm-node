@@ -209,6 +209,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		log.Errorf("error connecting to %s: %+v", cfg.URL, err)
 		return nil, err
 	}
+
 	// Create smc clients
 	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
@@ -267,7 +268,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	}
 	log.Debug("rollupID: ", rollupID)
 
-	return &Client{
+	client := &Client{
 		EthClient:                ethClient,
 		ZkEVM:                    zkevm,
 		EtrogZKEVM:               etrogZkevm,
@@ -285,7 +286,8 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		l1Cfg: l1Config,
 		cfg:   cfg,
 		auth:  map[common.Address]bind.TransactOpts{},
-	}, nil
+	}
+	return client, nil
 }
 
 // VerifyGenBlockNumber verifies if the genesis Block Number is valid
@@ -338,6 +340,27 @@ func (etherMan *Client) VerifyGenBlockNumber(ctx context.Context, genBlockNumber
 	}
 	metrics.VerifyGenBlockTime(time.Since(start))
 	return true, nil
+}
+
+// GetL1BlockUpgradeLxLy It returns the block genesis for LxLy before genesisBlock or error
+// TODO: Check if all RPC providers support this range of blocks
+func (etherMan *Client) GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock uint64) (uint64, error) {
+	it, err := etherMan.RollupManager.FilterInitialized(&bind.FilterOpts{
+		Start:   1,
+		End:     &genesisBlock,
+		Context: ctx,
+	})
+	if err != nil {
+		return uint64(0), err
+	}
+	for it.Next() {
+		log.Debugf("BlockNumber: %d Topics:Initialized(%d)", it.Event.Raw.BlockNumber, it.Event.Version)
+		if it.Event.Version == 2 { // 2 is ETROG (LxLy upgrade)
+			log.Infof("LxLy upgrade found at blockNumber: %d", it.Event.Raw.BlockNumber)
+			return it.Event.Raw.BlockNumber, nil
+		}
+	}
+	return uint64(0), ErrNotFound
 }
 
 // GetForks returns fork information

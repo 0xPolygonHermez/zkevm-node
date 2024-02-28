@@ -191,6 +191,50 @@ func rollback(ctx context.Context, dbTx pgx.Tx, err error) error {
 	return err
 }
 
+func (s *ClientSynchronizer) SynchronizePreGenesisRollupEvents(ctx context.Context, dbTx pgx.Tx) error {
+	// Sync events from RollupManager that happen before rollup creation
+	log.Info("synchronizing events from RollupManager that happen before rollup creation")
+	genesisBlockNumber := s.genesis.BlockNumber //uint64(19218658)
+	lxLyUpgradeBlock, err := s.etherMan.GetL1BlockUpgradeLxLy(ctx, genesisBlockNumber)
+	if err != nil && errors.Is(err, etherman.ErrNotFound) {
+		log.Infof("LxLy upgrade not detected before genesis block %d, it'll be sync as usual. Nothing to do yet", genesisBlockNumber)
+		return nil
+	}
+	if err != nil {
+		log.Errorf("error getting LxLy upgrade block. Error: %v", err)
+		return err
+	}
+	log.Infof("Starting syncing pre genesis LxLy events from block %d to block %d (total %d blocks)",
+		lxLyUpgradeBlock, genesisBlockNumber-1, genesisBlockNumber-lxLyUpgradeBlock)
+	for i := lxLyUpgradeBlock; true; i += s.cfg.SyncChunkSize {
+		toBlock := min(i+s.cfg.SyncChunkSize-1, s.genesis.BlockNumber-1)
+		blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, i, &toBlock)
+		if err != nil {
+			log.Error("error getting rollupInfoByBlockRange before rollup genesis: ", err)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+				return rollbackErr
+			}
+			return err
+		}
+		err = s.ProcessBlockRange(blocks, order)
+		if err != nil {
+			log.Error("error processing blocks before the genesis: ", err)
+			rollbackErr := dbTx.Rollback(s.ctx)
+			if rollbackErr != nil {
+				log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
+				return rollbackErr
+			}
+			return err
+		}
+		if toBlock == s.genesis.BlockNumber-1 {
+			break
+		}
+	}
+	return nil
+}
+
 // Sync function will read the last state synced and will continue from that point.
 // Sync() will read blockchain events to detect rollup updates
 func (s *ClientSynchronizer) Sync() error {
@@ -214,6 +258,11 @@ func (s *ClientSynchronizer) Sync() error {
 			} else if !valid {
 				log.Error("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
 				return rollback(s.ctx, dbTx, fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed"))
+			}
+			err = s.SynchronizePreGenesisRollupEvents(s.ctx, dbTx)
+			if err != nil {
+				log.Error("error synchronizing pre genesis rollup events: ", err)
+				return rollback(s.ctx, dbTx, err)
 			}
 			log.Info("Setting genesis block")
 			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genesis.BlockNumber))

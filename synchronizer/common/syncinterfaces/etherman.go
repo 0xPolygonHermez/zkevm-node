@@ -18,6 +18,7 @@ type EthermanFullInterface interface {
 	GetTrustedSequencerURL() (string, error)
 	VerifyGenBlockNumber(ctx context.Context, genBlockNumber uint64) (bool, error)
 	GetLatestVerifiedBatchNum() (uint64, error)
+	GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock uint64) (uint64, error)
 }
 
 type EthermanGetLatestBatchNumber interface {
