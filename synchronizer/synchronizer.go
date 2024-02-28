@@ -29,8 +29,9 @@ const (
 	// ParallelMode is the value for L1SynchronizationMode to run in parallel mode
 	ParallelMode = "parallel"
 	// SequentialMode is the value for L1SynchronizationMode to run in sequential mode
-	SequentialMode = "sequential"
-	maxBatchNumber = ^uint64(0)
+	SequentialMode         = "sequential"
+	maxBatchNumber         = ^uint64(0)
+	timeOfLiveBatchOnCache = 5 * time.Minute
 )
 
 // Synchronizer connects L1 and L2
@@ -113,10 +114,17 @@ func NewSynchronizer(
 	if !isTrustedSequencer {
 		log.Info("Permissionless: creating and Initializing L2 synchronization components")
 		L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
+		sync := &res
+		//syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+		//	syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
+		executorSteps := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.state, *sync)
+		executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
+		if cfg.L2Synchronization.CheckLastL2BlockHashOnCloseBatch {
+			log.Infof("Adding check of L2Block hash on close batch when sync from trusted node")
+			executor.AddPostChecker(l2_shared.NewPostClosedBatchCheckL2Block(res.state))
+		}
 
-		syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-			syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
-
+		syncTrustedStateEtrog := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, res.state, *sync, *l2_shared.NewTrustedStateManager(syncCommon.DefaultTimeProvider{}, timeOfLiveBatchOnCache))
 		res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
 			uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
 			uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,

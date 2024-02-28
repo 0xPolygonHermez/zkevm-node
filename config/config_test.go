@@ -61,6 +61,11 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "Synchronizer.L2Synchronization.CheckLastL2BlockHashOnCloseBatch",
+			expectedValue: true,
+		},
+
+		{
 			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
 			expectedValue: uint64(100),
 		},

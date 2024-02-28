@@ -636,6 +636,11 @@
 							"type": "boolean",
 							"description": "ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again",
 							"default": true
+						},
+						"CheckLastL2BlockHashOnCloseBatch": {
+							"type": "boolean",
+							"description": "CheckLastL2BlockHashOnCloseBatch if is true when a batch is closed is force to check the last L2Block hash",
+							"default": false
 						}
 					},
 					"additionalProperties": false,
