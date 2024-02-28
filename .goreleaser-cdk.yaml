@@ -25,10 +25,10 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/0xPolygon/{{ .ProjectName }}.Version={{ replace .Version "+" "-" }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.GitRev={{ .Commit }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.BuildDate={{ .Date }}
-      - -X github.com/0xPolygon/{{ .ProjectName }}.GitBranch={{ .Branch }}
+      - -X github.com/0xPolygonHermez/zkevm-node.Version={{ .Version }}
+      - -X github.com/0xPolygonHermez/zkevm-node.GitRev={{ .Commit }}
+      - -X github.com/0xPolygonHermez/zkevm-node.BuildDate={{ .Date }}
+      - -X github.com/0xPolygonHermez/zkevm-node.GitBranch={{ .Branch }}
 
 archives:
   - files:
