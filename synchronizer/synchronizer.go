@@ -218,15 +218,10 @@ func (s *ClientSynchronizer) SynchronizePreGenesisRollupEvents(ctx context.Conte
 			}
 			return err
 		}
+		//TODO: Check ForkId to process events??
 		err = s.ProcessBlockRange(blocks, order)
 		if err != nil {
 			log.Error("error processing blocks before the genesis: ", err)
-			rollbackErr := dbTx.Rollback(s.ctx)
-			if rollbackErr != nil {
-				log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-				return rollbackErr
-			}
-			return err
 		}
 		if toBlock == s.genesis.BlockNumber-1 {
 			break
