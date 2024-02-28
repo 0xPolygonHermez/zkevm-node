@@ -119,6 +119,7 @@ L1SynchronizationMode = "sequential"
 	[Synchronizer.L2Synchronization]
 		AcceptEmptyClosedBatches = false
 		ReprocessFullBatchOnClose = false
+		CheckLastL2BlockHashOnCloseBatch = true
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100
