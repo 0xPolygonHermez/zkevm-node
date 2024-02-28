@@ -104,7 +104,7 @@ func (f *finalizer) processForcedBatch(ctx context.Context, forcedBatch state.Fo
 		TimestampLimit_V2:       uint64(forcedBatch.ForcedAt.Unix()),
 		ForkID:                  f.stateIntf.GetForkIDByBatchNumber(lastBatchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
-		Caller:                  stateMetrics.SequencerCallerLabel,
+		Caller:                  stateMetrics.DiscardCallerLabel,
 	}
 
 	batchResponse, err := f.stateIntf.ProcessBatchV2(ctx, batchRequest, true)

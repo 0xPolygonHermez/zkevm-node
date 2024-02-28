@@ -22,15 +22,17 @@ type Worker struct {
 	workerMutex      sync.Mutex
 	state            stateInterface
 	batchConstraints state.BatchConstraintsCfg
+	readyTxsCond     *timeoutCond
 }
 
 // NewWorker creates an init a worker
-func NewWorker(state stateInterface, constraints state.BatchConstraintsCfg) *Worker {
+func NewWorker(state stateInterface, constraints state.BatchConstraintsCfg, readyTxsCond *timeoutCond) *Worker {
 	w := Worker{
 		pool:             make(map[string]*addrQueue),
 		txSortedList:     newTxSortedList(),
 		state:            state,
 		batchConstraints: constraints,
+		readyTxsCond:     readyTxsCond,
 	}
 
 	return &w
@@ -108,7 +110,7 @@ func (w *Worker) AddTxTracker(ctx context.Context, tx *TxTracker) (replacedTx *T
 	}
 	if newReadyTx != nil {
 		log.Debugf("newReadyTx %s (nonce: %d, gasPrice: %d, addr: %s) added to TxSortedList", newReadyTx.HashStr, newReadyTx.Nonce, newReadyTx.GasPrice, tx.FromStr)
-		w.txSortedList.add(newReadyTx)
+		w.addTxToSortedList(newReadyTx)
 	}
 
 	if repTx != nil {
@@ -132,7 +134,7 @@ func (w *Worker) applyAddressUpdate(from common.Address, fromNonce *uint64, from
 		}
 		if newReadyTx != nil {
 			log.Debugf("newReadyTx %s (nonce: %d, gasPrice: %d) added to TxSortedList", newReadyTx.Hash.String(), newReadyTx.Nonce, newReadyTx.GasPrice)
-			w.txSortedList.add(newReadyTx)
+			w.addTxToSortedList(newReadyTx)
 		}
 
 		return newReadyTx, prevReadyTx, txsToDelete
@@ -369,4 +371,14 @@ func (w *Worker) ExpireTransactions(maxTime time.Duration) []*TxTracker {
 	log.Debugf("expire transactions ended, addrQueue length: %d, delete count: %d ", len(w.pool), len(txs))
 
 	return txs
+}
+
+func (w *Worker) addTxToSortedList(readyTx *TxTracker) {
+	w.txSortedList.add(readyTx)
+	if w.txSortedList.len() == 1 {
+		// The txSortedList was empty before to add the new tx, we notify finalizer that we have new ready txs to process
+		w.readyTxsCond.L.Lock()
+		w.readyTxsCond.Signal()
+		w.readyTxsCond.L.Unlock()
+	}
 }
