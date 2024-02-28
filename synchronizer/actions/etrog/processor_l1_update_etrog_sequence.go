@@ -9,7 +9,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/actions"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/ethereum/go-ethereum/common"
@@ -84,7 +83,6 @@ func (g *ProcessorL1UpdateEtrogSequence) processUpdateEtrogSequence(ctx context.
 		ForcedBlockHashL1:    forcedBlockHashL1,
 		SkipVerifyL1InfoRoot: 1,
 		GlobalExitRoot:       updateEtrogSequence.PolygonRollupBaseEtrogBatchData.ForcedGlobalExitRoot,
-		ExecutionMode:        executor.ExecutionMode1,
 		ClosingReason:        state.SyncL1EventUpdateEtrogSequenceClosingReason,
 	}
 
