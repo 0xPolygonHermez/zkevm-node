@@ -13,8 +13,8 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	mock_syncinterfaces "github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces/mocks"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	syncMocks "github.com/0xPolygonHermez/zkevm-node/synchronizer/mocks"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -29,13 +29,14 @@ const (
 	ETROG_MODE_FLAG                = true
 	RETRIEVE_BATCH_FROM_DB_FLAG    = true
 	RETRIEVE_BATCH_FROM_CACHE_FLAG = false
+	PROCESS_BATCH_SELECTOR_ENABLED = false
 )
 
 type mocks struct {
-	Etherman     *ethermanMock
-	State        *stateMock
-	Pool         *poolMock
-	EthTxManager *ethTxManagerMock
+	Etherman     *mock_syncinterfaces.EthermanFullInterface
+	State        *mock_syncinterfaces.StateFullInterface
+	Pool         *mock_syncinterfaces.PoolInterface
+	EthTxManager *mock_syncinterfaces.EthTxManager
 	DbTx         *syncMocks.DbTxMock
 	ZKEVMClient  *mock_syncinterfaces.ZKEVMClientInterface
 	//EventLog     *eventLogMock
@@ -46,7 +47,7 @@ type mocks struct {
 //	this Check partially point 2: Use previous batch stored in memory to avoid getting from database
 func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemoryInstaeadOfGettingFromDb(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -55,6 +56,13 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2, ETROG_MODE_FLAG)
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
+
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
 
 	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	// Is the first time that appears this batch, so it need to OpenBatch
@@ -69,10 +77,8 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_shared.TrustedBatchesRetrieve)
-	require.EqualValues(t, true, ok, "Can't convert sync Object to underlaying l2_shared.TrustedBatchesRetrieve implementation")
-	cachedBatch, ok := syncTrusted.TrustedStateMngr.Cache.Get(uint64(batch10With3Tx.Number))
-	require.Equal(t, true, ok)
+	cachedBatch := sync.syncTrustedStateExecutor.GetCachedBatch(uint64(batch10With3Tx.Number))
+	require.True(t, cachedBatch != nil)
 	require.Equal(t, rpcBatchTostateBatch(batch10With3Tx), cachedBatch)
 }
 
@@ -81,7 +87,7 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 //	this Check partially point 2: Store last batch in memory (CurrentTrustedBatch)
 func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocalVar(t *testing.T) {
 	genesis, cfg, m := setupGenericTest(t)
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	syncInterface, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, *genesis, *cfg, false)
 	require.NoError(t, err)
 	sync, ok := syncInterface.(*ClientSynchronizer)
@@ -91,16 +97,21 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
 
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
+
 	// This is a incremental process, permissionless have batch10With1Tx and we add a new block
 	// but the cache doesnt have this information so it need to get from db
 	expectedCallsForsyncTrustedState(t, m, sync, batch10With1Tx, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	err = sync.syncTrustedState(lastBatchNumber)
 	require.NoError(t, err)
 
-	syncTrusted, ok := sync.syncTrustedStateExecutor.(*l2_shared.TrustedBatchesRetrieve)
-	require.EqualValues(t, true, ok, "Can't convert sync Object to underlaying l2_shared.TrustedBatchesRetrieve implementation")
-	cachedBatch, ok := syncTrusted.TrustedStateMngr.Cache.Get(uint64(batch10With2Tx.Number))
-	require.Equal(t, true, ok)
+	cachedBatch := sync.syncTrustedStateExecutor.GetCachedBatch(uint64(batch10With2Tx.Number))
+	require.True(t, cachedBatch != nil)
 	require.Equal(t, rpcBatchTostateBatch(batch10With2Tx), cachedBatch)
 }
 
@@ -118,18 +129,24 @@ func TestForcedBatchEtrog(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman:    newEthermanMock(t),
-		State:       newStateMock(t),
-		Pool:        newPoolMock(t),
+		Etherman:    mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:       mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:        mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	sync, err := NewSynchronizer(false, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
@@ -305,12 +322,14 @@ func TestForcedBatchEtrog(t *testing.T) {
 				Return(trustedBatch, nil).
 				Once()
 
+			var forcedGER common.Hash = sequencedBatch.ForcedGlobalExitRoot
 			virtualBatch := &state.VirtualBatch{
 				BatchNumber:         sequencedBatch.BatchNumber,
 				TxHash:              sequencedBatch.TxHash,
 				Coinbase:            sequencedBatch.Coinbase,
 				BlockNumber:         ethermanBlock.BlockNumber,
 				TimestampBatchEtrog: &t,
+				L1InfoRoot:          &forcedGER,
 			}
 
 			m.State.
@@ -363,13 +382,13 @@ func TestSequenceForcedBatchIncaberry(t *testing.T) {
 	}
 
 	m := mocks{
-		Etherman:    newEthermanMock(t),
-		State:       newStateMock(t),
-		Pool:        newPoolMock(t),
+		Etherman:    mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:       mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:        mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:        syncMocks.NewDbTxMock(t),
 		ZKEVMClient: mock_syncinterfaces.NewZKEVMClientInterface(t),
 	}
-	ethermanForL1 := []EthermanInterface{m.Etherman}
+	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
 
@@ -613,12 +632,12 @@ func setupGenericTest(t *testing.T) (*state.Genesis, *Config, *mocks) {
 	}
 
 	m := mocks{
-		Etherman:     newEthermanMock(t),
-		State:        newStateMock(t),
-		Pool:         newPoolMock(t),
+		Etherman:     mock_syncinterfaces.NewEthermanFullInterface(t),
+		State:        mock_syncinterfaces.NewStateFullInterface(t),
+		Pool:         mock_syncinterfaces.NewPoolInterface(t),
 		DbTx:         syncMocks.NewDbTxMock(t),
 		ZKEVMClient:  mock_syncinterfaces.NewZKEVMClientInterface(t),
-		EthTxManager: newEthTxManagerMock(t),
+		EthTxManager: mock_syncinterfaces.NewEthTxManager(t),
 		//EventLog:    newEventLogMock(t),
 	}
 	return &genesis, &cfg, &m
@@ -693,9 +712,11 @@ func createBatchL2DataEtrog(howManyBlocks int, howManyTx int) ([]byte, []types.T
 	transactions := []types.TransactionOrHash{}
 	for nBlock := 0; nBlock < howManyBlocks; nBlock++ {
 		block := state.L2BlockRaw{
-			DeltaTimestamp:  123,
-			IndexL1InfoTree: 456,
-			Transactions:    []state.L2TxRaw{},
+			ChangeL2BlockHeader: state.ChangeL2BlockHeader{
+				DeltaTimestamp:  123,
+				IndexL1InfoTree: 456,
+			},
+			Transactions: []state.L2TxRaw{},
 		}
 		for i := 0; i < howManyTx; i++ {
 			tx := createTransaction(uint64(i + 1))
@@ -822,7 +843,7 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 		NewStateRoot: batchInTrustedNode.StateRoot,
 	}
 	if etrogMode {
-		m.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(mock.Anything, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, nil).Times(1)
+		m.State.EXPECT().GetL1InfoTreeDataFromBatchL2Data(mock.Anything, mock.Anything, mock.Anything).Return(map[uint32]state.L1DataV2{}, common.Hash{}, common.Hash{}, nil).Times(1)
 		m.State.EXPECT().ProcessBatchV2(mock.Anything, mock.Anything, mock.Anything).
 			Return(&processedBatch, nil).Times(1)
 		m.State.EXPECT().StoreL2Block(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).

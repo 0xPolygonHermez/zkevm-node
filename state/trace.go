@@ -49,28 +49,26 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		return nil, err
 	}
 
-	// if tx index is zero, we need to get the state root from the previous block
-	// else we need to get the state root from the previous tx
+	// the old state root is the previous block state root
 	var oldStateRoot common.Hash
-	if receipt.TransactionIndex == 0 {
-		// get the previous L2 Block
-		previousL2BlockNumber := uint64(0)
-		if receipt.BlockNumber.Uint64() > 0 {
-			previousL2BlockNumber = receipt.BlockNumber.Uint64() - 1
-		}
-		previousL2Block, err := s.GetL2BlockByNumber(ctx, previousL2BlockNumber, dbTx)
-		if err != nil {
-			return nil, err
-		}
-		oldStateRoot = previousL2Block.Root()
-	} else {
-		previousTx := l2Block.Transactions()[receipt.TransactionIndex-1]
-		// gets the tx receipt
-		previousReceipt, err := s.GetTransactionReceipt(ctx, previousTx.Hash(), dbTx)
-		if err != nil {
-			return nil, err
-		}
-		oldStateRoot = common.BytesToHash(previousReceipt.PostState)
+	previousL2BlockNumber := uint64(0)
+	if receipt.BlockNumber.Uint64() > 0 {
+		previousL2BlockNumber = receipt.BlockNumber.Uint64() - 1
+	}
+	previousL2Block, err := s.GetL2BlockByNumber(ctx, previousL2BlockNumber, dbTx)
+	if err != nil {
+		return nil, err
+	}
+	oldStateRoot = previousL2Block.Root()
+
+	// since the executor only stores the state roots by block, we need to
+	// execute all the txs in the block until the tx we want to trace
+	var txsToEncode []types.Transaction
+	var effectivePercentage []uint8
+	for i := 0; i <= int(receipt.TransactionIndex); i++ {
+		txsToEncode = append(txsToEncode, *l2Block.Transactions()[i])
+		effectivePercentage = append(effectivePercentage, MaxEffectivePercentage)
+		log.Debugf("trace will reprocess tx: %v", l2Block.Transactions()[i].Hash().String())
 	}
 
 	// gets batch that including the l2 block
@@ -111,7 +109,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			}
 		}
 		// generate batch l2 data for the transaction
-		batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
 			return nil, err
 		}
@@ -189,10 +187,35 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 				traceConfigRequestV2.EnableReturnData = cFalse
 			}
 		}
-		deltaTimestamp := uint32(uint64(time.Now().Unix()) - l2Block.Time())
-		transactions := s.BuildChangeL2Block(deltaTimestamp, uint32(0))
 
-		batchL2Data, err := EncodeTransactions([]types.Transaction{*tx}, []uint8{MaxEffectivePercentage}, forkId)
+		// build the raw batch so we can get the index l1 info tree for the l2 block
+		rawBatch, err := DecodeBatchV2(batch.BatchL2Data)
+		if err != nil {
+			log.Errorf("error decoding BatchL2Data for batch %d, error: %v", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// identify the first l1 block number so we can identify the
+		// current l2 block index in the block array
+		firstBlockNumberForBatch, err := s.GetFirstL2BlockNumberForBatchNumber(ctx, batch.BatchNumber, dbTx)
+		if err != nil {
+			log.Errorf("failed to get first l2 block number for batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// computes the l2 block index
+		rawL2BlockIndex := l2Block.NumberU64() - firstBlockNumberForBatch
+		if rawL2BlockIndex > uint64(len(rawBatch.Blocks)-1) {
+			log.Errorf("computed rawL2BlockIndex is greater than the number of blocks we have in the batch %v: %v ", batch.BatchNumber, err)
+			return nil, err
+		}
+
+		// builds the ChangeL2Block transaction with the correct timestamp and IndexL1InfoTree
+		rawL2Block := rawBatch.Blocks[rawL2BlockIndex]
+		deltaTimestamp := uint32(l2Block.Time() - previousL2Block.Time())
+		transactions := s.BuildChangeL2Block(deltaTimestamp, rawL2Block.IndexL1InfoTree)
+
+		batchL2Data, err := EncodeTransactions(txsToEncode, effectivePercentage, forkId)
 		if err != nil {
 			log.Errorf("error encoding transaction ", err)
 			return nil, err
@@ -215,10 +238,29 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			ContextId:        uuid.NewString(),
 
 			// v2 fields
-			L1InfoRoot:             l2Block.BlockInfoRoot().Bytes(),
+			L1InfoRoot:             GetMockL1InfoRoot().Bytes(),
 			TimestampLimit:         uint64(time.Now().Unix()),
 			SkipFirstChangeL2Block: cFalse,
 			SkipWriteBlockInfoRoot: cTrue,
+		}
+
+		// gets the L1InfoTreeData for the transactions
+		l1InfoTreeData, _, _, err := s.GetL1InfoTreeDataFromBatchL2Data(ctx, transactions, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		// In case we have any l1InfoTreeData, add them to the request
+		if len(l1InfoTreeData) > 0 {
+			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
+			processBatchRequestV2.SkipVerifyL1InfoRoot = cTrue
+			for k, v := range l1InfoTreeData {
+				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
+					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
+					BlockHashL1:    v.BlockHashL1.Bytes(),
+					MinTimestamp:   v.MinTimestamp,
+				}
+			}
 		}
 
 		// Send Batch to the Executor
@@ -248,7 +290,7 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 		if err != nil {
 			return nil, err
 		}
-		response = convertedResponse.BlockResponses[0].TransactionResponses[0]
+		response = convertedResponse.BlockResponses[0].TransactionResponses[len(convertedResponse.BlockResponses[0].TransactionResponses)-1]
 	}
 
 	// Sanity check

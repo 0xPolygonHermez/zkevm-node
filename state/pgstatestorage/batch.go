@@ -2,12 +2,12 @@ package pgstatestorage
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -482,15 +482,21 @@ func scanForcedBatch(row pgx.Row) (state.ForcedBatch, error) {
 	var (
 		gerStr      string
 		coinbaseStr string
+		rawTxsStr   string
+		err         error
 	)
 	if err := row.Scan(
 		&forcedBatch.ForcedBatchNumber,
 		&gerStr,
 		&forcedBatch.ForcedAt,
-		&forcedBatch.RawTxsData,
+		&rawTxsStr,
 		&coinbaseStr,
 		&forcedBatch.BlockNumber,
 	); err != nil {
+		return forcedBatch, err
+	}
+	forcedBatch.RawTxsData, err = hex.DecodeString(rawTxsStr)
+	if err != nil {
 		return forcedBatch, err
 	}
 	forcedBatch.GlobalExitRoot = common.HexToHash(gerStr)
@@ -506,10 +512,15 @@ func (p *PostgresStorage) AddVirtualBatch(ctx context.Context, virtualBatch *sta
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String())
 		return err
 	} else {
-		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog) VALUES ($1, $2, $3, $4, $5, $6)"
+		var l1InfoRoot *string
+		if virtualBatch.L1InfoRoot != nil {
+			l1IR := virtualBatch.L1InfoRoot.String()
+			l1InfoRoot = &l1IR
+		}
+		const addVirtualBatchSQL = "INSERT INTO state.virtual_batch (batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog, l1_info_root) VALUES ($1, $2, $3, $4, $5, $6, $7)"
 		e := p.getExecQuerier(dbTx)
 		_, err := e.Exec(ctx, addVirtualBatchSQL, virtualBatch.BatchNumber, virtualBatch.TxHash.String(), virtualBatch.Coinbase.String(), virtualBatch.BlockNumber, virtualBatch.SequencerAddr.String(),
-			virtualBatch.TimestampBatchEtrog.UTC())
+			virtualBatch.TimestampBatchEtrog.UTC(), l1InfoRoot)
 		return err
 	}
 }
@@ -521,15 +532,16 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 		txHash        string
 		coinbase      string
 		sequencerAddr string
+		l1InfoRoot    *string
 	)
 
 	const getVirtualBatchSQL = `
-    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog
+    SELECT block_num, batch_num, tx_hash, coinbase, sequencer_addr, timestamp_batch_etrog, l1_info_root
       FROM state.virtual_batch
      WHERE batch_num = $1`
 
 	e := p.getExecQuerier(dbTx)
-	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog)
+	err := e.QueryRow(ctx, getVirtualBatchSQL, batchNumber).Scan(&virtualBatch.BlockNumber, &virtualBatch.BatchNumber, &txHash, &coinbase, &sequencerAddr, &virtualBatch.TimestampBatchEtrog, &l1InfoRoot)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
 	} else if err != nil {
@@ -538,11 +550,15 @@ func (p *PostgresStorage) GetVirtualBatch(ctx context.Context, batchNumber uint6
 	virtualBatch.Coinbase = common.HexToAddress(coinbase)
 	virtualBatch.SequencerAddr = common.HexToAddress(sequencerAddr)
 	virtualBatch.TxHash = common.HexToHash(txHash)
+	if l1InfoRoot != nil {
+		l1InfoR := common.HexToHash(*l1InfoRoot)
+		virtualBatch.L1InfoRoot = &l1InfoR
+	}
 	return &virtualBatch, nil
 }
 
-func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)"
+func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx) error {
+	const addGenesisBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num,closing_reason, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,$10, FALSE)"
 
 	if batch.BatchNumber != 0 {
 		return fmt.Errorf("%w. Got %d, should be 0", state.ErrUnexpectedBatch, batch.BatchNumber)
@@ -560,6 +576,7 @@ func (p *PostgresStorage) StoreGenesisBatch(ctx context.Context, batch state.Bat
 		batch.Coinbase.String(),
 		batch.BatchL2Data,
 		batch.ForcedBatchNum,
+		closingReason,
 	)
 
 	return err
@@ -587,7 +604,7 @@ func (p *PostgresStorage) OpenBatchInStorage(ctx context.Context, batchContext s
 
 // OpenWIPBatchInStorage adds a new wip batch into the state storage
 func (p *PostgresStorage) OpenWIPBatchInStorage(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, state_root, local_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data, batch_resources, wip) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)"
+	const openBatchSQL = "INSERT INTO state.batch (batch_num, global_exit_root, state_root, local_exit_root, timestamp, coinbase, forced_batch_num, raw_txs_data, batch_resources, wip, checked) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, FALSE)"
 
 	resourcesData, err := json.Marshal(batch.Resources)
 	if err != nil {
@@ -747,7 +764,7 @@ func (p *PostgresStorage) GetLastVerifiedBatch(ctx context.Context, dbTx pgx.Tx)
 
 // GetVirtualBatchToProve return the next batch that is not proved, neither in
 // proved process.
-func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Batch, error) {
+func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*state.Batch, error) {
 	const query = `
 		SELECT
 			b.batch_num,
@@ -755,7 +772,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.local_exit_root,
 			b.acc_input_hash,
 			b.state_root,
-			b.timestamp,
+			v.timestamp_batch_etrog,
 			b.coinbase,
 			b.raw_txs_data,
 			b.forced_batch_num,
@@ -766,6 +783,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			state.virtual_batch v
 		WHERE
 			b.batch_num > $1 AND b.batch_num = v.batch_num AND
+			v.block_num <= $2 AND
 			NOT EXISTS (
 				SELECT p.batch_num FROM state.proof p 
 				WHERE v.batch_num >= p.batch_num AND v.batch_num <= p.batch_num_final
@@ -773,7 +791,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 		ORDER BY b.batch_num ASC LIMIT 1
 		`
 	e := p.getExecQuerier(dbTx)
-	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber)
+	row := e.QueryRow(ctx, query, lastVerfiedBatchNumber, maxL1Block)
 	batch, err := scanBatch(row)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, state.ErrNotFound
@@ -823,7 +841,7 @@ func (p *PostgresStorage) GetSequences(ctx context.Context, lastVerifiedBatchNum
 // GetLastClosedBatch returns the latest closed batch
 func (p *PostgresStorage) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*state.Batch, error) {
 	const getLastClosedBatchSQL = `
-		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.batch_resources, bt.wip
+		SELECT bt.batch_num, bt.global_exit_root, bt.local_exit_root, bt.acc_input_hash, bt.state_root, bt.timestamp, bt.coinbase, bt.raw_txs_data, bt.forced_batch_num, bt.batch_resources, bt.wip
 			FROM state.batch bt
 			WHERE wip = FALSE
 			ORDER BY bt.batch_num DESC
@@ -883,6 +901,25 @@ func (p *PostgresStorage) UpdateWIPBatch(ctx context.Context, receipt state.Proc
 	return err
 }
 
+// updateBatchAsChecked updates the batch to set it as checked (sequencer sanity check was successful)
+func (p *PostgresStorage) UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+	const updateL2DataSQL = "UPDATE state.batch SET checked = TRUE WHERE batch_num = $1"
+
+	e := p.getExecQuerier(dbTx)
+	_, err := e.Exec(ctx, updateL2DataSQL, batchNumber)
+	return err
+}
+
+// IsBatchChecked indicates if the batch is closed and checked (sequencer sanity check was successful)
+func (p *PostgresStorage) IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error) {
+	const isBatchCheckedSQL = "SELECT not(wip) AND checked FROM state.batch WHERE batch_num = $1"
+
+	q := p.getExecQuerier(dbTx)
+	var isChecked bool
+	err := q.QueryRow(ctx, isBatchCheckedSQL, batchNum).Scan(&isChecked)
+	return isChecked, err
+}
+
 // AddAccumulatedInputHash adds the accumulated input hash
 func (p *PostgresStorage) AddAccumulatedInputHash(ctx context.Context, batchNum uint64, accInputHash common.Hash, dbTx pgx.Tx) error {
 	const addAccInputHashBatchSQL = "UPDATE state.batch SET acc_input_hash = $1 WHERE batch_num = $2"
@@ -917,25 +954,6 @@ func (p *PostgresStorage) GetBlockNumVirtualBatchByBatchNum(ctx context.Context,
 		return 0, err
 	}
 	return blockNum, nil
-}
-
-// BuildChangeL2Block returns a changeL2Block tx to use in the BatchL2Data
-func (p *PostgresStorage) BuildChangeL2Block(deltaTimestamp uint32, l1InfoTreeIndex uint32) []byte {
-	changeL2BlockMark := []byte{0x0B}
-	changeL2Block := []byte{}
-
-	// changeL2Block transaction mark
-	changeL2Block = append(changeL2Block, changeL2BlockMark...)
-	// changeL2Block deltaTimeStamp
-	deltaTimestampBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(deltaTimestampBytes, deltaTimestamp)
-	changeL2Block = append(changeL2Block, deltaTimestampBytes...)
-	// changeL2Block l1InfoTreeIndexBytes
-	l1InfoTreeIndexBytes := make([]byte, 4) //nolint:gomnd
-	binary.BigEndian.PutUint32(l1InfoTreeIndexBytes, l1InfoTreeIndex)
-	changeL2Block = append(changeL2Block, l1InfoTreeIndexBytes...)
-
-	return changeL2Block
 }
 
 // GetRawBatchTimestamps returns the timestamp of the batch with the given number.
@@ -973,9 +991,11 @@ func (p *PostgresStorage) GetVirtualBatchParentHash(ctx context.Context, batchNu
 	return common.HexToHash(parentHash), nil
 }
 
-// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number.
+// GetForcedBatchParentHash returns the parent hash of the forced batch with the given number and the globalExitRoot.
 func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (common.Hash, error) {
-	var parentHash string
+	var (
+		parentHash string
+	)
 
 	const sql = `SELECT b.parent_hash FROM state.forced_batch f, state.block b
      WHERE f.forced_batch_num = $1 and b.block_num = f.block_num`
@@ -988,4 +1008,49 @@ func (p *PostgresStorage) GetForcedBatchParentHash(ctx context.Context, forcedBa
 		return common.Hash{}, err
 	}
 	return common.HexToHash(parentHash), nil
+}
+
+// GetLatestBatchGlobalExitRoot gets the last GER that is not zero from batches
+func (p *PostgresStorage) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	var lastGER string
+	const query = "SELECT global_exit_root FROM state.batch where global_exit_root != $1 ORDER BY batch_num DESC LIMIT 1"
+
+	q := p.getExecQuerier(dbTx)
+	err := q.QueryRow(ctx, query, state.ZeroHash.String()).Scan(&lastGER)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return state.ZeroHash, nil
+	} else if err != nil {
+		return state.ZeroHash, err
+	}
+
+	return common.HexToHash(lastGER), nil
+}
+
+// GetNotCheckedBatches returns the batches that are closed but not checked
+func (p *PostgresStorage) GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx) ([]*state.Batch, error) {
+	const getBatchesNotCheckedSQL = `
+		SELECT batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, batch_resources, wip 
+		from state.batch WHERE wip IS FALSE AND checked IS FALSE ORDER BY batch_num ASC`
+
+	e := p.getExecQuerier(dbTx)
+	rows, err := e.Query(ctx, getBatchesNotCheckedSQL)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, state.ErrNotFound
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	batches := make([]*state.Batch, 0, len(rows.RawValues()))
+
+	for rows.Next() {
+		batch, err := scanBatch(rows)
+		if err != nil {
+			return nil, err
+		}
+		batches = append(batches, &batch)
+	}
+
+	return batches, nil
 }

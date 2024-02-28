@@ -15,6 +15,8 @@ const (
 	FORKID_INCABERRY = 6
 	// FORKID_ETROG is the fork id 7
 	FORKID_ETROG = 7
+	// FORKID_ELDERBERRY is the fork id 8
+	FORKID_ELDERBERRY = 8
 )
 
 // ForkIDInterval is a fork id interval

@@ -67,6 +67,28 @@ services:
       - "-c"
       - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequencer"
 
+  zkevm-sequencer-v1tov2:
+    container_name: zkevm-sequencer-v1tov2
+    image: zkevm-node
+    ports:
+      - 9092:9091 # needed if metrics enabled
+      - 6060:6060
+      - 6900:6900 # Data stream server
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
+      - ./:/datastreamer
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequencer"
+
   zkevm-sequence-sender:
     container_name: zkevm-sequence-sender
     image: zkevm-node
@@ -80,6 +102,25 @@ services:
       - ./sequencer.keystore:/pk/sequencer.keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components sequence-sender"
+
+  zkevm-sequence-sender-v1tov2:
+    container_name: zkevm-sequence-sender-v1tov2
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+      - ZKEVM_NODE_SEQUENCER_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./sequencer.keystore:/pk/sequencer.keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -105,6 +146,27 @@ services:
       - "-c"
       - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components rpc"
 
+  zkevm-json-rpc-v1tov2:
+    container_name: zkevm-json-rpc-v1tov2
+    image: zkevm-node
+    ports:
+      - 8123:8123
+      - 8133:8133 # needed if WebSockets enabled
+      - 9091:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+      - ZKEVM_NODE_MTCLIENT_URI=${ZKEVM_NODE_MTCLIENT_URI}
+      - ZKEVM_NODE_EXECUTOR_URI=${ZKEVM_NODE_EXECUTOR_URI}
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components rpc"
+
   zkevm-aggregator:
     container_name: zkevm-aggregator
     image: zkevm-node
@@ -117,6 +179,25 @@ services:
     volumes:
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components aggregator"
+
+  zkevm-aggregator-v1tov2:
+    container_name: zkevm-aggregator-v1tov2
+    image: zkevm-node
+    ports:
+      - 50081:50081
+      - 9093:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_AGGREGATOR_SENDER_ADDRESS=0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+      - ZKEVM_NODE_AGGREGATOR_UPGRADEETROGBATCHNUMBER=2
+    volumes:
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -173,6 +254,24 @@ services:
       - "-c"
       - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
 
+  zkevm-eth-tx-manager-v1tov2:
+    container_name: zkevm-eth-tx-manager-v1tov2
+    image: zkevm-node
+    ports:
+      - 9094:9091 # needed if metrics enabled
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./sequencer.keystore:/pk/sequencer.keystore
+      - ./aggregator.keystore:/pk/aggregator.keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components eth-tx-manager"
+
   zkevm-l2gaspricer:
     container_name: zkevm-l2gaspricer
     image: zkevm-node
@@ -182,6 +281,21 @@ services:
       - ./test.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node run --network custom --custom-network-file /app/genesis.json --cfg /app/config.toml --components l2gaspricer"
+
+  zkevm-l2gaspricer-v1tov2:
+    container_name: zkevm-l2gaspricer-v1tov2
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_POOL_DB_HOST=zkevm-pool-db
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./test.keystore:/pk/keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -339,7 +453,7 @@ services:
 
   zkevm-mock-l1-network:
     container_name: zkevm-mock-l1-network
-    image: hermeznetwork/geth-zkevm-contracts:v2.1.1-fork.7-geth1.12.0
+    image: hermeznetwork/geth-zkevm-contracts:v2.1.3-fork.8-geth1.12.0
     ports:
       - 8545:8545
       - 8546:8546
@@ -399,7 +513,7 @@ services:
 
   zkevm-prover:
     container_name: zkevm-prover
-    image: hermeznetwork/zkevm-prover:v4.0.0-RC19
+    image: hermeznetwork/zkevm-prover:v5.0.0-RC8
     ports:
       - 50061:50061 # MT
       - 50071:50071 # Executor
@@ -417,6 +531,21 @@ services:
       - ./sequencer.keystore:/pk/keystore
       - ./config/test.node.config.toml:/app/config.toml
       - ./config/test.genesis.config.json:/app/genesis.json
+    command:
+      - "/bin/sh"
+      - "-c"
+      - "/app/zkevm-node approve --network custom --custom-network-file /app/genesis.json --key-store-path /pk/keystore --pw testonly --am 115792089237316195423570985008687907853269984665640564039457584007913129639935 -y --cfg /app/config.toml"
+
+  zkevm-approve-v1tov2:
+    container_name: zkevm-approve-v1tov2
+    image: zkevm-node
+    environment:
+      - ZKEVM_NODE_STATE_DB_HOST=zkevm-state-db
+      - ZKEVM_NODE_ETHERMAN_URL=http://zkevm-v1tov2-l1-network:8545
+    volumes:
+      - ./sequencer.keystore:/pk/keystore
+      - ./config/test.node.config.toml:/app/config.toml
+      - ./config/test.genesis-v1tov2.config.json:/app/genesis.json
     command:
       - "/bin/sh"
       - "-c"
@@ -473,7 +602,7 @@ services:
 
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
-    image: hermeznetwork/zkevm-prover:v4.0.0-RC19
+    image: hermeznetwork/zkevm-prover:v5.0.0-RC8
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover

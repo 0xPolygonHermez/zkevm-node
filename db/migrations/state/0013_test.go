@@ -149,6 +149,12 @@ func (m migrationTest0013) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	// Try to insert data into the transactions table
 	err = m.InsertDataIntoTransactionsTable(db)
 	assert.NoError(t, err)
+
+	insertVirtualBatch := `INSERT INTO state.virtual_batch
+	(batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog)
+	VALUES(0, '0x23970ef3f8184daa93385faf802df142a521b479e8e59fbeafa11b8927eb77b1', '0x0000000000000000000000000000000000000000', 1, '0x6645F64d1cE0513bbf5E6713b7e4D0A957AC853c', '2023-12-22 16:53:00.000');`
+	_, err = db.Exec(insertVirtualBatch)
+	assert.NoError(t, err)
 }
 
 func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
@@ -170,6 +176,12 @@ func (m migrationTest0013) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	row = db.QueryRow(getWIPColumn)
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 0, result)
+
+	insertVirtualBatch := `INSERT INTO state.virtual_batch
+	(batch_num, tx_hash, coinbase, block_num, sequencer_addr, timestamp_batch_etrog)
+	VALUES(0, '0x23970ef3f8184daa93385faf802df142a521b479e8e59fbeafa11b8927eb77b1', '0x0000000000000000000000000000000000000000', 1, '0x6645F64d1cE0513bbf5E6713b7e4D0A957AC853c', '2023-12-22 16:53:00.000');`
+	_, err = db.Exec(insertVirtualBatch)
+	assert.Error(t, err)
 }
 
 func TestMigration0013(t *testing.T) {

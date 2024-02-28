@@ -875,24 +875,9 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	auth.GasLimit = uint64(4000000)
 	auth.NoSend = true
 
-	_, scTx, sc, err := Counter.DeployCounter(auth, &ethclient.Client{})
-	require.NoError(t, err)
-
-	auth.Nonce = big.NewInt(1)
-	tx1, err := sc.Increment(auth)
-	require.NoError(t, err)
-
-	auth.Nonce = big.NewInt(2)
-	tx2, err := sc.Increment(auth)
-	require.NoError(t, err)
-
-	auth.Nonce = big.NewInt(3)
-	tx3, err := sc.Increment(auth)
-	require.NoError(t, err)
-
+	// Set genesis
 	dbTx, err := testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
-	// Set genesis
 	test.Genesis.Actions = []*state.GenesisAction{
 		{
 			Address: operations.DefaultSequencerAddress,
@@ -901,6 +886,14 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 		},
 	}
 	_, err = testState.SetGenesis(ctx, state.Block{}, test.Genesis, metrics.SynchronizerCallerLabel, dbTx)
+	require.NoError(t, err)
+
+	scAddr, scTx, sc, err := Counter.DeployCounter(auth, &ethclient.Client{})
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(context.Background()))
+
+	// deploy SC
+	dbTx, err = testState.BeginStateTransaction(ctx)
 	require.NoError(t, err)
 	batchCtx := state.ProcessingContext{
 		BatchNumber: 1,
@@ -911,9 +904,6 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	require.NoError(t, err)
 	signedTxs := []types.Transaction{
 		*scTx,
-		*tx1,
-		*tx2,
-		*tx3,
 	}
 	effectivePercentages := make([]uint8, 0, len(signedTxs))
 	for range signedTxs {
@@ -928,12 +918,10 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	// assert signed tx do deploy sc
 	assert.Nil(t, processBatchResponse.BlockResponses[0].TransactionResponses[0].RomError)
 	assert.NotEqual(t, state.ZeroAddress, processBatchResponse.BlockResponses[0].TransactionResponses[0].CreateAddress.Hex())
-	assert.Equal(t, tx1.To().Hex(), processBatchResponse.BlockResponses[0].TransactionResponses[0].CreateAddress.Hex())
+	assert.Equal(t, scAddr.Hex(), processBatchResponse.BlockResponses[0].TransactionResponses[0].CreateAddress.Hex())
 
 	// assert signed tx to increment counter
-	assert.Nil(t, processBatchResponse.BlockResponses[1].TransactionResponses[0].RomError)
-	assert.Nil(t, processBatchResponse.BlockResponses[2].TransactionResponses[0].RomError)
-	assert.Nil(t, processBatchResponse.BlockResponses[3].TransactionResponses[0].RomError)
+	assert.Nil(t, processBatchResponse.BlockResponses[0].TransactionResponses[0].RomError)
 
 	// Add txs to DB
 	err = testState.StoreTransactions(context.Background(), 1, processBatchResponse.BlockResponses, nil, dbTx)
@@ -949,6 +937,55 @@ func TestExecutorUnsignedTransactionsWithCorrectL2BlockStateRoot(t *testing.T) {
 	)
 	require.NoError(t, err)
 	require.NoError(t, dbTx.Commit(context.Background()))
+
+	// increment
+	for n := int64(1); n <= 3; n++ {
+		batchNumber := uint64(n + 1)
+		dbTx, err := testState.BeginStateTransaction(ctx)
+		require.NoError(t, err)
+
+		auth.Nonce = big.NewInt(n)
+		tx, err := sc.Increment(auth)
+		require.NoError(t, err)
+
+		batchCtx := state.ProcessingContext{
+			BatchNumber: batchNumber,
+			Coinbase:    common.HexToAddress(operations.DefaultSequencerAddress),
+			Timestamp:   time.Now(),
+		}
+		err = testState.OpenBatch(context.Background(), batchCtx, dbTx)
+		require.NoError(t, err)
+		signedTxs := []types.Transaction{
+			*tx,
+		}
+		effectivePercentages := make([]uint8, 0, len(signedTxs))
+		for range signedTxs {
+			effectivePercentages = append(effectivePercentages, state.MaxEffectivePercentage)
+		}
+
+		batchL2Data, err := state.EncodeTransactions(signedTxs, effectivePercentages, forkID)
+		require.NoError(t, err)
+
+		processBatchResponse, err := testState.ProcessSequencerBatch(context.Background(), batchNumber, batchL2Data, metrics.SequencerCallerLabel, dbTx)
+		require.NoError(t, err)
+		// assert signed tx to increment counter
+		assert.Nil(t, processBatchResponse.BlockResponses[0].TransactionResponses[0].RomError)
+
+		// Add txs to DB
+		err = testState.StoreTransactions(context.Background(), batchNumber, processBatchResponse.BlockResponses, nil, dbTx)
+		require.NoError(t, err)
+		// Close batch
+		err = testState.CloseBatch(
+			context.Background(),
+			state.ProcessingReceipt{
+				BatchNumber:   batchNumber,
+				StateRoot:     processBatchResponse.NewStateRoot,
+				LocalExitRoot: processBatchResponse.NewLocalExitRoot,
+			}, dbTx,
+		)
+		require.NoError(t, err)
+		require.NoError(t, dbTx.Commit(context.Background()))
+	}
 
 	getCountFnSignature := crypto.Keccak256Hash([]byte("getCount()")).Bytes()[:4]
 	getCountUnsignedTx := types.NewTx(&types.LegacyTx{
@@ -1453,17 +1490,22 @@ func TestExecutorRevert(t *testing.T) {
 	transactions := []*types.Transaction{signedTx0, signedTx1}
 
 	// Create block to be able to calculate its hash
-	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(header, transactions, []*state.L2Header{}, receipts, st)
 	l2Block.ReceivedAt = time.Now()
 
 	receipt.BlockHash = l2Block.Hash()
+	receipt1.BlockHash = l2Block.Hash()
 
-	storeTxsEGPData := []state.StoreTxEGPData{}
-	for range transactions {
-		storeTxsEGPData = append(storeTxsEGPData, state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage})
+	numTxs := len(transactions)
+	storeTxsEGPData := make([]state.StoreTxEGPData, numTxs)
+	txsL2Hash := make([]common.Hash, numTxs)
+	for i := range transactions {
+		storeTxsEGPData[i] = state.StoreTxEGPData{EGPLog: nil, EffectivePercentage: state.MaxEffectivePercentage}
+		txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 	}
 
-	err = testState.AddL2Block(ctx, 0, l2Block, receipts, storeTxsEGPData, dbTx)
+	err = testState.AddL2Block(ctx, 0, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
 	require.NoError(t, err)
 	l2Block, err = testState.GetL2BlockByHash(ctx, l2Block.Hash(), dbTx)
 	require.NoError(t, err)

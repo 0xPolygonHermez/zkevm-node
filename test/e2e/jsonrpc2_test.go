@@ -280,6 +280,7 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 
 		err = operations.WaitTxToBeMined(ctx, client, scTx, operations.DefaultTimeoutTxToBeMined)
 		errMsg := err.Error()
+		log.Debugf("Error: %v", errMsg)
 		prefix := "transaction has failed, reason: execution reverted: Today is not juernes"
 		hasPrefix := strings.HasPrefix(errMsg, prefix)
 		require.True(t, hasPrefix)
@@ -588,7 +589,10 @@ func TestEstimateGas(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+
+	log.Info("TestEstimateGas-------------------------------------------------------")
 	setup()
+	defer opsMan.ShowDockerLogs()
 	defer teardown()
 
 	ctx := context.Background()
@@ -728,6 +732,7 @@ func TestEstimateGas(t *testing.T) {
 
 		for _, testCase := range testCases {
 			t.Run(testCase.name, func(t *testing.T) {
+				log.Info("TestEstimateGas------------------------------------------------------- subcase: ", testCase.name)
 				msg := ethereum.CallMsg{
 					To:   txToMsg.To(),
 					Data: txToMsg.Data(),

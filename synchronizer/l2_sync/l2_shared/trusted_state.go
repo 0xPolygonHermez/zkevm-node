@@ -17,6 +17,36 @@ type TrustedState struct {
 	LastTrustedBatches []*state.Batch
 }
 
+// IsEmpty returns true if the trusted state is empty
+func (ts *TrustedState) IsEmpty() bool {
+	if ts == nil || len(ts.LastTrustedBatches) == 0 {
+		return true
+	}
+	if len(ts.LastTrustedBatches) == 1 && ts.LastTrustedBatches[0] == nil {
+		return true
+	}
+	if len(ts.LastTrustedBatches) > 1 && ts.LastTrustedBatches[0] == nil && ts.LastTrustedBatches[1] == nil {
+		return true
+	}
+	return false
+}
+
+// GetCurrentBatch returns the current batch or nil
+func (ts *TrustedState) GetCurrentBatch() *state.Batch {
+	if ts == nil || len(ts.LastTrustedBatches) == 0 {
+		return nil
+	}
+	return ts.LastTrustedBatches[0]
+}
+
+// GetPreviousBatch returns the previous batch or nil
+func (ts *TrustedState) GetPreviousBatch() *state.Batch {
+	if ts == nil || len(ts.LastTrustedBatches) < 2 {
+		return nil
+	}
+	return ts.LastTrustedBatches[1]
+}
+
 // TrustedStateManager is the trusted state manager, basically contains the batch cache and create the TrustedState
 type TrustedStateManager struct {
 	Cache *common.Cache[uint64, *state.Batch]

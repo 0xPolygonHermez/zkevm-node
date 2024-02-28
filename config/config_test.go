@@ -42,7 +42,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Synchronizer.L1SynchronizationMode",
-			expectedValue: "parallel",
+			expectedValue: "sequential",
 		},
 		{
 			path:          "Synchronizer.L1ParallelSynchronization.MaxClients",
@@ -51,6 +51,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Synchronizer.L1ParallelSynchronization.MaxPendingNoProcessedBlocks",
 			expectedValue: uint64(25),
+		},
+		{
+			path:          "Synchronizer.L2Synchronization.AcceptEmptyClosedBatches",
+			expectedValue: false,
+		},
+		{
+			path:          "Synchronizer.L2Synchronization.ReprocessFullBatchOnClose",
+			expectedValue: true,
 		},
 		{
 			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
@@ -125,6 +133,10 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: "",
 		},
 		{
+			path:          "Sequencer.StreamServer.Version",
+			expectedValue: uint8(0),
+		},
+		{
 			path:          "Sequencer.StreamServer.Enabled",
 			expectedValue: false,
 		},
@@ -135,6 +147,10 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "SequenceSender.LastBatchVirtualizationTimeMaxWaitPeriod",
 			expectedValue: types.NewDuration(5 * time.Second),
+		},
+		{
+			path:          "SequenceSender.L1BlockTimestampMargin",
+			expectedValue: types.NewDuration(30 * time.Second),
 		},
 		{
 			path:          "SequenceSender.MaxTxSizeForL1",
@@ -292,6 +308,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Pool.EffectiveGasPrice.FinalDeviationPct",
 			expectedValue: uint64(10),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferGasPrice",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Pool.EffectiveGasPrice.EthTransferL1GasPriceFactor",
+			expectedValue: float64(0),
 		},
 		{
 			path:          "Pool.DB.User",
@@ -458,6 +482,14 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: uint64(0),
 		},
 		{
+			path:          "Aggregator.UpgradeEtrogBatchNumber",
+			expectedValue: uint64(0),
+		},
+		{
+			path:          "Aggregator.BatchProofL1BlockConfirmations",
+			expectedValue: uint64(2),
+		},
+		{
 			path:          "State.Batch.Constraints.MaxTxsPerBatch",
 			expectedValue: uint64(300),
 		},
@@ -467,7 +499,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "State.Batch.Constraints.MaxCumulativeGasUsed",
-			expectedValue: uint64(30000000),
+			expectedValue: uint64(1125899906842624),
 		},
 		{
 			path:          "State.Batch.Constraints.MaxKeccakHashes",

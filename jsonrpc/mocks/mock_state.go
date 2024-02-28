@@ -507,6 +507,36 @@ func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber u
 	return r0, r1
 }
 
+// GetL2TxHashByTxHash provides a mock function with given fields: ctx, hash, dbTx
+func (_m *StateMock) GetL2TxHashByTxHash(ctx context.Context, hash common.Hash, dbTx pgx.Tx) (*common.Hash, error) {
+	ret := _m.Called(ctx, hash, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetL2TxHashByTxHash")
+	}
+
+	var r0 *common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) (*common.Hash, error)); ok {
+		return rf(ctx, hash, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash, pgx.Tx) *common.Hash); ok {
+		r0 = rf(ctx, hash, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*common.Hash)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash, pgx.Tx) error); ok {
+		r1 = rf(ctx, hash, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -780,6 +810,36 @@ func (_m *StateMock) GetLastVirtualizedL2BlockNumber(ctx context.Context, dbTx p
 		r0 = rf(ctx, dbTx)
 	} else {
 		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLatestBatchGlobalExitRoot provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetLatestBatchGlobalExitRoot(ctx context.Context, dbTx pgx.Tx) (common.Hash, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestBatchGlobalExitRoot")
+	}
+
+	var r0 common.Hash
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (common.Hash, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) common.Hash); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(common.Hash)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
@@ -1235,6 +1295,36 @@ func (_m *StateMock) IsL2BlockVirtualized(ctx context.Context, blockNumber uint6
 
 	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
 		r1 = rf(ctx, blockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// PreProcessUnsignedTransaction provides a mock function with given fields: ctx, tx, sender, l2BlockNumber, stateOverride, dbTx
+func (_m *StateMock) PreProcessUnsignedTransaction(ctx context.Context, tx *coretypes.Transaction, sender common.Address, l2BlockNumber *uint64, stateOverride state.StateOverride, dbTx pgx.Tx) (*state.ProcessBatchResponse, error) {
+	ret := _m.Called(ctx, tx, sender, l2BlockNumber, stateOverride, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PreProcessUnsignedTransaction")
+	}
+
+	var r0 *state.ProcessBatchResponse
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) (*state.ProcessBatchResponse, error)); ok {
+		return rf(ctx, tx, sender, l2BlockNumber, stateOverride, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) *state.ProcessBatchResponse); ok {
+		r0 = rf(ctx, tx, sender, l2BlockNumber, stateOverride, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.ProcessBatchResponse)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *coretypes.Transaction, common.Address, *uint64, state.StateOverride, pgx.Tx) error); ok {
+		r1 = rf(ctx, tx, sender, l2BlockNumber, stateOverride, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

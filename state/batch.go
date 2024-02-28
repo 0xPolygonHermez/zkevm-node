@@ -21,6 +21,15 @@ const (
 	cFalse            = 0
 	noFlushID  uint64 = 0
 	noProverID string = ""
+
+	// MockL1InfoRootHex is used to send batches to the Executor
+	// the number below represents this formula:
+	//
+	// 	mockL1InfoRoot := common.Hash{}
+	// for i := 0; i < len(mockL1InfoRoot); i++ {
+	// 	  mockL1InfoRoot[i] = byte(i)
+	// }
+	MockL1InfoRootHex = "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 )
 
 // Batch struct
@@ -51,6 +60,7 @@ type ProcessingContext struct {
 	GlobalExitRoot common.Hash
 	ForcedBatchNum *uint64
 	BatchL2Data    *[]byte
+	ClosingReason  ClosingReason
 }
 
 // ClosingReason represents the reason why a batch is closed.
@@ -59,18 +69,36 @@ type ClosingReason string
 const (
 	// EmptyClosingReason is the closing reason used when a batch is not closed
 	EmptyClosingReason ClosingReason = ""
-	// BatchFullClosingReason  is the closing reason used when a batch is closed when it is full
-	BatchFullClosingReason ClosingReason = "Batch is full"
-	// ForcedBatchClosingReason  is the closing reason used when a batch is closed because it is forced
-	ForcedBatchClosingReason ClosingReason = "Forced Batch"
-	// BatchAlmostFullClosingReason is the closing reason used when the batch it is almost full
-	BatchAlmostFullClosingReason ClosingReason = "Batch is almost full"
+	// MaxTxsClosingReason is the closing reason used when a batch reachs the max transactions per batch
+	MaxTxsClosingReason ClosingReason = "Max transactions"
+	// ResourceExhaustedClosingReason is the closing reason used when a batch has a resource (zkCounter or Bytes) exhausted
+	ResourceExhaustedClosingReason ClosingReason = "Resource exhausted"
+	// ResourceMarginExhaustedClosingReason is the closing reason used when a batch has a resource (zkCounter or Bytes) margin exhausted
+	ResourceMarginExhaustedClosingReason ClosingReason = "Resource margin exhausted"
+	// ForcedBatchClosingReason is the closing reason used when a batch is a forced batch
+	ForcedBatchClosingReason ClosingReason = "Forced batch"
 	// ForcedBatchDeadlineClosingReason is the closing reason used when forced batch deadline is reached
-	ForcedBatchDeadlineClosingReason ClosingReason = "Forced Batch deadline"
-	// TimeoutResolutionDeadlineClosingReason is the closing reason used when timeout resolution deadline is reached
-	TimeoutResolutionDeadlineClosingReason ClosingReason = "timeout resolution deadline"
-	// GlobalExitRootDeadlineClosingReason is the closing reason used when Global Exit Root deadline is reached
-	GlobalExitRootDeadlineClosingReason ClosingReason = "Global Exit Root deadline"
+	ForcedBatchDeadlineClosingReason ClosingReason = "Forced batch deadline"
+	// MaxDeltaTimestampClosingReason is the closing reason used when max delta batch timestamp is reached
+	MaxDeltaTimestampClosingReason ClosingReason = "Max delta timestamp"
+	// NoTxFitsClosingReason is the closing reason used when any of the txs in the pool (worker) fits in the remaining resources of the batch
+	NoTxFitsClosingReason ClosingReason = "No transaction fits"
+
+	// Reason due Synchronizer
+	// ------------------------------------------------------------------------------------------
+
+	// SyncL1EventInitialBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to an initial batch (first batch mode forced)
+	SyncL1EventInitialBatchClosingReason ClosingReason = "Sync L1: initial"
+	// SyncL1EventSequencedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced batch event from L1
+	SyncL1EventSequencedBatchClosingReason ClosingReason = "Sync L1: sequenced"
+	// SyncL1EventSequencedForcedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a sequenced forced batch event from L1
+	SyncL1EventSequencedForcedBatchClosingReason ClosingReason = "Sync L1: forced"
+	// SyncL1EventUpdateEtrogSequenceClosingReason is the closing reason used when a batch is closed by the synchronizer due to an UpdateEtrogSequence event from L1 that inject txs
+	SyncL1EventUpdateEtrogSequenceClosingReason ClosingReason = "Sync L1: injected"
+	// SyncL2TrustedBatchClosingReason is the closing reason used when a batch is closed by the synchronizer due to a trusted batch from L2
+	SyncL2TrustedBatchClosingReason ClosingReason = "Sync L2: trusted"
+	// SyncGenesisBatchClosingReason is the closing reason used when genesis batch is created by synchronizer
+	SyncGenesisBatchClosingReason ClosingReason = "Sync: genesis"
 )
 
 // ProcessingReceipt indicates the outcome (StateRoot, AccInputHash) of processing a batch
@@ -103,6 +131,7 @@ type VirtualBatch struct {
 	Coinbase      common.Address
 	SequencerAddr common.Address
 	BlockNumber   uint64
+	L1InfoRoot    *common.Hash
 	// TimestampBatchEtrog etrog: Batch timestamp comes from L1 block timestamp
 	//  for previous batches is NULL because the batch timestamp is in batch table
 	TimestampBatchEtrog *time.Time
@@ -144,7 +173,7 @@ func (s *State) OpenBatch(ctx context.Context, processingContext ProcessingConte
 		return err
 	}
 	if prevTimestamp.Unix() > processingContext.Timestamp.Unix() {
-		return ErrTimestampGE
+		return fmt.Errorf(" oldBatch(%d) tstamp=%d > openingBatch(%d)=%d err: %w", lastBatchNum, prevTimestamp.Unix(), processingContext.BatchNumber, processingContext.Timestamp.Unix(), ErrTimestampGE)
 	}
 	return s.OpenBatchInStorage(ctx, processingContext, dbTx)
 }
@@ -556,16 +585,28 @@ func (s *State) GetBatchTimestamp(ctx context.Context, batchNumber uint64, force
 	return batchTimestamp, nil
 }
 
-// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data and the last L1InfoRoot used
-func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]L1DataV2, common.Hash, error) {
+// GetL1InfoTreeDataFromBatchL2Data returns a map with the L1InfoTreeData used in the L2 blocks included in the batchL2Data, the last L1InfoRoot used and the highest globalExitRoot used in the batch
+func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]L1DataV2, common.Hash, common.Hash, error) {
 	batchRaw, err := DecodeBatchV2(batchL2Data)
 	if err != nil {
-		return nil, ZeroHash, err
+		return nil, ZeroHash, ZeroHash, err
+	}
+	if len(batchRaw.Blocks) == 0 {
+		return map[uint32]L1DataV2{}, ZeroHash, ZeroHash, nil
 	}
 
 	l1InfoTreeData := map[uint32]L1DataV2{}
-	lastL1InfoRoot := ZeroHash
+	maxIndex := findMax(batchRaw.Blocks)
+	l1InfoTreeExitRoot, err := s.GetL1InfoRootLeafByIndex(ctx, maxIndex, dbTx)
+	if err != nil {
+		return nil, ZeroHash, ZeroHash, err
+	}
+	maxGER := l1InfoTreeExitRoot.GlobalExitRoot.GlobalExitRoot
+	if maxIndex == 0 {
+		maxGER = ZeroHash
+	}
 
+	l1InfoRoot := l1InfoTreeExitRoot.L1InfoTreeRoot
 	for _, l2blockRaw := range batchRaw.Blocks {
 		// Index 0 is a special case, it means that the block is not changing GlobalExitRoot.
 		// it must not be included in l1InfoTreeData. If all index are 0 L1InfoRoot == ZeroHash
@@ -574,7 +615,7 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 			if !found {
 				l1InfoTreeExitRootStorageEntry, err := s.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, dbTx)
 				if err != nil {
-					return nil, ZeroHash, err
+					return nil, l1InfoRoot, maxGER, err
 				}
 
 				l1Data := L1DataV2{
@@ -584,11 +625,27 @@ func (s *State) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Dat
 				}
 
 				l1InfoTreeData[l2blockRaw.IndexL1InfoTree] = l1Data
-
-				lastL1InfoRoot = l1InfoTreeExitRootStorageEntry.L1InfoTreeRoot
 			}
 		}
 	}
 
-	return l1InfoTreeData, lastL1InfoRoot, nil
+	return l1InfoTreeData, l1InfoRoot, maxGER, nil
+}
+
+func findMax(blocks []L2BlockRaw) uint32 {
+	maxIndex := blocks[0].IndexL1InfoTree
+	for _, b := range blocks {
+		if b.IndexL1InfoTree > maxIndex {
+			maxIndex = b.IndexL1InfoTree
+		}
+	}
+	return maxIndex
+}
+
+var mockL1InfoRoot = common.HexToHash(MockL1InfoRootHex)
+
+// GetMockL1InfoRoot returns an instance of common.Hash set
+// with the value provided by the const MockL1InfoRootHex
+func GetMockL1InfoRoot() common.Hash {
+	return mockL1InfoRoot
 }

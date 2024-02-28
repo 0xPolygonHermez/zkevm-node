@@ -39,6 +39,8 @@ var (
 	ErrOutOfCountersPadding = errors.New("not enough padding counters to continue the execution")
 	// ErrOutOfCountersPoseidon indicates there are not enough poseidon counters to continue the execution
 	ErrOutOfCountersPoseidon = errors.New("not enough poseidon counters to continue the execution")
+	// ErrOutOfCountersSha indicates there are not enough sha256 counters to continue the execution
+	ErrOutOfCountersSha = errors.New("not enough sha256 counters to continue the execution")
 	// ErrIntrinsicInvalidSignature indicates the transaction is failing at the signature intrinsic check
 	ErrIntrinsicInvalidSignature = errors.New("signature intrinsic error")
 	// ErrIntrinsicInvalidChainID indicates the transaction is failing at the chain id intrinsic check
@@ -76,10 +78,10 @@ var (
 	ErrInvalidDecodeChangeL2Block = errors.New("error while decoding a change l2 block transaction")
 	// ErrInvalidNotFirstTxChangeL2Block indicates that there has been an error while decoding a create l2 block transaction
 	ErrInvalidNotFirstTxChangeL2Block = errors.New("the first transaction in a batch is not a change l2 block transaction")
-	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error during while executing (limit timestamp)")
-	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error during while executing
-	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error during while executing (min timestamp)")
+	// ErrInvalidTxChangeL2BlockLimitTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockLimitTimestamp = errors.New("the change l2 block transaction has trigger an error while executing (limit timestamp)")
+	// ErrInvalidTxChangeL2BlockMinTimestamp indicates that the change l2 block transaction has trigger an error while executing
+	ErrInvalidTxChangeL2BlockMinTimestamp = errors.New("indicates that the change l2 block transaction has trigger an error while executing (min timestamp)")
 
 	// EXECUTOR ERRORS
 	// ===============
@@ -305,6 +307,18 @@ var (
 	ErrExecutorErrorHashDBGRPCError = errors.New("HashDB GRPC error")
 	// ErrExecutorErrorStateManager indicates an error in the State Manager
 	ErrExecutorErrorStateManager = errors.New("state Manager error")
+	// ErrExecutorErrorInvalidL1InfoTreeIndex indicates that the ROM asked for an L1InfoTree index that was not present in the input
+	ErrExecutorErrorInvalidL1InfoTreeIndex = errors.New("invalid l1_info_tree_index")
+	// ErrExecutorErrorInvalidL1InfoTreeSmtProofValue indicates that the ROM asked for an L1InfoTree SMT proof that was not present in the input
+	ErrExecutorErrorInvalidL1InfoTreeSmtProofValue = errors.New("invalid l1_info_tree_smt_proof_value")
+	// ErrExecutorErrorInvalidWitness indicates that the input parameter witness is invalid
+	ErrExecutorErrorInvalidWitness = errors.New("invalid witness")
+	// ErrExecutorErrorInvalidCBOR indicates that the input parameter cbor is invalid
+	ErrExecutorErrorInvalidCBOR = errors.New("invalid cbor")
+	// ErrExecutorErrorInvalidDataStream indicates that the input parameter data stream is invalid
+	ErrExecutorErrorInvalidDataStream = errors.New("invalid data stream")
+	// ErrExecutorErrorInvalidUpdateMerkleTree indicates that the input parameter update merkle tree is invalid
+	ErrExecutorErrorInvalidUpdateMerkleTree = errors.New("invalid update merkle tree")
 
 	// GRPC ERRORS
 	// ===========
@@ -339,16 +353,4 @@ func (r *ExecutionResult) Failed() bool {
 // Reverted indicates the execution was reverted
 func (r *ExecutionResult) Reverted() bool {
 	return errors.Is(r.Err, ErrExecutionReverted)
-}
-
-// IsOutOfCounterError checks if the provided error is one
-// of the errors related to out of counters errors
-func IsOutOfCounterError(err error) bool {
-	return errors.Is(err, ErrOutOfCountersArith) ||
-		errors.Is(err, ErrOutOfCountersBinary) ||
-		errors.Is(err, ErrOutOfCountersKeccak) ||
-		errors.Is(err, ErrOutOfCountersMemory) ||
-		errors.Is(err, ErrOutOfCountersPadding) ||
-		errors.Is(err, ErrOutOfCountersPoseidon) ||
-		errors.Is(err, ErrOutOfCountersStep)
 }

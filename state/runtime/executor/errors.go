@@ -55,6 +55,8 @@ func RomErr(errorCode RomError) error {
 		return runtime.ErrOutOfCountersPadding
 	case RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON:
 		return runtime.ErrOutOfCountersPoseidon
+	case RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA:
+		return runtime.ErrOutOfCountersSha
 	case RomError_ROM_ERROR_INVALID_JUMP:
 		return runtime.ErrInvalidJump
 	case RomError_ROM_ERROR_INVALID_OPCODE:
@@ -129,6 +131,8 @@ func RomErrorCode(err error) RomError {
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_PADDING
 	case runtime.ErrOutOfCountersPoseidon:
 		return RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	case runtime.ErrOutOfCountersSha:
+		return RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 	case runtime.ErrInvalidJump:
 		return RomError_ROM_ERROR_INVALID_JUMP
 	case runtime.ErrInvalidOpCode:
@@ -174,7 +178,7 @@ func RomErrorCode(err error) RomError {
 
 // IsROMOutOfCountersError indicates if the error is an ROM OOC
 func IsROMOutOfCountersError(error RomError) bool {
-	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_POSEIDON
+	return error >= RomError_ROM_ERROR_OUT_OF_COUNTERS_STEP && error <= RomError_ROM_ERROR_OUT_OF_COUNTERS_SHA
 }
 
 // IsROMOutOfGasError indicates if the error is an ROM OOG
@@ -438,6 +442,18 @@ func ExecutorErr(errorCode ExecutorError) error {
 		return runtime.ErrExecutorErrorHashDBGRPCError
 	case ExecutorError_EXECUTOR_ERROR_STATE_MANAGER:
 		return runtime.ErrExecutorErrorStateManager
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeIndex
+	case ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE:
+		return runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue
+	case ExecutorError_EXECUTOR_ERROR_INVALID_WITNESS:
+		return runtime.ErrExecutorErrorInvalidWitness
+	case ExecutorError_EXECUTOR_ERROR_INVALID_CBOR:
+		return runtime.ErrExecutorErrorInvalidCBOR
+	case ExecutorError_EXECUTOR_ERROR_INVALID_DATA_STREAM:
+		return runtime.ErrExecutorErrorInvalidDataStream
+	case ExecutorError_EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE:
+		return runtime.ErrExecutorErrorInvalidUpdateMerkleTree
 	}
 	return ErrExecutorUnknown
 }
@@ -666,6 +682,19 @@ func ExecutorErrorCode(err error) ExecutorError {
 		return ExecutorError_EXECUTOR_ERROR_HASHDB_GRPC_ERROR
 	case runtime.ErrExecutorErrorStateManager:
 		return ExecutorError_EXECUTOR_ERROR_STATE_MANAGER
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeIndex:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_INDEX
+	case runtime.ErrExecutorErrorInvalidL1InfoTreeSmtProofValue:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_L1_INFO_TREE_SMT_PROOF_VALUE
+	case runtime.ErrExecutorErrorInvalidWitness:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_WITNESS
+	case runtime.ErrExecutorErrorInvalidCBOR:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_CBOR
+	case runtime.ErrExecutorErrorInvalidDataStream:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_DATA_STREAM
+	case runtime.ErrExecutorErrorInvalidUpdateMerkleTree:
+		return ExecutorError_EXECUTOR_ERROR_INVALID_UPDATE_MERKLE_TREE
 	}
+
 	return ErrCodeExecutorUnknown
 }

@@ -11,6 +11,7 @@ gen() {
 gen oldpolygonzkevmglobalexitroot
 gen oldpolygonzkevmbridge
 gen oldpolygonzkevm
+gen etrogpolygonzkevm
 gen polygonzkevm
 gen polygonzkevmbridge
 gen pol
@@ -18,3 +19,4 @@ gen polygonzkevmglobalexitroot
 gen polygonrollupmanager
 gen mockpolygonrollupmanager
 gen mockverifier
+gen proxy

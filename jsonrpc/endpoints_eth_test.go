@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -997,7 +996,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 		ExpectedError  interface{}
 		SetupMocks     func(*mocksWrapper, *testCase)
 	}
-
+	st := trie.NewStackTrie(nil)
 	testCases := []testCase{
 		{
 			Name:           "Block not found",
@@ -1050,7 +1049,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 				[]*ethTypes.Transaction{ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})},
 				nil,
 				[]*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))},
-				&trie.StackTrie{},
+				st,
 			),
 			ExpectedError: nil,
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
@@ -1058,7 +1057,7 @@ func TestGetL2BlockByHash(t *testing.T) {
 				for _, uncle := range tc.ExpectedResult.Uncles() {
 					uncles = append(uncles, state.NewL2Header(uncle))
 				}
-				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, &trie.StackTrie{})
+				block := state.NewL2Block(state.NewL2Header(tc.ExpectedResult.Header()), tc.ExpectedResult.Transactions(), uncles, []*ethTypes.Receipt{ethTypes.NewReceipt([]byte{}, false, uint64(0))}, st)
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1183,7 +1182,8 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	l2Header := state.NewL2Header(header)
 	l2Header.GlobalExitRoot = common.HexToHash("0x16")
 	l2Header.BlockInfoRoot = common.HexToHash("0x17")
-	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, &trie.StackTrie{})
+	st := trie.NewStackTrie(nil)
+	l2Block := state.NewL2Block(l2Header, signedTransactions, uncles, receipts, st)
 
 	for _, receipt := range receipts {
 		receipt.BlockHash = l2Block.Hash()
@@ -1223,7 +1223,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 	}
 
 	n := big.NewInt(0).SetUint64(l2Block.Nonce())
-	rpcBlockNonce := common.LeftPadBytes(n.Bytes(), 8) //nolint:gomnd
+	rpcBlockNonce := types.ArgBytes(common.LeftPadBytes(n.Bytes(), 8)) //nolint:gomnd
 
 	difficulty := types.ArgUint64(0)
 	var totalDifficulty *types.ArgUint64
@@ -1249,7 +1249,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 		Timestamp:       types.ArgUint64(l2Block.Time()),
 		ExtraData:       l2Block.Extra(),
 		MixHash:         l2Block.MixDigest(),
-		Nonce:           rpcBlockNonce,
+		Nonce:           &rpcBlockNonce,
 		Hash:            state.Ptr(l2Block.Hash()),
 		GlobalExitRoot:  state.Ptr(l2Block.GlobalExitRoot()),
 		BlockInfoRoot:   state.Ptr(l2Block.BlockInfoRoot()),
@@ -1306,6 +1306,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 						Return(receipt, nil).
 						Once()
 				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(state.Ptr(signedTx.Hash()), nil).
+						Once()
+				}
 			},
 		},
 		{
@@ -1338,6 +1344,12 @@ func TestGetL2BlockByNumber(t *testing.T) {
 					m.State.
 						On("GetTransactionReceipt", context.Background(), receipt.TxHash, m.DbTx).
 						Return(receipt, nil).
+						Once()
+				}
+				for _, signedTx := range signedTransactions {
+					m.State.
+						On("GetL2TxHashByTxHash", context.Background(), signedTx.Hash(), m.DbTx).
+						Return(state.Ptr(signedTx.Hash()), nil).
 						Once()
 				}
 			},
@@ -1399,7 +1411,7 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			SetupMocks: func(m *mocksWrapper, tc *testCase) {
 				lastBlockHeader := &ethTypes.Header{Number: big.NewInt(0).SetUint64(uint64(rpcBlock.Number))}
 				lastBlockHeader.Number.Sub(lastBlockHeader.Number, big.NewInt(1))
-				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, &trie.StackTrie{})
+				lastBlock := state.NewL2Block(state.NewL2Header(lastBlockHeader), nil, nil, nil, st)
 
 				tc.ExpectedResult = &types.Block{}
 				tc.ExpectedResult.ParentHash = lastBlock.Hash()
@@ -1410,8 +1422,10 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				tc.ExpectedResult.ExtraData = []byte{}
 				tc.ExpectedResult.GlobalExitRoot = state.Ptr(common.Hash{})
 				tc.ExpectedResult.BlockInfoRoot = state.Ptr(common.Hash{})
-				rpcBlockNonce := common.LeftPadBytes(big.NewInt(0).Bytes(), 8) //nolint:gomnd
-				tc.ExpectedResult.Nonce = rpcBlockNonce
+				tc.ExpectedResult.Hash = nil
+				tc.ExpectedResult.Miner = nil
+				tc.ExpectedResult.Nonce = nil
+				tc.ExpectedResult.TotalDifficulty = nil
 
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -1468,17 +1482,11 @@ func TestGetL2BlockByNumber(t *testing.T) {
 			if result != nil || tc.ExpectedResult != nil {
 				assert.Equal(t, tc.ExpectedResult.ParentHash.String(), result.ParentHash.String())
 				assert.Equal(t, tc.ExpectedResult.Sha3Uncles.String(), result.Sha3Uncles.String())
-				if tc.ExpectedResult.Miner != nil {
-					assert.Equal(t, tc.ExpectedResult.Miner.String(), result.Miner.String())
-				} else {
-					assert.Nil(t, result.Miner)
-				}
 				assert.Equal(t, tc.ExpectedResult.StateRoot.String(), result.StateRoot.String())
 				assert.Equal(t, tc.ExpectedResult.TxRoot.String(), result.TxRoot.String())
 				assert.Equal(t, tc.ExpectedResult.ReceiptsRoot.String(), result.ReceiptsRoot.String())
 				assert.Equal(t, tc.ExpectedResult.LogsBloom, result.LogsBloom)
 				assert.Equal(t, tc.ExpectedResult.Difficulty, result.Difficulty)
-				assert.Equal(t, tc.ExpectedResult.TotalDifficulty, result.TotalDifficulty)
 				assert.Equal(t, tc.ExpectedResult.Size, result.Size)
 				assert.Equal(t, tc.ExpectedResult.Number, result.Number)
 				assert.Equal(t, tc.ExpectedResult.GasLimit, result.GasLimit)
@@ -1486,14 +1494,29 @@ func TestGetL2BlockByNumber(t *testing.T) {
 				assert.Equal(t, tc.ExpectedResult.Timestamp, result.Timestamp)
 				assert.Equal(t, tc.ExpectedResult.ExtraData, result.ExtraData)
 				assert.Equal(t, tc.ExpectedResult.MixHash, result.MixHash)
-				assert.Equal(t, tc.ExpectedResult.Nonce, result.Nonce)
+				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
+				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
+
 				if tc.ExpectedResult.Hash != nil {
 					assert.Equal(t, tc.ExpectedResult.Hash.String(), result.Hash.String())
 				} else {
 					assert.Nil(t, result.Hash)
 				}
-				assert.Equal(t, tc.ExpectedResult.GlobalExitRoot, result.GlobalExitRoot)
-				assert.Equal(t, tc.ExpectedResult.BlockInfoRoot, result.BlockInfoRoot)
+				if tc.ExpectedResult.Miner != nil {
+					assert.Equal(t, tc.ExpectedResult.Miner.String(), result.Miner.String())
+				} else {
+					assert.Nil(t, result.Miner)
+				}
+				if tc.ExpectedResult.Nonce != nil {
+					assert.Equal(t, tc.ExpectedResult.Nonce, result.Nonce)
+				} else {
+					assert.Nil(t, result.Nonce)
+				}
+				if tc.ExpectedResult.TotalDifficulty != nil {
+					assert.Equal(t, tc.ExpectedResult.TotalDifficulty, result.TotalDifficulty)
+				} else {
+					assert.Nil(t, result.TotalDifficulty)
+				}
 
 				assert.Equal(t, len(tc.ExpectedResult.Transactions), len(result.Transactions))
 				assert.Equal(t, len(tc.ExpectedResult.Uncles), len(result.Uncles))
@@ -2071,7 +2094,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 3, LastBlockNumberConsolidated: 3}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: true}, nil).
 					Once()
 			},
 		},
@@ -2097,7 +2120,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 1, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
@@ -2123,7 +2146,7 @@ func TestSyncing(t *testing.T) {
 
 				m.State.
 					On("GetSyncingInfo", context.Background(), m.DbTx).
-					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, LastBlockNumberSeen: 1, LastBlockNumberConsolidated: 1}, nil).
+					Return(state.SyncingInfo{InitialSyncingBlock: 1, CurrentBlockNumber: 2, EstimatedHighestBlock: 3, IsSynchronizing: false}, nil).
 					Once()
 			},
 		},
@@ -3239,22 +3262,78 @@ func TestGetTransactionCount(t *testing.T) {
 }
 
 func TestGetTransactionReceipt(t *testing.T) {
-	s, m, c := newSequencerMockedServer(t)
+	s, m, _ := newSequencerMockedServer(t)
 	defer s.Stop()
 
 	type testCase struct {
 		Name           string
 		Hash           common.Hash
-		ExpectedResult *ethTypes.Receipt
-		ExpectedError  interface{}
+		ExpectedResult *types.Receipt
+		ExpectedError  *types.RPCError
 		SetupMocks     func(m *mocksWrapper, tc testCase)
+	}
+
+	chainID := big.NewInt(1)
+
+	privateKey, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	require.NoError(t, err)
+
+	tx := ethTypes.NewTransaction(1, common.HexToAddress("0x111"), big.NewInt(2), 3, big.NewInt(4), []byte{5, 6, 7, 8})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	l2Hash := common.HexToHash("0x987654321")
+
+	log := &ethTypes.Log{Topics: []common.Hash{common.HexToHash("0x1")}, Data: []byte{}}
+	logs := []*ethTypes.Log{log}
+
+	stateRoot := common.HexToHash("0x112233")
+
+	receipt := &ethTypes.Receipt{
+		Type:              signedTx.Type(),
+		PostState:         stateRoot.Bytes(),
+		CumulativeGasUsed: 1,
+		BlockNumber:       big.NewInt(2),
+		GasUsed:           3,
+		TxHash:            signedTx.Hash(),
+		TransactionIndex:  4,
+		ContractAddress:   common.HexToAddress("0x223344"),
+		Logs:              logs,
+		Status:            ethTypes.ReceiptStatusSuccessful,
+		EffectiveGasPrice: big.NewInt(5),
+		BlobGasUsed:       6,
+		BlobGasPrice:      big.NewInt(7),
+		BlockHash:         common.HexToHash("0x1"),
+	}
+
+	receipt.Bloom = ethTypes.CreateBloom(ethTypes.Receipts{receipt})
+
+	rpcReceipt := types.Receipt{
+		Root:              stateRoot,
+		CumulativeGasUsed: types.ArgUint64(receipt.CumulativeGasUsed),
+		LogsBloom:         receipt.Bloom,
+		Logs:              receipt.Logs,
+		Status:            types.ArgUint64(receipt.Status),
+		TxHash:            receipt.TxHash,
+		TxL2Hash:          &l2Hash,
+		TxIndex:           types.ArgUint64(receipt.TransactionIndex),
+		BlockHash:         receipt.BlockHash,
+		BlockNumber:       types.ArgUint64(receipt.BlockNumber.Uint64()),
+		GasUsed:           types.ArgUint64(receipt.GasUsed),
+		FromAddr:          auth.From,
+		ToAddr:            signedTx.To(),
+		ContractAddress:   state.Ptr(receipt.ContractAddress),
+		Type:              types.ArgUint64(receipt.Type),
+		EffectiveGasPrice: state.Ptr(types.ArgBig(*receipt.EffectiveGasPrice)),
 	}
 
 	testCases := []testCase{
 		{
 			Name:           "Get TX receipt Successfully",
 			Hash:           common.HexToHash("0x123"),
-			ExpectedResult: ethTypes.NewReceipt([]byte{}, false, 0),
+			ExpectedResult: &rpcReceipt,
 			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
@@ -3267,15 +3346,6 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
-				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
-				require.NoError(t, err)
-				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
-				require.NoError(t, err)
-
-				signedTx, err := auth.Signer(auth.From, tx)
-				require.NoError(t, err)
-
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(signedTx, nil).
@@ -3283,7 +3353,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
-					Return(tc.ExpectedResult, nil).
+					Return(receipt, nil).
 					Once()
 			},
 		},
@@ -3291,7 +3361,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Name:           "Get TX receipt but tx not found",
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
-			ExpectedError:  ethereum.NotFound,
+			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -3335,7 +3405,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 			Name:           "TX receipt Not Found",
 			Hash:           common.HexToHash("0x123"),
 			ExpectedResult: nil,
-			ExpectedError:  ethereum.NotFound,
+			ExpectedError:  nil,
 			SetupMocks: func(m *mocksWrapper, tc testCase) {
 				m.DbTx.
 					On("Commit", context.Background()).
@@ -3346,15 +3416,6 @@ func TestGetTransactionReceipt(t *testing.T) {
 					On("BeginStateTransaction", context.Background()).
 					Return(m.DbTx, nil).
 					Once()
-
-				tx := ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
-				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
-				require.NoError(t, err)
-				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
-				require.NoError(t, err)
-
-				signedTx, err := auth.Signer(auth.From, tx)
-				require.NoError(t, err)
 
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
@@ -3383,15 +3444,6 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
-				privateKey, err := crypto.HexToECDSA(strings.TrimPrefix("0x28b2b0318721be8c8339199172cd7cc8f5e273800a35616ec893083a4b32c02e", "0x"))
-				require.NoError(t, err)
-				auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(1))
-				require.NoError(t, err)
-
-				signedTx, err := auth.Signer(auth.From, tx)
-				require.NoError(t, err)
-
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(signedTx, nil).
@@ -3419,8 +3471,6 @@ func TestGetTransactionReceipt(t *testing.T) {
 					Return(m.DbTx, nil).
 					Once()
 
-				tx := ethTypes.NewTransaction(1, common.Address{}, big.NewInt(1), 1, big.NewInt(1), []byte{})
-
 				m.State.
 					On("GetTransactionByHash", context.Background(), tc.Hash, m.DbTx).
 					Return(tx, nil).
@@ -3428,7 +3478,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 
 				m.State.
 					On("GetTransactionReceipt", context.Background(), tc.Hash, m.DbTx).
-					Return(ethTypes.NewReceipt([]byte{}, false, 0), nil).
+					Return(receipt, nil).
 					Once()
 			},
 		},
@@ -3439,20 +3489,50 @@ func TestGetTransactionReceipt(t *testing.T) {
 			tc := testCase
 			tc.SetupMocks(m, tc)
 
-			result, err := c.TransactionReceipt(context.Background(), testCase.Hash)
+			res, err := s.JSONRPCCall("eth_getTransactionReceipt", tc.Hash.String())
+			require.NoError(t, err)
 
-			if result != nil || testCase.ExpectedResult != nil {
-				assert.Equal(t, testCase.ExpectedResult.TxHash, result.TxHash)
+			if testCase.ExpectedResult != nil {
+				require.NotNil(t, res.Result)
+				require.Nil(t, res.Error)
+
+				var result types.Receipt
+				err = json.Unmarshal(res.Result, &result)
+				require.NoError(t, err)
+
+				assert.Equal(t, rpcReceipt.Root.String(), result.Root.String())
+				assert.Equal(t, rpcReceipt.CumulativeGasUsed, result.CumulativeGasUsed)
+				assert.Equal(t, rpcReceipt.LogsBloom, result.LogsBloom)
+				assert.Equal(t, len(rpcReceipt.Logs), len(result.Logs))
+				for i := 0; i < len(rpcReceipt.Logs); i++ {
+					assert.Equal(t, rpcReceipt.Logs[i].Address, result.Logs[i].Address)
+					assert.Equal(t, rpcReceipt.Logs[i].Topics, result.Logs[i].Topics)
+					assert.Equal(t, rpcReceipt.Logs[i].Data, result.Logs[i].Data)
+					assert.Equal(t, rpcReceipt.Logs[i].BlockNumber, result.Logs[i].BlockNumber)
+					assert.Equal(t, rpcReceipt.Logs[i].TxHash, result.Logs[i].TxHash)
+					assert.Equal(t, rpcReceipt.Logs[i].TxIndex, result.Logs[i].TxIndex)
+					assert.Equal(t, rpcReceipt.Logs[i].BlockHash, result.Logs[i].BlockHash)
+					assert.Equal(t, rpcReceipt.Logs[i].Index, result.Logs[i].Index)
+					assert.Equal(t, rpcReceipt.Logs[i].Removed, result.Logs[i].Removed)
+				}
+				assert.Equal(t, rpcReceipt.Status, result.Status)
+				assert.Equal(t, rpcReceipt.TxHash, result.TxHash)
+				assert.Nil(t, result.TxL2Hash)
+				assert.Equal(t, rpcReceipt.TxIndex, result.TxIndex)
+				assert.Equal(t, rpcReceipt.BlockHash, result.BlockHash)
+				assert.Equal(t, rpcReceipt.BlockNumber, result.BlockNumber)
+				assert.Equal(t, rpcReceipt.GasUsed, result.GasUsed)
+				assert.Equal(t, rpcReceipt.FromAddr, result.FromAddr)
+				assert.Equal(t, rpcReceipt.ToAddr, result.ToAddr)
+				assert.Equal(t, rpcReceipt.ContractAddress, result.ContractAddress)
+				assert.Equal(t, rpcReceipt.Type, result.Type)
+				assert.Equal(t, rpcReceipt.EffectiveGasPrice, result.EffectiveGasPrice)
 			}
 
-			if err != nil || testCase.ExpectedError != nil {
-				if expectedErr, ok := testCase.ExpectedError.(*types.RPCError); ok {
-					rpcErr := err.(rpc.Error)
-					assert.Equal(t, expectedErr.ErrorCode(), rpcErr.ErrorCode())
-					assert.Equal(t, expectedErr.Error(), rpcErr.Error())
-				} else {
-					assert.Equal(t, testCase.ExpectedError, err)
-				}
+			if res.Error != nil || tc.ExpectedError != nil {
+				rpcErr := res.Error.RPCError()
+				assert.Equal(t, tc.ExpectedError.ErrorCode(), rpcErr.ErrorCode())
+				assert.Equal(t, tc.ExpectedError.Error(), rpcErr.Error())
 			}
 		})
 	}

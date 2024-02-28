@@ -240,7 +240,7 @@ func (_c *StateInterface_GetForkIDByBatchNumber_Call) RunAndReturn(run func(uint
 }
 
 // GetL1InfoTreeDataFromBatchL2Data provides a mock function with given fields: ctx, batchL2Data, dbTx
-func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error) {
+func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error) {
 	ret := _m.Called(ctx, batchL2Data, dbTx)
 
 	if len(ret) == 0 {
@@ -249,8 +249,9 @@ func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, 
 
 	var r0 map[uint32]state.L1DataV2
 	var r1 common.Hash
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)); ok {
+	var r2 common.Hash
+	var r3 error
+	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)); ok {
 		return rf(ctx, batchL2Data, dbTx)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, []byte, pgx.Tx) map[uint32]state.L1DataV2); ok {
@@ -269,13 +270,21 @@ func (_m *StateInterface) GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, 
 		}
 	}
 
-	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) error); ok {
+	if rf, ok := ret.Get(2).(func(context.Context, []byte, pgx.Tx) common.Hash); ok {
 		r2 = rf(ctx, batchL2Data, dbTx)
 	} else {
-		r2 = ret.Error(2)
+		if ret.Get(2) != nil {
+			r2 = ret.Get(2).(common.Hash)
+		}
 	}
 
-	return r0, r1, r2
+	if rf, ok := ret.Get(3).(func(context.Context, []byte, pgx.Tx) error); ok {
+		r3 = rf(ctx, batchL2Data, dbTx)
+	} else {
+		r3 = ret.Error(3)
+	}
+
+	return r0, r1, r2, r3
 }
 
 // StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetL1InfoTreeDataFromBatchL2Data'
@@ -298,12 +307,69 @@ func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Return(_a0 map[uint32]state.L1DataV2, _a1 common.Hash, _a2 error) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
-	_c.Call.Return(_a0, _a1, _a2)
+func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) Return(_a0 map[uint32]state.L1DataV2, _a1 common.Hash, _a2 common.Hash, _a3 error) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Return(_a0, _a1, _a2, _a3)
 	return _c
 }
 
-func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
+func (_c *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call) RunAndReturn(run func(context.Context, []byte, pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)) *StateInterface_GetL1InfoTreeDataFromBatchL2Data_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetLastVirtualBatchNum provides a mock function with given fields: ctx, dbTx
+func (_m *StateInterface) GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastVirtualBatchNum")
+	}
+
+	var r0 uint64
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (uint64, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) uint64); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		r0 = ret.Get(0).(uint64)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StateInterface_GetLastVirtualBatchNum_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLastVirtualBatchNum'
+type StateInterface_GetLastVirtualBatchNum_Call struct {
+	*mock.Call
+}
+
+// GetLastVirtualBatchNum is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbTx pgx.Tx
+func (_e *StateInterface_Expecter) GetLastVirtualBatchNum(ctx interface{}, dbTx interface{}) *StateInterface_GetLastVirtualBatchNum_Call {
+	return &StateInterface_GetLastVirtualBatchNum_Call{Call: _e.mock.On("GetLastVirtualBatchNum", ctx, dbTx)}
+}
+
+func (_c *StateInterface_GetLastVirtualBatchNum_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StateInterface_GetLastVirtualBatchNum_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StateInterface_GetLastVirtualBatchNum_Call) Return(_a0 uint64, _a1 error) *StateInterface_GetLastVirtualBatchNum_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StateInterface_GetLastVirtualBatchNum_Call) RunAndReturn(run func(context.Context, pgx.Tx) (uint64, error)) *StateInterface_GetLastVirtualBatchNum_Call {
 	_c.Call.Return(run)
 	return _c
 }

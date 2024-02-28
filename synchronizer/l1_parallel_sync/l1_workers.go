@@ -67,6 +67,10 @@ func (w *workers) String() string {
 	return result
 }
 
+func (w *workers) ToStringBrief() string {
+	return fmt.Sprintf(" working: %d of %d ", w.howManyRunningWorkers(), len(w.workers))
+}
+
 func newWorkers(ethermans []L1ParallelEthermanInterface, cfg workersConfig) *workers {
 	result := workers{chIncommingRollupInfo: make(chan responseRollupInfoByBlockRange, len(ethermans)+1),
 		cfg: cfg}

@@ -8,8 +8,10 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -37,7 +39,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 	var batchL2Data []byte
 
 	for i, tx := range txs {
-		txData, err := prepareRPLTxData(tx)
+		txData, err := prepareRLPTxData(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +57,7 @@ func EncodeTransactions(txs []types.Transaction, effectivePercentages []uint8, f
 	return batchL2Data, nil
 }
 
-func prepareRPLTxData(tx types.Transaction) ([]byte, error) {
+func prepareRLPTxData(tx types.Transaction) ([]byte, error) {
 	v, r, s := tx.RawSignatureValues()
 	sign := 1 - (v.Uint64() & 1)
 
@@ -97,7 +99,7 @@ func EncodeTransactionsWithoutEffectivePercentage(txs []types.Transaction) ([]by
 	var batchL2Data []byte
 
 	for _, tx := range txs {
-		txData, err := prepareRPLTxData(tx)
+		txData, err := prepareRLPTxData(tx)
 		if err != nil {
 			return nil, err
 		}
@@ -345,4 +347,11 @@ func CheckLogOrder(logs []*types.Log) bool {
 // Ptr returns a pointer for any instance
 func Ptr[T any](v T) *T {
 	return &v
+}
+
+// HashByteArray returns the hash of the given byte array
+func HashByteArray(data []byte) common.Hash {
+	sha := sha3.NewLegacyKeccak256()
+	sha.Write(data)
+	return common.BytesToHash(sha.Sum(nil))
 }

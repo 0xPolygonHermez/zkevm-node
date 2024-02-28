@@ -53,7 +53,8 @@ type Pool struct {
 }
 
 type preExecutionResponse struct {
-	usedZkCounters       state.ZKCounters
+	usedZKCounters       state.ZKCounters
+	reservedZKCounters   state.ZKCounters
 	isExecutorLevelError bool
 	OOCError             error
 	OOGError             error
@@ -83,7 +84,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		eventLog:                eventLog,
 		gasPrices:               GasPrices{0, 0},
 		gasPricesMux:            new(sync.RWMutex),
-		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice, cfg.DefaultMinGasPriceAllowed),
+		effectiveGasPrice:       NewEffectiveGasPrice(cfg.EffectiveGasPrice),
 	}
 	p.refreshGasPrices()
 	go func(cfg *Config, p *Pool) {
@@ -238,7 +239,9 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	}
 
 	poolTx := NewTransaction(tx, ip, isWIP)
-	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
+	poolTx.GasUsed = preExecutionResponse.txResponse.GasUsed
+	poolTx.ZKCounters = preExecutionResponse.usedZKCounters
+	poolTx.ReservedZKCounters = preExecutionResponse.reservedZKCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
 }
@@ -292,7 +295,7 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 
 // preExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
-	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
+	response := preExecutionResponse{usedZKCounters: state.ZKCounters{}, reservedZKCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
 
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
@@ -309,7 +312,8 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 				response.OOGError = err
 			}
 			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
-				response.usedZkCounters = processBatchResponse.UsedZkCounters
+				response.usedZKCounters = processBatchResponse.UsedZkCounters
+				response.reservedZKCounters = processBatchResponse.ReservedZkCounters
 				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
 			return response, nil
@@ -335,7 +339,8 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			}
 		}
 
-		response.usedZkCounters = processBatchResponse.UsedZkCounters
+		response.usedZKCounters = processBatchResponse.UsedZkCounters
+		response.reservedZKCounters = processBatchResponse.ReservedZkCounters
 		response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 	}
 
@@ -678,6 +683,11 @@ const (
 // CalculateEffectiveGasPrice calculates the final effective gas price for a tx
 func (p *Pool) CalculateEffectiveGasPrice(rawTx []byte, txGasPrice *big.Int, txGasUsed uint64, l1GasPrice uint64, l2GasPrice uint64) (*big.Int, error) {
 	return p.effectiveGasPrice.CalculateEffectiveGasPrice(rawTx, txGasPrice, txGasUsed, l1GasPrice, l2GasPrice)
+}
+
+// CalculateEffectiveGasPricePercentage calculates the gas price's effective percentage
+func (p *Pool) CalculateEffectiveGasPricePercentage(gasPrice *big.Int, effectiveGasPrice *big.Int) (uint8, error) {
+	return p.effectiveGasPrice.CalculateEffectiveGasPricePercentage(gasPrice, effectiveGasPrice)
 }
 
 // EffectiveGasPriceEnabled returns if effective gas price calculation is enabled or not

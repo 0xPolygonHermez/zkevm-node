@@ -19,6 +19,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	// MaxL2BlockGasLimit is the gas limit allowed per L2 block in a batch
+	MaxL2BlockGasLimit = uint64(1125899906842624)
+)
+
 var (
 	errL2BlockInvalid = errors.New("A L2 block fails, that invalidate totally the batch")
 )
@@ -33,7 +38,7 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 	if err != nil {
 		return nil, err
 	}
-
+	isRomOOCError = isRomOOCError || executor.IsROMOutOfCountersError(batchResponse.ErrorRom)
 	readWriteAddresses, err := convertToReadWriteAddressesV2(batchResponse.ReadWriteAddresses)
 	if err != nil {
 		return nil, err
@@ -44,14 +49,15 @@ func (s *State) convertToProcessBatchResponseV2(batchResponse *executor.ProcessB
 		NewAccInputHash:      common.BytesToHash(batchResponse.NewAccInputHash),
 		NewLocalExitRoot:     common.BytesToHash(batchResponse.NewLocalExitRoot),
 		NewBatchNumber:       batchResponse.NewBatchNum,
-		UsedZkCounters:       convertToCountersV2(batchResponse),
+		UsedZkCounters:       convertToUsedZKCountersV2(batchResponse),
+		ReservedZkCounters:   convertToReservedZKCountersV2(batchResponse),
 		BlockResponses:       blockResponses,
 		ExecutorError:        executor.ExecutorErr(batchResponse.Error),
 		ReadWriteAddresses:   readWriteAddresses,
 		FlushID:              batchResponse.FlushId,
 		StoredFlushID:        batchResponse.StoredFlushId,
 		ProverID:             batchResponse.ProverId,
-		IsExecutorLevelError: (batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR),
+		IsExecutorLevelError: batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR,
 		IsRomLevelError:      isRomLevelError,
 		IsRomOOCError:        isRomOOCError,
 		GasUsed_V2:           batchResponse.GasUsed,
@@ -102,6 +108,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 	isRomOOCError := false
 
 	results := make([]*ProcessTransactionResponse, 0, len(responses))
+
 	for _, response := range responses {
 		if response.Error != executor.RomError_ROM_ERROR_NO_ERROR {
 			isRomLevelError = true
@@ -135,6 +142,7 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 		result.EffectivePercentage = response.EffectivePercentage
 		result.HasGaspriceOpcode = (response.HasGaspriceOpcode == 1)
 		result.HasBalanceOpcode = (response.HasBalanceOpcode == 1)
+		result.Status = response.Status
 
 		var tx *types.Transaction
 		if response.Error != executor.RomError_ROM_ERROR_INVALID_RLP {
@@ -168,18 +176,6 @@ func (s *State) convertToProcessTransactionResponseV2(responses []*executor.Proc
 
 		if tx != nil {
 			result.Tx = *tx
-			log.Debugf("ProcessTransactionResponseV2[TxHash]: %v", result.TxHash)
-			if response.Error == executor.RomError_ROM_ERROR_NO_ERROR {
-				log.Debugf("ProcessTransactionResponseV2[Nonce]: %v", result.Tx.Nonce())
-			}
-			log.Debugf("ProcessTransactionResponseV2[StateRoot]: %v", result.StateRoot.String())
-			log.Debugf("ProcessTransactionResponseV2[Error]: %v", result.RomError)
-			log.Debugf("ProcessTransactionResponseV2[GasUsed]: %v", result.GasUsed)
-			log.Debugf("ProcessTransactionResponseV2[GasLeft]: %v", result.GasLeft)
-			log.Debugf("ProcessTransactionResponseV2[GasRefunded]: %v", result.GasRefunded)
-			log.Debugf("ProcessTransactionResponseV2[ChangesStateRoot]: %v", result.ChangesStateRoot)
-			log.Debugf("ProcessTransactionResponseV2[EffectiveGasPrice]: %v", result.EffectiveGasPrice)
-			log.Debugf("ProcessTransactionResponseV2[EffectivePercentage]: %v", result.EffectivePercentage)
 		}
 
 		results = append(results, result)
@@ -291,17 +287,32 @@ func convertToInstrumentationContractV2(response *executor.ContractV2) instrumen
 	}
 }
 
-func convertToCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
+func convertToUsedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
 	return ZKCounters{
-		GasUsed:              resp.GasUsed,
-		UsedKeccakHashes:     resp.CntKeccakHashes,
-		UsedPoseidonHashes:   resp.CntPoseidonHashes,
-		UsedPoseidonPaddings: resp.CntPoseidonPaddings,
-		UsedMemAligns:        resp.CntMemAligns,
-		UsedArithmetics:      resp.CntArithmetics,
-		UsedBinaries:         resp.CntBinaries,
-		UsedSteps:            resp.CntSteps,
-		UsedSha256Hashes_V2:  resp.CntSha256Hashes,
+		GasUsed:          resp.GasUsed,
+		KeccakHashes:     resp.CntKeccakHashes,
+		PoseidonHashes:   resp.CntPoseidonHashes,
+		PoseidonPaddings: resp.CntPoseidonPaddings,
+		MemAligns:        resp.CntMemAligns,
+		Arithmetics:      resp.CntArithmetics,
+		Binaries:         resp.CntBinaries,
+		Steps:            resp.CntSteps,
+		Sha256Hashes_V2:  resp.CntSha256Hashes,
+	}
+}
+
+func convertToReservedZKCountersV2(resp *executor.ProcessBatchResponseV2) ZKCounters {
+	return ZKCounters{
+		// There is no "ReserveGasUsed" in the response, so we use "GasUsed" as it will make calculations easier
+		GasUsed:          resp.GasUsed,
+		KeccakHashes:     resp.CntReserveKeccakHashes,
+		PoseidonHashes:   resp.CntReservePoseidonHashes,
+		PoseidonPaddings: resp.CntReservePoseidonPaddings,
+		MemAligns:        resp.CntReserveMemAligns,
+		Arithmetics:      resp.CntReserveArithmetics,
+		Binaries:         resp.CntReserveBinaries,
+		Steps:            resp.CntReserveSteps,
+		Sha256Hashes_V2:  resp.CntReserveSha256Hashes,
 	}
 }
 
@@ -358,6 +369,8 @@ func convertProcessingContext(p *ProcessingContextV2) (*ProcessingContext, error
 		ForcedBatchNum: p.ForcedBatchNum,
 		BatchL2Data:    p.BatchL2Data,
 		Timestamp:      tstamp,
+		GlobalExitRoot: p.GlobalExitRoot,
+		ClosingReason:  p.ClosingReason,
 	}
 	return &result, nil
 }

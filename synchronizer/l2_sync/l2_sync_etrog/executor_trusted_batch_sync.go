@@ -11,21 +11,25 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
-	"golang.org/x/crypto/sha3"
+)
+
+const (
+	timeOfLiveBatchOnCache = 5 * time.Minute
 )
 
 var (
 	// ErrNotImplemented is returned when a method is not implemented
 	ErrNotImplemented = errors.New("not implemented")
-	// ErrBatchDataIsNotIncremental is returned when the new batch has different data than the one in node and is not possible to sync
-	ErrBatchDataIsNotIncremental = errors.New("the new batch has different data than the one in node")
 	// ErrFailExecuteBatch is returned when the batch is not executed correctly
 	ErrFailExecuteBatch = errors.New("fail execute batch")
-	// ErrNotExpectedBathResult is returned when the batch result is not the expected (must match Trusted)
-	ErrNotExpectedBathResult = errors.New("not expected batch result (differ from Trusted Batch)")
+	// ErrCriticalClosedBatchDontContainExpectedData is returnted when try to close a batch that is already close but data doesnt match
+	ErrCriticalClosedBatchDontContainExpectedData = errors.New("when closing the batch, the batch is already close, but  the data on state doesnt match the expected")
+	// ErrCantReprocessBatchMissingPreviousStateBatch can't reprocess a divergent batch because is missing previous state batch
+	ErrCantReprocessBatchMissingPreviousStateBatch = errors.New("cant reprocess batch because is missing previous state batch")
 )
 
 // StateInterface contains the methods required to interact with the state.
@@ -39,70 +43,111 @@ type StateInterface interface {
 	OpenBatch(ctx context.Context, processingContext state.ProcessingContext, dbTx pgx.Tx) error
 	ProcessBatchV2(ctx context.Context, request state.ProcessRequest, updateMerkleTree bool) (*state.ProcessBatchResponse, error)
 	StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *state.ProcessBlockResponse, txsEGPLog []*state.EffectiveGasPriceLog, dbTx pgx.Tx) error
-	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, error)
-}
-
-// L1SyncChecker is the interface to check if we are synced from L1 to process a batch
-type L1SyncChecker interface {
-	CheckL1SyncStatusEnoughToProcessBatch(ctx context.Context, batchNumber uint64, globalExitRoot common.Hash, dbTx pgx.Tx) error
+	GetL1InfoTreeDataFromBatchL2Data(ctx context.Context, batchL2Data []byte, dbTx pgx.Tx) (map[uint32]state.L1DataV2, common.Hash, common.Hash, error)
+	GetLastVirtualBatchNum(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 }
 
 // SyncTrustedBatchExecutorForEtrog is the implementation of the SyncTrustedStateBatchExecutorSteps that
 // have the functions to sync a fullBatch, incrementalBatch and reprocessBatch
 type SyncTrustedBatchExecutorForEtrog struct {
-	state         StateInterface
-	sync          syncinterfaces.SynchronizerFlushIDManager
-	l1SyncChecker L1SyncChecker
+	state StateInterface
+	sync  syncinterfaces.SynchronizerFlushIDManager
 }
 
 // NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
 func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
 	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker L1SyncChecker) *l2_shared.TrustedBatchesRetrieve {
+	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker l2_shared.L1SyncGlobalExitRootChecker,
+	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
 	executorSteps := &SyncTrustedBatchExecutorForEtrog{
-		state:         stateBatchExecutor,
-		sync:          sync,
-		l1SyncChecker: l1SyncChecker,
+		state: stateBatchExecutor,
+		sync:  sync,
 	}
 
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider)
-	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, time.Hour))
+	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, l1SyncChecker, cfg)
+	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, timeOfLiveBatchOnCache))
 	return a
 }
 
-// NothingProcess process a batch that is already on database and updated, so it is not going to be processed again. Maybe it needs to be close
+// NothingProcess process a batch that is already on database and no new L2batchData, so it is not going to be processed again.
+// Maybe it needs to be close
 func (b *SyncTrustedBatchExecutorForEtrog) NothingProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
+	isEqual, strResult := l2_shared.AreEqualStateBatchAndTrustedBatch(data.StateBatch, data.TrustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP+l2_shared.CMP_BATCH_IGNORE_WIP)
+	if !isEqual {
+		log.Warnf("%s Nothing new to process but the TrustedBatch differ: %s. Forcing a reprocess", data.DebugPrefix, strResult)
+		if data.StateBatch.WIP {
+			if data.PreviousStateBatch != nil {
+				data.OldAccInputHash = data.PreviousStateBatch.AccInputHash
+				data.OldStateRoot = data.PreviousStateBatch.StateRoot
+				return b.ReProcess(ctx, data, dbTx)
+			} else {
+				log.Warnf("%s PreviousStateBatch is nil. Can't reprocess", data.DebugPrefix)
+				return nil, ErrCantReprocessBatchMissingPreviousStateBatch
+			}
+		} else {
+			log.Warnf("%s StateBatch is not WIP. Can't reprocess", data.DebugPrefix)
+			return nil, ErrCriticalClosedBatchDontContainExpectedData
+		}
+	}
+	res := l2_shared.NewProcessResponse()
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err := b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err := b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
+		data.StateBatch.WIP = false
+		res.UpdateCurrentBatch(data.StateBatch)
 	}
-	data.StateBatch.WIP = !data.BatchMustBeClosed
-	return &l2_shared.ProcessResponse{
-		ProcessBatchResponse:                nil,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: false,
-		UpdateBatch:                         data.StateBatch,
-	}, nil
+
+	return &res, nil
+}
+
+// CreateEmptyBatch create a new empty batch (no batchL2Data and WIP)
+func (b *SyncTrustedBatchExecutorForEtrog) CreateEmptyBatch(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
+	log.Debugf("%s The Batch is a empty (batchl2data=0 bytes), so just creating a DB entry", data.DebugPrefix)
+	err := b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+	if err != nil {
+		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
+		return nil, err
+	}
+	if data.BatchMustBeClosed {
+		log.Infof("%s Closing empty batch (no execution)", data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		if err != nil {
+			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
+	} else {
+		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
+		err = b.updateWIPBatch(ctx, data, data.TrustedBatch.StateRoot, dbTx)
+		if err != nil {
+			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
+			return nil, err
+		}
+	}
+
+	res := l2_shared.NewProcessResponse()
+	stateBatch := syncCommon.RpcBatchToStateBatch(data.TrustedBatch)
+	res.UpdateCurrentBatch(stateBatch)
+	return &res, nil
 }
 
 // FullProcess process a batch that is not on database, so is the first time we process it
 func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Debugf("%s FullProcess", data.DebugPrefix)
-	err := b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
-	if err != nil {
-		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
-		return nil, err
+	if len(data.TrustedBatch.BatchL2Data) == 0 {
+		data.DebugPrefix += " (emptyBatch) "
+		return b.CreateEmptyBatch(ctx, data, dbTx)
 	}
-	err = b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+	err := b.openBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 	if err != nil {
 		log.Errorf("%s error openning batch. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
+
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, data.TrustedBatch.BatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		return nil, err
@@ -116,21 +161,20 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Error("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
 	} else {
 		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
-		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		err = b.updateWIPBatch(ctx, data, processBatchResp.NewStateRoot, dbTx)
 		if err != nil {
 			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -142,13 +186,8 @@ func (b *SyncTrustedBatchExecutorForEtrog) FullProcess(ctx context.Context, data
 		log.Error("%s error getting batch. Error: ", data.DebugPrefix, err)
 		return nil, err
 	}
-
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatch:                         resultBatch,
-		UpdateBatchWithProcessBatchResponse: true,
-	}
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(resultBatch, processBatchResp)
 	return &res, nil
 }
 
@@ -162,11 +201,6 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		log.Errorf("%s error checkThatL2DataIsIncremental. Error: %v", data.DebugPrefix, err)
 		return nil, err
 	}
-	err = b.checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx, data, dbTx)
-	if err != nil {
-		log.Errorf("%s error checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot. Error: %v", data.DebugPrefix, err)
-		return nil, err
-	}
 
 	PartialBatchL2Data, err := b.composePartialBatch(data.StateBatch, data.TrustedBatch)
 	if err != nil {
@@ -174,7 +208,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 		return nil, err
 	}
 
-	leafs, l1InfoRoot, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
+	leafs, l1InfoRoot, _, err := b.state.GetL1InfoTreeDataFromBatchL2Data(ctx, PartialBatchL2Data, dbTx)
 	if err != nil {
 		log.Errorf("%s error getting GetL1InfoTreeDataFromBatchL2Data: %v. Error:%w", data.DebugPrefix, l1InfoRoot, err)
 		// TODO: Need to refine, depending of the response of GetL1InfoTreeDataFromBatchL2Data
@@ -192,21 +226,20 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 
 	err = batchResultSanityCheck(data, processBatchResp, debugStr)
 	if err != nil {
-		// TODO: Remove this fatal
-		log.Fatalf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
+		log.Errorf("%s error batchResultSanityCheck. Error: %s", data.DebugPrefix, err.Error())
 		return nil, err
 	}
 
 	if data.BatchMustBeClosed {
 		log.Debugf("%s Closing batch", data.DebugPrefix)
-		err = b.closeBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
+		err = b.CloseBatch(ctx, data.TrustedBatch, dbTx, data.DebugPrefix)
 		if err != nil {
 			log.Errorf("%s error closing batch. Error: ", data.DebugPrefix, err)
 			return nil, err
 		}
 	} else {
 		log.Debugf("%s updateWIPBatch", data.DebugPrefix)
-		err = b.updateWIPBatch(ctx, data, processBatchResp, dbTx)
+		err = b.updateWIPBatch(ctx, data, processBatchResp.NewStateRoot, dbTx)
 		if err != nil {
 			log.Errorf("%s error updateWIPBatch. Error: ", data.DebugPrefix, err)
 			return nil, err
@@ -214,32 +247,25 @@ func (b *SyncTrustedBatchExecutorForEtrog) IncrementalProcess(ctx context.Contex
 	}
 
 	updatedBatch := *data.StateBatch
+	updatedBatch.LocalExitRoot = data.TrustedBatch.LocalExitRoot
+	updatedBatch.AccInputHash = data.TrustedBatch.AccInputHash
+	updatedBatch.GlobalExitRoot = data.TrustedBatch.GlobalExitRoot
 	updatedBatch.BatchL2Data = data.TrustedBatch.BatchL2Data
 	updatedBatch.WIP = !data.BatchMustBeClosed
-	res := l2_shared.ProcessResponse{
-		ProcessBatchResponse:                processBatchResp,
-		ClearCache:                          false,
-		UpdateBatchWithProcessBatchResponse: true,
-		UpdateBatch:                         &updatedBatch,
-	}
+
+	res := l2_shared.NewProcessResponse()
+	res.UpdateCurrentBatchWithExecutionResult(&updatedBatch, processBatchResp)
 	return &res, nil
 }
 
-func (b *SyncTrustedBatchExecutorForEtrog) checkIfWeAreSyncedFromL1ToProcessGlobalExitRoot(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) error {
-	if b.l1SyncChecker == nil {
-		log.Infof("Disabled check L1 sync status for process batch")
-		return nil
-	}
-	return b.l1SyncChecker.CheckL1SyncStatusEnoughToProcessBatch(ctx, data.BatchNumber, data.TrustedBatch.GlobalExitRoot, dbTx)
-}
-
-func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, processBatchResp *state.ProcessBatchResponse, dbTx pgx.Tx) error {
+func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, data *l2_shared.ProcessData, NewStateRoot common.Hash, dbTx pgx.Tx) error {
 	receipt := state.ProcessingReceipt{
-		BatchNumber:   data.BatchNumber,
-		StateRoot:     processBatchResp.NewStateRoot,
-		LocalExitRoot: data.TrustedBatch.RollupExitRoot,
-		BatchL2Data:   data.TrustedBatch.BatchL2Data,
-		AccInputHash:  data.TrustedBatch.AccInputHash,
+		BatchNumber:    data.BatchNumber,
+		StateRoot:      NewStateRoot,
+		LocalExitRoot:  data.TrustedBatch.LocalExitRoot,
+		BatchL2Data:    data.TrustedBatch.BatchL2Data,
+		AccInputHash:   data.TrustedBatch.AccInputHash,
+		GlobalExitRoot: data.TrustedBatch.GlobalExitRoot,
 	}
 
 	err := b.state.UpdateWIPBatch(ctx, receipt, dbTx)
@@ -253,7 +279,17 @@ func (b *SyncTrustedBatchExecutorForEtrog) updateWIPBatch(ctx context.Context, d
 // ReProcess process a batch that we have processed before, but we don't have the intermediate state root, so we need to reprocess it
 func (b *SyncTrustedBatchExecutorForEtrog) ReProcess(ctx context.Context, data *l2_shared.ProcessData, dbTx pgx.Tx) (*l2_shared.ProcessResponse, error) {
 	log.Warnf("%s needs to be reprocessed! deleting batches from this batch, because it was partially processed but the intermediary stateRoot is lost", data.DebugPrefix)
-	err := b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
+	// Check that there are no VirtualBatches neither VerifiedBatches that are newer than this batch
+	lastVirtualBatchNum, err := b.state.GetLastVirtualBatchNum(ctx, dbTx)
+	if err != nil {
+		log.Errorf("%s error getting lastVirtualBatchNum. Error: %v", data.DebugPrefix, err)
+		return nil, err
+	}
+	if lastVirtualBatchNum >= uint64(data.TrustedBatch.Number) {
+		log.Errorf("%s there are newer or equal virtualBatches than this batch. Can't reprocess because then will delete a virtualBatch", data.DebugPrefix)
+		return nil, syncinterfaces.ErrMissingSyncFromL1
+	}
+	err = b.state.ResetTrustedState(ctx, uint64(data.TrustedBatch.Number)-1, dbTx)
 	if err != nil {
 		log.Warnf("%s error deleting batches from this batch: %v", data.DebugPrefix, err)
 		return nil, err
@@ -267,15 +303,15 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 		return nil
 	}
 	if processBatchResp.NewStateRoot == state.ZeroHash {
-		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, ErrNotExpectedBathResult)
+		return fmt.Errorf("%s processBatchResp.NewStateRoot is ZeroHash. Err: %w", debugStr, l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewStateRoot != data.TrustedBatch.StateRoot {
 		return fmt.Errorf("%s processBatchResp.NewStateRoot(%s) != data.TrustedBatch.StateRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewStateRoot.String(), data.TrustedBatch.StateRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	if processBatchResp.NewLocalExitRoot != data.TrustedBatch.LocalExitRoot {
 		return fmt.Errorf("%s processBatchResp.NewLocalExitRoot(%s) != data.StateBatch.LocalExitRoot(%s). Err: %w", debugStr,
-			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), ErrNotExpectedBathResult)
+			processBatchResp.NewLocalExitRoot.String(), data.TrustedBatch.LocalExitRoot.String(), l2_shared.ErrFatalBatchDesynchronized)
 	}
 	// We can't check AccInputHash because we dont have timeLimit neither L1InfoRoot used to create the batch
 	// is going to be update from L1
@@ -287,15 +323,17 @@ func batchResultSanityCheck(data *l2_shared.ProcessData, processBatchResp *state
 }
 
 // CloseBatch close a batch
-func (b *SyncTrustedBatchExecutorForEtrog) closeBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx, debugStr string) error {
+func (b *SyncTrustedBatchExecutorForEtrog) CloseBatch(ctx context.Context, trustedBatch *types.Batch, dbTx pgx.Tx, debugStr string) error {
 	receipt := state.ProcessingReceipt{
 		BatchNumber:   uint64(trustedBatch.Number),
 		StateRoot:     trustedBatch.StateRoot,
 		LocalExitRoot: trustedBatch.LocalExitRoot,
 		BatchL2Data:   trustedBatch.BatchL2Data,
 		AccInputHash:  trustedBatch.AccInputHash,
+		ClosingReason: state.SyncL2TrustedBatchClosingReason,
 	}
 	log.Debugf("%s closing batch %v", debugStr, trustedBatch.Number)
+	// This update SET state_root = $1, local_exit_root = $2, acc_input_hash = $3, raw_txs_data = $4, batch_resources = $5, closing_reason = $6, wip = FALSE
 	if err := b.state.CloseBatch(ctx, receipt, dbTx); err != nil {
 		// This is a workaround to avoid closing a batch that was already closed
 		if err.Error() != state.ErrBatchAlreadyClosed.Error() {
@@ -303,6 +341,19 @@ func (b *SyncTrustedBatchExecutorForEtrog) closeBatch(ctx context.Context, trust
 			return err
 		} else {
 			log.Warnf("%s CASE 02: the batch [%d] looks like were not close but in STATE was closed", debugStr, trustedBatch.Number)
+			// Check that the fields have the right values
+			dbBatch, err := b.state.GetBatchByNumber(ctx, uint64(trustedBatch.Number), dbTx)
+			if err != nil {
+				log.Errorf("%s error getting local batch %d", debugStr, trustedBatch.Number)
+				return err
+			}
+			equals, str := l2_shared.AreEqualStateBatchAndTrustedBatch(dbBatch, trustedBatch, l2_shared.CMP_BATCH_IGNORE_TSTAMP)
+			if !equals {
+				// This is a situation impossible to reach!, if it happens we halt sync and we need to develop a recovery process
+				err := fmt.Errorf("%s the batch data on state doesnt match the expected (%s) error:%w", debugStr, str, ErrCriticalClosedBatchDontContainExpectedData)
+				log.Warnf(err.Error())
+				return err
+			}
 		}
 	}
 	return nil
@@ -352,7 +403,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) processAndStoreTxs(ctx context.Contex
 		return nil, fmt.Errorf("%s romOOCError detected.err: %w", debugPrefix, ErrFailExecuteBatch)
 	}
 	for _, block := range processBatchResp.BlockResponses {
-		log.Debugf("%s Storing trusted tx %+v", block.BlockNumber, debugPrefix)
+		log.Debugf("%s Storing trusted tx %d", debugPrefix, block.BlockNumber)
 		if err = b.state.StoreL2Block(ctx, request.BatchNumber, block, nil, dbTx); err != nil {
 			newErr := fmt.Errorf("%s failed to store l2block: %v  err:%w", debugPrefix, block.BlockNumber, err)
 			log.Error(newErr.Error())
@@ -394,17 +445,12 @@ func (b *SyncTrustedBatchExecutorForEtrog) getProcessRequest(data *l2_shared.Pro
 }
 
 func checkThatL2DataIsIncremental(data *l2_shared.ProcessData) error {
-	incommingData := data.TrustedBatch.BatchL2Data
-	previousData := data.StateBatch.BatchL2Data
-	if len(incommingData) < len(previousData) {
-		return fmt.Errorf("L2Data check: the new batch has less data than the one in node err:%w", ErrBatchDataIsNotIncremental)
-	}
-
-	if hash(incommingData[:len(previousData)]) != hash(previousData) {
-		strDiff := syncCommon.LogComparedBytes("trusted L2BatchData", "state   L2BatchData", incommingData, previousData, 10, 10) //nolint:gomnd
-		err := fmt.Errorf("L2Data check: the common part with state dont have same hash (different at: %s) err:%w", strDiff, ErrBatchDataIsNotIncremental)
-		log.Error(err.Error())
+	newDataFlag, err := l2_shared.ThereAreNewBatchL2Data(data.StateBatch.BatchL2Data, data.TrustedBatch.BatchL2Data)
+	if err != nil {
 		return err
+	}
+	if !newDataFlag {
+		return l2_shared.ErrBatchDataIsNotIncremental
 	}
 	return nil
 }
@@ -417,7 +463,7 @@ func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *st
 	}
 	debugStr += fmt.Sprintf("previousBatch.blocks: %v (%v) ", len(rawPreviousBatch.Blocks), len(previousBatch.BatchL2Data))
 	if len(previousBatch.BatchL2Data) >= len(newBatch.BatchL2Data) {
-		return nil, fmt.Errorf("previousBatch.BatchL2Data>=newBatch.BatchL2Data")
+		return nil, fmt.Errorf("previousBatch.BatchL2Data (%d)>=newBatch.BatchL2Data (%d)", len(previousBatch.BatchL2Data), len(newBatch.BatchL2Data))
 	}
 	newData := newBatch.BatchL2Data[len(previousBatch.BatchL2Data):]
 	rawPartialBatch, err := state.DecodeBatchV2(newData)
@@ -432,10 +478,4 @@ func (b *SyncTrustedBatchExecutorForEtrog) composePartialBatch(previousBatch *st
 	}
 	log.Debug(debugStr)
 	return newBatchEncoded, nil
-}
-
-func hash(data []byte) common.Hash {
-	sha := sha3.NewLegacyKeccak256()
-	sha.Write(data)
-	return common.BytesToHash(sha.Sum(nil))
 }

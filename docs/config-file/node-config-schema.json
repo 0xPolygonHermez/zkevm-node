@@ -303,6 +303,16 @@
 							"description": "FinalDeviationPct is the max allowed deviation percentage BreakEvenGasPrice on re-calculation",
 							"default": 10
 						},
+						"EthTransferGasPrice": {
+							"type": "integer",
+							"description": "EthTransferGasPrice is the fixed gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
+						},
+						"EthTransferL1GasPriceFactor": {
+							"type": "number",
+							"description": "EthTransferL1GasPriceFactor is the percentage of L1 gas price returned as effective gas price for txs tha are ETH transfers (0 means disabled)\nOnly one of EthTransferGasPrice or EthTransferL1GasPriceFactor params can be different than 0. If both params are set to 0, the sequencer will halt and log an error",
+							"default": 0
+						},
 						"L2GasPriceSuggesterFactor": {
 							"type": "number",
 							"description": "L2GasPriceSuggesterFactor is the factor to apply to L1 gas price to get the suggested L2 gas price used in the\ncalculations when the effective gas price is disabled (testing/metrics purposes)",
@@ -440,6 +450,45 @@
 					"type": "boolean",
 					"description": "EnableHttpLog allows the user to enable or disable the logs related to the HTTP\nrequests to be captured by the server.",
 					"default": true
+				},
+				"ZKCountersLimits": {
+					"properties": {
+						"MaxKeccakHashes": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxPoseidonHashes": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxPoseidonPaddings": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxMemAligns": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxArithmetics": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxBinaries": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxSteps": {
+							"type": "integer",
+							"default": 0
+						},
+						"MaxSHA256Hashes": {
+							"type": "integer",
+							"default": 0
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "ZKCountersLimits defines the ZK Counter limits"
 				}
 			},
 			"additionalProperties": false,
@@ -475,7 +524,7 @@
 						"parallel"
 					],
 					"description": "L1SynchronizationMode define how to synchronize with L1:\n- parallel: Request data to L1 in parallel, and process sequentially. The advantage is that executor is not blocked waiting for L1 data\n- sequential: Request data to L1 and execute",
-					"default": "parallel"
+					"default": "sequential"
 				},
 				"L1ParallelSynchronization": {
 					"properties": {
@@ -575,6 +624,23 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "L1ParallelSynchronization Configuration for parallel mode (if L1SynchronizationMode equal to 'parallel')"
+				},
+				"L2Synchronization": {
+					"properties": {
+						"AcceptEmptyClosedBatches": {
+							"type": "boolean",
+							"description": "AcceptEmptyClosedBatches is a flag to enable or disable the acceptance of empty batches.\nif true, the synchronizer will accept empty batches and process them.",
+							"default": false
+						},
+						"ReprocessFullBatchOnClose": {
+							"type": "boolean",
+							"description": "ReprocessFullBatchOnClose if is true when a batch is closed is force to reprocess again",
+							"default": true
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "L2Synchronization Configuration for L2 synchronization"
 				}
 			},
 			"additionalProperties": false,
@@ -717,13 +783,18 @@
 						},
 						"HaltOnBatchNumber": {
 							"type": "integer",
-							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches. The Sequencer will halt after it closes the batch equal to this number",
+							"description": "HaltOnBatchNumber specifies the batch number where the Sequencer will stop to process more transactions and generate new batches.\nThe Sequencer will halt after it closes the batch equal to this number",
 							"default": 0
 						},
 						"SequentialBatchSanityCheck": {
 							"type": "boolean",
 							"description": "SequentialBatchSanityCheck indicates if the reprocess of a closed batch (sanity check) must be done in a\nsequential way (instead than in parallel)",
 							"default": false
+						},
+						"SequentialProcessL2Block": {
+							"type": "boolean",
+							"description": "SequentialProcessL2Block indicates if the processing of a L2 Block must be done in the same finalizer go func instead\nin the processPendingL2Blocks go func",
+							"default": true
 						}
 					},
 					"additionalProperties": false,
@@ -741,6 +812,16 @@
 							"type": "string",
 							"description": "Filename of the binary data file",
 							"default": ""
+						},
+						"Version": {
+							"type": "integer",
+							"description": "Version of the binary data file",
+							"default": 0
+						},
+						"ChainID": {
+							"type": "integer",
+							"description": "ChainID is the chain ID",
+							"default": 0
 						},
 						"Enabled": {
 							"type": "boolean",
@@ -780,6 +861,11 @@
 							"additionalProperties": false,
 							"type": "object",
 							"description": "Log is the log configuration"
+						},
+						"UpgradeEtrogBatchNumber": {
+							"type": "integer",
+							"description": "UpgradeEtrogBatchNumber is the batch number of the upgrade etrog",
+							"default": 0
 						}
 					},
 					"additionalProperties": false,
@@ -808,6 +894,16 @@
 					"title": "Duration",
 					"description": "LastBatchVirtualizationTimeMaxWaitPeriod is time since sequences should be sent",
 					"default": "5s",
+					"examples": [
+						"1m",
+						"300ms"
+					]
+				},
+				"L1BlockTimestampMargin": {
+					"type": "string",
+					"title": "Duration",
+					"description": "L1BlockTimestampMargin is the time difference (margin) that must exists between last L1 block and last L2 block in the sequence before\nto send the sequence to L1. If the difference is lower than this value then sequencesender will wait until the difference is equal or greater",
+					"default": "30s",
 					"examples": [
 						"1m",
 						"300ms"
@@ -966,6 +1062,16 @@
 					"type": "integer",
 					"description": "GasOffset is the amount of gas to be added to the gas estimation in order\nto provide an amount that is higher than the estimated one. This is used\nto avoid the TX getting reverted in case something has changed in the network\nstate after the estimation which can cause the TX to require more gas to be\nexecuted.\n\nex:\ngas estimation: 1000\ngas offset: 100\nfinal gas: 1100",
 					"default": 0
+				},
+				"UpgradeEtrogBatchNumber": {
+					"type": "integer",
+					"description": "UpgradeEtrogBatchNumber is the number of the first batch after upgrading to etrog",
+					"default": 0
+				},
+				"BatchProofL1BlockConfirmations": {
+					"type": "integer",
+					"description": "BatchProofL1BlockConfirmations is number of L1 blocks to consider we can generate the proof for a virtual batch",
+					"default": 2
 				}
 			},
 			"additionalProperties": false,
@@ -1439,7 +1545,7 @@
 								},
 								"MaxCumulativeGasUsed": {
 									"type": "integer",
-									"default": 30000000
+									"default": 1125899906842624
 								},
 								"MaxKeccakHashes": {
 									"type": "integer",
@@ -1496,6 +1602,11 @@
 					"type": "integer",
 					"description": "MaxNativeBlockHashBlockRange is a configuration to set the max range for block number when querying\nnative block hashes in a single call to the state, if zero it means no limit",
 					"default": 0
+				},
+				"AvoidForkIDInMemory": {
+					"type": "boolean",
+					"description": "AvoidForkIDInMemory is a configuration that forces the ForkID information to be loaded\nfrom the DB every time it's needed",
+					"default": false
 				}
 			},
 			"additionalProperties": false,

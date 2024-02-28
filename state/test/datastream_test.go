@@ -12,18 +12,30 @@ import (
 
 func TestL2BlockStartEncode(t *testing.T) {
 	l2BlockStart := state.DSL2BlockStart{
-		BatchNumber:   1,                           // 8 bytes
-		L2BlockNumber: 2,                           // 8 bytes
-		Timestamp:     3,                           // 8 bytes
-		GERorInfoRoot: common.HexToHash("0x04"),    // 32 bytes
-		Coinbase:      common.HexToAddress("0x05"), // 20 bytes
-		ForkID:        5,
+		BatchNumber:     1,
+		L2BlockNumber:   2,
+		Timestamp:       3,
+		DeltaTimestamp:  4,
+		L1InfoTreeIndex: 5,
+		L1BlockHash:     common.HexToHash("0x06"),
+		GlobalExitRoot:  common.HexToHash("0x07"),
+		Coinbase:        common.HexToAddress("0x08"),
+		ForkID:          9,
+		ChainID:         10,
 	}
 
 	encoded := l2BlockStart.Encode()
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 5, 0}
+	expected := []byte{
+		0, 0, 0, 0, 0, 0, 0, 1,
+		0, 0, 0, 0, 0, 0, 0, 2,
+		0, 0, 0, 0, 0, 0, 0, 3,
+		0, 0, 0, 4,
+		0, 0, 0, 5,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
+		0, 9,
+		0, 0, 0, 10}
 
 	assert.Equal(t, expected, encoded)
 }
@@ -38,7 +50,7 @@ func TestL2TransactionEncode(t *testing.T) {
 	}
 
 	encoded := l2Transaction.Encode()
-	expected := []byte{128, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 5, 0, 0, 0, 1, 2, 3, 4, 5}
+	expected := []byte{128, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 0, 0, 0, 5, 1, 2, 3, 4, 5}
 	assert.Equal(t, expected, encoded)
 }
 
@@ -50,7 +62,7 @@ func TestL2BlockEndEncode(t *testing.T) {
 	}
 
 	encoded := l2BlockEnd.Encode()
-	expected := []byte{1, 0, 0, 0, 0, 0, 0, 0,
+	expected := []byte{0, 0, 0, 0, 0, 0, 0, 1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3}
 

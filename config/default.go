@@ -24,7 +24,7 @@ Outputs = ["stderr"]
 		[State.Batch.Constraints]
 		MaxTxsPerBatch = 300
 		MaxBatchBytesSize = 120000
-		MaxCumulativeGasUsed = 30000000
+		MaxCumulativeGasUsed = 1125899906842624
 		MaxKeccakHashes = 2145
 		MaxPoseidonHashes = 252357
 		MaxPoseidonPaddings = 135191
@@ -52,6 +52,8 @@ GlobalQueue = 1024
 	NetProfit = 1
 	BreakEvenFactor = 1.1	
 	FinalDeviationPct = 10
+	EthTransferGasPrice = 0
+	EthTransferL1GasPriceFactor = 0	
 	L2GasPriceSuggesterFactor = 0.5
     [Pool.DB]
 	User = "pool_user"
@@ -100,7 +102,7 @@ EnableHttpLog = true
 SyncInterval = "1s"
 SyncChunkSize = 100
 TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc
-L1SynchronizationMode = "parallel"
+L1SynchronizationMode = "sequential"
 	[Synchronizer.L1ParallelSynchronization]
 		MaxClients = 10
 		MaxPendingNoProcessedBlocks = 25
@@ -114,6 +116,9 @@ L1SynchronizationMode = "parallel"
 		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
 			AceptableInacctivityTime = "5s"
 			ApplyAfterNumRollupReceived = 10
+	[Synchronizer.L2Synchronization]
+		AcceptEmptyClosedBatches = false
+		ReprocessFullBatchOnClose = true
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100
@@ -134,14 +139,17 @@ StateConsistencyCheckInterval = "5s"
 		ResourceExhaustedMarginPct = 10
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
+		SequentialProcessL2Block = true
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
+		Version = 0
 		Enabled = false
 
 [SequenceSender]
 WaitPeriodSendSequence = "5s"
 LastBatchVirtualizationTimeMaxWaitPeriod = "5s"
+L1BlockTimestampMargin = "30s"
 MaxTxSizeForL1 = 131072
 L2Coinbase = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
 PrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
@@ -158,6 +166,8 @@ ProofStatePollingInterval = "5s"
 CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
+UpgradeEtrogBatchNumber = 0
+BatchProofL1BlockConfirmations = 2
 
 [L2GasPriceSuggester]
 Type = "follower"

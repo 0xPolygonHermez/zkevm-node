@@ -15,6 +15,7 @@ type Block struct {
 	ParentHash            common.Hash
 	ForcedBatches         []ForcedBatch
 	SequencedBatches      [][]SequencedBatch
+	UpdateEtrogSequence   UpdateEtrogSequence
 	VerifiedBatches       []VerifiedBatch
 	SequencedForceBatches [][]SequencedForceBatch
 	ForkIDs               []ForkID
@@ -33,6 +34,12 @@ type GlobalExitRoot struct {
 	PreviousBlockHash common.Hash
 }
 
+// SequencedBatchElderberryData represents an Elderberry sequenced batch data
+type SequencedBatchElderberryData struct {
+	MaxSequenceTimestamp     uint64
+	InitSequencedBatchNumber uint64 // Last sequenced batch number
+}
+
 // SequencedBatch represents virtual batch
 type SequencedBatch struct {
 	BatchNumber   uint64
@@ -43,6 +50,18 @@ type SequencedBatch struct {
 	Coinbase      common.Address
 	// Struct used in preEtrog forks
 	*oldpolygonzkevm.PolygonZkEVMBatchData
+	// Struct used in Etrog
+	*polygonzkevm.PolygonRollupBaseEtrogBatchData
+	// Struct used in Elderberry
+	*SequencedBatchElderberryData
+}
+
+// UpdateEtrogSequence represents the first etrog sequence
+type UpdateEtrogSequence struct {
+	BatchNumber   uint64
+	SequencerAddr common.Address
+	TxHash        common.Hash
+	Nonce         uint64
 	// Struct used in Etrog
 	*polygonzkevm.PolygonRollupBaseEtrogBatchData
 }

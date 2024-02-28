@@ -33,7 +33,7 @@ Note that non of this is a hard rule, but suggestions / guidelines. Although eve
 - Offer clarification, explain the decisions you made to reach a solution in question.
 - Try to respond to every comment.
 - If there is growing confusion or debate, ask yourself if the written word is still the best form of communication. Talk (virtually) face-to-face, then mutually consider posting a follow-up to summarize any offline discussion (useful for others who be following along, now or later).
-- If concensus is still not reached, involve someone else in the discussion. As a last resource the lead of the project could take the decision
+- If consensus is still not reached, involve someone else in the discussion. As a last resource the lead of the project could take the decision
 
 ## Links and credits
 
