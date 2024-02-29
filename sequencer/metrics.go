@@ -171,7 +171,7 @@ func (i *intervalMetrics) addL2BlockMetrics(l2Block metrics) {
 
 func (i *intervalMetrics) computePerformance() {
 	if i.l2BlockCountAcc > 0 {
-		i.estimatedTxsPerSec = math.Ceil(i.estimatedTxsPerSecAcc/float64(i.l2BlockCountAcc)*100) / 100
+		i.estimatedTxsPerSec = math.Ceil(i.estimatedTxsPerSecAcc/float64(i.l2BlockCountAcc)*100) / 100 //nolint:gomnd
 		i.estimatedGasPerSec = i.estimatedGasPerSecAcc / uint64(i.l2BlockCountAcc)
 	} else {
 		i.estimatedTxsPerSec = 0
