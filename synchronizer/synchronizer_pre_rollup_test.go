@@ -30,11 +30,10 @@ func TestSyncPreRollupProcessL1InfoRootEventsAskForAllBlocks(t *testing.T) {
 	previousBlockNumber := uint64(1)
 	for _, i := range []uint64{10, 20, 30, 31} {
 		// Mocking the call to GetRollupInfoByBlockRangePreviousRollupGenesis
-		v := uint64(i)
+		v := i
 		mockEtherman.EXPECT().GetRollupInfoByBlockRangePreviousRollupGenesis(ctx, previousBlockNumber, &v).
 			Return(getRollupTest()).Once()
-		previousBlockNumber = uint64(i + 1)
-
+		previousBlockNumber = i + 1
 	}
 
 	mockProcessor.EXPECT().ProcessBlockRange(ctx, mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -48,8 +47,10 @@ func getRollupTest() ([]etherman.Block, map[common.Hash][]etherman.Order, error)
 
 func TestSyncPreRollupGetStartingL1Block(t *testing.T) {
 	mockState := mock_syncinterfaces.NewStateFullInterface(t)
+	mockEtherman := mock_syncinterfaces.NewEthermanFullInterface(t)
 	sync := &SyncPreRollup{
 		state:              mockState,
+		etherman:           mockEtherman,
 		GenesisBlockNumber: 1234,
 	}
 
@@ -68,13 +69,13 @@ func TestSyncPreRollupGetStartingL1Block(t *testing.T) {
 		{name: "same genesis", upgradeLxLyBlockNumber: 1000, blockNumber: sync.GenesisBlockNumber, expectedError: false, expectedNeedToUpdate: false},
 		{name: "genesis-1", upgradeLxLyBlockNumber: 1000, blockNumber: 1233, expectedError: false, expectedNeedToUpdate: false},
 	} {
-
 		log.Info("Running test case ", idx+1)
 		block := state.Block{
 			BlockNumber: testCase.blockNumber,
 		}
+		mockEtherman.EXPECT().GetL1BlockUpgradeLxLy(ctx, sync.GenesisBlockNumber).Return(testCase.upgradeLxLyBlockNumber, nil).Maybe()
 		mockState.EXPECT().GetLastBlock(ctx, mock.Anything).Return(&block, nil).Once()
-		needToUpdate, blockNumber, err := sync.getStartingL1Block(ctx, testCase.upgradeLxLyBlockNumber, nil)
+		needToUpdate, blockNumber, err := sync.getStartingL1Block(ctx, nil)
 		if testCase.expectedError {
 			require.Error(t, err, testCase.name)
 		} else {
