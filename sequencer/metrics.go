@@ -81,7 +81,10 @@ func (m *metrics) close(createdAt time.Time, txsCount int64) {
 	if m.txsCount > 0 {
 		// timePerTxuS is the average time spent per tx. This includes the l2Block time since the processing time of this section is proportional to the number of txs
 		timePerTxuS := (m.transactionsTimes.total() + m.l2BlockTimes.total()).Microseconds() / m.txsCount
-		m.estimatedTxsPerSec = float64(m.totalTime().Microseconds()-m.newL2BlockTimes.total().Microseconds()) / float64(timePerTxuS)
+		// estimatedTxs is the number of transactions that we estimate could have been processed in the block
+		estimatedTxs := float64(totalTime.Microseconds()-m.newL2BlockTimes.total().Microseconds()) / float64(timePerTxuS)
+		// estimatedTxxPerSec is the estimated transactions per second
+		m.estimatedTxsPerSec = estimatedTxs / totalTime.Seconds()
 	}
 }
 
@@ -123,6 +126,8 @@ func (i *intervalMetrics) cleanUp() {
 				i.estimatedTxsPerSecAcc -= i.estimatedTxsPerSec
 				i.estimatedTxsPerSecCount--
 			}
+			// Remove from l2Blocks
+			i.l2Blocks = i.l2Blocks[1:]
 			ct++
 		} else {
 			break
@@ -130,8 +135,6 @@ func (i *intervalMetrics) cleanUp() {
 	}
 
 	if ct > 0 {
-		// Remove from l2Blocks
-		i.l2Blocks = i.l2Blocks[ct:]
 		// Compute performance
 		i.computeEstimatedTxsPerSec()
 	}
@@ -151,7 +154,11 @@ func (i *intervalMetrics) addL2BlockMetrics(l2Block metrics) {
 }
 
 func (i *intervalMetrics) computeEstimatedTxsPerSec() {
-	i.estimatedTxsPerSec = i.estimatedTxsPerSecAcc / float64(i.estimatedTxsPerSecCount)
+	if i.estimatedTxsPerSecCount > 0 {
+		i.estimatedTxsPerSec = i.estimatedTxsPerSecAcc / float64(i.estimatedTxsPerSecCount)
+	} else {
+		i.estimatedTxsPerSecCount = 0
+	}
 }
 
 func (i *intervalMetrics) startsAt() time.Time {
