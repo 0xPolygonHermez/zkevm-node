@@ -54,30 +54,39 @@ func (s *SyncPreRollup) SynchronizePreGenesisRollupEvents(ctx context.Context) e
 		log.Errorf("error getting LxLy upgrade block. Error: %v", err)
 		return err
 	}
-	fromBlock, err := s.getStartingL1Block(ctx, lxLyUpgradeBlock, nil)
+	needToUpdate, fromBlock, err := s.getStartingL1Block(ctx, lxLyUpgradeBlock, nil)
 	if err != nil {
 		log.Errorf("error getting starting L1 block. Error: %v", err)
 		return err
 	}
-	return s.ProcessL1InfoRootEvents(ctx, fromBlock, genesisBlockNumber-1, s.SyncChunkSize)
+	if needToUpdate {
+		return s.ProcessL1InfoRootEvents(ctx, fromBlock, genesisBlockNumber-1, s.SyncChunkSize)
+	} else {
+		log.Infof("No need to process blocks before the genesis block %d", genesisBlockNumber)
+		return nil
+	}
 }
 
-func (s *SyncPreRollup) getStartingL1Block(ctx context.Context, upgradeLxLyBlockNumber uint64, dbTx pgx.Tx) (uint64, error) {
+// getStartingL1Block returns:
+// bool -> need to process blocks
+// uint64 -> first block to synchronize
+// error -> error
+func (s *SyncPreRollup) getStartingL1Block(ctx context.Context, upgradeLxLyBlockNumber uint64, dbTx pgx.Tx) (bool, uint64, error) {
 	lastBlock, err := s.state.GetLastBlock(ctx, dbTx)
 	if err != nil && errors.Is(err, state.ErrStateNotSynchronized) {
 		// No block on DB
 		log.Infof("No block on DB, starting from LxLy upgrade block %d", upgradeLxLyBlockNumber)
-		return upgradeLxLyBlockNumber, nil
+		return true, upgradeLxLyBlockNumber, nil
 	} else if err != nil {
 		log.Errorf("Error getting last Block on DB err:%v", err)
-		return 0, err
+		return false, 0, err
 	}
-	if lastBlock.BlockNumber >= s.GenesisBlockNumber {
+	if lastBlock.BlockNumber >= s.GenesisBlockNumber-1 {
 		log.Warnf("Last block processed is %d, which is greater or equal than the genesis block %d", lastBlock, s.GenesisBlockNumber)
-		return 0, errors.New("last block processed is greater or equal than the genesis block")
+		return false, 0, nil
 	}
 	log.Infof("Pre genesis LxLy upgrade at block %d, last block processed on DB is %d", upgradeLxLyBlockNumber, lastBlock.BlockNumber)
-	return lastBlock.BlockNumber, nil
+	return true, lastBlock.BlockNumber, nil
 }
 
 // ProcessL1InfoRootEvents processes the L1InfoRoot events for a range for L1 blocks
