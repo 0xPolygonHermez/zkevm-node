@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"fmt"
+	"math"
 	"time"
 )
 
@@ -34,28 +35,35 @@ func (p *processTimes) sumUp(ptSumUp processTimes) {
 
 type metrics struct {
 	closedAt           time.Time
-	txsCount           int64
+	processedTxsCount  int64
+	l2BlockTxsCount    int64
 	idleTime           time.Duration
 	newL2BlockTimes    processTimes
 	transactionsTimes  processTimes
 	l2BlockTimes       processTimes
+	gas                uint64
 	estimatedTxsPerSec float64
+	estimatedGasPerSec uint64
 }
 
 func (m *metrics) sub(mSub metrics) {
-	m.txsCount -= mSub.txsCount
+	m.processedTxsCount -= mSub.processedTxsCount
+	m.l2BlockTxsCount -= mSub.l2BlockTxsCount
 	m.idleTime -= mSub.idleTime
 	m.newL2BlockTimes.sub(mSub.newL2BlockTimes)
 	m.transactionsTimes.sub(mSub.transactionsTimes)
 	m.l2BlockTimes.sub(mSub.l2BlockTimes)
+	m.gas -= mSub.gas
 }
 
 func (m *metrics) sumUp(mSumUp metrics) {
-	m.txsCount += mSumUp.txsCount
+	m.processedTxsCount += mSumUp.processedTxsCount
+	m.l2BlockTxsCount += mSumUp.l2BlockTxsCount
 	m.idleTime += mSumUp.idleTime
 	m.newL2BlockTimes.sumUp(mSumUp.newL2BlockTimes)
 	m.transactionsTimes.sumUp(mSumUp.transactionsTimes)
 	m.l2BlockTimes.sumUp(mSumUp.l2BlockTimes)
+	m.gas += mSumUp.gas
 }
 
 func (m *metrics) executorTime() time.Duration {
@@ -70,27 +78,32 @@ func (m *metrics) totalTime() time.Duration {
 	return m.newL2BlockTimes.total() + m.transactionsTimes.total() + m.l2BlockTimes.total() + m.idleTime
 }
 
-func (m *metrics) close(createdAt time.Time, txsCount int64) {
+func (m *metrics) close(createdAt time.Time, l2BlockTxsCount int64) {
 	// Compute pending fields
 	m.closedAt = time.Now()
 	totalTime := time.Since(createdAt)
-	m.txsCount = txsCount
+	m.l2BlockTxsCount = l2BlockTxsCount
 	m.transactionsTimes.sequencer = totalTime - m.idleTime - m.newL2BlockTimes.total() - m.transactionsTimes.executor - m.l2BlockTimes.total()
 
 	// Compute performance
-	if m.txsCount > 0 {
+	if m.processedTxsCount > 0 {
 		// timePerTxuS is the average time spent per tx. This includes the l2Block time since the processing time of this section is proportional to the number of txs
-		timePerTxuS := (m.transactionsTimes.total() + m.l2BlockTimes.total()).Microseconds() / m.txsCount
+		timePerTxuS := (m.transactionsTimes.total() + m.l2BlockTimes.total()).Microseconds() / m.processedTxsCount
 		// estimatedTxs is the number of transactions that we estimate could have been processed in the block
 		estimatedTxs := float64(totalTime.Microseconds()-m.newL2BlockTimes.total().Microseconds()) / float64(timePerTxuS)
-		// estimatedTxxPerSec is the estimated transactions per second
-		m.estimatedTxsPerSec = estimatedTxs / totalTime.Seconds()
+		// estimatedTxxPerSec is the estimated transactions per second (rounded to 2 decimal digits)
+		m.estimatedTxsPerSec = math.Ceil(estimatedTxs/totalTime.Seconds()*100) / 100 //nolint:gomnd
+
+		// gasPerTx is the average gas used per tx
+		gasPerTx := m.gas / uint64(m.processedTxsCount)
+		// estimatedGasPerSec is the estimated gas per second
+		m.estimatedGasPerSec = uint64(m.estimatedTxsPerSec * float64(gasPerTx))
 	}
 }
 
 func (m *metrics) log() string {
-	return fmt.Sprintf("txs: %d, estimated txs/s: %.1f, time: {total: %d, idle: %d, sequencer: {total: %d, newL2Block: %d, txs: %d, l2Block: %d}, executor: {total: %d, newL2Block: %d, txs: %d, l2Block: %d}",
-		m.txsCount, m.estimatedTxsPerSec, m.totalTime().Microseconds(), m.idleTime.Microseconds(),
+	return fmt.Sprintf("blockTxs: %d, txs: %d, gas: %d, txsSec: %.2f, gasSec: %d, time: {total: %d, idle: %d, sequencer: {total: %d, newL2Block: %d, txs: %d, l2Block: %d}, executor: {total: %d, newL2Block: %d, txs: %d, l2Block: %d}",
+		m.l2BlockTxsCount, m.processedTxsCount, m.gas, m.estimatedTxsPerSec, m.estimatedGasPerSec, m.totalTime().Microseconds(), m.idleTime.Microseconds(),
 		m.sequencerTime().Microseconds(), m.newL2BlockTimes.sequencer.Microseconds(), m.transactionsTimes.sequencer.Microseconds(), m.l2BlockTimes.sequencer.Microseconds(),
 		m.executorTime().Microseconds(), m.newL2BlockTimes.executor.Microseconds(), m.transactionsTimes.executor.Microseconds(), m.l2BlockTimes.executor.Microseconds())
 }
@@ -99,8 +112,9 @@ type intervalMetrics struct {
 	l2Blocks    []*metrics
 	maxInterval time.Duration
 	metrics
-	estimatedTxsPerSecAcc   float64
-	estimatedTxsPerSecCount int64
+	estimatedTxsPerSecAcc float64
+	estimatedGasPerSecAcc uint64
+	l2BlockCountAcc       int64
 }
 
 func newIntervalMetrics(maxInterval time.Duration) *intervalMetrics {
@@ -122,9 +136,10 @@ func (i *intervalMetrics) cleanUp() {
 		if l2Block.closedAt.Add(i.maxInterval).Before(now) {
 			// Subtract l2Block metrics from accumulated values
 			i.sub(*l2Block)
-			if l2Block.txsCount > 0 {
-				i.estimatedTxsPerSecAcc -= i.estimatedTxsPerSec
-				i.estimatedTxsPerSecCount--
+			if l2Block.processedTxsCount > 0 {
+				i.estimatedTxsPerSecAcc -= l2Block.estimatedTxsPerSec
+				i.estimatedGasPerSecAcc -= l2Block.estimatedGasPerSec
+				i.l2BlockCountAcc--
 			}
 			// Remove from l2Blocks
 			i.l2Blocks = i.l2Blocks[1:]
@@ -136,7 +151,7 @@ func (i *intervalMetrics) cleanUp() {
 
 	if ct > 0 {
 		// Compute performance
-		i.computeEstimatedTxsPerSec()
+		i.computePerformance()
 	}
 }
 
@@ -144,20 +159,23 @@ func (i *intervalMetrics) addL2BlockMetrics(l2Block metrics) {
 	i.cleanUp()
 
 	i.sumUp(l2Block)
-	if l2Block.txsCount > 0 {
+	if l2Block.processedTxsCount > 0 {
 		i.estimatedTxsPerSecAcc += l2Block.estimatedTxsPerSec
-		i.estimatedTxsPerSecCount++
-		i.computeEstimatedTxsPerSec()
+		i.estimatedGasPerSecAcc += l2Block.estimatedGasPerSec
+		i.l2BlockCountAcc++
+		i.computePerformance()
 	}
 
 	i.l2Blocks = append(i.l2Blocks, &l2Block)
 }
 
-func (i *intervalMetrics) computeEstimatedTxsPerSec() {
-	if i.estimatedTxsPerSecCount > 0 {
-		i.estimatedTxsPerSec = i.estimatedTxsPerSecAcc / float64(i.estimatedTxsPerSecCount)
+func (i *intervalMetrics) computePerformance() {
+	if i.l2BlockCountAcc > 0 {
+		i.estimatedTxsPerSec = math.Ceil(i.estimatedTxsPerSecAcc/float64(i.l2BlockCountAcc)*100) / 100 //nolint:gomnd
+		i.estimatedGasPerSec = i.estimatedGasPerSecAcc / uint64(i.l2BlockCountAcc)
 	} else {
-		i.estimatedTxsPerSecCount = 0
+		i.estimatedTxsPerSec = 0
+		i.estimatedGasPerSec = 0
 	}
 }
 
