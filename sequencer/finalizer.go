@@ -482,12 +482,17 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 
 // handleProcessTransactionResponse handles the response of transaction processing.
 func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *TxTracker, result *state.ProcessBatchResponse, oldStateRoot common.Hash) (errWg *sync.WaitGroup, err error) {
+	txResponse := result.BlockResponses[0].TransactionResponses[0]
+
+	// Update metrics
+	f.wipL2Block.metrics.processedTxsCount++
+
 	// Handle Transaction Error
-	errorCode := executor.RomErrorCode(result.BlockResponses[0].TransactionResponses[0].RomError)
+	errorCode := executor.RomErrorCode(txResponse.RomError)
 	if !state.IsStateRootChanged(errorCode) {
 		// If intrinsic error or OOC error, we skip adding the transaction to the batch
 		errWg = f.handleProcessTransactionError(ctx, result, tx)
-		return errWg, result.BlockResponses[0].TransactionResponses[0].RomError
+		return errWg, txResponse.RomError
 	}
 
 	egpEnabled := f.effectiveGasPrice.IsEnabled()
@@ -498,7 +503,7 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		// Get the tx gas price we will use in the egp calculation. If egp is disabled we will use a "simulated" tx gas price
 		txGasPrice, txL2GasPrice := f.effectiveGasPrice.GetTxAndL2GasPrice(tx.GasPrice, tx.L1GasPrice, tx.L2GasPrice)
 
-		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, result.BlockResponses[0].TransactionResponses[0].GasUsed, tx.L1GasPrice, txL2GasPrice)
+		newEffectiveGasPrice, err := f.effectiveGasPrice.CalculateEffectiveGasPrice(tx.RawTx, txGasPrice, txResponse.GasUsed, tx.L1GasPrice, txL2GasPrice)
 		if err != nil {
 			if egpEnabled {
 				log.Errorf("failed to calculate effective gas price with new gasUsed for tx %s, error: %v", tx.HashStr, err.Error())
@@ -510,9 +515,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 		} else {
 			// Save new (second) gas used and second effective gas price calculation for later logging
 			tx.EGPLog.ValueSecond.Set(newEffectiveGasPrice)
-			tx.EGPLog.GasUsedSecond = result.BlockResponses[0].TransactionResponses[0].GasUsed
+			tx.EGPLog.GasUsedSecond = txResponse.GasUsed
 
-			errCompare := f.compareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, result.BlockResponses[0].TransactionResponses[0].HasGaspriceOpcode, result.BlockResponses[0].TransactionResponses[0].HasBalanceOpcode)
+			errCompare := f.compareTxEffectiveGasPrice(ctx, tx, newEffectiveGasPrice, txResponse.HasGaspriceOpcode, txResponse.HasBalanceOpcode)
 
 			// If EffectiveGasPrice is disabled we will calculate the percentage and save it for later logging
 			if !egpEnabled {
@@ -571,14 +576,14 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	// If reserved tx resources don't fit in the remaining batch resources (or we got an overflow when trying to subtract the used resources)
 	// we update the ZKCounters of the tx and returns ErrBatchResourceOverFlow error
 	if !fits || subOverflow {
-		f.workerIntf.UpdateTxZKCounters(result.BlockResponses[0].TransactionResponses[0].TxHash, tx.From, result.UsedZkCounters, result.ReservedZkCounters)
+		f.workerIntf.UpdateTxZKCounters(txResponse.TxHash, tx.From, result.UsedZkCounters, result.ReservedZkCounters)
 		return nil, ErrBatchResourceOverFlow
 	}
 
 	// Save Enabled, GasPriceOC, BalanceOC and final effective gas price for later logging
 	tx.EGPLog.Enabled = egpEnabled
-	tx.EGPLog.GasPriceOC = result.BlockResponses[0].TransactionResponses[0].HasGaspriceOpcode
-	tx.EGPLog.BalanceOC = result.BlockResponses[0].TransactionResponses[0].HasBalanceOpcode
+	tx.EGPLog.GasPriceOC = txResponse.HasGaspriceOpcode
+	tx.EGPLog.BalanceOC = txResponse.HasBalanceOpcode
 	tx.EGPLog.ValueFinal.Set(tx.EffectiveGasPrice)
 
 	// Log here the results of EGP calculation
@@ -591,6 +596,9 @@ func (f *finalizer) handleProcessTransactionResponse(ctx context.Context, tx *Tx
 	f.wipBatch.countOfTxs++
 
 	f.updateWorkerAfterSuccessfulProcessing(ctx, tx.Hash, tx.From, false, result)
+
+	// Update metrics
+	f.wipL2Block.metrics.gas += txResponse.GasUsed
 
 	return nil, nil
 }
@@ -718,6 +726,9 @@ func (f *finalizer) handleProcessTransactionError(ctx context.Context, result *s
 			}
 		}()
 	}
+
+	// Update metrics
+	f.wipL2Block.metrics.gas += txResponse.GasUsed
 
 	return wg
 }
