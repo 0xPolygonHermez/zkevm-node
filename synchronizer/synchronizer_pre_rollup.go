@@ -21,6 +21,7 @@ type SyncPreRollup struct {
 	GenesisBlockNumber  uint64
 }
 
+// NewSyncPreRollup creates a new SyncPreRollup
 func NewSyncPreRollup(
 	etherman syncinterfaces.EthermanPreRollup,
 	state syncinterfaces.StateLastBlockGetter,
@@ -86,7 +87,7 @@ func (s *SyncPreRollup) ProcessL1InfoRootEvents(ctx context.Context, fromBlock u
 		fromBlock, toBlock, toBlock-fromBlock+1)
 	for i := fromBlock; true; i += syncChunkSize {
 		toBlockReq := min(i+syncChunkSize-1, toBlock)
-		percent := float32(toBlockReq-fromBlock+1) * 100.0 / float32(toBlock-fromBlock+1)
+		percent := float32(toBlockReq-fromBlock+1) * 100.0 / float32(toBlock-fromBlock+1) // nolint:gomnd
 		log.Infof("sync L1InfoTree events from %d to %d percent:%3.1f pending_blocks:%d", i, toBlockReq, percent, toBlock-toBlockReq)
 		blocks, order, err := s.etherman.GetRollupInfoByBlockRangePreviousRollupGenesis(ctx, i, &toBlockReq)
 		if err != nil {

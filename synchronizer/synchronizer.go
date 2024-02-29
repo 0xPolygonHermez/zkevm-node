@@ -278,7 +278,9 @@ func (s *ClientSynchronizer) processGenesis() error {
 // 1. Check if genesisProcess is done
 // 2.    If not, process genesis
 // 2.1		-There are blocks previous to the genesis block? -> go on with process of InfoRootTree
-
+// 2.2		-There are no blocks previous to the genesis block? -> get ETROG Upgrade block and start there to process of InfoRootTree
+// 3. Setup genesis data
+// 4. Start sync as usual
 func (s *ClientSynchronizer) Sync() error {
 	startInitialization := time.Now()
 	// If there is no lastEthereumBlock means that sync from the beginning is necessary. If not, it continues from the retrieved ethereum block

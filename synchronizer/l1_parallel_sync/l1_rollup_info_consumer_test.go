@@ -55,7 +55,7 @@ func TestGivenConsumerWhenFailsToProcessRollupThenDontKnownLastEthBlock(t *testi
 		lastBlockOfRange: types.NewBlock(&types.Header{Number: big.NewInt(123)}, nil, nil, nil, nil),
 	}
 	data.syncMock.
-		On("ProcessBlockRange", mock.Anything, mock.Anything).
+		On("ProcessBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(errors.New("error")).
 		Once()
 	data.ch <- *newL1SyncMessageData(&responseRollupInfoByBlockRange)
@@ -107,7 +107,7 @@ func TestGivenConsumerWhenNextBlockNumberIsNoSetThenAcceptAnythingAndProcess(t *
 	data.ch <- *newL1SyncMessageData(&responseRollupInfoByBlockRange)
 	data.ch <- *newL1SyncMessageControlWProducerIsFullySynced(200)
 	data.syncMock.
-		On("ProcessBlockRange", mock.Anything, mock.Anything).
+		On("ProcessBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Once()
 	err := data.sut.Start(ctxTimeout, nil)
@@ -134,7 +134,7 @@ func TestGivenConsumerWhenNextBlockNumberIsNoSetThenAcceptAnythingAndProcessAndC
 	data.ch <- *newL1SyncMessageData(&responseRollupInfoByBlockRange)
 	data.ch <- *newL1SyncMessageControlWProducerIsFullySynced(300)
 	data.syncMock.
-		On("ProcessBlockRange", mock.Anything, mock.Anything).
+		On("ProcessBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Once()
 	err := data.sut.Start(ctxTimeout, nil)
@@ -163,7 +163,7 @@ func TestGivenConsumerWhenNextBlockNumberIsNoSetThenFirstRollupInfoSetIt(t *test
 	data.ch <- *newL1SyncMessageData(&responseRollupInfoByBlockRange)
 	data.ch <- *newL1SyncMessageControlWProducerIsFullySynced(200)
 	data.syncMock.
-		On("ProcessBlockRange", mock.Anything, mock.Anything).
+		On("ProcessBlockRange", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Once()
 	err := data.sut.Start(ctxTimeout, nil)
