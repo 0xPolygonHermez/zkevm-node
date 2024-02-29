@@ -84,7 +84,7 @@ func (m *metrics) close(createdAt time.Time, txsCount int64) {
 		// estimatedTxs is the number of transactions that we estimate could have been processed in the block
 		estimatedTxs := float64(totalTime.Microseconds()-m.newL2BlockTimes.total().Microseconds()) / float64(timePerTxuS)
 		// estimatedTxxPerSec is the estimated transactions per second
-		m.estimatedTxsPerSec = float64(totalTime.Microseconds()) / estimatedTxs
+		m.estimatedTxsPerSec = estimatedTxs / totalTime.Seconds()
 	}
 }
 
