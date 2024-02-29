@@ -299,6 +299,11 @@ func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[u
 			log.Errorf("Error: %v\n", err)
 			os.Exit(1)
 		}
+
+		if common.BytesToHash(imStateRoot.Bytes()) == state.ZeroHash && x != 0 {
+			break
+		}
+
 		imStateRootMux.Lock()
 		(*isStateRoots)[x] = imStateRoot.Bytes()
 		imStateRootMux.Unlock()
