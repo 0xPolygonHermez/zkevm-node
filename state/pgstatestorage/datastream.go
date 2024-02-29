@@ -117,14 +117,14 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, firstL2Block,
 }
 
 func scanDSL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
-	var stateRootStr string
+	var postState []byte
 	l2Transaction := state.DSL2Transaction{}
 	encoded := []byte{}
 	if err := row.Scan(
 		&l2Transaction.L2BlockNumber,
 		&l2Transaction.EffectiveGasPricePercentage,
 		&encoded,
-		&stateRootStr,
+		&postState,
 	); err != nil {
 		return nil, err
 	}
@@ -141,7 +141,7 @@ func scanDSL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
 	l2Transaction.Encoded = binaryTxData
 	l2Transaction.EncodedLength = uint32(len(l2Transaction.Encoded))
 	l2Transaction.IsValid = 1
-	l2Transaction.StateRoot = common.HexToHash(stateRootStr)
+	l2Transaction.StateRoot = common.BytesToHash(postState)
 	return &l2Transaction, nil
 }
 
