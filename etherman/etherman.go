@@ -41,6 +41,11 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+const (
+	// ETRogUpgradeVersion is the version of the LxLy upgrade
+	ETRogUpgradeVersion = 2
+)
+
 var (
 	// Events RollupManager
 	setBatchFeeSignatureHash                       = crypto.Keccak256Hash([]byte("SetBatchFee(uint256)"))
@@ -355,7 +360,7 @@ func (etherMan *Client) GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock 
 	}
 	for it.Next() {
 		log.Debugf("BlockNumber: %d Topics:Initialized(%d)", it.Event.Raw.BlockNumber, it.Event.Version)
-		if it.Event.Version == 2 { // 2 is ETROG (LxLy upgrade)
+		if it.Event.Version == ETRogUpgradeVersion { // 2 is ETROG (LxLy upgrade)
 			log.Infof("LxLy upgrade found at blockNumber: %d", it.Event.Raw.BlockNumber)
 			return it.Event.Raw.BlockNumber, nil
 		}
@@ -487,6 +492,25 @@ func (etherMan *Client) GetRollupInfoByBlockRange(ctx context.Context, fromBlock
 	query := ethereum.FilterQuery{
 		FromBlock: new(big.Int).SetUint64(fromBlock),
 		Addresses: etherMan.SCAddresses,
+	}
+	if toBlock != nil {
+		query.ToBlock = new(big.Int).SetUint64(*toBlock)
+	}
+	blocks, blocksOrder, err := etherMan.readEvents(ctx, query)
+	if err != nil {
+		return nil, nil, err
+	}
+	return blocks, blocksOrder, nil
+}
+
+// GetRollupInfoByBlockRangePreviousRollupGenesis function retrieves the Rollup information that are included in all this ethereum blocks
+// but it only retrieves the information from the previous rollup genesis block to the current block.
+func (etherMan *Client) GetRollupInfoByBlockRangePreviousRollupGenesis(ctx context.Context, fromBlock uint64, toBlock *uint64) ([]Block, map[common.Hash][]Order, error) {
+	// Filter query
+	query := ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(fromBlock),
+		Addresses: []common.Address{etherMan.l1Cfg.GlobalExitRootManagerAddr},
+		Topics:    [][]common.Hash{{updateL1InfoTreeSignatureHash}},
 	}
 	if toBlock != nil {
 		query.ToBlock = new(big.Int).SetUint64(*toBlock)

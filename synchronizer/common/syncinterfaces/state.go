@@ -21,6 +21,10 @@ type StateGetBatchByNumberInterface interface {
 	GetBatchByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.Batch, error)
 }
 
+type StateLastBlockGetter interface {
+	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
+}
+
 // StateFullInterface gathers the methods required to interact with the state.
 type StateFullInterface interface {
 	GetLastBlock(ctx context.Context, dbTx pgx.Tx) (*state.Block, error)
