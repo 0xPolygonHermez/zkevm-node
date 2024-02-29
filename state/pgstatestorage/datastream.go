@@ -117,9 +117,9 @@ func (p *PostgresStorage) GetDSL2Transactions(ctx context.Context, firstL2Block,
 }
 
 func scanDSL2Transaction(row pgx.Row) (*state.DSL2Transaction, error) {
-	var postState []byte
 	l2Transaction := state.DSL2Transaction{}
 	encoded := []byte{}
+	postState := []byte{}
 	if err := row.Scan(
 		&l2Transaction.L2BlockNumber,
 		&l2Transaction.EffectiveGasPricePercentage,
