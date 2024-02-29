@@ -553,16 +553,18 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 					}
 
 					for _, tx := range l2Block.Txs {
-						// Populate intermediate state root
-						if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
-							position := GetSystemSCPosition(l2Block.L2BlockNumber)
-							imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
-							if err != nil {
-								return err
+						if l2Block.ForkID < FORKID_ETROG {
+							// Populate intermediate state root with information from the system SC (or cache if available)
+							if imStateRoots == nil || (*imStateRoots)[blockStart.L2BlockNumber] == nil {
+								position := GetSystemSCPosition(l2Block.L2BlockNumber)
+								imStateRoot, err := stateDB.GetStorageAt(ctx, common.HexToAddress(SystemSC), big.NewInt(0).SetBytes(position), l2Block.StateRoot)
+								if err != nil {
+									return err
+								}
+								tx.StateRoot = common.BigToHash(imStateRoot)
+							} else {
+								tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
 							}
-							tx.StateRoot = common.BigToHash(imStateRoot)
-						} else {
-							tx.StateRoot = common.BytesToHash((*imStateRoots)[blockStart.L2BlockNumber])
 						}
 
 						_, err = streamServer.AddStreamEntry(EntryTypeL2Tx, tx.Encode())
