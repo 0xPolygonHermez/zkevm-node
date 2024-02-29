@@ -220,7 +220,7 @@ func (s *ClientSynchronizer) processGenesis() error {
 	}
 	// Sync pre genesis rollup events
 	// TODO: Remove that is just for testing!
-	s.genesis.BlockNumber = 19332554
+	//s.genesis.BlockNumber = 19332554
 	s.syncPreRollup.(*SyncPreRollup).GenesisBlockNumber = s.genesis.BlockNumber
 	err = s.syncPreRollup.SynchronizePreGenesisRollupEvents(s.ctx)
 	if err != nil {
