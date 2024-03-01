@@ -11,14 +11,9 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	syncCommon "github.com/0xPolygonHermez/zkevm-node/synchronizer/common"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
-)
-
-const (
-	timeOfLiveBatchOnCache = 5 * time.Minute
 )
 
 var (
@@ -54,19 +49,13 @@ type SyncTrustedBatchExecutorForEtrog struct {
 	sync  syncinterfaces.SynchronizerFlushIDManager
 }
 
-// NewSyncTrustedBatchExecutorForEtrog creates a new prcessor for sync with L2 batches
-func NewSyncTrustedBatchExecutorForEtrog(zkEVMClient syncinterfaces.ZKEVMClientTrustedBatchesGetter,
-	state l2_shared.StateInterface, stateBatchExecutor StateInterface,
-	sync syncinterfaces.SynchronizerFlushIDManager, timeProvider syncCommon.TimeProvider, l1SyncChecker l2_shared.L1SyncGlobalExitRootChecker,
-	cfg l2_sync.Config) *l2_shared.TrustedBatchesRetrieve {
-	executorSteps := &SyncTrustedBatchExecutorForEtrog{
+// NewSyncTrustedBatchExecutorForEtrog creates a new SyncTrustedBatchExecutorForEtrog
+func NewSyncTrustedBatchExecutorForEtrog(stateBatchExecutor StateInterface,
+	sync syncinterfaces.SynchronizerFlushIDManager) *SyncTrustedBatchExecutorForEtrog {
+	return &SyncTrustedBatchExecutorForEtrog{
 		state: stateBatchExecutor,
 		sync:  sync,
 	}
-
-	executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, timeProvider, l1SyncChecker, cfg)
-	a := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, state, sync, *l2_shared.NewTrustedStateManager(timeProvider, timeOfLiveBatchOnCache))
-	return a
 }
 
 // NothingProcess process a batch that is already on database and no new L2batchData, so it is not going to be processed again.
