@@ -64,6 +64,7 @@ type DSL2Block struct {
 	Coinbase        common.Address // 20 bytes
 	ForkID          uint16         // 2 bytes
 	ChainID         uint32         // 4 bytes
+	LocalExitRoot   common.Hash    // 32 bytes
 	BlockHash       common.Hash    // 32 bytes
 	StateRoot       common.Hash    // 32 bytes
 }
@@ -80,7 +81,7 @@ type DSL2BlockStart struct {
 	Coinbase        common.Address // 20 bytes
 	ForkID          uint16         // 2 bytes
 	ChainID         uint32         // 4 bytes
-
+	LocalExitRoot   common.Hash    // 32 bytes
 }
 
 // Encode returns the encoded DSL2BlockStart as a byte slice
@@ -96,6 +97,7 @@ func (b DSL2BlockStart) Encode() []byte {
 	bytes = append(bytes, b.Coinbase.Bytes()...)
 	bytes = binary.BigEndian.AppendUint16(bytes, b.ForkID)
 	bytes = binary.BigEndian.AppendUint32(bytes, b.ChainID)
+	bytes = append(bytes, b.LocalExitRoot.Bytes()...)
 	return bytes
 }
 
@@ -111,7 +113,7 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 	b.Coinbase = common.BytesToAddress(data[96:116])
 	b.ForkID = binary.BigEndian.Uint16(data[116:118])
 	b.ChainID = binary.BigEndian.Uint32(data[118:122])
-
+	b.LocalExitRoot = common.BytesToHash(data[122:154])
 	return b
 }
 
@@ -290,6 +292,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 			Coinbase:        genesisL2Block.Coinbase,
 			ForkID:          genesisL2Block.ForkID,
 			ChainID:         uint32(chainID),
+			LocalExitRoot:   genesisL2Block.LocalExitRoot,
 		}
 
 		log.Infof("Genesis block: %+v", genesisBlock)
@@ -527,6 +530,7 @@ func GenerateDataStreamerFile(ctx context.Context, streamServer *datastreamer.St
 						Coinbase:        l2Block.Coinbase,
 						ForkID:          l2Block.ForkID,
 						ChainID:         uint32(chainID),
+						LocalExitRoot:   l2Block.LocalExitRoot,
 					}
 
 					previousTimestamp = l2Block.Timestamp

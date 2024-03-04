@@ -22,6 +22,7 @@ func TestL2BlockStartEncode(t *testing.T) {
 		Coinbase:        common.HexToAddress("0x08"),
 		ForkID:          9,
 		ChainID:         10,
+		LocalExitRoot:   common.HexToHash("0x0a"),
 	}
 
 	encoded := l2BlockStart.Encode()
@@ -35,7 +36,8 @@ func TestL2BlockStartEncode(t *testing.T) {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8,
 		0, 9,
-		0, 0, 0, 10}
+		0, 0, 0, 10,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10}
 
 	assert.Equal(t, expected, encoded)
 }
