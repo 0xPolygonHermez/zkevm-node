@@ -3467,3 +3467,27 @@ func (_Polygonzkevm *PolygonzkevmFilterer) ParseVerifyBatches(log types.Log) (*P
 	event.Raw = log
 	return event, nil
 }
+
+
+// PolygonzkevmUpdateEtrogSequence represents a UpdateEtrogSequence event raised by the Polygonzkevm contract.
+type PolygonzkevmUpdateEtrogSequence struct {
+	NumBatch           uint64
+	Transactions       []byte
+	LastGlobalExitRoot [32]byte
+	Sequencer          common.Address
+	Raw                types.Log // Blockchain specific contextual infos
+}
+
+
+// ParseUpdateEtrogSequence is a log parse operation binding the contract event 0xd2c80353fc15ef62c6affc7cd6b7ab5b42c43290c50be3372e55ae552cecd19c.
+//
+// Solidity: event UpdateEtrogSequence(uint64 numBatch, bytes transactions, bytes32 lastGlobalExitRoot, address sequencer)
+func (_Polygonzkevm *PolygonzkevmFilterer) ParseUpdateEtrogSequence(log types.Log) (*PolygonzkevmUpdateEtrogSequence, error) {
+	event := new(PolygonzkevmUpdateEtrogSequence)
+	if err := _Polygonzkevm.contract.UnpackLog(event, "UpdateEtrogSequence", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+

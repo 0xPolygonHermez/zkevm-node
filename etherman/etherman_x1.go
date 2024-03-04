@@ -207,18 +207,22 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	// Create smc clients
 	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
 	}
 	oldZkevm, err := oldpolygonzkevm.NewPolygonzkevm(l1Config.RollupManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewOldpolygonzkevm client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
 	}
 	rollupManager, err := polygonrollupmanager.NewPolygonrollupmanager(l1Config.RollupManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewPolygonrollupmanager client (%s). Error: %w", l1Config.RollupManagerAddr.String(), err)
 		return nil, err
 	}
 	globalExitRoot, err := polygonzkevmglobalexitroot.NewPolygonzkevmglobalexitroot(l1Config.GlobalExitRootManagerAddr, ethClient)
 	if err != nil {
+		log.Errorf("error creating NewPolygonzkevmglobalexitroot client (%s). Error: %w", l1Config.GlobalExitRootManagerAddr.String(), err)
 		return nil, err
 	}
 	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
@@ -675,11 +679,72 @@ func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, b
 	if etherMan.RollupID != addExistingRollup.RollupID {
 		return nil
 	}
+	// TODO Delete after upgrade Get RollupID
+	rollupID, err := etherMan.RollupManager.RollupAddressToID(&bind.CallOpts{Pending: false}, etherMan.SCAddresses[0])
+	if err != nil {
+		log.Error("error getting rollupID. Error: ", err)
+		return err
+	}
+	log.Debug("rollupID: ", rollupID)
+
 	return etherMan.updateForkId(ctx, vLog, blocks, blocksOrder, addExistingRollup.LastVerifiedBatchBeforeUpgrade, addExistingRollup.ForkID, "")
 }
 
 func (etherMan *Client) updateEtrogSequence(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
-	return errors.New("Upgrading validiums to etrog not supported")
+	log.Debug("updateEtrogSequence event detected")
+	updateEtrogSequence, err := etherMan.ZkEVM.ParseUpdateEtrogSequence(vLog)
+	if err != nil {
+		log.Error("error parsing updateEtrogSequence event. Error: ", err)
+		return err
+	}
+
+	// Read the tx for this event.
+	tx, err := etherMan.EthClient.TransactionInBlock(ctx, vLog.BlockHash, vLog.TxIndex)
+	if err != nil {
+		return err
+	}
+	if tx.Hash() != vLog.TxHash {
+		return fmt.Errorf("error: tx hash mismatch. want: %s have: %s", vLog.TxHash, tx.Hash().String())
+	}
+	msg, err := core.TransactionToMessage(tx, types.NewLondonSigner(tx.ChainId()), big.NewInt(0))
+	if err != nil {
+		return err
+	}
+	fullBlock, err := etherMan.EthClient.BlockByHash(ctx, vLog.BlockHash)
+	if err != nil {
+		return fmt.Errorf("error getting fullBlockInfo. BlockNumber: %d. Error: %w", vLog.BlockNumber, err)
+	}
+
+	log.Info("update Etrog transaction sequence...")
+	sequence := UpdateEtrogSequence{
+		BatchNumber:   updateEtrogSequence.NumBatch,
+		SequencerAddr: updateEtrogSequence.Sequencer,
+		TxHash:        vLog.TxHash,
+		Nonce:         msg.Nonce,
+		PolygonRollupBaseEtrogBatchData: &polygonzkevm.PolygonRollupBaseEtrogBatchData{
+			Transactions:         updateEtrogSequence.Transactions,
+			ForcedGlobalExitRoot: updateEtrogSequence.LastGlobalExitRoot,
+			ForcedTimestamp:      fullBlock.Time(),
+			ForcedBlockHashL1:    fullBlock.ParentHash(),
+		},
+	}
+
+	if len(*blocks) == 0 || ((*blocks)[len(*blocks)-1].BlockHash != vLog.BlockHash || (*blocks)[len(*blocks)-1].BlockNumber != vLog.BlockNumber) {
+		block := prepareBlock(vLog, time.Unix(int64(fullBlock.Time()), 0), fullBlock)
+		block.UpdateEtrogSequence = sequence
+		*blocks = append(*blocks, block)
+	} else if (*blocks)[len(*blocks)-1].BlockHash == vLog.BlockHash && (*blocks)[len(*blocks)-1].BlockNumber == vLog.BlockNumber {
+		(*blocks)[len(*blocks)-1].UpdateEtrogSequence = sequence
+	} else {
+		log.Error("Error processing UpdateEtrogSequence event. BlockHash:", vLog.BlockHash, ". BlockNumber: ", vLog.BlockNumber)
+		return fmt.Errorf("error processing UpdateEtrogSequence event")
+	}
+	or := Order{
+		Name: UpdateEtrogSequenceOrder,
+		Pos:  0,
+	}
+	(*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash] = append((*blocksOrder)[(*blocks)[len(*blocks)-1].BlockHash], or)
+	return nil
 }
 
 func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
@@ -1545,11 +1610,27 @@ func (etherMan *Client) EthBlockByNumber(ctx context.Context, blockNumber uint64
 
 // GetLatestBatchNumber function allows to retrieve the latest proposed batch in the smc
 func (etherMan *Client) GetLatestBatchNumber() (uint64, error) {
+	var latestBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		return 0, err
+		log.Debug("error getting latestBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		latestBatchNum, err = etherMan.OldZkEVM.LastBatchSequenced(&bind.CallOpts{Pending: false})
+		if err != nil {
+			return latestBatchNum, err
+		}
+	} else {
+		latestBatchNum = rollupData.LastBatchSequenced
 	}
-	return rollupData.LastBatchSequenced, nil
+	return latestBatchNum, nil
+}
+
+// GetLatestBlockHeader gets the latest block header from the ethereum
+func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
+	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
+	if err != nil || header == nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // GetLatestBlockNumber gets the latest block number from the ethereum
@@ -1587,11 +1668,18 @@ func (etherMan *Client) GetLatestBlockTimestamp(ctx context.Context) (uint64, er
 
 // GetLatestVerifiedBatchNum gets latest verified batch from ethereum
 func (etherMan *Client) GetLatestVerifiedBatchNum() (uint64, error) {
+	var lastVerifiedBatchNum uint64
 	rollupData, err := etherMan.RollupManager.RollupIDToRollupData(&bind.CallOpts{Pending: false}, etherMan.RollupID)
 	if err != nil {
-		return 0, err
+		log.Debug("error getting lastVerifiedBatchNum from rollupManager. Trying old zkevm smc... Error: ", err)
+		lastVerifiedBatchNum, err = etherMan.OldZkEVM.LastVerifiedBatch(&bind.CallOpts{Pending: false})
+		if err != nil {
+			return lastVerifiedBatchNum, err
+		}
+	} else {
+		lastVerifiedBatchNum = rollupData.LastVerifiedBatch
 	}
-	return rollupData.LastVerifiedBatch, nil
+	return lastVerifiedBatchNum, nil
 }
 
 // GetTx function get ethereum tx
@@ -1626,7 +1714,15 @@ func (etherMan *Client) ApprovePol(ctx context.Context, account common.Address, 
 
 // GetTrustedSequencerURL Gets the trusted sequencer url from rollup smc
 func (etherMan *Client) GetTrustedSequencerURL() (string, error) {
-	return etherMan.ZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	url, err := etherMan.ZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	//TODO: remove this code because is for compatibility with oldZkEVM
+	if err != nil || url == "" {
+		// Getting from oldZkEVM Contract
+		log.Debug("getting trusted sequencer URL from oldZkevm smc")
+		return etherMan.OldZkEVM.TrustedSequencerURL(&bind.CallOpts{Pending: false})
+	}
+	// err is always nil
+	return url, nil
 }
 
 // GetL2ChainID returns L2 Chain ID
@@ -1845,15 +1941,6 @@ func (etherMan *Client) generateRandomAuth() (bind.TransactOpts, error) {
 	}
 
 	return *auth, nil
-}
-
-// GetLatestBlockHeader gets the latest block header from the ethereum
-func (etherMan *Client) GetLatestBlockHeader(ctx context.Context) (*types.Header, error) {
-	header, err := etherMan.EthClient.HeaderByNumber(ctx, big.NewInt(int64(rpc.LatestBlockNumber)))
-	if err != nil || header == nil {
-		return nil, err
-	}
-	return header, nil
 }
 
 // GetDAProtocolAddr returns the address of the data availability protocol
