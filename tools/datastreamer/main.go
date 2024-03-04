@@ -783,6 +783,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ForkID))
 		printColored(color.FgGreen, "Chain ID........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ChainID))
+		printColored(color.FgGreen, "Local Exit Root.: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.LocalExitRoot))
 	case state.EntryTypeL2Tx:
 		dsTx := state.DSL2Transaction{}.Decode(entry.Data)
 		printColored(color.FgGreen, "Entry Type......: ")
