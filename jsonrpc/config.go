@@ -65,7 +65,7 @@ type Config struct {
 
 	// ZKCountersLimits defines the ZK Counter limits
 	ZKCountersLimits ZKCountersLimits
-	
+
 	// X1 config
 	// EnablePendingTransactionFilter enables pending transaction filter that can support query L2 pending transaction
 	EnablePendingTransactionFilter bool `mapstructure:"EnablePendingTransactionFilter"`
@@ -94,6 +94,9 @@ type Config struct {
 
 	// RateLimit enable rate limit
 	RateLimit RateLimitConfig `mapstructure:"RateLimit"`
+
+	// DynamicGP defines the config of dynamic gas price
+	DynamicGP DynamicGPConfig `mapstructure:"DynamicGP"`
 }
 
 // ZKCountersLimits defines the ZK Counter limits
