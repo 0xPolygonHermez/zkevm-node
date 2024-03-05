@@ -1232,6 +1232,8 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		//}
 		//} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) {
 		sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
+		log.Infof("Len Sequences: %v", len(sequences))
+
 		if err != nil {
 			return fmt.Errorf("error decoding the sequences (elderberry): %v", err)
 		}
@@ -1379,7 +1381,7 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 		return sequencedBatches, nil
 	case "sequenceBatchesValidium":
 		var sequencesValidium []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
-		err = json.Unmarshal(bytedata, &sequences)
+		err = json.Unmarshal(bytedata, &sequencesValidium)
 		if err != nil {
 			return nil, err
 		}
