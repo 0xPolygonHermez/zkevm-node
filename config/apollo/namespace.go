@@ -35,4 +35,7 @@ const (
 	JsonRPCWO = "jsonrpc-wo.txt"
 	// JsonRPCWOHalt is the json-rpc-wo halt namespace,change the Halt to different value will halt json-rpc-wo
 	JsonRPCWOHalt = "jsonrpc-wo-halt"
+
+	// Pool is the pool namespace, the content of the namespace is the config for pool with toml format
+	Pool = "pool.txt"
 )
