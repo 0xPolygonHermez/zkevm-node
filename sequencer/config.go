@@ -30,6 +30,12 @@ type Config struct {
 
 	// StreamServerCfg is the config for the stream server
 	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
+
+	// X1 config
+	// PackBatchSpacialList is the list of addresses that will have a special gas price
+	PackBatchSpacialList []string `mapstructure:"PackBatchSpacialList"`
+	// GasPriceMultiple is the multiple of the gas price
+	GasPriceMultiple float64 `mapstructure:"GasPriceMultiple"`
 }
 
 // StreamServerCfg contains the data streamer's configuration properties
