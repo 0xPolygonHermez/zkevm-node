@@ -53,6 +53,10 @@ func (g *ProcessorL1SequenceBatchesElderberry) Process(ctx context.Context, orde
 	if l1Block == nil || len(l1Block.SequencedBatches) <= order.Pos {
 		return actions.ErrInvalidParams
 	}
+	for _, batches := range l1Block.SequencedBatches {
+		log.Infof("len(batches): %d", len(batches))
+	}
+
 	if len(l1Block.SequencedBatches[order.Pos]) == 0 {
 		log.Warnf("No sequenced batches for position")
 		return nil
