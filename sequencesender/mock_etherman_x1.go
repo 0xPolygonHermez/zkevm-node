@@ -8,9 +8,9 @@ import (
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
-func (_m *EthermanMock) BuildSequenceBatchesTxDataX1(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (to *common.Address, data []byte, err error){
+func (_m *EthermanMock) BuildSequenceBatchesTxDataX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64,l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (to *common.Address, data []byte, err error){
 	return nil, nil, nil
 }
-func (_m *EthermanMock) EstimateGasSequenceBatchesX1(sender common.Address, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
+func (_m *EthermanMock) EstimateGasSequenceBatchesX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, initSequenceBatchNumber uint64,l2Coinbase common.Address, committeeSignaturesAndAddrs []byte) (*types.Transaction, error) {
 	return nil, nil
 }

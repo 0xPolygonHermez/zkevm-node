@@ -33,16 +33,19 @@ func (etherMan *Client) BuildMockSequenceBatchesTxData(sender common.Address, se
 }
 
 func (etherMan *Client) sequenceMockBatches(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, l2Coinbase common.Address, committeeSignaturesAndAddrs []byte, txHashs [][32]byte) (*types.Transaction, error) {
+	panic("not implemented") // TODO: Implement
+
 	var batches []oldpolygonzkevm.PolygonZkEVMBatchData
 
 	var tx *types.Transaction
 	var err error
+
 	if len(committeeSignaturesAndAddrs) > 0 {
 		for index, seq := range sequences {
 			batch := oldpolygonzkevm.PolygonZkEVMBatchData{
-				TransactionsHash:   txHashs[index],
-				GlobalExitRoot:     seq.GlobalExitRoot,
-				Timestamp:          uint64(seq.Timestamp),
+				TransactionsHash: txHashs[index],
+				GlobalExitRoot:   seq.GlobalExitRoot,
+				//Timestamp:          uint64(seq.Timestamp), // TODO: check if this is the right timestamp
 				MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
 			}
 
@@ -54,9 +57,9 @@ func (etherMan *Client) sequenceMockBatches(opts bind.TransactOpts, sequences []
 	} else {
 		for _, seq := range sequences {
 			batch := oldpolygonzkevm.PolygonZkEVMBatchData{
-				Transactions:       seq.BatchL2Data,
-				GlobalExitRoot:     seq.GlobalExitRoot,
-				Timestamp:          uint64(seq.Timestamp),
+				Transactions:   seq.BatchL2Data,
+				GlobalExitRoot: seq.GlobalExitRoot,
+				//Timestamp:          uint64(seq.Timestamp), // TODO: check if this is the right timestamp
 				MinForcedTimestamp: uint64(seq.ForcedBatchTimestamp),
 			}
 
@@ -76,6 +79,5 @@ func (etherMan *Client) sequenceMockBatches(opts bind.TransactOpts, sequences []
 			err, common.Bytes2Hex(committeeSignaturesAndAddrs),
 		)
 	}
-
 	return tx, err
 }

@@ -217,17 +217,17 @@ func (a *addrQueue) updateCurrentNonceBalance(nonce *uint64, balance *big.Int) (
 }
 
 // UpdateTxZKCounters updates the ZKCounters for the given tx (txHash)
-func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, counters state.ZKCounters) {
+func (a *addrQueue) UpdateTxZKCounters(txHash common.Hash, usedZKCounters state.ZKCounters, reservedZKCounters state.ZKCounters) {
 	txHashStr := txHash.String()
 
 	if (a.readyTx != nil) && (a.readyTx.HashStr == txHashStr) {
 		log.Debugf("updating readyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-		a.readyTx.updateZKCounters(counters)
+		a.readyTx.updateZKCounters(usedZKCounters, reservedZKCounters)
 	} else {
 		for _, txTracker := range a.notReadyTxs {
 			if txTracker.HashStr == txHashStr {
 				log.Debugf("updating notReadyTx %s with new ZKCounters from addrQueue %s", txHashStr, a.fromStr)
-				txTracker.updateZKCounters(counters)
+				txTracker.updateZKCounters(usedZKCounters, reservedZKCounters)
 				break
 			}
 		}

@@ -10,13 +10,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	// ExecutionMode0 is the execution mode for the sequencer and RPC, default one
-	ExecutionMode0 = uint64(0)
-	// ExecutionMode1 is the execution mode for the synchronizer
-	ExecutionMode1 = uint64(1)
-)
-
 // NewExecutorClient is the executor client constructor.
 func NewExecutorClient(ctx context.Context, c Config) (ExecutorServiceClient, *grpc.ClientConn, context.CancelFunc) {
 	opts := []grpc.DialOption{

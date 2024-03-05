@@ -83,8 +83,8 @@ DisableAPIs = []
 [Synchronizer]
 SyncInterval = "1s"
 SyncChunkSize = 100
-TrustedSequencerURL = "http://x1-json-rpc:8123" # If it is empty or not specified, then the value is read from the smc.
-L1SynchronizationMode = "sequential" # "sequential" or "parallel"
+TrustedSequencerURL = "" # If it is empty or not specified, then the value is read from the smc.
+L1SynchronizationMode = "sequential"
 	[Synchronizer.L1ParallelSynchronization]
 		MaxClients = 10
 		MaxPendingNoProcessedBlocks = 25
@@ -119,6 +119,9 @@ StateConsistencyCheckInterval = "5s"
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
 		SequentialProcessL2Block = true
+	[Sequencer.Finalizer.Metrics]
+		Interval = "60m"
+		EnableLog = true		
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"

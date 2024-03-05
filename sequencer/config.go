@@ -94,4 +94,16 @@ type FinalizerCfg struct {
 	// X1 config
 	// FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
 	FullBatchSleepDuration types.Duration `mapstructure:"FullBatchSleepDuration"`
+
+	// Metrics is the config for the sequencer metrics
+	Metrics MetricsCfg `mapstructure:"Metrics"`
+}
+
+// MetricsCfg contains the sequencer metrics configuration properties
+type MetricsCfg struct {
+	// Interval is the interval of time to calculate sequencer metrics
+	Interval types.Duration `mapstructure:"Interval"`
+
+	// EnableLog is a flag to enable/disable metrics logs
+	EnableLog bool `mapstructure:"EnableLog"`
 }

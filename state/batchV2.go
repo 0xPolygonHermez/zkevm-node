@@ -34,6 +34,7 @@ type ProcessingContextV2 struct {
 	SkipVerifyL1InfoRoot uint32
 	GlobalExitRoot       common.Hash // GlobalExitRoot is not use for execute but use to OpenBatch (data on  DB)
 	ExecutionMode        uint64
+	ClosingReason        ClosingReason
 }
 
 // ProcessBatchV2 processes a batch for forkID >= ETROG
@@ -68,7 +69,6 @@ func (s *State) ProcessBatchV2(ctx context.Context, request ProcessRequest, upda
 		ChainId:           s.cfg.ChainID,
 		ForkId:            request.ForkID,
 		ContextId:         uuid.NewString(),
-		ExecutionMode:     request.ExecutionMode,
 	}
 
 	if request.SkipFirstChangeL2Block_V2 {
@@ -131,7 +131,6 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 		ForkId:               forkId,
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: skipVerifyL1InfoRoot,
-		ExecutionMode:        executor.ExecutionMode1,
 	}
 
 	if forcedBlockHashL1 != nil {
@@ -168,7 +167,7 @@ func (s *State) ExecuteBatchV2(ctx context.Context, batch Batch, L1InfoTreeRoot 
 	if err != nil {
 		log.Error("error executing batch: ", err)
 		return nil, err
-	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+	} else if processBatchResponse != nil && processBatchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponse.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponse.Error, processBatchRequest)
 	}
@@ -232,7 +231,6 @@ func (s *State) processBatchV2(ctx context.Context, processingCtx *ProcessingCon
 		ContextId:            uuid.NewString(),
 		SkipVerifyL1InfoRoot: processingCtx.SkipVerifyL1InfoRoot,
 		L1InfoRoot:           processingCtx.L1InfoRoot.Bytes(),
-		ExecutionMode:        processingCtx.ExecutionMode,
 	}
 
 	if processingCtx.ForcedBlockHashL1 != nil {
@@ -303,7 +301,7 @@ func (s *State) sendBatchRequestToExecutorV2(ctx context.Context, batchRequest *
 		log.Errorf("error executor ProcessBatchV2 response: %v", batchResponse)
 	} else {
 		batchResponseToString := processBatchResponseToString(newBatchNum, batchResponse, elapsed)
-		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+		if batchResponse.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(batchResponse.Error)
 			log.Warnf("executor batch %d response, executor error: %v", newBatchNum, err)
 			log.Warn(batchResponseToString)
@@ -415,5 +413,6 @@ func (s *State) ProcessAndStoreClosedBatchV2(ctx context.Context, processingCtx 
 		LocalExitRoot: processedBatch.NewLocalExitRoot,
 		AccInputHash:  processedBatch.NewAccInputHash,
 		BatchL2Data:   *BatchL2Data,
+		ClosingReason: processingCtx.ClosingReason,
 	}, dbTx)
 }

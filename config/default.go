@@ -142,6 +142,10 @@ L1SynchronizationMode = "sequential"
 		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
 			AceptableInacctivityTime = "5s"
 			ApplyAfterNumRollupReceived = 10
+	[Synchronizer.L2Synchronization]
+		AcceptEmptyClosedBatches = false
+		ReprocessFullBatchOnClose = false
+		CheckLastL2BlockHashOnCloseBatch = true
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100
@@ -164,6 +168,9 @@ StateConsistencyCheckInterval = "5s"
 		SequentialBatchSanityCheck = false
 		SequentialProcessL2Block = true
 		FullBatchSleepDuration = "0s"
+	[Sequencer.Finalizer.Metrics]
+		Interval = "60m"
+		EnableLog = true
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""

@@ -72,4 +72,5 @@ type StateFullInterface interface {
 
 	// GetBatchL2DataByNumber is X1 method
 	GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error)
+	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error)
 }

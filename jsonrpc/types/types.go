@@ -747,24 +747,25 @@ type ZKCountersResponse struct {
 // NewZKCountersResponse creates an instance of ZKCounters to be returned
 // by the RPC to the caller
 func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo, oocErr error) ZKCountersResponse {
-	var oocErrMsg string
+	var oocErrMsg *string
 	if oocErr != nil {
-		oocErrMsg = oocErr.Error()
+		s := oocErr.Error()
+		oocErrMsg = &s
 	}
 	return ZKCountersResponse{
 		CountersUsed: ZKCounters{
 			GasUsed:              ArgUint64(zkCounters.GasUsed),
-			UsedKeccakHashes:     ArgUint64(zkCounters.UsedKeccakHashes),
-			UsedPoseidonHashes:   ArgUint64(zkCounters.UsedPoseidonHashes),
-			UsedPoseidonPaddings: ArgUint64(zkCounters.UsedPoseidonPaddings),
-			UsedMemAligns:        ArgUint64(zkCounters.UsedMemAligns),
-			UsedArithmetics:      ArgUint64(zkCounters.UsedArithmetics),
-			UsedBinaries:         ArgUint64(zkCounters.UsedBinaries),
-			UsedSteps:            ArgUint64(zkCounters.UsedSteps),
-			UsedSHA256Hashes:     ArgUint64(zkCounters.UsedSha256Hashes_V2),
+			UsedKeccakHashes:     ArgUint64(zkCounters.KeccakHashes),
+			UsedPoseidonHashes:   ArgUint64(zkCounters.PoseidonHashes),
+			UsedPoseidonPaddings: ArgUint64(zkCounters.PoseidonPaddings),
+			UsedMemAligns:        ArgUint64(zkCounters.MemAligns),
+			UsedArithmetics:      ArgUint64(zkCounters.Arithmetics),
+			UsedBinaries:         ArgUint64(zkCounters.Binaries),
+			UsedSteps:            ArgUint64(zkCounters.Steps),
+			UsedSHA256Hashes:     ArgUint64(zkCounters.Sha256Hashes_V2),
 		},
 		CountersLimits: limits,
 		Revert:         revert,
-		OOCError:       &oocErrMsg,
+		OOCError:       oocErrMsg,
 	}
 }
