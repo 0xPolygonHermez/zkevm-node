@@ -9,7 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/0xPolygonHermez/zkevm-node/synchronizer/common/syncinterfaces"
 	types "github.com/ethereum/go-ethereum/core/types"
 )
 
@@ -32,16 +32,10 @@ type ConfigConsumer struct {
 	AceptableInacctivityTime    time.Duration
 }
 
-// synchronizerProcessBlockRangeInterface is the interface with synchronizer
-// to execute blocks. This interface is used to mock the synchronizer in the tests
-type synchronizerProcessBlockRangeInterface interface {
-	ProcessBlockRange(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error
-}
-
 // l1RollupInfoConsumer is the object that process the rollup info data incomming from channel chIncommingRollupInfo
 type l1RollupInfoConsumer struct {
 	mutex                 sync.Mutex
-	synchronizer          synchronizerProcessBlockRangeInterface
+	synchronizer          syncinterfaces.BlockRangeProcessor
 	chIncommingRollupInfo chan L1SyncMessage
 	ctx                   context.Context
 	statistics            l1RollupInfoConsumerStatistics
@@ -52,7 +46,7 @@ type l1RollupInfoConsumer struct {
 
 // NewL1RollupInfoConsumer creates a new l1RollupInfoConsumer
 func NewL1RollupInfoConsumer(cfg ConfigConsumer,
-	synchronizer synchronizerProcessBlockRangeInterface, ch chan L1SyncMessage) *l1RollupInfoConsumer {
+	synchronizer syncinterfaces.BlockRangeProcessor, ch chan L1SyncMessage) *l1RollupInfoConsumer {
 	if cfg.AceptableInacctivityTime < minAcceptableTimeWaitingForNewRollupInfoData {
 		log.Warnf("consumer: the AceptableInacctivityTime is too low (%s) minimum recommended %s", cfg.AceptableInacctivityTime, minAcceptableTimeWaitingForNewRollupInfoData)
 	}
@@ -237,7 +231,7 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 			return nil, nil
 		}
 		b := convertL1BlockToEthBlock(lb)
-		err := l.synchronizer.ProcessBlockRange([]etherman.Block{b}, order)
+		err := l.synchronizer.ProcessBlockRange(l.ctx, []etherman.Block{b}, order)
 		if err != nil {
 			log.Error("consumer: Error processing last block of range: ", rollupInfo.blockRange, " err:", err)
 			return nil, err
@@ -249,7 +243,7 @@ func (l *l1RollupInfoConsumer) processUnsafe(rollupInfo rollupInfoByBlockRangeRe
 		tmpStateBlock := convertEthmanBlockToStateBlock(&blocks[len(blocks)-1])
 		lastEthBlockSynced = &tmpStateBlock
 		logBlocks(blocks)
-		err := l.synchronizer.ProcessBlockRange(blocks, order)
+		err := l.synchronizer.ProcessBlockRange(l.ctx, blocks, order)
 		if err != nil {
 			log.Info("consumer: Error processing block range: ", rollupInfo.blockRange, " err:", err)
 			return nil, err
