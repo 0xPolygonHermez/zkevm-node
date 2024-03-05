@@ -1,7 +1,6 @@
 package etherman
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
@@ -187,7 +186,7 @@ type Client struct {
 	EthClient                ethereumClient
 	OldZkEVM                 *oldpolygonzkevm.Polygonzkevm
 	EtrogZKEVM               *etrogpolygonzkevm.Etrogpolygonzkevm
-	ZkEVM                    *polygonzkevm.Polygonzkevm
+	ZkEVM                    *polygonzkevm.PolygonvalidiumX1
 	RollupManager            *polygonrollupmanager.Polygonrollupmanager
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
@@ -215,7 +214,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	zkevm, err := polygonzkevm.NewPolygonzkevm(l1Config.ZkEVMAddr, ethClient)
+	zkevm, err := polygonzkevm.NewPolygonvalidiumX1(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
@@ -247,6 +246,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 	}
 	pol, err := pol.NewPol(l1Config.PolAddr, ethClient)
 	if err != nil {
+		log.Error("error---1")
 		return nil, err
 	}
 	dapAddr, err := zkevm.DataAvailabilityProtocol(&bind.CallOpts{Pending: false})
@@ -1008,7 +1008,7 @@ func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []et
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonzkevmMetaData.GetAbi()
+		a, err2 := polygonzkevm.PolygonvalidiumX1MetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
@@ -1151,7 +1151,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		txData := tx.Data()
 		// Extract coded txs.
 		// Load contract ABI
-		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
 		if err != nil {
 			return err
 		}
@@ -1219,23 +1219,25 @@ func (etherMan *Client) sequencedBatchesEvent(ctx context.Context, vLog types.Lo
 		return err
 	}
 
+	log.Infof("tx hash: %s, msg form:%v, to:%v", tx.Hash().String(), msg.From, msg.To)
+
 	var sequences []SequencedBatch
 	if sb.NumBatch != 1 {
-		methodId := tx.Data()[:4]
-		log.Debugf("MethodId: %s", common.Bytes2Hex(methodId))
-		if bytes.Equal(methodId, methodIDSequenceBatchesEtrog) {
-			sequences, err = decodeSequencesEtrog(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
-			if err != nil {
-				return fmt.Errorf("error decoding the sequences (etrog): %v", err)
-			}
-		} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) {
-			sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
-			if err != nil {
-				return fmt.Errorf("error decoding the sequences (elderberry): %v", err)
-			}
-		} else {
-			return fmt.Errorf("error decoding the sequences: methodId %s unknown", common.Bytes2Hex(methodId))
+		//methodId := tx.Data()[:4]
+		//log.Debugf("MethodId: %s", common.Bytes2Hex(methodId))
+		//if bytes.Equal(methodId, methodIDSequenceBatchesEtrog) {
+		sequences, err = decodeSequencesEtrog(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot, etherMan.da)
+		if err != nil {
+			return fmt.Errorf("error decoding the sequences (etrog): %v", err)
 		}
+		//} else if bytes.Equal(methodId, methodIDSequenceBatchesElderberry) {
+		//	sequences, err = decodeSequencesElderberry(tx.Data(), sb.NumBatch, msg.From, vLog.TxHash, msg.Nonce, sb.L1InfoRoot)
+		//	if err != nil {
+		//		return fmt.Errorf("error decoding the sequences (elderberry): %v", err)
+		//	}
+		//} else {
+		//	return fmt.Errorf("error decoding the sequences: methodId %s unknown", common.Bytes2Hex(methodId))
+		//}
 	} else {
 		log.Info("initial transaction sequence...")
 		sequences = append(sequences, SequencedBatch{
@@ -1318,7 +1320,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1373,7 +1375,7 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(etrogpolygonzkevm.EtrogpolygonzkevmABI))
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1609,7 +1611,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonzkevmABI))
+	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
 	if err != nil {
 		return nil, err
 	}
@@ -2077,7 +2079,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonzkevmMetaData.GetAbi()
+		a, err2 := polygonzkevm.PolygonvalidiumX1MetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
