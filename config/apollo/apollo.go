@@ -63,6 +63,8 @@ func (c *Client) LoadConfig() (loaded bool) {
 				c.loadJsonRPC(value)
 			case Sequencer:
 				c.loadSequencer(value)
+			case Pool:
+				c.loadPool(value)
 			}
 			return true
 		})
@@ -88,6 +90,8 @@ func (c *CustomChangeListener) OnChange(changeEvent *storage.ChangeEvent) {
 				c.fireSequencer(key, value)
 			case JsonRPCRO, JsonRPCExplorer, JsonRPCSubgraph, JsonRPCLight, JsonRPCBridge, JsonRPCWO:
 				c.fireJsonRPC(key, value)
+			case Pool:
+				c.firePool(key, value)
 			}
 		}
 	}

@@ -480,7 +480,8 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	}
 
 	// check if sender has reached the limit of transactions in the pool
-	if p.cfg.AccountQueue > 0 {
+	accountQueue := getAccountQueue(p.cfg.AccountQueue)
+	if accountQueue > 0 {
 		// txCount, err := p.storage.CountTransactionsByFromAndStatus(ctx, from, TxStatusPending)
 		// if err != nil {
 		// 	return err
@@ -490,26 +491,27 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 		// }
 
 		// Ensure the transaction does not jump out of the expected AccountQueue
-		if poolTx.Nonce() > currentNonce+p.cfg.AccountQueue-1 {
+		if poolTx.Nonce() > currentNonce+accountQueue-1 {
 			log.Infof("%v: %v", ErrNonceTooHigh.Error(), from.String())
 			return ErrNonceTooHigh
 		}
 	}
 
 	// check if the pool is full
-	if p.cfg.GlobalQueue > 0 {
+	globalQueue := getGlobalQueue(p.cfg.GlobalQueue)
+	if globalQueue > 0 {
 		txCount, err := p.storage.CountTransactionsByStatus(ctx, TxStatusPending)
 		if err != nil {
 			log.Errorf("failed to count pool txs by status pending while adding tx to the pool", err)
 			return err
 		}
-		if txCount >= p.cfg.GlobalQueue {
+		if txCount >= globalQueue {
 			return ErrTxPoolOverflow
 		}
 	}
 
 	// Reject transactions with a gas price lower than the minimum gas price
-	if !contains(p.cfg.FreeGasAddress, from) || !poolTx.IsClaims { // X1 handle
+	if !isFreeGasAddress(p.cfg.FreeGasAddress, from) || !poolTx.IsClaims { // X1 handle
 		p.minSuggestedGasPriceMux.RLock()
 		gasPriceCmp := poolTx.GasPrice().Cmp(p.minSuggestedGasPrice)
 		if gasPriceCmp == -1 {
