@@ -38,11 +38,16 @@ type EthEndpoints struct {
 	etherman types.EthermanInterface
 	storage  storageInterface
 	txMan    DBTxManager
+	dgpMan   DynamicGPManager
 }
 
 // NewEthEndpoints creates an new instance of Eth
 func NewEthEndpoints(cfg Config, chainID uint64, p types.PoolInterface, s types.StateInterface, etherman types.EthermanInterface, storage storageInterface) *EthEndpoints {
 	e := &EthEndpoints{cfg: cfg, chainID: chainID, pool: p, state: s, etherman: etherman, storage: storage}
+	e.dgpMan = DynamicGPManager{
+		lastL2BatchNumber: 0,
+		lastPrice:         new(big.Int).SetUint64(cfg.DynamicGP.MinPrice),
+	}
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
 	return e
@@ -213,7 +218,30 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	if err != nil {
 		return "0x0", nil
 	}
-	return hex.EncodeUint64(gasPrices.L2GasPrice), nil
+	result := new(big.Int).SetUint64(gasPrices.L2GasPrice)
+	if getApolloConfig().Enable() {
+		getApolloConfig().RLock()
+		e.cfg.DynamicGP = getApolloConfig().DynamicGP
+		getApolloConfig().RUnlock()
+	}
+	if e.cfg.DynamicGP.Enabled {
+		log.Debug("enable dynamic gas price")
+		// judge if there is congestion
+		isCongested, err := e.isCongested(ctx)
+		if err != nil {
+			log.Errorf("failed to count pool txs by status pending while judging if the pool is congested: ", err)
+			return hex.EncodeUint64(gasPrices.L2GasPrice), nil
+		}
+		if isCongested {
+			log.Debug("there is congestion for L2")
+			e.calcDynamicGP(ctx)
+			if result.Cmp(e.dgpMan.lastPrice) < 0 {
+				result = new(big.Int).Set(e.dgpMan.lastPrice)
+			}
+		}
+	}
+
+	return hex.EncodeUint64(result.Uint64()), nil
 }
 
 func (e *EthEndpoints) getPriceFromSequencerNode() (interface{}, types.Error) {

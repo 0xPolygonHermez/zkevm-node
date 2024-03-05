@@ -14,6 +14,7 @@ type ApolloConfig struct {
 	GasLimitFactor       float64         `json:"gasLimitFactor"`
 	DisableAPIs          []string        `json:"disableAPIs"`
 	RateLimit            RateLimitConfig `json:"rateLimit"`
+	DynamicGP            DynamicGPConfig `json:"dynamicGP"`
 
 	sync.RWMutex
 }
@@ -52,6 +53,7 @@ func UpdateConfig(apolloConfig Config) {
 	getApolloConfig().GasLimitFactor = apolloConfig.GasLimitFactor
 	getApolloConfig().setDisableAPIs(apolloConfig.DisableAPIs)
 	setRateLimit(apolloConfig.RateLimit)
+	getApolloConfig().DynamicGP = apolloConfig.DynamicGP
 	getApolloConfig().Unlock()
 }
 
