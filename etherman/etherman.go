@@ -42,8 +42,8 @@ import (
 )
 
 const (
-	// ETRogUpgradeVersion is the version of the LxLy upgrade
-	ETRogUpgradeVersion = 2
+	// ETrogUpgradeVersion is the version of the LxLy upgrade
+	ETrogUpgradeVersion = 2
 )
 
 var (
@@ -360,7 +360,7 @@ func (etherMan *Client) GetL1BlockUpgradeLxLy(ctx context.Context, genesisBlock 
 	}
 	for it.Next() {
 		log.Debugf("BlockNumber: %d Topics:Initialized(%d)", it.Event.Raw.BlockNumber, it.Event.Version)
-		if it.Event.Version == ETRogUpgradeVersion { // 2 is ETROG (LxLy upgrade)
+		if it.Event.Version == ETrogUpgradeVersion { // 2 is ETROG (LxLy upgrade)
 			log.Infof("LxLy upgrade found at blockNumber: %d", it.Event.Raw.BlockNumber)
 			return it.Event.Raw.BlockNumber, nil
 		}

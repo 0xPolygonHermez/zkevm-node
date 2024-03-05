@@ -219,8 +219,6 @@ func (s *ClientSynchronizer) processGenesis() error {
 		return fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
 	}
 	// Sync pre genesis rollup events
-	// TODO: Remove that is just for testing!
-	//s.genesis.BlockNumber = 19332554
 	s.syncPreRollup.(*SyncPreRollup).GenesisBlockNumber = s.genesis.BlockNumber
 	err = s.syncPreRollup.SynchronizePreGenesisRollupEvents(s.ctx)
 	if err != nil {
