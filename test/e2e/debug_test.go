@@ -318,6 +318,9 @@ func TestDebugTraceTransaction(t *testing.T) {
 		{name: "memory", prepare: prepareMemory, createSignedTx: createMemorySignedTx},
 		{name: "bridge", prepare: prepareBridge, createSignedTx: createBridgeSignedTx},
 		{name: "deploy create 0", createSignedTx: createDeployCreate0SignedTx},
+		{name: "log0 all zeros", prepare: prepareLog0, createSignedTx: createLog0AllZeros},
+		{name: "log0 empty", prepare: prepareLog0, createSignedTx: createLog0Empty},
+		{name: "log0 short", prepare: prepareLog0, createSignedTx: createLog0Short},
 
 		// failed transactions
 		{name: "sc deployment reverted", createSignedTx: createScDeployRevertedSignedTx},
@@ -453,7 +456,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 				resultForTx := convertJson(t, response.Result, debugID)
 				results[network.Name] = resultForTx
-				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
+				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, false)
 			}
 
 			referenceValueMap := results[l1NetworkName]
