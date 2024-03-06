@@ -117,6 +117,8 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 		return ErrBatchAlreadyClosed
 	}
 
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
+
 	for _, processedBlock := range processedBlocks {
 		processedTxs := processedBlock.TransactionResponses
 		// check existing txs vs parameter txs
@@ -167,7 +169,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := GenerateReceipt(header.Number, processedTx, uint(i))
+			receipt := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -214,6 +216,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		gasLimit = MaxL2BlockGasLimit
 	}
 
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
+
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
 		ParentHash: prevL2BlockHash,
@@ -256,7 +260,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
 
-		receipt := GenerateReceipt(header.Number, txResponse, uint(i))
+		receipt := GenerateReceipt(header.Number, txResponse, uint(i), forkID)
 		receipts = append(receipts, receipt)
 	}
 
@@ -642,6 +646,8 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 		return nil, err
 	}
 
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
+
 	header := NewL2Header(&types.Header{
 		Number:     new(big.Int).SetUint64(lastL2Block.Number().Uint64() + 1),
 		ParentHash: lastL2Block.Hash(),
@@ -655,7 +661,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header.BlockInfoRoot = blockInfoRoot
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt := GenerateReceipt(header.Number, processedTx, 0)
+	receipt := GenerateReceipt(header.Number, processedTx, 0, forkID)
 	receipts := []*types.Receipt{receipt}
 
 	// Create l2Block to be able to calculate its hash

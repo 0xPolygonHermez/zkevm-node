@@ -279,10 +279,9 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // GenerateReceipt generates a receipt from a processed transaction
-func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint) *types.Receipt {
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint, forkID uint64) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:              uint8(processedTx.Type),
-		PostState:         processedTx.StateRoot.Bytes(),
 		CumulativeGasUsed: processedTx.GasUsed,
 		BlockNumber:       blockNumber,
 		GasUsed:           processedTx.GasUsed,
@@ -291,7 +290,11 @@ func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		ContractAddress:   processedTx.CreateAddress,
 		Logs:              processedTx.Logs,
 	}
-
+	if forkID <= FORKID_ETROG {
+		receipt.PostState = processedTx.StateRoot.Bytes()
+	} else {
+		receipt.PostState = ZeroHash.Bytes()
+	}
 	if processedTx.EffectiveGasPrice != "" {
 		effectiveGasPrice, ok := big.NewInt(0).SetString(processedTx.EffectiveGasPrice, 0)
 		if !ok {
