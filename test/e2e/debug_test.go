@@ -456,7 +456,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 
 				resultForTx := convertJson(t, response.Result, debugID)
 				results[network.Name] = resultForTx
-				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, false)
+				saveTraceResultToFile(t, fmt.Sprintf("default_tracer_%v_%v", tcIdx, tc.name), network.Name, signedTx, response.Result, true)
 			}
 
 			referenceValueMap := results[l1NetworkName]
