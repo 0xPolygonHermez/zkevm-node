@@ -1264,9 +1264,10 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 	if err != nil {
 		return nil, err
 	}
-	var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
+
 	switch method.Name {
 	case "rollup": // TODO: put correct value
+		var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
 		err = json.Unmarshal(bytedata, &sequences)
 		if err != nil {
 			return nil, err
@@ -1295,18 +1296,25 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			return nil, err
 		}
 		coinbase := (data[1]).(common.Address)
+		dataAvailabilityMessage := (data[2]).([]byte) // TODO: is this right???
 		sequencedBatches := make([]SequencedBatch, len(sequencesValidium))
-		for i, seq := range sequencesValidium {
+		var batchNums []uint64
+		var hashes []common.Hash
+		for i, _ := range sequencesValidium {
 			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
-			batchL2Data, err := da.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
-			if err != nil {
-				return nil, err
-			}
+			batchNums = append(batchNums, bn)
+			hashes = append(hashes, sequencesValidium[i].TransactionsHash)
+		}
+		batchL2Data, err := da.GetBatchL2Data(batchNums, hashes, dataAvailabilityMessage)
+		if err != nil {
+			return nil, err
+		}
+		for i, bn := range batchNums {
 			s := polygonzkevm.PolygonRollupBaseEtrogBatchData{
-				Transactions:         batchL2Data, // TODO: get data from DA
-				ForcedGlobalExitRoot: seq.ForcedGlobalExitRoot,
-				ForcedTimestamp:      seq.ForcedTimestamp,
-				ForcedBlockHashL1:    seq.ForcedBlockHashL1,
+				Transactions:         batchL2Data[i],
+				ForcedGlobalExitRoot: sequencesValidium[i].ForcedGlobalExitRoot,
+				ForcedTimestamp:      sequencesValidium[i].ForcedTimestamp,
+				ForcedBlockHashL1:    sequencesValidium[i].ForcedBlockHashL1,
 			}
 			sequencedBatches[i] = SequencedBatch{
 				BatchNumber:                     bn,
@@ -1318,7 +1326,6 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 				PolygonRollupBaseEtrogBatchData: &s,
 			}
 		}
-
 		return sequencedBatches, nil
 	default:
 		return nil, fmt.Errorf("unexpected method called in sequence batches transaction: %s", method.RawName)

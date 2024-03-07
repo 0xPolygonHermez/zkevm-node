@@ -1154,6 +1154,39 @@ func TestGetBatchL2DataByNumber(t *testing.T) {
 	actualData, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, actualData)
+
+	multiGet := []uint64{uint64(4), uint64(5), uint64(6)}
+	allData, err := testState.GetBatchL2DataByNumbers(ctx, multiGet, tx)
+	require.NoError(t, err)
+	require.Equal(t, expectedData, allData[uint64(5)])
+}
+
+func TestGetBatchL2DataByNumbers(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, tx.Commit(ctx)) }()
+
+	var i1, i2, i3, i4 = uint64(1), uint64(2), uint64(3), uint64(4)
+	var d1, d2 = []byte("foobar"), []byte("dingbat")
+
+	const insertBatch = "INSERT INTO state.batch (batch_num, raw_txs_data) VALUES ($1, $2)"
+	_, err = tx.Exec(ctx, insertBatch, i1, d1)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, insertBatch, i2, d2)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, insertBatch, i3, nil)
+	require.NoError(t, err)
+
+	allData, err := testState.GetBatchL2DataByNumbers(ctx, []uint64{i1, i2, i3, i4}, tx)
+	require.NoError(t, err)
+	assert.Equal(t, d1, allData[i1])
+	assert.Equal(t, d2, allData[i2])
+	assert.Nil(t, allData[i3])
+
+	_, ok := allData[i4]
+	assert.False(t, ok)
 }
 
 func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint32) *state.L1InfoTreeExitRootStorageEntry {

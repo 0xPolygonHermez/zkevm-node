@@ -1765,6 +1765,66 @@ func (_c *StorageMock_GetBatchL2DataByNumber_Call) RunAndReturn(run func(context
 	return _c
 }
 
+// GetBatchL2DataByNumbers provides a mock function with given fields: ctx, batchNumbers, dbTx
+func (_m *StorageMock) GetBatchL2DataByNumbers(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx) (map[uint64][]byte, error) {
+	ret := _m.Called(ctx, batchNumbers, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchL2DataByNumbers")
+	}
+
+	var r0 map[uint64][]byte
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, []uint64, pgx.Tx) (map[uint64][]byte, error)); ok {
+		return rf(ctx, batchNumbers, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, []uint64, pgx.Tx) map[uint64][]byte); ok {
+		r0 = rf(ctx, batchNumbers, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uint64][]byte)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, []uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumbers, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetBatchL2DataByNumbers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetBatchL2DataByNumbers'
+type StorageMock_GetBatchL2DataByNumbers_Call struct {
+	*mock.Call
+}
+
+// GetBatchL2DataByNumbers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNumbers []uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetBatchL2DataByNumbers(ctx interface{}, batchNumbers interface{}, dbTx interface{}) *StorageMock_GetBatchL2DataByNumbers_Call {
+	return &StorageMock_GetBatchL2DataByNumbers_Call{Call: _e.mock.On("GetBatchL2DataByNumbers", ctx, batchNumbers, dbTx)}
+}
+
+func (_c *StorageMock_GetBatchL2DataByNumbers_Call) Run(run func(ctx context.Context, batchNumbers []uint64, dbTx pgx.Tx)) *StorageMock_GetBatchL2DataByNumbers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].([]uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetBatchL2DataByNumbers_Call) Return(_a0 map[uint64][]byte, _a1 error) *StorageMock_GetBatchL2DataByNumbers_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetBatchL2DataByNumbers_Call) RunAndReturn(run func(context.Context, []uint64, pgx.Tx) (map[uint64][]byte, error)) *StorageMock_GetBatchL2DataByNumbers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetBatchNumberOfL2Block provides a mock function with given fields: ctx, blockNumber, dbTx
 func (_m *StorageMock) GetBatchNumberOfL2Block(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, blockNumber, dbTx)
