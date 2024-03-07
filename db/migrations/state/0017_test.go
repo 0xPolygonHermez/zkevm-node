@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,20 +11,6 @@ import (
 type migrationTest0017 struct{}
 
 func (m migrationTest0017) InsertData(db *sql.DB) error {
-	return nil
-}
-
-func (m migrationTest0017) insertDataInModifiedTable(db *sql.DB) error {
-	const insertReceipt = `
-		INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, block_num, tx_index, contract_address, effective_gas_price, im_state_root) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-
-	// insert batch
-	_, err := db.Exec(insertReceipt, "0x0000", 0, common.Hex2Bytes("0x123456"), 0, 0, 0, 0, 0, "0x0000", 0, common.Hex2Bytes("0x123456"))
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
