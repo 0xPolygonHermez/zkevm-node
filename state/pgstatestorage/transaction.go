@@ -515,7 +515,7 @@ func (p *PostgresStorage) GetTxsByBatchNumber(ctx context.Context, batchNumber u
 }
 
 // AddReceipt adds a new receipt to the State Store
-func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	var effectiveGasPrice *uint64
@@ -526,9 +526,9 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 	}
 
 	const addReceiptSQL = `
-        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address)
-                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10)`
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address, im_state_root)
+                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10,           $11)`
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String(), imStateRoot.Bytes())
 	return err
 }
 
@@ -545,12 +545,12 @@ func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Rec
 		if receipt.EffectiveGasPrice != nil {
 			egp = receipt.EffectiveGasPrice.Uint64()
 		}
-		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, imStateRoot.Bytes(), receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
+		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String(), imStateRoot.Bytes()}
 		receiptRows = append(receiptRows, receiptRow)
 	}
 
 	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "receipt"},
-		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address"},
+		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address", "im_state_root"},
 		pgx.CopyFromRows(receiptRows))
 
 	return err

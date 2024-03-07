@@ -93,7 +93,7 @@ type storage interface {
 	IsL2BlockConsolidated(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error)
 	IsL2BlockVirtualized(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (bool, error)
 	GetLogs(ctx context.Context, fromBlock uint64, toBlock uint64, addresses []common.Address, topics [][]common.Hash, blockHash *common.Hash, since *time.Time, dbTx pgx.Tx) ([]*types.Log, error)
-	AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error
+	AddReceipt(ctx context.Context, receipt *types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx) error
 	AddLog(ctx context.Context, l *types.Log, dbTx pgx.Tx) error
 	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*GlobalExitRoot, error)
 	AddSequence(ctx context.Context, sequence Sequence, dbTx pgx.Tx) error

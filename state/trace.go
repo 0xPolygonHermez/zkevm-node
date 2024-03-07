@@ -79,11 +79,6 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 
 	forkId := s.GetForkIDByBatchNumber(batch.BatchNumber)
 
-	// To maintain compatibility with etrog, we need to set the post state to 0x0
-	if forkId >= FORKID_ELDERBERRY {
-		receipt.PostState = ZeroHash.Bytes()
-	}
-
 	var response *ProcessTransactionResponse
 	var startTime, endTime time.Time
 	if forkId < FORKID_ETROG {

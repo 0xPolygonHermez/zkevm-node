@@ -519,17 +519,17 @@ func (_c *StorageMock_AddLog_Call) RunAndReturn(run func(context.Context, *types
 	return _c
 }
 
-// AddReceipt provides a mock function with given fields: ctx, receipt, dbTx
-func (_m *StorageMock) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, receipt, dbTx)
+// AddReceipt provides a mock function with given fields: ctx, receipt, imStateRoot, dbTx
+func (_m *StorageMock) AddReceipt(ctx context.Context, receipt *types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, receipt, imStateRoot, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddReceipt")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, *types.Receipt, pgx.Tx) error); ok {
-		r0 = rf(ctx, receipt, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, *types.Receipt, common.Hash, pgx.Tx) error); ok {
+		r0 = rf(ctx, receipt, imStateRoot, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -545,14 +545,15 @@ type StorageMock_AddReceipt_Call struct {
 // AddReceipt is a helper method to define mock.On call
 //   - ctx context.Context
 //   - receipt *types.Receipt
+//   - imStateRoot common.Hash
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) AddReceipt(ctx interface{}, receipt interface{}, dbTx interface{}) *StorageMock_AddReceipt_Call {
-	return &StorageMock_AddReceipt_Call{Call: _e.mock.On("AddReceipt", ctx, receipt, dbTx)}
+func (_e *StorageMock_Expecter) AddReceipt(ctx interface{}, receipt interface{}, imStateRoot interface{}, dbTx interface{}) *StorageMock_AddReceipt_Call {
+	return &StorageMock_AddReceipt_Call{Call: _e.mock.On("AddReceipt", ctx, receipt, imStateRoot, dbTx)}
 }
 
-func (_c *StorageMock_AddReceipt_Call) Run(run func(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx)) *StorageMock_AddReceipt_Call {
+func (_c *StorageMock_AddReceipt_Call) Run(run func(ctx context.Context, receipt *types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx)) *StorageMock_AddReceipt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*types.Receipt), args[2].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(*types.Receipt), args[2].(common.Hash), args[3].(pgx.Tx))
 	})
 	return _c
 }
@@ -562,7 +563,7 @@ func (_c *StorageMock_AddReceipt_Call) Return(_a0 error) *StorageMock_AddReceipt
 	return _c
 }
 
-func (_c *StorageMock_AddReceipt_Call) RunAndReturn(run func(context.Context, *types.Receipt, pgx.Tx) error) *StorageMock_AddReceipt_Call {
+func (_c *StorageMock_AddReceipt_Call) RunAndReturn(run func(context.Context, *types.Receipt, common.Hash, pgx.Tx) error) *StorageMock_AddReceipt_Call {
 	_c.Call.Return(run)
 	return _c
 }
