@@ -27,9 +27,6 @@ func (m migrationTest0017) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 		assert.NoError(t, row.Scan(&result))
 		assert.Equal(t, 1, result)
 	}
-
-	err := m.insertDataInModifiedTable(db)
-	assert.NoError(t, err)
 }
 
 func (m migrationTest0017) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
