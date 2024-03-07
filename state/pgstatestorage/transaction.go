@@ -533,7 +533,7 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 }
 
 // AddReceipts adds a list of receipts to the State Store
-func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx) error {
 	if len(receipts) == 0 {
 		return nil
 	}
@@ -545,7 +545,7 @@ func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Rec
 		if receipt.EffectiveGasPrice != nil {
 			egp = receipt.EffectiveGasPrice.Uint64()
 		}
-		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
+		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, imStateRoot.Bytes(), receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
 		receiptRows = append(receiptRows, receiptRow)
 	}
 

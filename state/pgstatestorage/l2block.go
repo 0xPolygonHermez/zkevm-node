@@ -201,7 +201,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	log.Debugf("[AddL2Block] adding L2 block %d", l2blockNumber)
 	if _, err := e.Exec(ctx, addL2BlockSQL,
 		l2Block.Number().Uint64(), l2Block.Hash().String(), header, uncles,
-		l2Block.ParentHash().String(), imStateRoot.String(),
+		l2Block.ParentHash().String(), l2Block.Root().String(),
 		l2Block.ReceivedAt, batchNumber, time.Now().UTC()); err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (p *PostgresStorage) AddL2Block(ctx context.Context, batchNumber uint64, l2
 	}
 
 	if len(receipts) > 0 {
-		p.AddReceipts(ctx, receipts, dbTx)
+		p.AddReceipts(ctx, receipts, imStateRoot, dbTx)
 
 		var logs []*types.Log
 		for _, receipt := range receipts {
