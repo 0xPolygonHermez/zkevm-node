@@ -188,6 +188,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 	transactions := []*types.Transaction{tx}
 
 	receipts := []*types.Receipt{receipt}
+	imStateRoots := []common.Hash{state.ZeroHash}
 
 	// Create block to be able to calculate its hash
 	st := trie.NewStackTrie(nil)
@@ -202,7 +203,7 @@ func TestGetBatchByL2BlockNumber(t *testing.T) {
 		txsL2Hash[i] = common.HexToHash(fmt.Sprintf("0x%d", i))
 	}
 
-	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, []common.Hash{}, dbTx)
+	err = pgStateStorage.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, imStateRoots, dbTx)
 	require.NoError(t, err)
 	result, err := pgStateStorage.BatchNumberByL2BlockNumber(ctx, l2Block.Number().Uint64(), dbTx)
 	require.NoError(t, err)
