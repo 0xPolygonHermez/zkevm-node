@@ -211,12 +211,13 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 		return err
 	}
 
+	forkID := s.GetForkIDByBatchNumber(batchNumber)
+
 	gasLimit := l2Block.GasLimit
-	if gasLimit > MaxL2BlockGasLimit {
+	// We check/set the maximum value of gasLimit for batches <= to ETROG fork. For batches >= to ELDERBERRY fork we use always the value returned by the executor
+	if forkID <= FORKID_ETROG && gasLimit > MaxL2BlockGasLimit {
 		gasLimit = MaxL2BlockGasLimit
 	}
-
-	forkID := s.GetForkIDByBatchNumber(batchNumber)
 
 	header := &types.Header{
 		Number:     new(big.Int).SetUint64(l2Block.BlockNumber),
