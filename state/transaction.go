@@ -169,7 +169,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
+			receipt, imStateRoot := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
@@ -189,7 +189,7 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 			// Store L2 block and its transaction
-			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
+			if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, imStateRoot, dbTx); err != nil {
 				return err
 			}
 		}
@@ -238,6 +238,8 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	storeTxsEGPData := make([]StoreTxEGPData, 0, numTxs)
 	receipts := make([]*types.Receipt, 0, numTxs)
 	txsL2Hash := make([]common.Hash, 0, numTxs)
+	imStateRoot := common.Hash{}
+	var receipt *types.Receipt
 
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
@@ -260,7 +262,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
 
-		receipt := GenerateReceipt(header.Number, txResponse, uint(i), forkID)
+		receipt, imStateRoot = GenerateReceipt(header.Number, txResponse, uint(i), forkID)
 		receipts = append(receipts, receipt)
 	}
 
@@ -274,7 +276,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	}
 
 	// Store L2 block and its transactions
-	if err := s.AddL2Block(ctx, batchNumber, block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, block, receipts, txsL2Hash, storeTxsEGPData, imStateRoot, dbTx); err != nil {
 		return err
 	}
 
@@ -661,7 +663,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header.BlockInfoRoot = blockInfoRoot
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt := GenerateReceipt(header.Number, processedTx, 0, forkID)
+	receipt, imStateRoot := GenerateReceipt(header.Number, processedTx, 0, forkID)
 	receipts := []*types.Receipt{receipt}
 
 	// Create l2Block to be able to calculate its hash
@@ -675,7 +677,7 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	txsL2Hash := []common.Hash{processedTx.TxHashL2_V2}
 
 	// Store L2 block and its transaction
-	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx); err != nil {
+	if err := s.AddL2Block(ctx, batchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, imStateRoot, dbTx); err != nil {
 		return nil, err
 	}
 
