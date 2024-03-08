@@ -19,12 +19,12 @@ type StateMock struct {
 	mock.Mock
 }
 
-// AddGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
-func (_m *StateMock) AddGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+// AddBatchProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) AddBatchProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AddGeneratedProof")
+		panic("no return value specified for AddBatchProof")
 	}
 
 	var r0 error
@@ -95,12 +95,12 @@ func (_m *StateMock) CheckProofContainsCompleteSequences(ctx context.Context, pr
 	return r0, r1
 }
 
-// CleanupGeneratedProofs provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
+// CleanupBatchProofs provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) CleanupBatchProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CleanupGeneratedProofs")
+		panic("no return value specified for CleanupBatchProofs")
 	}
 
 	var r0 error
@@ -113,12 +113,12 @@ func (_m *StateMock) CleanupGeneratedProofs(ctx context.Context, batchNumber uin
 	return r0
 }
 
-// CleanupLockedProofs provides a mock function with given fields: ctx, duration, dbTx
-func (_m *StateMock) CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error) {
+// CleanupLockedBatchProofs provides a mock function with given fields: ctx, duration, dbTx
+func (_m *StateMock) CleanupLockedBatchProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error) {
 	ret := _m.Called(ctx, duration, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CleanupLockedProofs")
+		panic("no return value specified for CleanupLockedBatchProofs")
 	}
 
 	var r0 int64
@@ -141,12 +141,12 @@ func (_m *StateMock) CleanupLockedProofs(ctx context.Context, duration string, d
 	return r0, r1
 }
 
-// DeleteGeneratedProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
-func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
+// DeleteBatchProofs provides a mock function with given fields: ctx, batchNumber, batchNumberFinal, dbTx
+func (_m *StateMock) DeleteBatchProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, batchNumberFinal, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteGeneratedProofs")
+		panic("no return value specified for DeleteBatchProofs")
 	}
 
 	var r0 error
@@ -159,12 +159,12 @@ func (_m *StateMock) DeleteGeneratedProofs(ctx context.Context, batchNumber uint
 	return r0
 }
 
-// DeleteUngeneratedProofs provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error {
+// DeleteUngeneratedBatchProofs provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) DeleteUngeneratedBatchProofs(ctx context.Context, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteUngeneratedProofs")
+		panic("no return value specified for DeleteUngeneratedBatchProofs")
 	}
 
 	var r0 error
@@ -205,6 +205,45 @@ func (_m *StateMock) GetBatchByNumber(ctx context.Context, batchNumber uint64, d
 	}
 
 	return r0, r1
+}
+
+// GetBatchProofsToAggregate provides a mock function with given fields: ctx, dbTx
+func (_m *StateMock) GetBatchProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*state.Proof, *state.Proof, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetBatchProofsToAggregate")
+	}
+
+	var r0 *state.Proof
+	var r1 *state.Proof
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.Proof, *state.Proof, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.Proof); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.Proof)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) *state.Proof); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*state.Proof)
+		}
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, pgx.Tx) error); ok {
+		r2 = rf(ctx, dbTx)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // GetForcedBatchParentHash provides a mock function with given fields: ctx, forcedBatchNumber, dbTx
@@ -325,12 +364,12 @@ func (_m *StateMock) GetLeafsByL1InfoRoot(ctx context.Context, l1InfoRoot common
 	return r0, r1
 }
 
-// GetProofReadyToVerify provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
-func (_m *StateMock) GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error) {
+// GetProofReadyForFinal provides a mock function with given fields: ctx, lastVerfiedBatchNumber, dbTx
+func (_m *StateMock) GetProofReadyForFinal(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*state.Proof, error) {
 	ret := _m.Called(ctx, lastVerfiedBatchNumber, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetProofReadyToVerify")
+		panic("no return value specified for GetProofReadyForFinal")
 	}
 
 	var r0 *state.Proof
@@ -353,45 +392,6 @@ func (_m *StateMock) GetProofReadyToVerify(ctx context.Context, lastVerfiedBatch
 	}
 
 	return r0, r1
-}
-
-// GetProofsToAggregate provides a mock function with given fields: ctx, dbTx
-func (_m *StateMock) GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*state.Proof, *state.Proof, error) {
-	ret := _m.Called(ctx, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetProofsToAggregate")
-	}
-
-	var r0 *state.Proof
-	var r1 *state.Proof
-	var r2 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) (*state.Proof, *state.Proof, error)); ok {
-		return rf(ctx, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) *state.Proof); ok {
-		r0 = rf(ctx, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*state.Proof)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) *state.Proof); ok {
-		r1 = rf(ctx, dbTx)
-	} else {
-		if ret.Get(1) != nil {
-			r1 = ret.Get(1).(*state.Proof)
-		}
-	}
-
-	if rf, ok := ret.Get(2).(func(context.Context, pgx.Tx) error); ok {
-		r2 = rf(ctx, dbTx)
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
 }
 
 // GetVirtualBatch provides a mock function with given fields: ctx, batchNumber, dbTx
@@ -484,12 +484,12 @@ func (_m *StateMock) GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatc
 	return r0, r1
 }
 
-// UpdateGeneratedProof provides a mock function with given fields: ctx, proof, dbTx
-func (_m *StateMock) UpdateGeneratedProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
+// UpdateBatchProof provides a mock function with given fields: ctx, proof, dbTx
+func (_m *StateMock) UpdateBatchProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateGeneratedProof")
+		panic("no return value specified for UpdateBatchProof")
 	}
 
 	var r0 error

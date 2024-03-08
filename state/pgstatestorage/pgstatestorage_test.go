@@ -495,7 +495,7 @@ func TestCleanupLockedProofs(t *testing.T) {
 	_, err = testState.Exec(ctx, addGeneratedProofSQL, olderNotGenProof.BatchNumber, olderNotGenProof.BatchNumberFinal, olderNotGenProof.Proof, olderNotGenProof.ProofID, olderNotGenProof.InputProver, olderNotGenProof.Prover, olderNotGenProof.ProverID, olderNotGenProof.GeneratingSince, oneHourAgo, oneHourAgo)
 	require.NoError(err)
 
-	_, err = testState.CleanupLockedProofs(ctx, "1m", nil)
+	_, err = testState.CleanupLockedBatchProofs(ctx, "1m", nil)
 
 	require.NoError(err)
 	rows, err := testState.Query(ctx, "SELECT batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at FROM state.proof")

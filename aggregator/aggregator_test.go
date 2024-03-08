@@ -701,7 +701,7 @@ func TestTryAggregateProofs(t *testing.T) {
 			}
 			a.resetVerifyProofTime()
 
-			result, err := a.tryAggregateProofs(proverCtx, proverMock)
+			result, err := a.tryAggregateBatchProofs(proverCtx, proverMock)
 
 			if tc.asserts != nil {
 				tc.asserts(result, &a, err)
