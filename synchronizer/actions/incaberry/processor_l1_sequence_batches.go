@@ -58,11 +58,13 @@ type ProcessorL1SequenceBatches struct {
 	pool     poolProcessSequenceBatchesInterface
 	eventLog syncinterfaces.EventLogInterface
 	sync     syncProcessSequenceBatchesInterface
+
+	zkEVMClient zkEVMClientInterface
 }
 
 // NewProcessorL1SequenceBatches returns instance of a processor for SequenceBatchesOrder
 func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
-	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog syncinterfaces.EventLogInterface, sync syncProcessSequenceBatchesInterface) *ProcessorL1SequenceBatches {
+	etherMan ethermanProcessSequenceBatches, pool poolProcessSequenceBatchesInterface, eventLog syncinterfaces.EventLogInterface, sync syncProcessSequenceBatchesInterface, zkEVMClient zkEVMClientInterface) *ProcessorL1SequenceBatches {
 	return &ProcessorL1SequenceBatches{
 		ProcessorBase: actions.ProcessorBase[ProcessorL1SequenceBatches]{
 			SupportedEvent:    []etherman.EventOrder{etherman.SequenceBatchesOrder},
@@ -72,6 +74,8 @@ func NewProcessorL1SequenceBatches(state stateProcessSequenceBatches,
 		pool:     pool,
 		eventLog: eventLog,
 		sync:     sync,
+
+		zkEVMClient: zkEVMClient,
 	}
 }
 
@@ -90,6 +94,11 @@ func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context,
 		return nil
 	}
 	for _, sbatch := range sequencedBatches {
+		batchL2Data, err := g.getValidiumL2Data(ctx, sbatch)
+		if err != nil {
+			log.Errorf("error getting validiumL2Data. BatchNumber: %d, BlockNumber: %d, error: %v", sbatch.BatchNumber, blockNumber, err)
+			return err
+		}
 		virtualBatch := state.VirtualBatch{
 			BatchNumber:   sbatch.BatchNumber,
 			TxHash:        sbatch.TxHash,
@@ -102,7 +111,7 @@ func (g *ProcessorL1SequenceBatches) processSequenceBatches(ctx context.Context,
 			GlobalExitRoot: sbatch.PolygonZkEVMBatchData.GlobalExitRoot,
 			Timestamp:      time.Unix(int64(sbatch.PolygonZkEVMBatchData.Timestamp), 0),
 			Coinbase:       sbatch.Coinbase,
-			BatchL2Data:    sbatch.PolygonZkEVMBatchData.Transactions,
+			BatchL2Data:    batchL2Data,
 		}
 		// ForcedBatch must be processed
 		if sbatch.PolygonZkEVMBatchData.MinForcedTimestamp > 0 { // If this is true means that the batch is forced
