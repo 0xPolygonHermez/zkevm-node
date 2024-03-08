@@ -65,16 +65,14 @@ func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []comm
 	}
 
 	data, err := d.localData(batchNums, batchHashes)
-	if err != nil {
-		log.Warnf("error retrieving local data for batches %v: %s", batchNums, err.Error())
-	} else {
+	if err == nil {
 		return data, nil
 	}
 
 	if !d.isTrustedSequencer {
-		data, err = d.trustedSeqData(batchNums, batchHashes)
+		data, err = d.trustedSequencerData(batchNums, batchHashes)
 		if err != nil {
-			log.Warnf("error retrieving trusted sequencer data for batches %v: %s", batchNums, err.Error())
+			log.Warnf("trusted sequencer failed to return data for batches %v: %s", batchNums, err.Error())
 		} else {
 			return data, nil
 		}
@@ -83,6 +81,7 @@ func (d *DataAvailability) GetBatchL2Data(batchNums []uint64, batchHashes []comm
 	return d.backend.GetSequence(d.ctx, batchHashes, dataAvailabilityMessage)
 }
 
+// localData retrieves batches from local database and returns an error unless all are found
 func (d *DataAvailability) localData(numbers []uint64, hashes []common.Hash) ([][]byte, error) {
 	data, err := d.state.GetBatchL2DataByNumbers(d.ctx, numbers, nil)
 	if err != nil {
@@ -94,7 +93,7 @@ func (d *DataAvailability) localData(numbers []uint64, hashes []common.Hash) ([]
 		expectedHash := hashes[i]
 		batchData, ok := data[batchNumber]
 		if !ok {
-			return nil, fmt.Errorf("could not get data locally for batch numbers %v", numbers)
+			return nil, fmt.Errorf("missing batch %v", batchNumber)
 		}
 		actualHash := crypto.Keccak256Hash(batchData)
 		if actualHash != expectedHash {
@@ -106,39 +105,8 @@ func (d *DataAvailability) localData(numbers []uint64, hashes []common.Hash) ([]
 	return batches, nil
 }
 
-func (d *DataAvailability) trustedSeqData(numbers []uint64, hashes []common.Hash) ([][]byte, error) {
-	data, err := d.getBatchesDataFromTrustedSequencer(numbers, hashes)
-	if err != nil {
-		return nil, err
-	}
-	var batches [][]byte
-	for i := 0; i < len(numbers); i++ {
-		batchNumber := numbers[i]
-		// hash has already been checked
-		batchData, ok := data[batchNumber]
-		if !ok {
-			continue
-		}
-		batches[i] = batchData
-	}
-	return batches, nil
-}
-
-func (d *DataAvailability) getDataFromTrustedSequencer(batchNum uint64, expectedTransactionsHash common.Hash) ([]byte, error) {
-	b, err := d.zkEVMClient.BatchByNumber(d.ctx, new(big.Int).SetUint64(batchNum))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get batch num %d from trusted sequencer: %w", batchNum, err)
-	}
-	actualTransactionsHash := crypto.Keccak256Hash(b.BatchL2Data)
-	if expectedTransactionsHash != actualTransactionsHash {
-		return nil, fmt.Errorf(
-			unexpectedHashTemplate, batchNum, expectedTransactionsHash, actualTransactionsHash,
-		)
-	}
-	return b.BatchL2Data, nil
-}
-
-func (d *DataAvailability) getBatchesDataFromTrustedSequencer(batchNums []uint64, expectedHashes []common.Hash) (map[uint64][]byte, error) {
+// trustedSequencerData retrieved batch data from the trusted sequencer and returns an error unless all are found
+func (d *DataAvailability) trustedSequencerData(batchNums []uint64, expectedHashes []common.Hash) ([][]byte, error) {
 	if len(batchNums) != len(expectedHashes) {
 		return nil, fmt.Errorf("invalid arguments, len of batch numbers does not equal length of expected hashes: %d != %d",
 			len(batchNums), len(expectedHashes))
@@ -149,22 +117,21 @@ func (d *DataAvailability) getBatchesDataFromTrustedSequencer(batchNums []uint64
 	}
 	batchData, err := d.zkEVMClient.BatchesByNumbers(d.ctx, nums)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get batches %v data from trusted sequencer: %w", batchNums, err)
+		return nil, err
 	}
-	result := make(map[uint64][]byte)
+	if len(batchData) != len(batchNums) {
+		return nil, fmt.Errorf("missing batch data, expected %d, got %d", len(batchNums), len(batchData))
+	}
+	var result [][]byte
 	for i := 0; i < len(batchNums); i++ {
 		number := batchNums[i]
 		batch := batchData[i]
-		if batch.Empty {
-			continue
-		}
 		expectedTransactionsHash := expectedHashes[i]
 		actualTransactionsHash := crypto.Keccak256Hash(batch.BatchL2Data)
 		if expectedTransactionsHash != actualTransactionsHash {
-			log.Warnf(unexpectedHashTemplate, number, expectedTransactionsHash, actualTransactionsHash)
-			continue
+			return nil, fmt.Errorf(unexpectedHashTemplate, number, expectedTransactionsHash, actualTransactionsHash)
 		}
-		result[number] = batch.BatchL2Data
+		result = append(result, batch.BatchL2Data)
 	}
 	return result, nil
 }

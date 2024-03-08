@@ -58,6 +58,8 @@ func (c *Client) BatchByNumber(ctx context.Context, number *big.Int) (*types.Bat
 	return result, nil
 }
 
+// BatchesByNumbers returns batches from the current canonical chain by batch numbers. If the list is empty, the last
+// known batch is returned as a list.
 func (c *Client) BatchesByNumbers(_ context.Context, numbers []*big.Int) ([]*types.BatchData, error) {
 	var list []types.BatchNumber
 	for _, n := range numbers {

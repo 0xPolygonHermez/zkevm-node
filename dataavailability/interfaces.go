@@ -29,15 +29,19 @@ type SequenceSender interface {
 	PostSequence(ctx context.Context, batchesData [][]byte) ([]byte, error)
 }
 
+// SequenceRetriever is used to retrieve batch data
 type SequenceRetriever interface {
+	// GetSequence retrieves the sequence data from the data availability backend
 	GetSequence(ctx context.Context, batchHashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error)
 }
 
+// DataManager is an interface for components that send and retrieve batch data
 type DataManager interface {
 	BatchDataProvider
 	SequenceSender
 }
 
+// DABackender is an interface for data committee components that store and retrieve batch data
 type DABackender interface {
 	SequenceRetriever
 	SequenceSender
