@@ -320,7 +320,7 @@ var (
 	// ErrExecutorErrorInvalidUpdateMerkleTree indicates that the input parameter update merkle tree is invalid
 	ErrExecutorErrorInvalidUpdateMerkleTree = errors.New("invalid update merkle tree")
 	// ErrExecutorErrorSMMainInvalidTxStatusError indicates that the TX has an invalid status-error combination
-	ErrExecutorErrorSMMainInvalidTxStatusError = errors.New("TX has an invalid status-error combination")
+	ErrExecutorErrorSMMainInvalidTxStatusError = errors.New("tx has an invalid status-error combination")
 
 	// GRPC ERRORS
 	// ===========

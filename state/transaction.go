@@ -169,12 +169,12 @@ func (s *State) StoreTransactions(ctx context.Context, batchNumber uint64, proce
 			header.BlockInfoRoot = processedBlock.BlockInfoRoot
 			transactions := []*types.Transaction{&processedTx.Tx}
 
-			receipt, imStateRoot := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
+			receipt := GenerateReceipt(header.Number, processedTx, uint(i), forkID)
 			if !CheckLogOrder(receipt.Logs) {
 				return fmt.Errorf("error: logs received from executor are not in order")
 			}
 			receipts := []*types.Receipt{receipt}
-			imStateRoots := []common.Hash{imStateRoot}
+			imStateRoots := []common.Hash{processedTx.StateRoot}
 
 			// Create l2Block to be able to calculate its hash
 			st := trie.NewStackTrie(nil)
@@ -241,7 +241,6 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	receipts := make([]*types.Receipt, 0, numTxs)
 	txsL2Hash := make([]common.Hash, 0, numTxs)
 	imStateRoots := make([]common.Hash, 0, numTxs)
-	var imStateRoot common.Hash
 	var receipt *types.Receipt
 
 	for i, txResponse := range l2Block.TransactionResponses {
@@ -265,9 +264,9 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
 
-		receipt, imStateRoot = GenerateReceipt(header.Number, txResponse, uint(i), forkID)
+		receipt = GenerateReceipt(header.Number, txResponse, uint(i), forkID)
 		receipts = append(receipts, receipt)
-		imStateRoots = append(imStateRoots, imStateRoot)
+		imStateRoots = append(imStateRoots, txResp.StateRoot)
 	}
 
 	// Create block to be able to calculate its hash
@@ -667,9 +666,9 @@ func (s *State) StoreTransaction(ctx context.Context, batchNumber uint64, proces
 	header.BlockInfoRoot = blockInfoRoot
 	transactions := []*types.Transaction{&processedTx.Tx}
 
-	receipt, imStateRoot := GenerateReceipt(header.Number, processedTx, 0, forkID)
+	receipt := GenerateReceipt(header.Number, processedTx, 0, forkID)
 	receipts := []*types.Receipt{receipt}
-	imStateRoots := []common.Hash{imStateRoot}
+	imStateRoots := []common.Hash{processedTx.StateRoot}
 
 	// Create l2Block to be able to calculate its hash
 	st := trie.NewStackTrie(nil)

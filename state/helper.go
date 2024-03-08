@@ -279,7 +279,7 @@ func DecodeTx(encodedTx string) (*types.Transaction, error) {
 }
 
 // GenerateReceipt generates a receipt from a processed transaction
-func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint, forkID uint64) (*types.Receipt, common.Hash) {
+func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionResponse, txIndex uint, forkID uint64) *types.Receipt {
 	receipt := &types.Receipt{
 		Type:             uint8(processedTx.Type),
 		BlockNumber:      blockNumber,
@@ -323,7 +323,7 @@ func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		receipt.Status = uint64(processedTx.Status)
 	}
 
-	return receipt, processedTx.StateRoot
+	return receipt
 }
 
 // IsPreEIP155Tx checks if the tx is a tx that has a chainID as zero and
