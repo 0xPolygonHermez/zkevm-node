@@ -97,7 +97,9 @@ func (d *DataAvailability) localData(numbers []uint64, hashes []common.Hash) ([]
 		}
 		actualHash := crypto.Keccak256Hash(batchData)
 		if actualHash != expectedHash {
-			log.Warnf(unexpectedHashTemplate, batchNumber, expectedHash, actualHash)
+			err = fmt.Errorf(unexpectedHashTemplate, batchNumber, expectedHash, actualHash)
+			log.Warnf("wrong local data for hash: %s", err.Error())
+			return nil, err
 		} else {
 			batches = append(batches, batchData)
 		}
