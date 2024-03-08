@@ -758,7 +758,7 @@ func TestEstimateGas(t *testing.T) {
 				}
 
 				_, err = ethereumClient.EstimateGas(ctx, msg)
-				if testCase.expectedError != nil && err != nil {
+				if testCase.expectedError != nil {
 					rpcErr := err.(rpc.Error)
 					errMsg := fmt.Sprintf("[%v] expected: %v %v found: %v %v", network.Name, testCase.expectedError.ErrorCode(), testCase.expectedError.Error(), rpcErr.ErrorCode(), rpcErr.Error())
 					assert.Equal(t, testCase.expectedError.ErrorCode(), rpcErr.ErrorCode(), errMsg)
