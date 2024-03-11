@@ -293,7 +293,7 @@ func GenerateReceipt(blockNumber *big.Int, processedTx *ProcessTransactionRespon
 		receipt.PostState = processedTx.StateRoot.Bytes()
 		receipt.CumulativeGasUsed = processedTx.GasUsed
 	} else {
-		receipt.PostState = ZeroHash.Bytes()
+		receipt.PostState = []byte{}
 		receipt.CumulativeGasUsed = processedTx.CumulativeGasUsed
 	}
 	if processedTx.EffectiveGasPrice != "" {
