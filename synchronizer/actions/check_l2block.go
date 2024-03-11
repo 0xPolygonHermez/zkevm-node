@@ -56,9 +56,8 @@ func (p *CheckL2BlockHash) CheckL2Block(ctx context.Context, dbTx pgx.Tx) error 
 		log.Errorf("checkL2block: Error getting last L2Block from the database. err: %s", err.Error())
 		return err
 	}
-	l2BlockNumber := max(p.GetNextL2BlockToCheck(), lastLocalL2BlockNumber)
-	if l2BlockNumber > lastLocalL2BlockNumber {
-		log.Infof("checkL2block: skip check L2block (next to check: %d) currently LastL2BlockNumber: %d", l2BlockNumber, lastLocalL2BlockNumber)
+	shouldCheck, l2BlockNumber := p.GetNextL2BlockToCheck(lastLocalL2BlockNumber, p.GetMinimumL2BlockToCheck())
+	if !shouldCheck {
 		return nil
 	}
 	err = p.iterationCheckL2Block(ctx, l2BlockNumber, dbTx)
@@ -68,26 +67,18 @@ func (p *CheckL2BlockHash) CheckL2Block(ctx context.Context, dbTx pgx.Tx) error 
 	return nil
 }
 
-// CheckL2BlockMonotone checks the  L2Block hash between the local and the trusted in a monotone way
-func (p *CheckL2BlockHash) CheckL2BlockMonotone(ctx context.Context, dbTx pgx.Tx) error {
-	l2BlockNumber := p.GetNextL2BlockToCheck()
-	doned := false
-	for !doned {
-		previousL2BlockNumber := l2BlockNumber
-		err := p.iterationCheckL2Block(ctx, l2BlockNumber, dbTx)
-		if err != nil {
-			return err
-		}
-		l2BlockNumber = p.GetNextL2BlockToCheck()
-		if previousL2BlockNumber == l2BlockNumber {
-			doned = true
-		}
+// GetNextL2BlockToCheck returns true is need to check and the blocknumber
+func (p *CheckL2BlockHash) GetNextL2BlockToCheck(lastLocalL2BlockNumber, minL2BlockNumberToCheck uint64) (bool, uint64) {
+	l2BlockNumber := max(minL2BlockNumberToCheck, lastLocalL2BlockNumber)
+	if l2BlockNumber > lastLocalL2BlockNumber {
+		log.Infof("checkL2block: skip check L2block (next to check: %d) currently LastL2BlockNumber: %d", minL2BlockNumberToCheck, lastLocalL2BlockNumber)
+		return false, 0
 	}
-	return nil
+	return true, l2BlockNumber
 }
 
-// GetNextL2BlockToCheck returns the next L2Block to check
-func (p *CheckL2BlockHash) GetNextL2BlockToCheck() uint64 {
+// GetMinimumL2BlockToCheck returns the minimum L2Block to check
+func (p *CheckL2BlockHash) GetMinimumL2BlockToCheck() uint64 {
 	if p.modulusL2BlockToCheck == 0 {
 		return p.lastL2BlockChecked + 1
 	}
@@ -139,7 +130,7 @@ func (p *CheckL2BlockHash) iterationCheckL2Block(ctx context.Context, l2BlockNum
 
 func compareL2Blocks(prefixLogs string, localL2Block *state.L2Block, trustedL2Block *types.Block) error {
 	if localL2Block == nil || trustedL2Block == nil || trustedL2Block.Hash == nil {
-		return fmt.Errorf("%s localL2Block or trustedL2Block or trustedHash is nil", prefixLogs)
+		return fmt.Errorf("%s localL2Block or trustedL2Block or trustedHash are nil", prefixLogs)
 	}
 	if localL2Block.Hash() != *trustedL2Block.Hash {
 		return fmt.Errorf("%s localL2Block.Hash %s and trustedL2Block.Hash %s are different", prefixLogs, localL2Block.Hash().String(), (*trustedL2Block.Hash).String())
