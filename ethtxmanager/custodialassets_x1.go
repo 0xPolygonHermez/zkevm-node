@@ -285,8 +285,8 @@ func (v *verifyBatchesTrustedAggregatorArgs) marshal(contractAddress common.Addr
 		GasPrice:         gp,
 		Nonce:            mTx.nonce,
 	}
-	for i, v := range v.Proof {
-		httpArgs.Proof[i] = hex.EncodeToString(v[:])
+	for i, p := range v.Proof {
+		httpArgs.Proof[i] = hex.EncodeToString(p[:])
 	}
 
 	ret, err := json.Marshal(httpArgs)

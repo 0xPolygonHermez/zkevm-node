@@ -36,22 +36,23 @@ func (args *Request) String() string {
 
 // SeqData is the data for sequence operation
 type SeqData struct {
-	Batches            []Batch        `json:"batches"`
-	SignaturesAndAddrs string         `json:"signaturesAndAddrs"`
-	L2Coinbase         string         `json:"l2Coinbase"`
-	ContractAddress    common.Address `json:"contractAddress"`
-	GasLimit           uint64         `json:"gasLimit"`
-	GasPrice           string         `json:"gasPrice"`
-	Nonce              uint64         `json:"nonce"`
+	Batches                 []Batch        `json:"batches"`
+	MaxSequenceTimestamp    uint64         `json:"maxSequenceTimestamp"`
+	InitSequencedBatch      uint64         `json:"initSequencedBatch"`
+	L2Coinbase              common.Address `json:"l2Coinbase"`
+	DataAvailabilityMessage string         `json:"dataAvailabilityMessage"`
+	ContractAddress         common.Address `json:"contractAddress"`
+	GasLimit                uint64         `json:"gasLimit"`
+	GasPrice                string         `json:"gasPrice"`
+	Nonce                   uint64         `json:"nonce"`
 }
 
 // Batch is the data for batch operation
 type Batch struct {
-	GlobalExitRoot     string `json:"globalExitRoot"`
-	MinForcedTimestamp int64  `json:"minForcedTimestamp"`
-	Timestamp          int64  `json:"timestamp"`
-	Transactions       string `json:"transactions"`
-	TransactionsHash   string `json:"transactionsHash"`
+	TransactionsHash     string `json:"transactionsHash"`
+	ForcedGlobalExitRoot string `json:"forcedGlobalExitRoot"`
+	ForcedTimestamp      uint64 `json:"forcedTimestamp"`
+	ForcedBlockHashL1    string `json:"forcedBlockHashL1"`
 }
 
 // AggData is the data for aggregate operation
