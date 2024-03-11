@@ -116,3 +116,55 @@ func runMigrationsDown(d *sql.DB, n int, packrName string) error {
 	}
 	return nil
 }
+
+func checkColumn(t *testing.T, db *sql.DB, schema string, table string, column string, exists bool) (bool, error) {
+	const getColumn = `SELECT count(*) FROM information_schema.columns WHERE table_schema=$1, table_name=$2 and column_name=$3`
+	var result int
+
+	row := db.QueryRow(getColumn, schema, table, column)
+	err := row.Scan(&result)
+
+	if err != nil {
+		return false, nil
+	}
+
+	if exists {
+		return (result == 1), nil
+	} else {
+		return (result == 0), nil
+	}
+}
+
+func checkColumnExists(t *testing.T, db *sql.DB, schema string, table string, column string) (bool, error) {
+	return checkColumn(t, db, schema, table, column, true)
+}
+
+func checkColumnNotExists(t *testing.T, db *sql.DB, schema string, table string, column string) (bool, error) {
+	return checkColumn(t, db, schema, table, column, false)
+}
+
+func checkTable(t *testing.T, db *sql.DB, schema string, table string, exists bool) (bool, error) {
+	const getTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema=$1' and table_name=$2`
+	var result int
+
+	row := db.QueryRow(getTable, schema, table)
+	err := row.Scan(&result)
+
+	if err != nil {
+		return false, nil
+	}
+
+	if exists {
+		return (result == 1), nil
+	} else {
+		return (result == 0), nil
+	}
+}
+
+func checkTableExists(t *testing.T, db *sql.DB, schema string, table string) (bool, error) {
+	return checkTable(t, db, schema, table, true)
+}
+
+func checkTableNotExists(t *testing.T, db *sql.DB, schema string, table string) (bool, error) {
+	return checkTable(t, db, schema, table, false)
+}
