@@ -1304,7 +1304,7 @@ func decodeSequences(txData []byte, lastBatchNumber uint64, sequencer common.Add
 			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
 			// ForcedBatches are skipped here. They are not currently enabled for validium, but once they are supported,
 			// their data must come from the state.forced_batch table
-			if sequencesValidium[i].ForcedTimestamp != 0 {
+			if sequencesValidium[i].ForcedTimestamp == 0 {
 				batchNums = append(batchNums, bn)
 				hashes = append(hashes, sequencesValidium[i].TransactionsHash)
 			}
