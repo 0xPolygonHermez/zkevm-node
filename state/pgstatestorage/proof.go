@@ -93,7 +93,7 @@ func (p *PostgresStorage) GetBatchProofsToAggregate(ctx context.Context, dbTx pg
 		FROM state.batch_proof p1 INNER JOIN state.batch_proof p2 ON p1.batch_num_final = p2.batch_num - 1
 		WHERE p1.blob_inner_num = p2.blob_inner_num AND
 			  p1.generating_since IS NULL AND p2.generating_since IS NULL AND 
-		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
+		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL
 		ORDER BY p1.batch_num ASC
 		LIMIT 1
 		`
