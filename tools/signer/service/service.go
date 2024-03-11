@@ -11,7 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/types"
+	polygonzkevm "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_x1"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -168,30 +168,26 @@ func (s *Server) signSeq(requestData Request) (error, string) {
 		return err, ""
 	}
 
-	var sequences []types.Sequence
-	var txHashs [][32]byte
+	var validiumBatchData []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
 	for _, batch := range seqData.Batches {
-		var txsBytes []byte
-		txsBytes, err := hex.DecodeHex(batch.Transactions)
-		if err != nil {
-			return err, ""
-		}
-		sequences = append(sequences, types.Sequence{
-			BatchL2Data:          txsBytes,
-			GlobalExitRoot:       common.HexToHash(batch.GlobalExitRoot),
-			Timestamp:            batch.Timestamp,
-			ForcedBatchTimestamp: batch.MinForcedTimestamp,
+		validiumBatchData = append(validiumBatchData, polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
+			TransactionsHash:     common.HexToHash(batch.TransactionsHash),
+			ForcedGlobalExitRoot: common.HexToHash(batch.ForcedGlobalExitRoot),
+			ForcedTimestamp:      batch.ForcedTimestamp,
+			ForcedBlockHashL1:    common.HexToHash(batch.ForcedBlockHashL1),
 		})
-		txHashs = append(txHashs, common.HexToHash(batch.TransactionsHash))
 	}
+	maxSequenceTimestamp := seqData.MaxSequenceTimestamp
+	initSequencedBatch := seqData.InitSequencedBatch
+	l2Coinbase := seqData.L2Coinbase
 
-	var signData []byte
-	signData, err = hex.DecodeHex(seqData.SignaturesAndAddrs)
+	var dataAvailabilityMessage []byte
+	dataAvailabilityMessage, err = hex.DecodeHex(seqData.DataAvailabilityMessage)
 	if err != nil {
-		signData = nil
+		dataAvailabilityMessage = nil
 	}
 
-	_, data, err := s.ethClient.BuildMockSequenceBatchesTxData(s.seqAddress, sequences, common.HexToAddress(seqData.L2Coinbase), signData, txHashs)
+	_, data, err := s.ethClient.BuildMockSequenceBatchesTxData(s.seqAddress, validiumBatchData, maxSequenceTimestamp, initSequencedBatch, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Errorf("error BuildSequenceBatchesTxData: %v", err)
 		return err, ""

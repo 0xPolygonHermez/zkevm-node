@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_x1"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -42,17 +43,21 @@ func (key contextKey) String() string {
 }
 
 type sequenceBatchesArgs struct {
-	Batches            []oldpolygonzkevm.PolygonZkEVMBatchData `json:"batches"`
-	L2Coinbase         common.Address                          `json:"l2Coinbase"`
-	SignaturesAndAddrs []byte                                  `json:"signaturesAndAddrs"`
+	Batches                 []polygonvalidium_x1.PolygonValidiumEtrogValidiumBatchData `json:"batches"`
+	MaxSequenceTimestamp    uint64                                                     `json:"maxSequenceTimestamp"`
+	InitSequencedBatch      uint64                                                     `json:"initSequencedBatch"`
+	L2Coinbase              common.Address                                             `json:"l2Coinbase"`
+	DataAvailabilityMessage []byte                                                     `json:"dataAvailabilityMessage"`
 }
 
 type verifyBatchesTrustedAggregatorArgs struct {
+	RollupId         uint64                  `json:"rollupId"`
 	PendingStateNum  uint64                  `json:"pendingStateNum"`
 	InitNumBatch     uint64                  `json:"initNumBatch"`
 	FinalNewBatch    uint64                  `json:"finalNewBatch"`
 	NewLocalExitRoot [hashLen]byte           `json:"newLocalExitRoot"`
 	NewStateRoot     [hashLen]byte           `json:"newStateRoot"`
+	Beneficiary      common.Address          `json:"beneficiary"`
 	Proof            [proofLen][hashLen]byte `json:"proof"`
 }
 
@@ -123,7 +128,7 @@ func (c *Client) unpackSequenceBatchesTx(tx *types.Transaction) (*sequenceBatche
 	if tx == nil || len(tx.Data()) < sigLen {
 		return nil, errEmptyTx
 	}
-	retArgs, err := unpack(tx.Data())
+	retArgs, err := unpack(tx.Data(), polygonvalidium_x1.PolygonvalidiumX1MetaData.ABI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpack tx %x data: %v", tx.Hash(), err)
 	}
@@ -144,7 +149,7 @@ func (c *Client) unpackVerifyBatchesTrustedAggregatorTx(tx *types.Transaction) (
 	if tx == nil || len(tx.Data()) < sigLen {
 		return nil, errEmptyTx
 	}
-	retArgs, err := unpack(tx.Data())
+	retArgs, err := unpack(tx.Data(), polygonrollupmanager.PolygonrollupmanagerMetaData.ABI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpack tx %x data: %v", tx.Hash(), err)
 	}
@@ -161,9 +166,9 @@ func (c *Client) unpackVerifyBatchesTrustedAggregatorTx(tx *types.Transaction) (
 	return &args, nil
 }
 
-func unpack(data []byte) (map[string]interface{}, error) {
+func unpack(data []byte, abiString string) (map[string]interface{}, error) {
 	// load contract ABI
-	zkAbi, err := abi.JSON(strings.NewReader(oldpolygonzkevm.PolygonzkevmABI))
+	zkAbi, err := abi.JSON(strings.NewReader(abiString))
 	if err != nil {
 		return nil, errLoadAbi
 	}
@@ -190,14 +195,13 @@ func unpack(data []byte) (map[string]interface{}, error) {
 }
 
 type batchData struct {
-	Transactions       string `json:"transactions"`
-	TransactionsHash   string `json:"transactionsHash"`
-	GlobalExitRoot     string `json:"globalExitRoot"`
-	Timestamp          uint64 `json:"timestamp"`
-	MinForcedTimestamp uint64 `json:"minForcedTimestamp"`
+	TransactionsHash     string `json:"transactionsHash"`
+	ForcedGlobalExitRoot string `json:"forcedGlobalExitRoot"`
+	ForcedTimestamp      uint64 `json:"forcedTimestamp"`
+	ForcedBlockHashL1    string `json:"forcedBlockHashL1"`
 }
 
-func getGasPriceGWei(gasPriceWei *big.Int) string {
+func getGasPriceEther(gasPriceWei *big.Int) string {
 	compactAmount := big.NewInt(0)
 	reminder := big.NewInt(0)
 	divisor := big.NewInt(params.Ether)
@@ -210,32 +214,35 @@ func (s *sequenceBatchesArgs) marshal(contractAddress common.Address, mTx monito
 	if s == nil {
 		return "", fmt.Errorf("sequenceBatchesArgs is nil")
 	}
-	gp := getGasPriceGWei(mTx.gasPrice)
+	gp := getGasPriceEther(mTx.gasPrice)
 	httpArgs := struct {
-		Batches            []batchData    `json:"batches"`
-		L2Coinbase         common.Address `json:"l2Coinbase"`
-		SignaturesAndAddrs string         `json:"signaturesAndAddrs"`
-		ContractAddress    common.Address `json:"contractAddress"`
-		GasLimit           uint64         `json:"gasLimit"`
-		GasPrice           string         `json:"gasPrice"`
-		Nonce              uint64         `json:"nonce"`
+		Batches                 []batchData    `json:"batches"`
+		MaxSequenceTimestamp    uint64         `json:"maxSequenceTimestamp"`
+		InitSequencedBatch      uint64         `json:"initSequencedBatch"`
+		L2Coinbase              common.Address `json:"l2Coinbase"`
+		DataAvailabilityMessage string         `json:"dataAvailabilityMessage"`
+		ContractAddress         common.Address `json:"contractAddress"`
+		GasLimit                uint64         `json:"gasLimit"`
+		GasPrice                string         `json:"gasPrice"`
+		Nonce                   uint64         `json:"nonce"`
 	}{
-		L2Coinbase:         s.L2Coinbase,
-		SignaturesAndAddrs: hex.EncodeToString(s.SignaturesAndAddrs),
-		ContractAddress:    contractAddress,
-		GasLimit:           mTx.gas + mTx.gasOffset,
-		GasPrice:           gp,
-		Nonce:              mTx.nonce,
+		MaxSequenceTimestamp:    s.MaxSequenceTimestamp,
+		InitSequencedBatch:      s.InitSequencedBatch,
+		L2Coinbase:              s.L2Coinbase,
+		DataAvailabilityMessage: hex.EncodeToString(s.DataAvailabilityMessage),
+		ContractAddress:         contractAddress,
+		GasLimit:                mTx.gas + mTx.gasOffset,
+		GasPrice:                gp,
+		Nonce:                   mTx.nonce,
 	}
 
 	httpArgs.Batches = make([]batchData, 0, len(s.Batches))
 	for _, batch := range s.Batches {
 		httpArgs.Batches = append(httpArgs.Batches, batchData{
-			Transactions:       hex.EncodeToString(batch.Transactions),
-			TransactionsHash:   hex.EncodeToString(batch.TransactionsHash[:]),
-			GlobalExitRoot:     hex.EncodeToString(batch.GlobalExitRoot[:]),
-			Timestamp:          batch.Timestamp,
-			MinForcedTimestamp: batch.MinForcedTimestamp,
+			TransactionsHash:     hex.EncodeToString(batch.TransactionsHash[:]),
+			ForcedGlobalExitRoot: hex.EncodeToString(batch.ForcedGlobalExitRoot[:]),
+			ForcedTimestamp:      batch.ForcedTimestamp,
+			ForcedBlockHashL1:    hex.EncodeToString(batch.ForcedBlockHashL1[:]),
 		})
 	}
 	ret, err := json.Marshal(httpArgs)
@@ -251,31 +258,35 @@ func (v *verifyBatchesTrustedAggregatorArgs) marshal(contractAddress common.Addr
 		return "", fmt.Errorf("verifyBatchesTrustedAggregatorArgs is nil")
 	}
 
-	gp := getGasPriceGWei(mTx.gasPrice)
+	gp := getGasPriceEther(mTx.gasPrice)
 	httpArgs := struct {
+		RollupId         uint64           `json:"rollupId"`
 		PendingStateNum  uint64           `json:"pendingStateNum"`
 		InitNumBatch     uint64           `json:"initNumBatch"`
 		FinalNewBatch    uint64           `json:"finalNewBatch"`
 		NewLocalExitRoot string           `json:"newLocalExitRoot"`
 		NewStateRoot     string           `json:"newStateRoot"`
+		Beneficiary      common.Address   `json:"beneficiary"`
 		Proof            [proofLen]string `json:"proof"`
 		ContractAddress  common.Address   `json:"contractAddress"`
 		GasLimit         uint64           `json:"gasLimit"`
 		GasPrice         string           `json:"gasPrice"`
 		Nonce            uint64           `json:"nonce"`
 	}{
+		RollupId:         v.RollupId,
 		PendingStateNum:  v.PendingStateNum,
 		InitNumBatch:     v.InitNumBatch,
 		FinalNewBatch:    v.FinalNewBatch,
 		NewLocalExitRoot: hex.EncodeToString(v.NewLocalExitRoot[:]),
 		NewStateRoot:     hex.EncodeToString(v.NewStateRoot[:]),
+		Beneficiary:      v.Beneficiary,
 		ContractAddress:  contractAddress,
 		GasLimit:         mTx.gas + mTx.gasOffset,
 		GasPrice:         gp,
 		Nonce:            mTx.nonce,
 	}
-	for i, v := range v.Proof {
-		httpArgs.Proof[i] = hex.EncodeToString(v[:])
+	for i, p := range v.Proof {
+		httpArgs.Proof[i] = hex.EncodeToString(p[:])
 	}
 
 	ret, err := json.Marshal(httpArgs)

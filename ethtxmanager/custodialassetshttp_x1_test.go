@@ -125,6 +125,106 @@ func TestClientPostSignRequestAndWaitResultSeq(t *testing.T) {
 	}
 }
 
+func TestClientPostSignRequestAndWaitResultSeqFork8(t *testing.T) {
+	client := &Client{
+		etherman: mockEtherman{},
+		cfg: Config{
+			CustodialAssets: CustodialAssetsConfig{
+				Enable:            false,
+				URL:               domain,
+				Symbol:            2882,
+				SequencerAddr:     common.HexToAddress(seqAddr),
+				AggregatorAddr:    common.HexToAddress(aggAddr),
+				WaitResultTimeout: zktypes.NewDuration(2 * time.Minute),
+				OperateTypeSeq:    1,
+				OperateTypeAgg:    2,
+				ProjectSymbol:     3011,
+				OperateSymbol:     2,
+				SysFrom:           3,
+				UserID:            0,
+				OperateAmount:     0,
+				RequestSignURI:    "/priapi/v1/assetonchain/ecology/ecologyOperate",
+				QuerySignURI:      "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo",
+				AccessKey:         "",
+				SecretKey:         "",
+			},
+		},
+	}
+	ctx := context.WithValue(context.Background(), traceID, uuid.New().String())
+	txInput, _ := hex.DecodeHex("0xdb5b0ed700000000000000000000000000000000000000000000000000000000000000a00000000000000000000000000000000000000000000000000000000065e91f5000000000000000000000000000000000000000000000000000000000000000d40000000000000000000000004820e45eb6cf99074389544f83fe1f30084bdab700000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000001ba1407ffe0c1e95eddcefbb9cba348cb169fbdc1b345fbdca59f7e147f9bd37100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000552b1a290246b3d6f67adc94c76fc0aab4b9efdf686b81f3cd12667cc1f7240b7e12fa072d7ee280654a69b0447014aa149ee4058d3f75fb063fafed2a339c12e31bf39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000")
+
+	tx := types.NewTransaction(0, common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"), big.NewInt(10), 50000, big.NewInt(10), txInput)
+
+	seqReq, _ := client.unpackSequenceBatchesTx(tx)
+	to := common.HexToAddress(contractAddr)
+	mTx := monitoredTx{
+		from:      common.HexToAddress(seqAddr),
+		to:        &to,
+		gasPrice:  big.NewInt(12345678912),
+		gas:       2000000,
+		gasOffset: 100,
+	}
+	ret, _ := seqReq.marshal(common.HexToAddress(contractAddr), mTx)
+
+	req := client.newSignRequest(client.cfg.CustodialAssets.OperateTypeSeq, client.cfg.CustodialAssets.SequencerAddr, ret)
+
+	_, err := client.postSignRequestAndWaitResult(ctx, mTx, req)
+	if err != nil {
+		t.Log(err)
+	}
+}
+
+func TestClientPostSignRequestAndWaitResultAggFork8(t *testing.T) {
+	client := &Client{
+		etherman: mockEtherman{},
+		cfg: Config{
+			CustodialAssets: CustodialAssetsConfig{
+				Enable:            false,
+				URL:               domain,
+				Symbol:            2882,
+				SequencerAddr:     common.HexToAddress(seqAddr),
+				AggregatorAddr:    common.HexToAddress(aggAddr),
+				WaitResultTimeout: zktypes.NewDuration(2 * time.Minute),
+				OperateTypeSeq:    1,
+				OperateTypeAgg:    2,
+				ProjectSymbol:     3011,
+				OperateSymbol:     2,
+				SysFrom:           3,
+				UserID:            0,
+				OperateAmount:     0,
+				RequestSignURI:    "/priapi/v1/assetonchain/ecology/ecologyOperate",
+				QuerySignURI:      "/priapi/v1/assetonchain/ecology/querySignDataByOrderNo",
+				AccessKey:         "",
+				SecretKey:         "",
+			},
+		},
+	}
+	ctx := context.WithValue(context.Background(), traceID, uuid.New().String())
+	txInput, _ := hex.DecodeHex("0x1489ed100000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000d800000000000000000000000000000000000000000000000000000000000000d90000000000000000000000000000000000000000000000000000000000000000bcd60f4d50551468457d010ae94cb302ebdccd6aa344888929c906c9eba83ac2000000000000000000000000694d3f1487e17a96eda98ced6ae3ec751a08e9fe1eb8e3113171efd30393008f1bd78e36c6f420f3608c5e8082a4cf7ccdea02282afe80fa0fccd346b82c21010c30bb2ee2907805113d22b50483a65b19761ef619eb55f1836d70a95d869b8ff14bd4b050dcc445757c7c07935de310bcdf403f2d1ce5d5305a4e9e39419494ad3c2de67deb2c98e570411661761de308f590a11aea0211cbcdec2906bf0e3e3cfb057823df3c839841c14edd843aaed53e608918226e303102ce97798eb3927094239574cbcca2607628357f9ecfb39d2b5c7706eb7b8457194facd631bf21687a52ace4259e82fedd8fc5f8ff6f69afe983260c8a33dfe3edd76a168cd1dc9e3e992829244bbfb375d9be7eb8a08e0e65b1c116b5ecbb28173c960c17d98cc04b018561c052a6a2747ff2bc2a74ff2bdb0b452e76a4d0421bc05dc9b7868423ed5c3a5974abeae08d4c5b9e509f70aae9533c1c520a1bad87db0749a460c5f56027c0d2dec176e345a87e52559ea14769f34c0faa2e43d2eb814aa960bb10aa52c4c1a74db508ac6c89bfb2e96328979e754014b25f6c3150d18e9858f8ff235f7047f28061d827236a800463b2d7c1efda081ad719bdba7a577730c2dc82174c06dd793f0ef78185a866f9c6ed77656272021a1894c3314c1383fd150ef9c673f2edd1ba81bdcc5f3c51c4d374ea81217dfc0515c6cfd25b0d681b5954ef795d0c2228372f4c2818b0ca7fdc1bcd32fc787b23db54a09febf2b7158e5cd9d81985d8cd72db0c838b34207e8a43f52100d4801b48457c2a04b7be7693ee218c2e92344015a3bae9ef6eaa9b0e0bd5791855150494d35032df38143006b4e6428461b313f184c01bb6c030f1518e34d258296b23f486f5fd297fd6a41a7bb750b54cca46aa878f72de5597092305f6891c4c6d0523f1991e1f326046830cb4911f5775690432148b03c982f50f7fd39aa2743f05a090e5fea0effe53851386d77c57b5a843547784e5e81eac208e1a7487dfd908c67c7c714f3ca0ee6921dc8ed3d83a148df11a34a5901d7b977fd6e2d2403e23602461dcf5fcb28c85150e244602ed3b3ff40cc5a7594c9aedfc248465ec5b")
+
+	tx := types.NewTransaction(0, common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"), big.NewInt(10), 50000, big.NewInt(10), txInput)
+
+	seqReq, _ := client.unpackVerifyBatchesTrustedAggregatorTx(tx)
+
+	to := common.HexToAddress(contractAddr)
+	mTx := monitoredTx{
+		from:      common.HexToAddress(aggAddr),
+		to:        &to,
+		nonce:     0,
+		gas:       2000000,
+		gasOffset: 200,
+		gasPrice:  big.NewInt(12),
+	}
+	ret, _ := seqReq.marshal(common.HexToAddress(contractAddr), mTx)
+
+	req := client.newSignRequest(2, client.cfg.CustodialAssets.AggregatorAddr, ret)
+
+	_, err := client.postSignRequestAndWaitResult(ctx, mTx, req)
+	if err != nil {
+		t.Log(err)
+	}
+}
+
 type mockEtherman struct{}
 
 func (m mockEtherman) GetTx(ctx context.Context, txHash common.Hash) (*types.Transaction, bool, error) {
