@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	migrate "github.com/rubenv/sql-migrate"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -118,7 +119,7 @@ func runMigrationsDown(d *sql.DB, n int, packrName string) error {
 }
 
 func checkColumn(t *testing.T, db *sql.DB, schema string, table string, column string, exists bool) (bool, error) {
-	const getColumn = `SELECT count(*) FROM information_schema.columns WHERE table_schema=$1, table_name=$2 and column_name=$3`
+	const getColumn = `SELECT count(*) FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 AND column_name=$3`
 	var result int
 
 	row := db.QueryRow(getColumn, schema, table, column)
@@ -135,16 +136,20 @@ func checkColumn(t *testing.T, db *sql.DB, schema string, table string, column s
 	}
 }
 
-func checkColumnExists(t *testing.T, db *sql.DB, schema string, table string, column string) (bool, error) {
-	return checkColumn(t, db, schema, table, column, true)
+func assertColumnExists(t *testing.T, db *sql.DB, schema string, table string, column string) {
+	exists, err := checkColumn(t, db, schema, table, column, true)
+	assert.NoError(t, err)
+	assert.Equal(t, true, exists)
 }
 
-func checkColumnNotExists(t *testing.T, db *sql.DB, schema string, table string, column string) (bool, error) {
-	return checkColumn(t, db, schema, table, column, false)
+func assertColumnNotExists(t *testing.T, db *sql.DB, schema string, table string, column string) {
+	notExists, err := checkColumn(t, db, schema, table, column, false)
+	assert.NoError(t, err)
+	assert.Equal(t, true, notExists)
 }
 
 func checkTable(t *testing.T, db *sql.DB, schema string, table string, exists bool) (bool, error) {
-	const getTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema=$1' and table_name=$2`
+	const getTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema=$1 AND table_name=$2`
 	var result int
 
 	row := db.QueryRow(getTable, schema, table)
@@ -161,10 +166,14 @@ func checkTable(t *testing.T, db *sql.DB, schema string, table string, exists bo
 	}
 }
 
-func checkTableExists(t *testing.T, db *sql.DB, schema string, table string) (bool, error) {
-	return checkTable(t, db, schema, table, true)
+func assertTableExists(t *testing.T, db *sql.DB, schema string, table string) {
+	exists, err := checkTable(t, db, schema, table, true)
+	assert.NoError(t, err)
+	assert.Equal(t, true, exists)
 }
 
-func checkTableNotExists(t *testing.T, db *sql.DB, schema string, table string) (bool, error) {
-	return checkTable(t, db, schema, table, false)
+func assertTableNotExists(t *testing.T, db *sql.DB, schema string, table string) {
+	notExists, err := checkTable(t, db, schema, table, false)
+	assert.NoError(t, err)
+	assert.Equal(t, true, notExists)
 }
