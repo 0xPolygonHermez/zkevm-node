@@ -7,18 +7,18 @@ CREATE TABLE state.blob_inner
 );
 
 ALTER TABLE state.virtual_batch
-    ADD COLUMN IF NOT EXISTS blob_inner_num BIGINT REFERENCES state.blob_inner (blob_inner_num),
+    ADD COLUMN IF NOT EXISTS blob_inner_num BIGINT, -- REFERENCES state.blob_inner (blob_inner_num),
     ADD COLUMN IF NOT EXISTS prev_l1_it_root VARCHAR,
     ADD COLUMN IF NOT EXISTS prev_l1_it_index BIGINT;
 
 ALTER TABLE IF EXISTS state.proof RENAME TO batch_proof;
 
 ALTER TABLE state.batch_proof 
-    ADD COLUMN IF NOT EXISTS blob_inner_num  BIGINT NOT NULL REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE;
+    ADD COLUMN IF NOT EXISTS blob_inner_num  BIGINT; -- NOT NULL REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE;
 
 CREATE TABLE state.blob_inner_proof
 (
-    blob_inner_num      BIGINT NOT NULL REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
+    blob_inner_num      BIGINT NOT NULL, -- REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
     proof_id            VARCHAR,
     proof               VARCHAR,
     input_prover        VARCHAR,
@@ -32,8 +32,8 @@ CREATE TABLE state.blob_inner_proof
 
 CREATE TABLE state.blob_outer_proof
 (
-    blob_outer_num          BIGINT NOT NULL REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
-    blob_outer_num_final    BIGINT NOT NULL REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
+    blob_outer_num          BIGINT NOT NULL, -- REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
+    blob_outer_num_final    BIGINT NOT NULL, -- REFERENCES state.blob_inner (blob_inner_num) ON DELETE CASCADE,
     proof_id                VARCHAR,
     proof                   VARCHAR,
     input_prover            VARCHAR,
