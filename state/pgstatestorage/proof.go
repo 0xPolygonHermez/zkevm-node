@@ -39,7 +39,7 @@ func (p *PostgresStorage) GetProofReadyForFinal(ctx context.Context, lastVerfied
 			p.generating_since,
 			p.created_at,
 			p.updated_at
-		FROM state.proof p
+		FROM state.batch_proof p
 		WHERE batch_num = $1 AND generating_since IS NULL AND
 			EXISTS (SELECT 1 FROM state.sequences s1 WHERE s1.from_batch_num = p.batch_num) AND
 			EXISTS (SELECT 1 FROM state.sequences s2 WHERE s2.to_batch_num = p.batch_num_final)		
@@ -90,7 +90,7 @@ func (p *PostgresStorage) GetBatchProofsToAggregate(ctx context.Context, dbTx pg
 			p2.generating_since as p2_generating_since,
 			p2.created_at as p2_created_at,
 			p2.updated_at as p2_updated_at
-		FROM state.proof p1 INNER JOIN state.proof p2 ON p1.batch_num_final = p2.batch_num - 1
+		FROM state.batch_proof p1 INNER JOIN state.batch_proof p2 ON p1.batch_num_final = p2.batch_num - 1
 		WHERE p1.blob_inner_num = p2.blob_inner_num AND
 			  p1.generating_since IS NULL AND p2.generating_since IS NULL AND 
 		 	  p1.proof IS NOT NULL AND p2.proof IS NOT NULL AND
@@ -115,7 +115,7 @@ func (p *PostgresStorage) GetBatchProofsToAggregate(ctx context.Context, dbTx pg
 
 // AddBatchProof adds a batch proof to the storage
 func (p *PostgresStorage) AddBatchProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
-	const addBatchProofSQL = "INSERT INTO state.proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
+	const addBatchProofSQL = "INSERT INTO state.batch_proof (batch_num, batch_num_final, proof, proof_id, input_prover, prover, prover_id, generating_since, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
 	e := p.getExecQuerier(dbTx)
 	now := time.Now().UTC().Round(time.Microsecond)
 	_, err := e.Exec(ctx, addBatchProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.ProverID, proof.GeneratingSince, now, now)
@@ -124,7 +124,7 @@ func (p *PostgresStorage) AddBatchProof(ctx context.Context, proof *state.Proof,
 
 // UpdateBatchProof updates a batch proof in the storage
 func (p *PostgresStorage) UpdateBatchProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
-	const addBatchProofSQL = "UPDATE state.proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, prover_id = $7, generating_since = $8, updated_at = $9 WHERE batch_num = $1 AND batch_num_final = $2"
+	const addBatchProofSQL = "UPDATE state.batch_proof SET proof = $3, proof_id = $4, input_prover = $5, prover = $6, prover_id = $7, generating_since = $8, updated_at = $9 WHERE batch_num = $1 AND batch_num_final = $2"
 	e := p.getExecQuerier(dbTx)
 	now := time.Now().UTC().Round(time.Microsecond)
 	_, err := e.Exec(ctx, addBatchProofSQL, proof.BatchNumber, proof.BatchNumberFinal, proof.Proof, proof.ProofID, proof.InputProver, proof.Prover, proof.ProverID, proof.GeneratingSince, now)
@@ -133,7 +133,7 @@ func (p *PostgresStorage) UpdateBatchProof(ctx context.Context, proof *state.Pro
 
 // DeleteBatchProofs deletes from the storage the batch proofs falling inside the batch numbers range.
 func (p *PostgresStorage) DeleteBatchProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error {
-	const deleteBatchProofSQL = "DELETE FROM state.proof WHERE batch_num >= $1 AND batch_num_final <= $2"
+	const deleteBatchProofSQL = "DELETE FROM state.batch_proof WHERE batch_num >= $1 AND batch_num_final <= $2"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteBatchProofSQL, batchNumber, batchNumberFinal)
 	return err
@@ -141,7 +141,7 @@ func (p *PostgresStorage) DeleteBatchProofs(ctx context.Context, batchNumber uin
 
 // CleanupBatchProofs deletes from the storage the batch proofs up to the specified batch number included.
 func (p *PostgresStorage) CleanupBatchProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error {
-	const deleteBatchProofSQL = "DELETE FROM state.proof WHERE batch_num_final <= $1"
+	const deleteBatchProofSQL = "DELETE FROM state.batch_proof WHERE batch_num_final <= $1"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteBatchProofSQL, batchNumber)
 	return err
@@ -153,7 +153,7 @@ func (p *PostgresStorage) CleanupLockedBatchProofs(ctx context.Context, duration
 	if err != nil {
 		return 0, err
 	}
-	sql := fmt.Sprintf("DELETE FROM state.proof WHERE generating_since < (NOW() - interval '%s')", interval)
+	sql := fmt.Sprintf("DELETE FROM state.batch_proof WHERE generating_since < (NOW() - interval '%s')", interval)
 	e := p.getExecQuerier(dbTx)
 	ct, err := e.Exec(ctx, sql)
 	if err != nil {
@@ -164,7 +164,7 @@ func (p *PostgresStorage) CleanupLockedBatchProofs(ctx context.Context, duration
 
 // DeleteUngeneratedBatchProofs deletes ungenerated proofs. This method is meant to be use during aggregator boot-up sequence
 func (p *PostgresStorage) DeleteUngeneratedBatchProofs(ctx context.Context, dbTx pgx.Tx) error {
-	const deleteUngeneratedProofsSQL = "DELETE FROM state.proof WHERE generating_since IS NOT NULL"
+	const deleteUngeneratedProofsSQL = "DELETE FROM state.batch_proof WHERE generating_since IS NOT NULL"
 	e := p.getExecQuerier(dbTx)
 	_, err := e.Exec(ctx, deleteUngeneratedProofsSQL)
 	return err
