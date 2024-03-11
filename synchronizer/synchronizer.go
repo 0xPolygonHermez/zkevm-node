@@ -138,7 +138,6 @@ func NewSynchronizer(
 			if errors.Is(err, state.ErrStateNotSynchronized) {
 				initialL2Block = 1
 				log.Info("State is empty, can't get last L2Block number. Using %d as initial L2Block number", initialL2Block)
-
 			} else if err != nil {
 				log.Errorf("error getting last L2Block number from state. Error: %v", err)
 				return nil, err
@@ -147,7 +146,6 @@ func NewSynchronizer(
 		} else {
 			log.Infof("Trusted Node can't check L2Block hash, ignoring parameter")
 		}
-
 	}
 
 	res.l1EventProcessors = defaultsL1EventProcessors(res, l1checkerL2Blocks)

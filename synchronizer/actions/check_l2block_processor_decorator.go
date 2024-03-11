@@ -21,13 +21,13 @@ func NewCheckL2BlockDecorator(l1EventProcessor L1EventProcessor, l2blockChecker 
 	}
 }
 
+// Process wraps the real Process and after check the L2Blocks
 func (p *CheckL2BlockProcessorDecorator) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
 	res := p.L1EventProcessor.Process(ctx, order, l1Block, dbTx)
 	if res != nil {
 		return res
 	}
 	if p.l2blockChecker == nil {
-
 		return nil
 	}
 	return p.l2blockChecker.CheckL2Block(ctx, dbTx)

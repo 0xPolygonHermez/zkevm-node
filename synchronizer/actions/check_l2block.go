@@ -22,7 +22,7 @@ type trustedRPCGetL2Block interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
 }
 
-// PostClosedBatchCheckL2Block is a struct that implements the PostClosedBatchChecker interface and check the las L2Block hash on close batch
+// CheckL2BlockHash is a struct that implements a checker of L2Block hash
 type CheckL2BlockHash struct {
 	state              stateGetL2Block
 	trustedClient      trustedRPCGetL2Block
@@ -31,7 +31,7 @@ type CheckL2BlockHash struct {
 	modulusL2BlockToCheck uint64
 }
 
-// NewPostClosedBatchCheckL2Block creates a new PostClosedBatchCheckL2Block
+// NewCheckL2BlockHash creates a new CheckL2BlockHash
 func NewCheckL2BlockHash(state stateGetL2Block,
 	trustedClient trustedRPCGetL2Block,
 	initialL2BlockNumber uint64,
@@ -44,6 +44,7 @@ func NewCheckL2BlockHash(state stateGetL2Block,
 	}
 }
 
+// CheckL2Block checks the  L2Block hash between the local and the trusted
 func (p *CheckL2BlockHash) CheckL2Block(ctx context.Context, dbTx pgx.Tx) error {
 	l2BlockNumber := p.GetNextL2BlockToCheck()
 	doned := false
@@ -61,6 +62,7 @@ func (p *CheckL2BlockHash) CheckL2Block(ctx context.Context, dbTx pgx.Tx) error 
 	return nil
 }
 
+// GetNextL2BlockToCheck returns the next L2Block to check
 func (p *CheckL2BlockHash) GetNextL2BlockToCheck() uint64 {
 	if p.modulusL2BlockToCheck == 0 {
 		return p.lastL2BlockChecked + 1
@@ -68,7 +70,7 @@ func (p *CheckL2BlockHash) GetNextL2BlockToCheck() uint64 {
 	return ((p.lastL2BlockChecked / p.modulusL2BlockToCheck) + 1) * p.modulusL2BlockToCheck
 }
 
-// GetL2Block returns localL2Block and trustedL2Block
+// GetL2Blocks returns localL2Block and trustedL2Block
 func (p *CheckL2BlockHash) GetL2Blocks(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Block, *types.Block, error) {
 	localL2Block, err := p.state.GetL2BlockByNumber(ctx, blockNumber, dbTx)
 	if err != nil {
@@ -81,7 +83,6 @@ func (p *CheckL2BlockHash) GetL2Blocks(ctx context.Context, blockNumber uint64, 
 		return nil, nil, err
 	}
 	return localL2Block, trustedL2Block, nil
-
 }
 
 // CheckPostClosedBatch checks the last L2Block hash on close batch
