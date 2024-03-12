@@ -358,17 +358,11 @@ func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromB
 
 // GetBatchL2DataByNumber returns the batch L2 data of the given batch number.
 func (p *PostgresStorage) GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	const getBatchL2DataByBatchNumber = "SELECT raw_txs_data FROM state.batch WHERE batch_num = $1"
-	q := p.getExecQuerier(dbTx)
-	var batchL2Data []byte
-	err := q.QueryRow(ctx, getBatchL2DataByBatchNumber, batchNumber).Scan(&batchL2Data)
-
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, state.ErrNotFound
-	} else if err != nil {
+	rows, err := p.GetBatchL2DataByNumbers(ctx, []uint64{batchNumber}, dbTx)
+	if err != nil {
 		return nil, err
 	}
-	return batchL2Data, nil
+	return rows[0], nil
 }
 
 // GetBatchL2DataByNumbers returns the batch L2 data of the given batch numbers.
@@ -381,15 +375,21 @@ func (p *PostgresStorage) GetBatchL2DataByNumbers(ctx context.Context, batchNumb
 	} else if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	batchL2DataMap := make(map[uint64][]byte)
 	for rows.Next() {
-		var batchNum uint64
-		var batchL2Data []byte
+		var (
+			batchNum    uint64
+			batchL2Data []byte
+		)
 		err := rows.Scan(&batchNum, &batchL2Data)
 		if err != nil {
 			return nil, err
 		}
 		batchL2DataMap[batchNum] = batchL2Data
+	}
+	if len(batchNumbers) == 0 {
+		return nil, state.ErrNotFound
 	}
 	return batchL2DataMap, nil
 }
