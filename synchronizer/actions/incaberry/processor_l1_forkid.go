@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -18,6 +19,7 @@ type stateProcessorForkIdInterface interface {
 	GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]state.ForkIDInterval, error)
 	AddForkIDInterval(ctx context.Context, newForkID state.ForkIDInterval, dbTx pgx.Tx) error
 	ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error
 }
 
 type syncProcessorForkIdInterface interface {
@@ -59,8 +61,50 @@ func getForkdFromSlice(fIds []state.ForkIDInterval, forkId uint64) (bool, state.
 	return false, state.ForkIDInterval{}
 }
 
-func isForksEquals(f1, f2 state.ForkIDInterval) bool {
-	return f1.ForkId == f2.ForkId && f1.FromBatchNumber == f2.FromBatchNumber && f1.Version == f2.Version && f1.BlockNumber == f2.BlockNumber
+func isForksSameFromBatchNumber(f1, f2 state.ForkIDInterval) bool {
+	return f1.ForkId == f2.ForkId && f1.FromBatchNumber == f2.FromBatchNumber
+}
+
+func lastForkID(fIds []state.ForkIDInterval) uint64 {
+	if len(fIds) == 0 {
+		return 0
+	}
+	sort.Slice(fIds, func(i, j int) bool {
+		return fIds[i].ForkId > fIds[j].ForkId
+	})
+	return fIds[0].ForkId
+}
+
+// return true if have been update or false if it's a new one
+func (s *ProcessorForkId) updateForkIDIfNeeded(ctx context.Context, forkIDincomming state.ForkIDInterval, forkIDsInState []state.ForkIDInterval, dbTx pgx.Tx) (bool, error) {
+	found, dbForkID := getForkdFromSlice(forkIDsInState, forkIDincomming.ForkId)
+	if !found {
+		// Is a new forkid
+		return false, nil
+	}
+	if isForksSameFromBatchNumber(forkIDincomming, dbForkID) {
+		if forkIDincomming.BlockNumber != dbForkID.BlockNumber {
+			isLastForkId := lastForkID(forkIDsInState) == forkIDincomming.ForkId
+			log.Infof("ForkID: %d, received again: same fork_id but different blockNumber old: %d, new: %d", forkIDincomming.ForkId, dbForkID.BlockNumber, forkIDincomming.BlockNumber)
+			if isLastForkId {
+				log.Warnf("ForkID: %d is the last one in the state. Updating BlockNumber from %d to %d", forkIDincomming.ForkId, dbForkID.BlockNumber, forkIDincomming.BlockNumber)
+				err := s.state.UpdateForkIDBlockNumber(ctx, forkIDincomming.ForkId, forkIDincomming.BlockNumber, true, dbTx)
+				if err != nil {
+					log.Errorf("error updating forkID: %d blocknumber. Error: %v", forkIDincomming.ForkId, err)
+					return true, err
+				}
+				return true, nil
+			}
+			err := fmt.Errorf("ForkID: %d, already in the state but with different blockNumber and is not last ForkID, so can't update BlockNumber. DB ForkID: %+v. New ForkID: %+v", forkIDincomming.ForkId, dbForkID, forkIDincomming)
+			log.Error(err.Error())
+			return true, err
+		}
+		log.Infof("ForkID: %d, already in the state. Skipping . ForkID: %+v.", forkIDincomming.ForkId, forkIDincomming)
+		return true, nil
+	}
+	err := fmt.Errorf("ForkID: %d, already in the state but with different starting BatchNumber. DB ForkID: %+v. New ForkID: %+v", forkIDincomming.ForkId, dbForkID, forkIDincomming)
+	log.Error(err.Error())
+	return true, err
 }
 
 func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
@@ -84,14 +128,18 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 		}
 		return err
 	}
-	if found, dbForkID := getForkdFromSlice(fIds, fID.ForkId); found {
-		if isForksEquals(fID, dbForkID) {
-			log.Infof("ForkID: %d, already in the state. Skipping . ForkID: %+v.", fID.ForkId, fID)
-			return nil
+	isUpdate, err := s.updateForkIDIfNeeded(ctx, fID, fIds, dbTx)
+	if err != nil {
+		log.Error("error updating forkIDIfNeeded. Error: ", err)
+		rollbackErr := dbTx.Rollback(ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
 		}
-		err = fmt.Errorf("ForkID: %d, already in the state but with different values. DB ForkID: %+v. New ForkID: %+v", fID.ForkId, dbForkID, fID)
-		log.Error(err.Error())
 		return err
+	}
+	if isUpdate {
+		return nil
 	}
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)

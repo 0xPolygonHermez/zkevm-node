@@ -121,7 +121,8 @@ type storage interface {
 	GetBatchByForcedBatchNum(ctx context.Context, forcedBatchNumber uint64, dbTx pgx.Tx) (*Batch, error)
 	AddForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error
 	GetForkIDs(ctx context.Context, dbTx pgx.Tx) ([]ForkIDInterval, error)
-	UpdateForkID(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error
+	UpdateForkIDToBatchNumber(ctx context.Context, forkID ForkIDInterval, dbTx pgx.Tx) error
+	UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error
 	GetNativeBlockHashesInRange(ctx context.Context, fromBlock, toBlock uint64, dbTx pgx.Tx) ([]common.Hash, error)
 	GetDSGenesisBlock(ctx context.Context, dbTx pgx.Tx) (*DSL2Block, error)
 	GetDSBatches(ctx context.Context, firstBatchNumber, lastBatchNumber uint64, readWIPBatch bool, dbTx pgx.Tx) ([]*DSBatch, error)
