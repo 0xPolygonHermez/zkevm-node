@@ -358,11 +358,15 @@ func (p *PostgresStorage) GetNativeBlockHashesInRange(ctx context.Context, fromB
 
 // GetBatchL2DataByNumber returns the batch L2 data of the given batch number.
 func (p *PostgresStorage) GetBatchL2DataByNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]byte, error) {
-	rows, err := p.GetBatchL2DataByNumbers(ctx, []uint64{batchNumber}, dbTx)
+	batchData, err := p.GetBatchL2DataByNumbers(ctx, []uint64{batchNumber}, dbTx)
 	if err != nil {
 		return nil, err
 	}
-	return rows[0], nil
+	data, ok := batchData[batchNumber]
+	if !ok {
+		return nil, state.ErrNotFound
+	}
+	return data, nil
 }
 
 // GetBatchL2DataByNumbers returns the batch L2 data of the given batch numbers.
