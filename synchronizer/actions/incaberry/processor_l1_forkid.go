@@ -46,6 +46,12 @@ func NewProcessorForkId(state stateProcessorForkIdInterface, sync syncProcessorF
 
 // Process process event
 func (p *ProcessorForkId) Process(ctx context.Context, order etherman.Order, l1Block *etherman.Block, dbTx pgx.Tx) error {
+	if l1Block == nil {
+		return errors.New("nil l1Block")
+	}
+	if len(l1Block.ForkIDs) <= order.Pos {
+		return fmt.Errorf("ForkIDsOrder index out of range. BlockNumber: %d, ForkIDsOrder index: %d", l1Block.BlockNumber, order.Pos)
+	}
 	return p.processForkID(ctx, l1Block.ForkIDs[order.Pos], l1Block.BlockNumber, dbTx)
 }
 
@@ -63,6 +69,15 @@ func getForkdFromSlice(fIds []state.ForkIDInterval, forkId uint64) (bool, state.
 
 func isForksSameFromBatchNumber(f1, f2 state.ForkIDInterval) bool {
 	return f1.ForkId == f2.ForkId && f1.FromBatchNumber == f2.FromBatchNumber
+}
+
+func isIncommingForkIdGreatestThanLastOne(incommingForkID state.ForkIDInterval, fIds []state.ForkIDInterval) bool {
+	if len(fIds) == 0 {
+		return true
+	}
+	last := lastForkID(fIds)
+	// Must be greater than the last one
+	return incommingForkID.ForkId > last
 }
 
 func lastForkID(fIds []state.ForkIDInterval) uint64 {
@@ -120,52 +135,39 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 	log.Debugf("ForkID: %d, synchronization must use the new forkID since batch: %d", forkID.ForkID, forkID.BatchNumber+1)
 	fIds, err := s.state.GetForkIDs(ctx, dbTx)
 	if err != nil {
-		log.Error("error getting ForkIDTrustedReorg. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state get forkID trusted state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
+		log.Errorf("error getting forkIDs. Error: %v", err)
+		//return s.rollback(ctx, blockNumber, "getting GetForkIDs", err, dbTx)
 		return err
 	}
 	isUpdate, err := s.updateForkIDIfNeeded(ctx, fID, fIds, dbTx)
 	if err != nil {
-		log.Error("error updating forkIDIfNeeded. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
+		log.Errorf("ForkID: %d, error updating forkID . Error: %v", forkID.ForkID, err)
 		return err
+		//return s.rollback(ctx, blockNumber, "updateForkIDIfNeeded", err, dbTx)
 	}
 	if isUpdate {
-		return nil
+		return nil // The calling function is doing the commit
+	}
+
+	if !isIncommingForkIdGreatestThanLastOne(fID, fIds) {
+		err = fmt.Errorf("ForkID: %d, received don't fit sequence, last forkid:%d ", forkID.ForkID, lastForkID(fIds))
+		log.Error(err.Error())
+		return err
 	}
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
 	if err != nil && !errors.Is(err, state.ErrStateNotSynchronized) {
-		log.Error("error getting last batch number. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
+		log.Errorf("error getting last batch number. Error: %v", err)
+		//return s.rollback(ctx, blockNumber, "getting last batch number", err, dbTx)
 	}
 	// Add new forkID to the state
 	err = s.state.AddForkIDInterval(ctx, fID, dbTx)
 	if err != nil {
-		log.Error("error adding new forkID interval to the state. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
+		return s.rollback(ctx, blockNumber, "adding new forkID interval to the state", err, dbTx)
 	}
 	if latestBatchNumber <= forkID.BatchNumber || s.sync.IsTrustedSequencer() { //If the forkID will start in a future batch or isTrustedSequencer
 		log.Infof("Just adding forkID. Skipping reset forkID. ForkID: %+v.", fID)
-		return nil
+		return nil // The calling function is doing the commit
 	}
 
 	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
@@ -173,26 +175,38 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
 	err = s.state.ResetForkID(ctx, forkID.BatchNumber+1, dbTx)
 	if err != nil {
-		log.Error("error resetting the state. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
-		return err
+		// I'm wondering if it's really needed to call rollback, in fact, the caller is going to call the rollback when returns an error
+		return s.rollback(ctx, blockNumber, fmt.Sprintf("resetting the state to %d", forkID.BatchNumber+1), err, dbTx)
 	}
 
 	// Commit because it returns an error to force the resync
-	err = dbTx.Commit(ctx)
+	err = s.commit(ctx, blockNumber, dbTx)
 	if err != nil {
-		log.Error("error committing the resetted state. Error: ", err)
-		rollbackErr := dbTx.Rollback(ctx)
-		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
-			return rollbackErr
-		}
 		return err
 	}
 
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
+}
+func (s *ProcessorForkId) rollback(ctx context.Context, blockNumber uint64, msg string, err error, dbTx pgx.Tx) error {
+	log.Error("error %s. Error: ", msg, err)
+	rollbackErr := dbTx.Rollback(ctx)
+	if rollbackErr != nil {
+		log.Errorf("error rolling back %s. BlockNumber: %d, rollbackErr: %s, error : %v", msg, blockNumber, rollbackErr.Error(), err)
+		return rollbackErr
+	}
+	return err
+}
+
+func (s *ProcessorForkId) commit(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+	err := dbTx.Commit(ctx)
+	if err != nil {
+		log.Error("error committing forkId. Error: ", err)
+		rollbackErr := dbTx.Rollback(ctx)
+		if rollbackErr != nil {
+			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			return rollbackErr
+		}
+		return err
+	}
+	return nil
 }
