@@ -84,7 +84,6 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 		}
 		return err
 	}
-	//if len(fIds) != 0 && fIds[len(fIds)-1].ForkId == fID.ForkId { // If the forkID reset was already done
 	if found, dbForkID := getForkdFromSlice(fIds, fID.ForkId); found {
 		if isForksEquals(fID, dbForkID) {
 			log.Infof("ForkID: %d, already in the state. Skipping . ForkID: %+v.", fID.ForkId, fID)
