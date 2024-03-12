@@ -167,8 +167,9 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	batchNums := []uint64{2, 3}
 	batchHashes := []common.Hash{txsHash, txsHash}
 	batchData := [][]byte{data, data}
-	da.Mock.On("GetBatchL2Data", batchNums, batchHashes, []byte{}).Return(batchData, nil)
-	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, sequences, auth.From, []byte{})
+	daMessage, _ := hex.DecodeString("0x123456789123456789")
+	da.Mock.On("GetBatchL2Data", batchNums, batchHashes, daMessage).Return(batchData, nil)
+	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, sequences, auth.From, daMessage)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -206,9 +207,10 @@ func TestVerifyBatchEvent(t *testing.T) {
 	tx := polygonzkevm.PolygonValidiumEtrogValidiumBatchData{
 		TransactionsHash: crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	}
-	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{tx}, auth.From, nil)
+	daMessage, _ := hex.DecodeString("0x1234")
+	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{tx}, auth.From, daMessage)
 	require.NoError(t, err)
-	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(common.Hex2Bytes(rawTxs))}, []byte{}).Return([][]byte{common.Hex2Bytes(rawTxs)}, nil)
+	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(common.Hex2Bytes(rawTxs))}, daMessage).Return([][]byte{common.Hex2Bytes(rawTxs)}, nil)
 
 	// Mine the tx in a block
 	ethBackend.Commit()
@@ -319,9 +321,10 @@ func TestSendSequences(t *testing.T) {
 	sequence := ethmanTypes.Sequence{
 		BatchL2Data: batchL2Data,
 	}
-	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From, []byte{})
+	daMessage, _ := hex.DecodeString("0x1234")
+	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From, daMessage)
 	require.NoError(t, err)
-	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(batchL2Data)}, []byte{}).Return([][]byte{batchL2Data}, nil)
+	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(batchL2Data)}, daMessage).Return([][]byte{batchL2Data}, nil)
 	log.Debug("TX: ", tx.Hash())
 	ethBackend.Commit()
 
