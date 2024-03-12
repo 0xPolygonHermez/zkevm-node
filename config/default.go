@@ -116,6 +116,10 @@ L1SynchronizationMode = "sequential"
 		[Synchronizer.L1ParallelSynchronization.PerformanceWarning]
 			AceptableInacctivityTime = "5s"
 			ApplyAfterNumRollupReceived = 10
+	[Synchronizer.L2Synchronization]
+		AcceptEmptyClosedBatches = false
+		ReprocessFullBatchOnClose = false
+		CheckLastL2BlockHashOnCloseBatch = true
 
 [Sequencer]
 DeletePoolTxsL1BlockConfirmations = 100
@@ -137,6 +141,9 @@ StateConsistencyCheckInterval = "5s"
 		HaltOnBatchNumber = 0
 		SequentialBatchSanityCheck = false
 		SequentialProcessL2Block = true
+	[Sequencer.Finalizer.Metrics]
+		Interval = "60m"
+		EnableLog = true
 	[Sequencer.StreamServer]
 		Port = 0
 		Filename = ""
@@ -165,11 +172,11 @@ CleanupLockedProofsInterval = "2m"
 GeneratingProofCleanupThreshold = "10m"
 GasOffset = 0
 UpgradeEtrogBatchNumber = 0
+BatchProofL1BlockConfirmations = 2
 SettlementBackend = "agglayer"
 AggLayerTxTimeout = "5m"
 AggLayerURL = "http://zkevm-agglayer"
 SequencerPrivateKey = {Path = "/pk/sequencer.keystore", Password = "testonly"}
-BatchProofL1BlockConfirmations = 2
 
 [L2GasPriceSuggester]
 Type = "follower"

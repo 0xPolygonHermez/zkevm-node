@@ -56,6 +56,13 @@ func TestGivenPermissionlessNodeWhenSyncronizeAgainSameBatchThenUseTheOneInMemor
 	batch10With3Tx := createBatch(t, lastBatchNumber, 3, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
 
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
+
 	expectedCallsForsyncTrustedState(t, m, sync, nil, batch10With2Tx, previousBatch09, RETRIEVE_BATCH_FROM_DB_FLAG, ETROG_MODE_FLAG)
 	// Is the first time that appears this batch, so it need to OpenBatch
 	expectedCallsForOpenBatch(t, m, sync, lastBatchNumber)
@@ -88,6 +95,13 @@ func TestGivenPermissionlessNodeWhenSyncronizeFirstTimeABatchThenStoreItInALocal
 	batch10With1Tx := createBatch(t, lastBatchNumber, 1, ETROG_MODE_FLAG)
 	batch10With2Tx := createBatch(t, lastBatchNumber, 2, ETROG_MODE_FLAG)
 	previousBatch09 := createBatch(t, lastBatchNumber-1, 1, ETROG_MODE_FLAG)
+
+	forkIdInterval := state.ForkIDInterval{
+		FromBatchNumber: 0,
+		ToBatchNumber:   ^uint64(0),
+	}
+	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	m.State.EXPECT().GetForkIDByBatchNumber(lastBatchNumber + 1).Return(uint64(7))
 
 	// This is a incremental process, permissionless have batch10With1Tx and we add a new block
 	// but the cache doesnt have this information so it need to get from db
@@ -765,11 +779,6 @@ func expectedCallsForsyncTrustedState(t *testing.T, m *mocks, sync *ClientSynchr
 	batchInPermissionLess *types.Batch, batchInTrustedNode *types.Batch, previousBatchInPermissionless *types.Batch,
 	needToRetrieveBatchFromDatabase bool, etrogMode bool) {
 	m.State.EXPECT().GetForkIDByBatchNumber(mock.Anything).Return(uint64(7)).Times(1)
-	forkIdInterval := state.ForkIDInterval{
-		FromBatchNumber: 0,
-		ToBatchNumber:   ^uint64(0),
-	}
-	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
 	batchNumber := uint64(batchInTrustedNode.Number)
 	m.ZKEVMClient.
 		On("BatchNumber", mock.Anything).

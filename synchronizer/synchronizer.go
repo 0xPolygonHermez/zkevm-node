@@ -20,7 +20,6 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l1event_orders"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_shared"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_etrog"
-	"github.com/0xPolygonHermez/zkevm-node/synchronizer/l2_sync/l2_sync_incaberry"
 	"github.com/0xPolygonHermez/zkevm-node/synchronizer/metrics"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4"
@@ -30,8 +29,9 @@ const (
 	// ParallelMode is the value for L1SynchronizationMode to run in parallel mode
 	ParallelMode = "parallel"
 	// SequentialMode is the value for L1SynchronizationMode to run in sequential mode
-	SequentialMode = "sequential"
-	maxBatchNumber = ^uint64(0)
+	SequentialMode         = "sequential"
+	maxBatchNumber         = ^uint64(0)
+	timeOfLiveBatchOnCache = 5 * time.Minute
 )
 
 // Synchronizer connects L1 and L2
@@ -110,15 +110,26 @@ func NewSynchronizer(
 		l1EventProcessors:       nil,
 		halter:                  syncCommon.NewCriticalErrorHalt(eventLog, 5*time.Second), //nolint:gomnd
 	}
-	L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
 
-	syncTrustedStateIncaberry := l2_sync_incaberry.NewSyncTrustedStateExecutor(res.zkEVMClient, res.state, res)
-	syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
-		syncCommon.DefaultTimeProvider{}, L1SyncChecker)
+	if !isTrustedSequencer {
+		log.Info("Permissionless: creating and Initializing L2 synchronization components")
+		L1SyncChecker := l2_sync_etrog.NewCheckSyncStatusToProcessBatch(res.zkEVMClient, res.state)
+		sync := &res
+		//syncTrustedStateEtrog := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.zkEVMClient, res.state, res.state, res,
+		//	syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
+		executorSteps := l2_sync_etrog.NewSyncTrustedBatchExecutorForEtrog(res.state, *sync)
+		executor := l2_shared.NewProcessorTrustedBatchSync(executorSteps, syncCommon.DefaultTimeProvider{}, L1SyncChecker, cfg.L2Synchronization)
+		if cfg.L2Synchronization.CheckLastL2BlockHashOnCloseBatch {
+			log.Infof("Adding check of L2Block hash on close batch when sync from trusted node")
+			executor.AddPostChecker(l2_shared.NewPostClosedBatchCheckL2Block(res.state))
+		}
 
-	res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(
-		syncTrustedStateIncaberry, syncTrustedStateEtrog, st)
-
+		syncTrustedStateEtrog := l2_shared.NewTrustedBatchesRetrieve(executor, zkEVMClient, res.state, *sync, *l2_shared.NewTrustedStateManager(syncCommon.DefaultTimeProvider{}, timeOfLiveBatchOnCache))
+		res.syncTrustedStateExecutor = l2_shared.NewSyncTrustedStateExecutorSelector(map[uint64]syncinterfaces.SyncTrustedStateExecutor{
+			uint64(state.FORKID_ETROG):      syncTrustedStateEtrog,
+			uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
+		}, res.state)
+	}
 	res.l1EventProcessors = defaultsL1EventProcessors(res)
 	switch cfg.L1SynchronizationMode {
 	case ParallelMode:
@@ -161,7 +172,7 @@ func newL1SyncParallel(ctx context.Context, cfg Config, etherManForL1 []syncinte
 	l1SyncOrchestration := l1_parallel_sync.NewL1SyncOrchestration(ctx, l1DataRetriever, L1DataProcessor)
 	if runExternalControl {
 		log.Infof("Starting external control")
-		externalControl := newExternalControl(l1DataRetriever, l1SyncOrchestration)
+		externalControl := newExternalCmdControl(l1DataRetriever, l1SyncOrchestration)
 		externalControl.start()
 	}
 	return l1SyncOrchestration
@@ -177,6 +188,15 @@ func (s *ClientSynchronizer) CleanTrustedState() {
 // IsTrustedSequencer returns true is a running in a trusted sequencer
 func (s *ClientSynchronizer) IsTrustedSequencer() bool {
 	return s.isTrustedSequencer
+}
+
+func rollback(ctx context.Context, dbTx pgx.Tx, err error) error {
+	rollbackErr := dbTx.Rollback(ctx)
+	if rollbackErr != nil {
+		log.Errorf("error rolling back state. RollbackErr: %v,because err: %s", rollbackErr, err.Error())
+		return rollbackErr
+	}
+	return err
 }
 
 // Sync function will read the last state synced and will continue from that point.
@@ -198,20 +218,10 @@ func (s *ClientSynchronizer) Sync() error {
 			valid, err := s.etherMan.VerifyGenBlockNumber(s.ctx, s.genesis.RollupBlockNumber)
 			if err != nil {
 				log.Error("error checking genesis block number. Error: ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
+				return rollback(s.ctx, dbTx, err)
 			} else if !valid {
 				log.Error("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
-					return rollbackErr
-				}
-				return fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed")
+				return rollback(s.ctx, dbTx, fmt.Errorf("genesis Block number configured is not valid. It is required the block number where the PolygonZkEVM smc was deployed"))
 			}
 
 			// Sync events from RollupManager that happen before rollup creation
@@ -246,12 +256,7 @@ func (s *ClientSynchronizer) Sync() error {
 			header, err := s.etherMan.HeaderByNumber(s.ctx, big.NewInt(0).SetUint64(s.genesis.RollupBlockNumber))
 			if err != nil {
 				log.Errorf("error getting l1 block header for block %d. Error: %v", s.genesis.RollupBlockNumber, err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
+				return rollback(s.ctx, dbTx, err)
 			}
 			log.Info("synchronizing rollup creation block")
 			lastEthBlockSynced = &state.Block{
@@ -263,66 +268,23 @@ func (s *ClientSynchronizer) Sync() error {
 			genesisRoot, err := s.state.SetGenesis(s.ctx, *lastEthBlockSynced, s.genesis, stateMetrics.SynchronizerCallerLabel, dbTx)
 			if err != nil {
 				log.Error("error setting genesis: ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
+				return rollback(s.ctx, dbTx, err)
 			}
-
-			blocks, _, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, &lastEthBlockSynced.BlockNumber)
+			err = s.RequestAndProcessRollupGenesisBlock(dbTx, lastEthBlockSynced)
 			if err != nil {
-				log.Error("error getting rollupInfoByBlockRange after set the genesis: ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
-			}
-			err = s.l1EventProcessors.Process(s.ctx, 1, etherman.Order{Name: etherman.ForkIDsOrder, Pos: 0}, &blocks[0], dbTx)
-			if err != nil {
-				log.Error("error storing genesis forkID: ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
-			}
-			if len(blocks[0].SequencedBatches) != 0 {
-				err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(blocks[0].ForkIDs[0].ForkID), etherman.Order{Name: etherman.SequenceBatchesOrder, Pos: 0}, &blocks[0], dbTx)
-				if err != nil {
-					log.Error("error storing initial tx (batch 1): ", err)
-					rollbackErr := dbTx.Rollback(s.ctx)
-					if rollbackErr != nil {
-						log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-						return rollbackErr
-					}
-					return err
-				}
+				log.Error("error processing Rollup genesis block: ", err)
+				return rollback(s.ctx, dbTx, err)
 			}
 
 			if genesisRoot != s.genesis.Root {
 				log.Errorf("Calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v", rollbackErr)
-					return rollbackErr
-				}
-				return fmt.Errorf("calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String())
+				return rollback(s.ctx, dbTx, fmt.Errorf("calculated newRoot should be %s instead of %s", s.genesis.Root.String(), genesisRoot.String()))
 			}
 			// Waiting for the flushID to be stored
 			err = s.checkFlushID(dbTx)
 			if err != nil {
 				log.Error("error checking genesis flushID: ", err)
-				rollbackErr := dbTx.Rollback(s.ctx)
-				if rollbackErr != nil {
-					log.Errorf("error rolling back state. RollbackErr: %v, err: %s", rollbackErr, err.Error())
-					return rollbackErr
-				}
-				return err
+				return rollback(s.ctx, dbTx, err)
 			}
 			log.Debug("Genesis root matches!")
 		} else {
@@ -417,6 +379,8 @@ func (s *ClientSynchronizer) Sync() error {
 							}
 						} else if errors.Is(err, syncinterfaces.ErrMissingSyncFromL1) {
 							log.Info("Syncing from trusted node need data from L1")
+						} else if errors.Is(err, syncinterfaces.ErrCantSyncFromL2) {
+							log.Info("Can't sync from L2, going to sync from L1")
 						} else {
 							// We break for resync from Trusted
 							log.Debug("Sleeping for 1 second to avoid respawn too fast, error: ", err)
@@ -444,6 +408,7 @@ func (s *ClientSynchronizer) Sync() error {
 			metrics.FullL1SyncTime(time.Since(startL1))
 			if err != nil {
 				log.Warn("error syncing blocks: ", err)
+				s.CleanTrustedState()
 				lastEthBlockSynced, err = s.state.GetLastBlock(s.ctx, nil)
 				if err != nil {
 					log.Fatal("error getting lastEthBlockSynced to resume the synchronization... Error: ", err)
@@ -461,6 +426,51 @@ func (s *ClientSynchronizer) Sync() error {
 			log.Info("L1 state fully synchronized")
 		}
 	}
+}
+
+// RequestAndProcessRollupGenesisBlock it requests the rollup genesis block and processes it
+//
+//	and execute it
+func (s *ClientSynchronizer) RequestAndProcessRollupGenesisBlock(dbTx pgx.Tx, lastEthBlockSynced *state.Block) error {
+	blocks, order, err := s.etherMan.GetRollupInfoByBlockRange(s.ctx, lastEthBlockSynced.BlockNumber, &lastEthBlockSynced.BlockNumber)
+	if err != nil {
+		log.Error("error getting rollupInfoByBlockRange after set the genesis: ", err)
+		return err
+	}
+	// Check that the response is the expected. It should be 1 block with 2 orders
+	err = sanityCheckForGenesisBlockRollupInfo(blocks, order)
+	if err != nil {
+		return err
+	}
+	forkId := s.state.GetForkIDByBlockNumber(blocks[0].BlockNumber)
+	err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(forkId), etherman.Order{Name: etherman.ForkIDsOrder, Pos: 0}, &blocks[0], dbTx)
+	if err != nil {
+		log.Error("error storing genesis forkID: ", err)
+		return err
+	}
+	if len(blocks[0].SequencedBatches) != 0 {
+		batchSequence := l1event_orders.GetSequenceFromL1EventOrder(etherman.InitialSequenceBatchesOrder, &blocks[0], 0)
+		forkId = s.state.GetForkIDByBatchNumber(batchSequence.FromBatchNumber)
+		err = s.l1EventProcessors.Process(s.ctx, actions.ForkIdType(forkId), etherman.Order{Name: etherman.InitialSequenceBatchesOrder, Pos: 0}, &blocks[0], dbTx)
+		if err != nil {
+			log.Error("error storing initial tx (batch 1): ", err)
+			return err
+		}
+	}
+	return nil
+}
+
+func sanityCheckForGenesisBlockRollupInfo(blocks []etherman.Block, order map[common.Hash][]etherman.Order) error {
+	if len(blocks) != 1 || len(order) < 1 || len(order[blocks[0].BlockHash]) < 1 {
+		log.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected 1 block with 2 orders")
+		return fmt.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected 1 block with 2 orders")
+	}
+	if order[blocks[0].BlockHash][0].Name != etherman.ForkIDsOrder {
+		log.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected ForkIDsOrder, got %s", order[blocks[0].BlockHash][0].Name)
+		return fmt.Errorf("error getting rollupInfoByBlockRange after set the genesis. Expected ForkIDsOrder")
+	}
+
+	return nil
 }
 
 // This function syncs the node from a specific block to the latest

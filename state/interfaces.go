@@ -15,7 +15,7 @@ type storage interface {
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 	Begin(ctx context.Context) (pgx.Tx, error)
-	StoreGenesisBatch(ctx context.Context, batch Batch, dbTx pgx.Tx) error
+	StoreGenesisBatch(ctx context.Context, batch Batch, closingReason string, dbTx pgx.Tx) error
 	ResetToL1BlockNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error
 	ResetForkID(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	ResetTrustedState(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
@@ -158,4 +158,5 @@ type storage interface {
 	IsBatchChecked(ctx context.Context, batchNum uint64, dbTx pgx.Tx) (bool, error)
 	UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx) ([]*Batch, error)
+	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*L2Block, error)
 }

@@ -12,6 +12,8 @@ var (
 	ErrMissingSyncFromL1 = errors.New("must sync from L1")
 	// ErrFatalDesyncFromL1 is returned when trusted node and permissionless node have different data
 	ErrFatalDesyncFromL1 = errors.New("fatal situation: the TrustedNode have another data!. Halt or do something")
+	// ErrCantSyncFromL2 is returned when can't sync from L2, for example the forkid is not supported by L2 sync
+	ErrCantSyncFromL2 = errors.New("can't sync from L2")
 )
 
 // SyncTrustedStateExecutor is the interface that class that synchronize permissionless with a trusted node

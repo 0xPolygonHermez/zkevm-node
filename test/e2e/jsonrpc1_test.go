@@ -677,7 +677,7 @@ func Test_EstimateCounters(t *testing.T) {
 	}
 	ctx := context.Background()
 	setup()
-	// defer teardown()
+	defer teardown()
 	ethClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
 	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
@@ -703,6 +703,32 @@ func Test_EstimateCounters(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			name: "transfer works successfully",
+			prepareParams: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) map[string]interface{} {
+				params := map[string]interface{}{
+					"from":  a.From.String(),
+					"to":    common.HexToAddress("0x1").String(),
+					"gas":   hex.EncodeUint64(30000000),
+					"value": hex.EncodeBig(big.NewInt(10000)),
+				}
+
+				return params
+			},
+			assert: func(t *testing.T, tc *testCase, response types.ZKCountersResponse) {
+				assert.LessOrEqual(t, response.CountersUsed.GasUsed, expectedCountersLimits.MaxGasUsed)
+				assert.LessOrEqual(t, response.CountersUsed.UsedKeccakHashes, expectedCountersLimits.MaxKeccakHashes)
+				assert.LessOrEqual(t, response.CountersUsed.UsedPoseidonHashes, expectedCountersLimits.MaxPoseidonHashes)
+				assert.LessOrEqual(t, response.CountersUsed.UsedPoseidonPaddings, expectedCountersLimits.MaxPoseidonPaddings)
+				assert.LessOrEqual(t, response.CountersUsed.UsedMemAligns, expectedCountersLimits.MaxMemAligns)
+				assert.LessOrEqual(t, response.CountersUsed.UsedArithmetics, expectedCountersLimits.MaxArithmetics)
+				assert.LessOrEqual(t, response.CountersUsed.UsedBinaries, expectedCountersLimits.MaxBinaries)
+				assert.LessOrEqual(t, response.CountersUsed.UsedSteps, expectedCountersLimits.MaxSteps)
+				assert.LessOrEqual(t, response.CountersUsed.UsedSHA256Hashes, expectedCountersLimits.MaxSHA256Hashes)
+				assert.Nil(t, response.Revert)
+				assert.Nil(t, response.OOCError)
+			},
+		},
+		{
 			name: "call OOC poseidon",
 			prepareParams: func(t *testing.T, ctx context.Context, sc *triggerErrors.TriggerErrors, c *ethclient.Client, a bind.TransactOpts) map[string]interface{} {
 				a.GasLimit = 30000000
@@ -724,7 +750,6 @@ func Test_EstimateCounters(t *testing.T) {
 				assert.Greater(t, response.CountersUsed.UsedPoseidonHashes, expectedCountersLimits.MaxPoseidonHashes)
 				assert.Nil(t, response.Revert)
 				assert.Equal(t, "not enough poseidon counters to continue the execution", *response.OOCError)
-
 			},
 		},
 	}

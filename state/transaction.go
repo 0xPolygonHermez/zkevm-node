@@ -591,7 +591,7 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 		}
 	}
 
-	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+	if err == nil && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return nil, err
@@ -599,6 +599,15 @@ func (s *State) internalProcessUnsignedTransactionV2(ctx context.Context, tx *ty
 
 	response, err := s.convertToProcessBatchResponseV2(processBatchResponseV2)
 	if err != nil {
+		return nil, err
+	}
+
+	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
+		err = executor.RomErr(processBatchResponseV2.ErrorRom)
+		if executor.IsROMOutOfCountersError(executor.RomErrorCode(err)) {
+			return response, err
+		}
+
 		return nil, err
 	}
 
@@ -1026,21 +1035,15 @@ func (s *State) internalTestGasEstimationTransactionV2(ctx context.Context, batc
 	txExecutionOnExecutorTime := time.Now()
 	processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
 	log.Debugf("executor time: %vms", time.Since(txExecutionOnExecutorTime).Milliseconds())
-	if err != nil && !errors.Is(err, runtime.ErrExecutorErrorOOG2) {
+	if err != nil {
 		log.Errorf("error estimating gas: %v", err)
 		return false, false, gasUsed, nil, err
 	}
-	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR &&
-		processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
-		if processBatchResponseV2.Error == executor.ExecutorError_EXECUTOR_ERROR_OOG_2 {
-			return true, false, gasUsed, nil, nil
-		}
-
+	if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 		err = executor.ExecutorErr(processBatchResponseV2.Error)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 		return false, false, gasUsed, nil, err
 	}
-
 	if processBatchResponseV2.ErrorRom != executor.RomError_ROM_ERROR_NO_ERROR {
 		err = executor.RomErr(processBatchResponseV2.ErrorRom)
 		s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)

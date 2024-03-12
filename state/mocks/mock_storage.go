@@ -3935,6 +3935,66 @@ func (_c *StorageMock_GetLastL2Block_Call) RunAndReturn(run func(context.Context
 	return _c
 }
 
+// GetLastL2BlockByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StorageMock) GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastL2BlockByBatchNumber")
+	}
+
+	var r0 *state.L2Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.L2Block, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.L2Block); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.L2Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetLastL2BlockByBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLastL2BlockByBatchNumber'
+type StorageMock_GetLastL2BlockByBatchNumber_Call struct {
+	*mock.Call
+}
+
+// GetLastL2BlockByBatchNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - batchNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetLastL2BlockByBatchNumber(ctx interface{}, batchNumber interface{}, dbTx interface{}) *StorageMock_GetLastL2BlockByBatchNumber_Call {
+	return &StorageMock_GetLastL2BlockByBatchNumber_Call{Call: _e.mock.On("GetLastL2BlockByBatchNumber", ctx, batchNumber, dbTx)}
+}
+
+func (_c *StorageMock_GetLastL2BlockByBatchNumber_Call) Run(run func(ctx context.Context, batchNumber uint64, dbTx pgx.Tx)) *StorageMock_GetLastL2BlockByBatchNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetLastL2BlockByBatchNumber_Call) Return(_a0 *state.L2Block, _a1 error) *StorageMock_GetLastL2BlockByBatchNumber_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetLastL2BlockByBatchNumber_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (*state.L2Block, error)) *StorageMock_GetLastL2BlockByBatchNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetLastL2BlockCreatedAt provides a mock function with given fields: ctx, dbTx
 func (_m *StorageMock) GetLastL2BlockCreatedAt(ctx context.Context, dbTx pgx.Tx) (*time.Time, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -8004,17 +8064,17 @@ func (_c *StorageMock_SetLastBatchInfoSeenOnEthereum_Call) RunAndReturn(run func
 	return _c
 }
 
-// StoreGenesisBatch provides a mock function with given fields: ctx, batch, dbTx
-func (_m *StorageMock) StoreGenesisBatch(ctx context.Context, batch state.Batch, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, batch, dbTx)
+// StoreGenesisBatch provides a mock function with given fields: ctx, batch, closingReason, dbTx
+func (_m *StorageMock) StoreGenesisBatch(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, batch, closingReason, dbTx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StoreGenesisBatch")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, pgx.Tx) error); ok {
-		r0 = rf(ctx, batch, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, state.Batch, string, pgx.Tx) error); ok {
+		r0 = rf(ctx, batch, closingReason, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -8030,14 +8090,15 @@ type StorageMock_StoreGenesisBatch_Call struct {
 // StoreGenesisBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - batch state.Batch
+//   - closingReason string
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) StoreGenesisBatch(ctx interface{}, batch interface{}, dbTx interface{}) *StorageMock_StoreGenesisBatch_Call {
-	return &StorageMock_StoreGenesisBatch_Call{Call: _e.mock.On("StoreGenesisBatch", ctx, batch, dbTx)}
+func (_e *StorageMock_Expecter) StoreGenesisBatch(ctx interface{}, batch interface{}, closingReason interface{}, dbTx interface{}) *StorageMock_StoreGenesisBatch_Call {
+	return &StorageMock_StoreGenesisBatch_Call{Call: _e.mock.On("StoreGenesisBatch", ctx, batch, closingReason, dbTx)}
 }
 
-func (_c *StorageMock_StoreGenesisBatch_Call) Run(run func(ctx context.Context, batch state.Batch, dbTx pgx.Tx)) *StorageMock_StoreGenesisBatch_Call {
+func (_c *StorageMock_StoreGenesisBatch_Call) Run(run func(ctx context.Context, batch state.Batch, closingReason string, dbTx pgx.Tx)) *StorageMock_StoreGenesisBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(state.Batch), args[2].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(state.Batch), args[2].(string), args[3].(pgx.Tx))
 	})
 	return _c
 }
@@ -8047,7 +8108,7 @@ func (_c *StorageMock_StoreGenesisBatch_Call) Return(_a0 error) *StorageMock_Sto
 	return _c
 }
 
-func (_c *StorageMock_StoreGenesisBatch_Call) RunAndReturn(run func(context.Context, state.Batch, pgx.Tx) error) *StorageMock_StoreGenesisBatch_Call {
+func (_c *StorageMock_StoreGenesisBatch_Call) RunAndReturn(run func(context.Context, state.Batch, string, pgx.Tx) error) *StorageMock_StoreGenesisBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

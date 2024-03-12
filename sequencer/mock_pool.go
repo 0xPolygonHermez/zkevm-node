@@ -210,7 +210,7 @@ func (_m *PoolMock) GetNonWIPPendingTxs(ctx context.Context) ([]pool.Transaction
 }
 
 // GetTxZkCountersByHash provides a mock function with given fields: ctx, hash
-func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, error) {
+func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash) (*state.ZKCounters, *state.ZKCounters, error) {
 	ret := _m.Called(ctx, hash)
 
 	if len(ret) == 0 {
@@ -218,8 +218,9 @@ func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash)
 	}
 
 	var r0 *state.ZKCounters
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*state.ZKCounters, error)); ok {
+	var r1 *state.ZKCounters
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) (*state.ZKCounters, *state.ZKCounters, error)); ok {
 		return rf(ctx, hash)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, common.Hash) *state.ZKCounters); ok {
@@ -230,13 +231,21 @@ func (_m *PoolMock) GetTxZkCountersByHash(ctx context.Context, hash common.Hash)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, common.Hash) *state.ZKCounters); ok {
 		r1 = rf(ctx, hash)
 	} else {
-		r1 = ret.Error(1)
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*state.ZKCounters)
+		}
 	}
 
-	return r0, r1
+	if rf, ok := ret.Get(2).(func(context.Context, common.Hash) error); ok {
+		r2 = rf(ctx, hash)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
 }
 
 // MarkWIPTxsAsPending provides a mock function with given fields: ctx

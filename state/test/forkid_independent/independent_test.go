@@ -756,3 +756,49 @@ func TestGenesis(t *testing.T) {
 	err = testState.GetTree().Flush(ctx, stateRoot, "")
 	require.NoError(t, err)
 }
+
+func TestGetForkIDforGenesisBatch(t *testing.T) {
+	type testCase struct {
+		name           string
+		cfg            state.Config
+		expectedForkID uint64
+	}
+
+	testCases := []testCase{
+		{
+			name: "fork ID for batch 0 is defined",
+			cfg: state.Config{
+				ForkIDIntervals: []state.ForkIDInterval{
+					{ForkId: 2, FromBatchNumber: 0, ToBatchNumber: 10},
+					{ForkId: 4, FromBatchNumber: 11, ToBatchNumber: 20},
+					{ForkId: 6, FromBatchNumber: 21, ToBatchNumber: math.MaxUint64},
+				},
+			},
+			expectedForkID: 2,
+		},
+		{
+			name: "fork ID for batch 0 is NOT defined",
+			cfg: state.Config{
+				ForkIDIntervals: []state.ForkIDInterval{
+					{ForkId: 7, FromBatchNumber: 1, ToBatchNumber: 10},
+					{ForkId: 8, FromBatchNumber: 11, ToBatchNumber: 20},
+					{ForkId: 9, FromBatchNumber: 21, ToBatchNumber: math.MaxUint64},
+				},
+			},
+			expectedForkID: 7,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			test.InitOrResetDB(test.StateDBCfg)
+
+			st := test.InitTestState(testCase.cfg)
+
+			forkID := st.GetForkIDByBatchNumber(0)
+			assert.Equal(t, testCase.expectedForkID, forkID)
+
+			test.CloseTestState()
+		})
+	}
+}

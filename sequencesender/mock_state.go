@@ -108,36 +108,6 @@ func (_m *StateMock) GetForcedBatch(ctx context.Context, forcedBatchNumber uint6
 	return r0, r1
 }
 
-// GetL2BlocksByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
-func (_m *StateMock) GetL2BlocksByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) ([]state.L2Block, error) {
-	ret := _m.Called(ctx, batchNumber, dbTx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetL2BlocksByBatchNumber")
-	}
-
-	var r0 []state.L2Block
-	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) ([]state.L2Block, error)); ok {
-		return rf(ctx, batchNumber, dbTx)
-	}
-	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) []state.L2Block); ok {
-		r0 = rf(ctx, batchNumber, dbTx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]state.L2Block)
-		}
-	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
-		r1 = rf(ctx, batchNumber, dbTx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // GetLastBatchNumber provides a mock function with given fields: ctx, dbTx
 func (_m *StateMock) GetLastBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error) {
 	ret := _m.Called(ctx, dbTx)
@@ -189,6 +159,36 @@ func (_m *StateMock) GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*stat
 
 	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
 		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetLastL2BlockByBatchNumber provides a mock function with given fields: ctx, batchNumber, dbTx
+func (_m *StateMock) GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error) {
+	ret := _m.Called(ctx, batchNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLastL2BlockByBatchNumber")
+	}
+
+	var r0 *state.L2Block
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (*state.L2Block, error)); ok {
+		return rf(ctx, batchNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) *state.L2Block); ok {
+		r0 = rf(ctx, batchNumber, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*state.L2Block)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, batchNumber, dbTx)
 	} else {
 		r1 = ret.Error(1)
 	}

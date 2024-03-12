@@ -127,6 +127,11 @@
     },
     {
         "inputs": [],
+        "name": "InitSequencedBatchDoesNotMatch",
+        "type": "error"
+    },
+    {
+        "inputs": [],
         "name": "InvalidInitializeTransaction",
         "type": "error"
     },
@@ -148,6 +153,11 @@
     {
         "inputs": [],
         "name": "InvalidRangeMultiplierBatchFee",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "MaxTimestampSequenceInvalid",
         "type": "error"
     },
     {
@@ -661,6 +671,19 @@
     },
     {
         "inputs": [],
+        "name": "TIMESTAMP_RANGE",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
         "name": "acceptAdminRole",
         "outputs": [],
         "stateMutability": "nonpayable",
@@ -1049,6 +1072,16 @@
                 "type": "tuple[]"
             },
             {
+                "internalType": "uint64",
+                "name": "maxSequenceTimestamp",
+                "type": "uint64"
+            },
+            {
+                "internalType": "uint64",
+                "name": "initSequencedBatch",
+                "type": "uint64"
+            },
+            {
                 "internalType": "address",
                 "name": "l2Coinbase",
                 "type": "address"
@@ -1087,6 +1120,16 @@
                 "internalType": "struct PolygonValidiumEtrog.ValidiumBatchData[]",
                 "name": "batches",
                 "type": "tuple[]"
+            },
+            {
+                "internalType": "uint64",
+                "name": "maxSequenceTimestamp",
+                "type": "uint64"
+            },
+            {
+                "internalType": "uint64",
+                "name": "initSequencedBatch",
+                "type": "uint64"
             },
             {
                 "internalType": "address",

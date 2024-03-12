@@ -3,17 +3,13 @@ package sequencer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
-	"github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
-	"github.com/0xPolygonHermez/zkevm-node/state/runtime/executor"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -147,11 +143,6 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
-	start := time.Now()
-	defer func() {
-		metrics.ProcessingTime(time.Since(start))
-	}()
-
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
 
@@ -187,7 +178,6 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 	startWait := time.Now()
 	f.pendingL2BlocksToProcessWG.Wait()
 	elapsed := time.Since(startWait)
-	stateMetrics.ExecutorProcessingTime(string(stateMetrics.SequencerCallerLabel), elapsed)
 	log.Debugf("waiting for pending L2 blocks to be processed took: %v", elapsed)
 
 	// Wait until all L2 blocks are store
@@ -240,7 +230,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 	if f.wipL2Block != nil {
 		f.wipBatch.imStateRoot = f.wipL2Block.imStateRoot
 		// Subtract the WIP L2 block used resources to batch
-		overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(f.wipL2Block.usedResources)
+		overflow, overflowResource := f.wipBatch.imRemainingResources.Sub(state.BatchResources{ZKCounters: f.wipL2Block.usedZKCounters, Bytes: f.wipL2Block.bytes})
 		if overflow {
 			return fmt.Errorf("failed to subtract L2 block [%d] used resources to new wip batch %d, overflow resource: %s",
 				f.wipL2Block.trackingNum, f.wipBatch.batchNumber, overflowResource)
@@ -376,11 +366,6 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrGetBatchByNumber
 	}
 
-	caller := stateMetrics.DiscardCallerLabel
-	if f.cfg.SequentialBatchSanityCheck {
-		caller = stateMetrics.SequencerCallerLabel
-	}
-
 	batchRequest := state.ProcessRequest{
 		BatchNumber:             batch.BatchNumber,
 		L1InfoRoot_V2:           state.GetMockL1InfoRoot(),
@@ -390,8 +375,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		TimestampLimit_V2:       uint64(time.Now().Unix()),
 		ForkID:                  f.stateIntf.GetForkIDByBatchNumber(batch.BatchNumber),
 		SkipVerifyL1InfoRoot_V2: true,
-		Caller:                  caller,
-		ExecutionMode:           executor.ExecutionMode0,
+		Caller:                  stateMetrics.DiscardCallerLabel,
 	}
 	batchRequest.L1InfoTreeData_V2, _, _, err = f.stateIntf.GetL1InfoTreeDataFromBatchL2Data(ctx, batch.BatchL2Data, nil)
 	if err != nil {
@@ -412,7 +396,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		return nil, ErrProcessBatch
 	}
 
-	if batchResponse.ExecutorError != nil && !errors.Is(batchResponse.ExecutorError, runtime.ErrExecutorErrorCloseBatch) {
+	if batchResponse.ExecutorError != nil {
 		log.Errorf("executor error when reprocessing batch %d, error: %v", batch.BatchNumber, batchResponse.ExecutorError)
 		reprocessError(batch)
 		return nil, ErrExecutorError
@@ -426,19 +410,7 @@ func (f *finalizer) batchSanityCheck(ctx context.Context, batchNum uint64, initi
 		if err != nil {
 			log.Errorf("error marshaling payload, error: %v", err)
 		} else {
-			event := &event.Event{
-				ReceivedAt:  time.Now(),
-				Source:      event.Source_Node,
-				Component:   event.Component_Sequencer,
-				Level:       event.Level_Critical,
-				EventID:     event.EventID_ReprocessFullBatchOOC,
-				Description: string(payload),
-				Json:        batchRequest,
-			}
-			err = f.eventLog.LogEvent(ctx, event)
-			if err != nil {
-				log.Errorf("error storing payload, error: %v", err)
-			}
+			f.LogEvent(ctx, event.Level_Critical, event.EventID_ReprocessFullBatchOOC, string(payload), batchRequest)
 		}
 
 		return nil, ErrProcessBatchOOC
@@ -477,28 +449,31 @@ func (f *finalizer) isBatchResourcesMarginExhausted(resources state.BatchResourc
 	if resources.Bytes <= f.getConstraintThresholdUint64(f.batchConstraints.MaxBatchBytesSize) {
 		resourceName = "Bytes"
 		result = true
-	} else if zkCounters.UsedSteps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
+	} else if zkCounters.Steps <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSteps) {
 		resourceName = "Steps"
 		result = true
-	} else if zkCounters.UsedPoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
+	} else if zkCounters.PoseidonPaddings <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonPaddings) {
 		resourceName = "PoseidonPaddings"
 		result = true
-	} else if zkCounters.UsedBinaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
+	} else if zkCounters.PoseidonHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxPoseidonHashes) {
+		resourceName = "PoseidonHashes"
+		result = true
+	} else if zkCounters.Binaries <= f.getConstraintThresholdUint32(f.batchConstraints.MaxBinaries) {
 		resourceName = "Binaries"
 		result = true
-	} else if zkCounters.UsedKeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
+	} else if zkCounters.KeccakHashes <= f.getConstraintThresholdUint32(f.batchConstraints.MaxKeccakHashes) {
 		resourceName = "KeccakHashes"
 		result = true
-	} else if zkCounters.UsedArithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
+	} else if zkCounters.Arithmetics <= f.getConstraintThresholdUint32(f.batchConstraints.MaxArithmetics) {
 		resourceName = "Arithmetics"
 		result = true
-	} else if zkCounters.UsedMemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
+	} else if zkCounters.MemAligns <= f.getConstraintThresholdUint32(f.batchConstraints.MaxMemAligns) {
 		resourceName = "MemAligns"
 		result = true
 	} else if zkCounters.GasUsed <= f.getConstraintThresholdUint64(f.batchConstraints.MaxCumulativeGasUsed) {
 		resourceName = "CumulativeGas"
 		result = true
-	} else if zkCounters.UsedSha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
+	} else if zkCounters.Sha256Hashes_V2 <= f.getConstraintThresholdUint32(f.batchConstraints.MaxSHA256Hashes) {
 		resourceName = "SHA256Hashes"
 		result = true
 	}
@@ -520,15 +495,15 @@ func (f *finalizer) getConstraintThresholdUint32(input uint32) uint32 {
 func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResources state.BatchResources) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.UsedKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.UsedPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.UsedPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.UsedMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.UsedArithmetics,
-			UsedBinaries:         constraints.MaxBinaries - remainingResources.ZKCounters.UsedBinaries,
-			UsedSteps:            constraints.MaxSteps - remainingResources.ZKCounters.UsedSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.UsedSha256Hashes_V2,
+			GasUsed:          constraints.MaxCumulativeGasUsed - remainingResources.ZKCounters.GasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes - remainingResources.ZKCounters.KeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes - remainingResources.ZKCounters.PoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings - remainingResources.ZKCounters.PoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns - remainingResources.ZKCounters.MemAligns,
+			Arithmetics:      constraints.MaxArithmetics - remainingResources.ZKCounters.Arithmetics,
+			Binaries:         constraints.MaxBinaries - remainingResources.ZKCounters.Binaries,
+			Steps:            constraints.MaxSteps - remainingResources.ZKCounters.Steps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes - remainingResources.ZKCounters.Sha256Hashes_V2,
 		},
 		Bytes: constraints.MaxBatchBytesSize - remainingResources.Bytes,
 	}
@@ -538,15 +513,15 @@ func getUsedBatchResources(constraints state.BatchConstraintsCfg, remainingResou
 func getMaxRemainingResources(constraints state.BatchConstraintsCfg) state.BatchResources {
 	return state.BatchResources{
 		ZKCounters: state.ZKCounters{
-			GasUsed:              constraints.MaxCumulativeGasUsed,
-			UsedKeccakHashes:     constraints.MaxKeccakHashes,
-			UsedPoseidonHashes:   constraints.MaxPoseidonHashes,
-			UsedPoseidonPaddings: constraints.MaxPoseidonPaddings,
-			UsedMemAligns:        constraints.MaxMemAligns,
-			UsedArithmetics:      constraints.MaxArithmetics,
-			UsedBinaries:         constraints.MaxBinaries,
-			UsedSteps:            constraints.MaxSteps,
-			UsedSha256Hashes_V2:  constraints.MaxSHA256Hashes,
+			GasUsed:          constraints.MaxCumulativeGasUsed,
+			KeccakHashes:     constraints.MaxKeccakHashes,
+			PoseidonHashes:   constraints.MaxPoseidonHashes,
+			PoseidonPaddings: constraints.MaxPoseidonPaddings,
+			MemAligns:        constraints.MaxMemAligns,
+			Arithmetics:      constraints.MaxArithmetics,
+			Binaries:         constraints.MaxBinaries,
+			Steps:            constraints.MaxSteps,
+			Sha256Hashes_V2:  constraints.MaxSHA256Hashes,
 		},
 		Bytes: constraints.MaxBatchBytesSize,
 	}

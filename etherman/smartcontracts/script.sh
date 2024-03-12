@@ -17,6 +17,7 @@ genNoBin() {
 gen oldpolygonzkevmglobalexitroot
 gen oldpolygonzkevmbridge
 gen oldpolygonzkevm
+gen etrogpolygonzkevm
 gen polygonzkevm
 gen polygonzkevmbridge
 gen pol
