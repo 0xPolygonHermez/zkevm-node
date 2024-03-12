@@ -47,6 +47,22 @@ func (p *ProcessorForkId) Process(ctx context.Context, order etherman.Order, l1B
 	return p.processForkID(ctx, l1Block.ForkIDs[order.Pos], l1Block.BlockNumber, dbTx)
 }
 
+func getForkdFromSlice(fIds []state.ForkIDInterval, forkId uint64) (bool, state.ForkIDInterval) {
+	if len(fIds) == 0 {
+		return false, state.ForkIDInterval{}
+	}
+	for _, f := range fIds {
+		if f.ForkId == forkId {
+			return true, f
+		}
+	}
+	return false, state.ForkIDInterval{}
+}
+
+func isForksEquals(f1, f2 state.ForkIDInterval) bool {
+	return f1.ForkId == f2.ForkId && f1.FromBatchNumber == f2.FromBatchNumber && f1.Version == f2.Version && f1.BlockNumber == f2.BlockNumber
+}
+
 func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
 	fID := state.ForkIDInterval{
 		FromBatchNumber: forkID.BatchNumber + 1,
@@ -68,8 +84,15 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 		}
 		return err
 	}
-	if len(fIds) != 0 && fIds[len(fIds)-1].ForkId == fID.ForkId { // If the forkID reset was already done
-		return nil
+	//if len(fIds) != 0 && fIds[len(fIds)-1].ForkId == fID.ForkId { // If the forkID reset was already done
+	if found, dbForkID := getForkdFromSlice(fIds, fID.ForkId); found {
+		if isForksEquals(fID, dbForkID) {
+			log.Infof("ForkID: %d, already in the state. Skipping . ForkID: %+v.", fID.ForkId, fID)
+			return nil
+		}
+		err = fmt.Errorf("ForkID: %d, already in the state but with different values. DB ForkID: %+v. New ForkID: %+v", fID.ForkId, dbForkID, fID)
+		log.Error(err.Error())
+		return err
 	}
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
