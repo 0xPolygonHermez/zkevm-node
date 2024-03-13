@@ -53,7 +53,8 @@ type Pool struct {
 }
 
 type preExecutionResponse struct {
-	usedZkCounters       state.ZKCounters
+	usedZKCounters       state.ZKCounters
+	reservedZKCounters   state.ZKCounters
 	isExecutorLevelError bool
 	OOCError             error
 	OOGError             error
@@ -245,7 +246,8 @@ func (p *Pool) StoreTx(ctx context.Context, tx types.Transaction, ip string, isW
 	}
 
 	poolTx := NewTransaction(tx, ip, isWIP)
-	poolTx.ZKCounters = preExecutionResponse.usedZkCounters
+	poolTx.ZKCounters = preExecutionResponse.usedZKCounters
+	poolTx.ReservedZKCounters = preExecutionResponse.reservedZKCounters
 
 	return p.storage.AddTx(ctx, *poolTx)
 }
@@ -299,13 +301,13 @@ func (p *Pool) ValidateBreakEvenGasPrice(ctx context.Context, tx types.Transacti
 
 // preExecuteTx executes a transaction to calculate its zkCounters
 func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecutionResponse, error) {
-	response := preExecutionResponse{usedZkCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
+	response := preExecutionResponse{usedZKCounters: state.ZKCounters{}, reservedZKCounters: state.ZKCounters{}, OOCError: nil, OOGError: nil, isReverted: false}
 
 	// TODO: Add effectivePercentage = 0xFF to the request (factor of 1) when gRPC message is updated
 	processBatchResponse, err := p.state.PreProcessTransaction(ctx, &tx, nil)
 	if err != nil {
 		isOOC := executor.IsROMOutOfCountersError(executor.RomErrorCode(err))
-		isOOG := errors.Is(err, runtime.ErrOutOfGas) || errors.Is(err, runtime.ErrExecutorErrorOOG2)
+		isOOG := errors.Is(err, runtime.ErrOutOfGas)
 		if !isOOC && !isOOG {
 			return response, err
 		} else {
@@ -316,7 +318,8 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 				response.OOGError = err
 			}
 			if processBatchResponse != nil && processBatchResponse.BlockResponses != nil && len(processBatchResponse.BlockResponses) > 0 {
-				response.usedZkCounters = processBatchResponse.UsedZkCounters
+				response.usedZKCounters = processBatchResponse.UsedZkCounters
+				response.reservedZKCounters = processBatchResponse.ReservedZkCounters
 				response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 			}
 			return response, nil
@@ -331,7 +334,7 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			if executor.IsROMOutOfCountersError(executor.RomErrorCode(errorToCheck)) {
 				response.OOCError = err
 			}
-			if errors.Is(errorToCheck, runtime.ErrOutOfGas) || errors.Is(errorToCheck, runtime.ErrExecutorErrorOOG2) {
+			if errors.Is(errorToCheck, runtime.ErrOutOfGas) {
 				response.OOGError = err
 			}
 		} else {
@@ -342,7 +345,8 @@ func (p *Pool) preExecuteTx(ctx context.Context, tx types.Transaction) (preExecu
 			}
 		}
 
-		response.usedZkCounters = processBatchResponse.UsedZkCounters
+		response.usedZKCounters = processBatchResponse.UsedZkCounters
+		response.reservedZKCounters = processBatchResponse.ReservedZkCounters
 		response.txResponse = processBatchResponse.BlockResponses[0].TransactionResponses[0]
 	}
 

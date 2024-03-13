@@ -148,7 +148,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		ForcedBatchNum: nil,
 	}
 
-	err = s.StoreGenesisBatch(ctx, batch, dbTx)
+	err = s.StoreGenesisBatch(ctx, batch, string(SyncGenesisBatchClosingReason), dbTx)
 	if err != nil {
 		return common.Hash{}, err
 	}
@@ -160,6 +160,11 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 		Coinbase:    ZeroAddress,
 		BlockNumber: block.BlockNumber,
 	}
+	forkID := s.GetForkIDByBatchNumber(0)
+	if forkID >= FORKID_ETROG {
+		virtualBatch.TimestampBatchEtrog = &block.ReceivedAt
+	}
+
 	err = s.AddVirtualBatch(ctx, virtualBatch, dbTx)
 	if err != nil {
 		return common.Hash{}, err
@@ -201,7 +206,7 @@ func (s *State) SetGenesis(ctx context.Context, block Block, genesis Genesis, m 
 	storeTxsEGPData := []StoreTxEGPData{}
 	txsL2Hash := []common.Hash{}
 
-	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, dbTx)
+	err = s.AddL2Block(ctx, batch.BatchNumber, l2Block, receipts, txsL2Hash, storeTxsEGPData, []common.Hash{}, dbTx)
 	if err != nil {
 		return common.Hash{}, err
 	}

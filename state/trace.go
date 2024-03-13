@@ -264,13 +264,32 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 			}
 		}
 
+		// gets the L1InfoTreeData for the transactions
+		l1InfoTreeData, _, _, err = s.GetL1InfoTreeDataFromBatchL2Data(ctx, transactions, dbTx)
+		if err != nil {
+			return nil, err
+		}
+
+		// In case we have any l1InfoTreeData, add them to the request
+		if len(l1InfoTreeData) > 0 {
+			processBatchRequestV2.L1InfoTreeData = map[uint32]*executor.L1DataV2{}
+			processBatchRequestV2.SkipVerifyL1InfoRoot = cTrue
+			for k, v := range l1InfoTreeData {
+				processBatchRequestV2.L1InfoTreeData[k] = &executor.L1DataV2{
+					GlobalExitRoot: v.GlobalExitRoot.Bytes(),
+					BlockHashL1:    v.BlockHashL1.Bytes(),
+					MinTimestamp:   v.MinTimestamp,
+				}
+			}
+		}
+
 		// Send Batch to the Executor
 		startTime = time.Now()
 		processBatchResponseV2, err := s.executorClient.ProcessBatchV2(ctx, processBatchRequestV2)
 		endTime = time.Now()
 		if err != nil {
 			return nil, err
-		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR && processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_CLOSE_BATCH {
+		} else if processBatchResponseV2.Error != executor.ExecutorError_EXECUTOR_ERROR_NO_ERROR {
 			err = executor.ExecutorErr(processBatchResponseV2.Error)
 			s.eventLog.LogExecutorErrorV2(ctx, processBatchResponseV2.Error, processBatchRequestV2)
 			return nil, err
@@ -540,7 +559,7 @@ func (s *State) buildTrace(evm *fakevm.FakeEVM, result *runtime.ExecutionResult,
 		if previousStep.Depth > step.Depth && previousStep.OpCode != "REVERT" {
 			var gasUsed uint64
 			var err error
-			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) || errors.Is(previousStep.Error, runtime.ErrExecutorErrorOOG2) {
+			if errors.Is(previousStep.Error, runtime.ErrOutOfGas) {
 				itCtx, err := internalTxSteps.Pop()
 				if err != nil {
 					return nil, err

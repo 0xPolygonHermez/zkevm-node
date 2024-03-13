@@ -319,12 +319,8 @@ var (
 	ErrExecutorErrorInvalidDataStream = errors.New("invalid data stream")
 	// ErrExecutorErrorInvalidUpdateMerkleTree indicates that the input parameter update merkle tree is invalid
 	ErrExecutorErrorInvalidUpdateMerkleTree = errors.New("invalid update merkle tree")
-	// ErrExecutorErrorUnsupportedPrecompile  indicates that the precompile is not supported
-	ErrExecutorErrorUnsupportedPrecompile = errors.New("unsupported precompile")
-	// ErrExecutorErrorOOG2 indicates that an out of gas has occurred
-	ErrExecutorErrorOOG2 = errors.New("out of gas 2")
-	// ErrExecutorErrorCloseBatch indicates that batch must be closed
-	ErrExecutorErrorCloseBatch = errors.New("close batch")
+	// ErrExecutorErrorSMMainInvalidTxStatusError indicates that the TX has an invalid status-error combination
+	ErrExecutorErrorSMMainInvalidTxStatusError = errors.New("tx has an invalid status-error combination")
 
 	// GRPC ERRORS
 	// ===========

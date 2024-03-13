@@ -169,7 +169,7 @@ func TestSequencedBatchesEvent(t *testing.T) {
 	batchData := [][]byte{data, data}
 	daMessage, _ := hex.DecodeString("0x123456789123456789")
 	da.Mock.On("GetBatchL2Data", batchNums, batchHashes, daMessage).Return(batchData, nil)
-	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, sequences, auth.From, daMessage)
+	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, sequences, uint64(time.Now().Unix()), uint64(1), auth.From, daMessage)
 	require.NoError(t, err)
 
 	// Mine the tx in a block
@@ -208,7 +208,7 @@ func TestVerifyBatchEvent(t *testing.T) {
 		TransactionsHash: crypto.Keccak256Hash(common.Hex2Bytes(rawTxs)),
 	}
 	daMessage, _ := hex.DecodeString("0x1234")
-	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{tx}, auth.From, daMessage)
+	_, err = etherman.ZkEVM.SequenceBatchesValidium(auth, []polygonzkevm.PolygonValidiumEtrogValidiumBatchData{tx}, uint64(time.Now().Unix()), uint64(1), auth.From, daMessage)
 	require.NoError(t, err)
 	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(common.Hex2Bytes(rawTxs))}, daMessage).Return([][]byte{common.Hex2Bytes(rawTxs)}, nil)
 
@@ -319,10 +319,13 @@ func TestSendSequences(t *testing.T) {
 	batchL2Data, err := state.EncodeTransactions([]types.Transaction{*tx1}, constants.EffectivePercentage, forkID6)
 	require.NoError(t, err)
 	sequence := ethmanTypes.Sequence{
-		BatchL2Data: batchL2Data,
+		BatchNumber:          0,
+		BatchL2Data:          batchL2Data,
+		LastL2BLockTimestamp: time.Now().Unix(),
 	}
 	daMessage, _ := hex.DecodeString("0x1234")
-	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, auth.From, daMessage)
+	lastL2BlockTStamp := tx1.Time().Unix()
+	tx, err := etherman.sequenceBatches(*auth, []ethmanTypes.Sequence{sequence}, uint64(lastL2BlockTStamp), uint64(1), auth.From, daMessage)
 	require.NoError(t, err)
 	da.Mock.On("GetBatchL2Data", []uint64{2}, []common.Hash{crypto.Keccak256Hash(batchL2Data)}, daMessage).Return([][]byte{batchL2Data}, nil)
 	log.Debug("TX: ", tx.Hash())

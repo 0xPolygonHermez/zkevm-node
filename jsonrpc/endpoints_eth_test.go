@@ -3312,7 +3312,7 @@ func TestGetTransactionReceipt(t *testing.T) {
 	receipt.Bloom = ethTypes.CreateBloom(ethTypes.Receipts{receipt})
 
 	rpcReceipt := types.Receipt{
-		Root:              stateRoot,
+		Root:              &stateRoot,
 		CumulativeGasUsed: types.ArgUint64(receipt.CumulativeGasUsed),
 		LogsBloom:         receipt.Bloom,
 		Logs:              receipt.Logs,

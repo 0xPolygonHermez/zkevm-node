@@ -618,7 +618,7 @@ func NewTransaction(
 
 // Receipt structure
 type Receipt struct {
-	Root              common.Hash     `json:"root"`
+	Root              *common.Hash    `json:"root,omitempty"`
 	CumulativeGasUsed ArgUint64       `json:"cumulativeGasUsed"`
 	LogsBloom         types.Bloom     `json:"logsBloom"`
 	Logs              []*types.Log    `json:"logs"`
@@ -660,7 +660,6 @@ func NewReceipt(tx types.Transaction, r *types.Receipt, l2Hash *common.Hash) (Re
 		return Receipt{}, err
 	}
 	receipt := Receipt{
-		Root:              common.BytesToHash(r.PostState),
 		CumulativeGasUsed: ArgUint64(r.CumulativeGasUsed),
 		LogsBloom:         r.Bloom,
 		Logs:              logs,
@@ -676,6 +675,11 @@ func NewReceipt(tx types.Transaction, r *types.Receipt, l2Hash *common.Hash) (Re
 		Type:              ArgUint64(r.Type),
 		TxL2Hash:          l2Hash,
 	}
+	if len(r.PostState) > 0 {
+		root := common.BytesToHash(r.PostState)
+		receipt.Root = &root
+	}
+
 	if r.EffectiveGasPrice != nil {
 		egp := ArgBig(*r.EffectiveGasPrice)
 		receipt.EffectiveGasPrice = &egp
@@ -764,24 +768,25 @@ type ZKCountersResponse struct {
 // NewZKCountersResponse creates an instance of ZKCounters to be returned
 // by the RPC to the caller
 func NewZKCountersResponse(zkCounters state.ZKCounters, limits ZKCountersLimits, revert *RevertInfo, oocErr error) ZKCountersResponse {
-	var oocErrMsg string
+	var oocErrMsg *string
 	if oocErr != nil {
-		oocErrMsg = oocErr.Error()
+		s := oocErr.Error()
+		oocErrMsg = &s
 	}
 	return ZKCountersResponse{
 		CountersUsed: ZKCounters{
 			GasUsed:              ArgUint64(zkCounters.GasUsed),
-			UsedKeccakHashes:     ArgUint64(zkCounters.UsedKeccakHashes),
-			UsedPoseidonHashes:   ArgUint64(zkCounters.UsedPoseidonHashes),
-			UsedPoseidonPaddings: ArgUint64(zkCounters.UsedPoseidonPaddings),
-			UsedMemAligns:        ArgUint64(zkCounters.UsedMemAligns),
-			UsedArithmetics:      ArgUint64(zkCounters.UsedArithmetics),
-			UsedBinaries:         ArgUint64(zkCounters.UsedBinaries),
-			UsedSteps:            ArgUint64(zkCounters.UsedSteps),
-			UsedSHA256Hashes:     ArgUint64(zkCounters.UsedSha256Hashes_V2),
+			UsedKeccakHashes:     ArgUint64(zkCounters.KeccakHashes),
+			UsedPoseidonHashes:   ArgUint64(zkCounters.PoseidonHashes),
+			UsedPoseidonPaddings: ArgUint64(zkCounters.PoseidonPaddings),
+			UsedMemAligns:        ArgUint64(zkCounters.MemAligns),
+			UsedArithmetics:      ArgUint64(zkCounters.Arithmetics),
+			UsedBinaries:         ArgUint64(zkCounters.Binaries),
+			UsedSteps:            ArgUint64(zkCounters.Steps),
+			UsedSHA256Hashes:     ArgUint64(zkCounters.Sha256Hashes_V2),
 		},
 		CountersLimits: limits,
 		Revert:         revert,
-		OOCError:       &oocErrMsg,
+		OOCError:       oocErrMsg,
 	}
 }
