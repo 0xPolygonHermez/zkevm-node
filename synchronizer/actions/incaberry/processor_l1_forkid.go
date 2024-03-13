@@ -122,6 +122,10 @@ func (s *ProcessorForkId) updateForkIDIfNeeded(ctx context.Context, forkIDincomm
 	return true, err
 }
 
+func isForkIdAffectingOnlyFuturesBatches(fID state.ForkIDInterval, latestBatchNumber uint64) bool {
+	return latestBatchNumber < fID.FromBatchNumber
+}
+
 func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.ForkID, blockNumber uint64, dbTx pgx.Tx) error {
 	fID := state.ForkIDInterval{
 		FromBatchNumber: forkID.BatchNumber + 1,
@@ -130,80 +134,78 @@ func (s *ProcessorForkId) processForkID(ctx context.Context, forkID etherman.For
 		Version:         forkID.Version,
 		BlockNumber:     blockNumber,
 	}
-
+	debugPrefix := fmt.Sprintf("ForkID: %d, BlockNumber:%d, ", forkID.ForkID, blockNumber)
 	// If forkID affects to a batch from the past. State must be reseted.
-	log.Debugf("ForkID: %d, synchronization must use the new forkID since batch: %d", forkID.ForkID, forkID.BatchNumber+1)
+	log.Debugf("%s synchronization must use the new forkID since batch: %d", debugPrefix, forkID.BatchNumber+1)
 	fIds, err := s.state.GetForkIDs(ctx, dbTx)
 	if err != nil {
 		log.Errorf("error getting forkIDs. Error: %v", err)
-		//return s.rollback(ctx, blockNumber, "getting GetForkIDs", err, dbTx)
 		return err
 	}
 	isUpdate, err := s.updateForkIDIfNeeded(ctx, fID, fIds, dbTx)
 	if err != nil {
-		log.Errorf("ForkID: %d, error updating forkID . Error: %v", forkID.ForkID, err)
+		log.Errorf("%s error updating forkID . Error: %v", debugPrefix, err)
 		return err
-		//return s.rollback(ctx, blockNumber, "updateForkIDIfNeeded", err, dbTx)
 	}
 	if isUpdate {
 		return nil // The calling function is doing the commit
 	}
 
 	if !isIncommingForkIdGreatestThanLastOne(fID, fIds) {
-		err = fmt.Errorf("ForkID: %d, received don't fit sequence, last forkid:%d ", forkID.ForkID, lastForkID(fIds))
+		err = fmt.Errorf("%s received don't fit sequence, last forkid:%d ", debugPrefix, lastForkID(fIds))
 		log.Error(err.Error())
 		return err
 	}
+
 	//If the forkID.batchnumber is a future batch
 	latestBatchNumber, err := s.state.GetLastBatchNumber(ctx, dbTx)
 	if err != nil && !errors.Is(err, state.ErrStateNotSynchronized) {
-		log.Errorf("error getting last batch number. Error: %v", err)
-		//return s.rollback(ctx, blockNumber, "getting last batch number", err, dbTx)
+		log.Errorf("%s error getting last batch number. Error: %v", debugPrefix, err)
+		return err
 	}
-	// Add new forkID to the state
+	// Add new forkID to the state. This function take care of chaning previous ForkID ToBatchNumber
 	err = s.state.AddForkIDInterval(ctx, fID, dbTx)
 	if err != nil {
-		return s.rollback(ctx, blockNumber, "adding new forkID interval to the state", err, dbTx)
+		log.Errorf("%s error adding new forkID interval to state. Error: %v", debugPrefix, err)
+		return err
 	}
-	if latestBatchNumber <= forkID.BatchNumber || s.sync.IsTrustedSequencer() { //If the forkID will start in a future batch or isTrustedSequencer
-		log.Infof("Just adding forkID. Skipping reset forkID. ForkID: %+v.", fID)
-		return nil // The calling function is doing the commit
+	if isForkIdAffectingOnlyFuturesBatches(fID, latestBatchNumber) {
+		log.Infof("%s Just adding forkID for future batches. Skipping reset forkID. ForkID: %+v.", debugPrefix, fID)
+		return nil
 	}
 
-	log.Info("ForkID received in the permissionless node that affects to a batch from the past")
+	if s.sync.IsTrustedSequencer() { //If the forkID will start in a future batch and IsTrustedSequencer
+		log.Warnf("%s  received forkid that affects to a batch from the past %d, last Batch: %d. Is a trusted Node, so we accept it with no modifications", debugPrefix, fID.FromBatchNumber, latestBatchNumber)
+		return nil
+	}
+
+	log.Warnf("%s  received in the permissionless node that affects to a batch from the past %d, last Batch: %d. Reverting state", debugPrefix, fID.FromBatchNumber, latestBatchNumber)
 	//Reset DB only if permissionless node
-	log.Debugf("ForkID: %d, Reverting synchronization to batch: %d", forkID.ForkID, forkID.BatchNumber+1)
+	log.Debugf("%s Reverting synchronization to batch: %d", debugPrefix, forkID.BatchNumber+1)
 	err = s.state.ResetForkID(ctx, forkID.BatchNumber+1, dbTx)
 	if err != nil {
-		// I'm wondering if it's really needed to call rollback, in fact, the caller is going to call the rollback when returns an error
-		return s.rollback(ctx, blockNumber, fmt.Sprintf("resetting the state to %d", forkID.BatchNumber+1), err, dbTx)
-	}
-
-	// Commit because it returns an error to force the resync
-	err = s.commit(ctx, blockNumber, dbTx)
-	if err != nil {
+		log.Errorf("%s error resetting forkID. Error: %v", debugPrefix, err)
 		return err
 	}
 
+	// Commit because it returns an error to force the resync
+	err = s.commit(ctx, debugPrefix, dbTx)
+	if err != nil {
+		log.Errorf("%s error committing forkId. Error: %v", debugPrefix, err)
+		return err
+	}
+	log.Infof("%s new ForkID detected, committed reverting state", debugPrefix)
+
 	return fmt.Errorf("new ForkID detected, reseting synchronizarion")
 }
-func (s *ProcessorForkId) rollback(ctx context.Context, blockNumber uint64, msg string, err error, dbTx pgx.Tx) error {
-	log.Error("error %s. Error: ", msg, err)
-	rollbackErr := dbTx.Rollback(ctx)
-	if rollbackErr != nil {
-		log.Errorf("error rolling back %s. BlockNumber: %d, rollbackErr: %s, error : %v", msg, blockNumber, rollbackErr.Error(), err)
-		return rollbackErr
-	}
-	return err
-}
 
-func (s *ProcessorForkId) commit(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) error {
+func (s *ProcessorForkId) commit(ctx context.Context, debugPrefix string, dbTx pgx.Tx) error {
 	err := dbTx.Commit(ctx)
 	if err != nil {
-		log.Error("error committing forkId. Error: ", err)
+		log.Errorf("%s error committing forkId. Error: %s", debugPrefix, err.Error())
 		rollbackErr := dbTx.Rollback(ctx)
 		if rollbackErr != nil {
-			log.Errorf("error rolling back state to store block. BlockNumber: %d, rollbackErr: %s, error : %v", blockNumber, rollbackErr.Error(), err)
+			log.Errorf("%s error rolling back state to store block. rollbackErr: %s, error : %v", debugPrefix, rollbackErr.Error(), err)
 			return rollbackErr
 		}
 		return err
