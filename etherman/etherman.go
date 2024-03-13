@@ -712,7 +712,7 @@ func (etherMan *Client) addExistingRollup(ctx context.Context, vLog types.Log, b
 }
 
 func (etherMan *Client) updateEtrogSequence(_ context.Context, _ types.Log, _ *[]Block, _ *map[common.Hash][]Order) error {
-	return errors.New("Upgrading validiums to etrog not supported")
+	return errors.New("upgrading validiums to etrog not supported")
 }
 
 func (etherMan *Client) initialSequenceBatches(ctx context.Context, vLog types.Log, blocks *[]Block, blocksOrder *map[common.Hash][]Order) error {
