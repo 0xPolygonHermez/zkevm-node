@@ -1157,6 +1157,55 @@ func TestGetBatchL2DataByNumber(t *testing.T) {
 	actualData, err := testState.GetBatchL2DataByNumber(ctx, batchNum, tx)
 	require.NoError(t, err)
 	assert.Equal(t, expectedData, actualData)
+
+	multiGet := []uint64{uint64(4), uint64(5), uint64(6)}
+	allData, err := testState.GetBatchL2DataByNumbers(ctx, multiGet, tx)
+	require.NoError(t, err)
+	require.Equal(t, expectedData, allData[uint64(5)])
+}
+
+func TestGetBatchL2DataByNumbers(t *testing.T) {
+	initOrResetDB()
+	ctx := context.Background()
+	tx, err := testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+	defer func() { require.NoError(t, tx.Commit(ctx)) }()
+
+	var i1, i2, i3, i4, i5 = uint64(1), uint64(2), uint64(3), uint64(4), uint64(5)
+	var d1, d2, d4 = []byte("foobar"), []byte("dingbat"), []byte{0xb}
+
+	const insertBatch = "INSERT INTO state.batch (batch_num, raw_txs_data) VALUES ($1, $2)"
+	_, err = tx.Exec(ctx, insertBatch, i1, d1)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, insertBatch, i2, d2)
+	require.NoError(t, err)
+	_, err = tx.Exec(ctx, insertBatch, i3, nil)
+	require.NoError(t, err)
+
+	// Add a forced batch too, needs a block
+	block1 := *block
+	block1.BlockNumber = 1000
+	err = testState.AddBlock(ctx, &block1, tx)
+	require.NoError(t, err)
+	err = tx.Commit(ctx)
+	require.NoError(t, err)
+
+	tx, err = testState.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	const insertForcedBatch = "INSERT INTO state.forced_batch (forced_batch_num, timestamp, raw_txs_data, block_num) VALUES (4, now(),'0b', 1000)"
+	_, err = testState.Exec(ctx, insertForcedBatch)
+	require.NoError(t, err)
+
+	allData, err := testState.GetBatchL2DataByNumbers(ctx, []uint64{i1, i2, i3, i4, i5}, tx)
+	require.NoError(t, err)
+	assert.Equal(t, d1, allData[i1])
+	assert.Equal(t, d2, allData[i2])
+	assert.Nil(t, allData[i3])
+	assert.Equal(t, d4, allData[i4])
+
+	_, ok := allData[i5]
+	assert.False(t, ok)
 }
 
 func createL1InfoTreeExitRootStorageEntryForTest(blockNumber uint64, index uint32) *state.L1InfoTreeExitRootStorageEntry {
@@ -1360,6 +1409,10 @@ func TestGetForcedBatch(t *testing.T) {
 	require.Equal(t, uint64(2002), fb.BlockNumber)
 	require.Equal(t, "0x717e05de47a87a7d1679e183f1c224150675f6302b7da4eaab526b2b91ae0761", fb.GlobalExitRoot.String())
 	require.Equal(t, []byte{0xb}, fb.RawTxsData)
+
+	fbData, err := testState.GetBatchL2DataByNumber(ctx, 1, dbTx)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0xb}, fbData)
 }
 
 func TestGetLastGER(t *testing.T) {

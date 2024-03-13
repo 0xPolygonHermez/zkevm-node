@@ -1362,19 +1362,25 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 		maxSequenceTimestamp := data[1].(uint64)
 		initSequencedBatchNumber := data[2].(uint64)
 		coinbase := data[3].(common.Address)
+		dataAvailabilityMessage := (data[4]).([]byte)
 		sequencedBatches := make([]SequencedBatch, len(sequencesValidium))
-		for i, seq := range sequencesValidium {
+		var batchNums []uint64
+		var hashes []common.Hash
+		for i, validiumData := range sequencesValidium {
 			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
-			batchL2Data, err := da.GetBatchL2Data(bn, sequencesValidium[i].TransactionsHash)
-			if err != nil {
-				return nil, err
-			}
-
+			batchNums = append(batchNums, bn)
+			hashes = append(hashes, validiumData.TransactionsHash)
+		}
+		batchL2Data, err := da.GetBatchL2Data(batchNums, hashes, dataAvailabilityMessage)
+		if err != nil {
+			return nil, err
+		}
+		for i, bn := range batchNums {
 			s := polygonzkevm.PolygonRollupBaseEtrogBatchData{
-				Transactions:         batchL2Data, // TODO: get data from DA
-				ForcedGlobalExitRoot: seq.ForcedGlobalExitRoot,
-				ForcedTimestamp:      seq.ForcedTimestamp,
-				ForcedBlockHashL1:    seq.ForcedBlockHashL1,
+				Transactions:         batchL2Data[i],
+				ForcedGlobalExitRoot: sequencesValidium[i].ForcedGlobalExitRoot,
+				ForcedTimestamp:      sequencesValidium[i].ForcedTimestamp,
+				ForcedBlockHashL1:    sequencesValidium[i].ForcedBlockHashL1,
 			}
 			batch := SequencedBatch{
 				BatchNumber:                     bn,
@@ -1394,7 +1400,6 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 			}
 			sequencedBatches[i] = batch
 		}
-
 		return sequencedBatches, nil
 	}
 
