@@ -2715,6 +2715,56 @@ func (_c *StateFullInterface_UpdateBatchL2Data_Call) RunAndReturn(run func(conte
 	return _c
 }
 
+// UpdateForkIDBlockNumber provides a mock function with given fields: ctx, forkdID, newBlockNumber, updateMemCache, dbTx
+func (_m *StateFullInterface) UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, forkdID, newBlockNumber, updateMemCache, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateForkIDBlockNumber")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, bool, pgx.Tx) error); ok {
+		r0 = rf(ctx, forkdID, newBlockNumber, updateMemCache, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StateFullInterface_UpdateForkIDBlockNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateForkIDBlockNumber'
+type StateFullInterface_UpdateForkIDBlockNumber_Call struct {
+	*mock.Call
+}
+
+// UpdateForkIDBlockNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - forkdID uint64
+//   - newBlockNumber uint64
+//   - updateMemCache bool
+//   - dbTx pgx.Tx
+func (_e *StateFullInterface_Expecter) UpdateForkIDBlockNumber(ctx interface{}, forkdID interface{}, newBlockNumber interface{}, updateMemCache interface{}, dbTx interface{}) *StateFullInterface_UpdateForkIDBlockNumber_Call {
+	return &StateFullInterface_UpdateForkIDBlockNumber_Call{Call: _e.mock.On("UpdateForkIDBlockNumber", ctx, forkdID, newBlockNumber, updateMemCache, dbTx)}
+}
+
+func (_c *StateFullInterface_UpdateForkIDBlockNumber_Call) Run(run func(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx)) *StateFullInterface_UpdateForkIDBlockNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64), args[3].(bool), args[4].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StateFullInterface_UpdateForkIDBlockNumber_Call) Return(_a0 error) *StateFullInterface_UpdateForkIDBlockNumber_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StateFullInterface_UpdateForkIDBlockNumber_Call) RunAndReturn(run func(context.Context, uint64, uint64, bool, pgx.Tx) error) *StateFullInterface_UpdateForkIDBlockNumber_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateWIPBatch provides a mock function with given fields: ctx, receipt, dbTx
 func (_m *StateFullInterface) UpdateWIPBatch(ctx context.Context, receipt state.ProcessingReceipt, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, receipt, dbTx)
