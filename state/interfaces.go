@@ -100,14 +100,14 @@ type storage interface {
 	GetSequences(ctx context.Context, lastVerifiedBatchNumber uint64, dbTx pgx.Tx) ([]Sequence, error)
 	GetVirtualBatchToProve(ctx context.Context, lastVerfiedBatchNumber uint64, maxL1Block uint64, dbTx pgx.Tx) (*Batch, error)
 	CheckProofContainsCompleteSequences(ctx context.Context, proof *Proof, dbTx pgx.Tx) (bool, error)
-	GetProofReadyToVerify(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Proof, error)
-	GetProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*Proof, *Proof, error)
-	AddGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error
-	UpdateGeneratedProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error
-	DeleteGeneratedProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
-	CleanupGeneratedProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
-	CleanupLockedProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
-	DeleteUngeneratedProofs(ctx context.Context, dbTx pgx.Tx) error
+	GetProofReadyForFinal(ctx context.Context, lastVerfiedBatchNumber uint64, dbTx pgx.Tx) (*Proof, error)
+	GetBatchProofsToAggregate(ctx context.Context, dbTx pgx.Tx) (*Proof, *Proof, error)
+	AddBatchProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error
+	UpdateBatchProof(ctx context.Context, proof *Proof, dbTx pgx.Tx) error
+	DeleteBatchProofs(ctx context.Context, batchNumber uint64, batchNumberFinal uint64, dbTx pgx.Tx) error
+	CleanupBatchProofs(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
+	CleanupLockedBatchProofs(ctx context.Context, duration string, dbTx pgx.Tx) (int64, error)
+	DeleteUngeneratedBatchProofs(ctx context.Context, dbTx pgx.Tx) error
 	GetLastClosedBatch(ctx context.Context, dbTx pgx.Tx) (*Batch, error)
 	GetLastClosedBatchNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
 	UpdateBatchL2Data(ctx context.Context, batchNumber uint64, batchL2Data []byte, dbTx pgx.Tx) error

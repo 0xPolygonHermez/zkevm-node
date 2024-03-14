@@ -785,7 +785,7 @@ func (p *PostgresStorage) GetVirtualBatchToProve(ctx context.Context, lastVerfie
 			b.batch_num > $1 AND b.batch_num = v.batch_num AND
 			v.block_num <= $2 AND
 			NOT EXISTS (
-				SELECT p.batch_num FROM state.proof p 
+				SELECT p.batch_num FROM state.batch_proof p 
 				WHERE v.batch_num >= p.batch_num AND v.batch_num <= p.batch_num_final
 			)
 		ORDER BY b.batch_num ASC LIMIT 1
