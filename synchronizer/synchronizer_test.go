@@ -146,22 +146,27 @@ func TestForcedBatchEtrog(t *testing.T) {
 		ToBatchNumber:   ^uint64(0),
 	}
 	m.State.EXPECT().GetForkIDInMemory(uint64(7)).Return(&forkIdInterval)
+	parentHash := common.HexToHash("0x111")
+	ethHeader := &ethTypes.Header{Number: big.NewInt(123456), ParentHash: parentHash}
+	ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
+	lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
+	m.State.
+		On("GetLastBlock", mock.Anything, mock.Anything).
+		Return(lastBlock, nil).
+		Once()
 	m.State.
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
-			parentHash := common.HexToHash("0x111")
-			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
-			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 
 			m.State.
 				On("GetForkIDByBatchNumber", mock.Anything).
 				Return(uint64(7), nil).
 				Maybe()
+
 			m.State.
-				On("GetLastBlock", ctx, m.DbTx).
+				On("GetLastBlock", mock.Anything, mock.Anything).
 				Return(lastBlock, nil).
 				Once()
 
@@ -391,6 +396,14 @@ func TestSequenceForcedBatchIncaberry(t *testing.T) {
 	ethermanForL1 := []syncinterfaces.EthermanFullInterface{m.Etherman}
 	sync, err := NewSynchronizer(true, m.Etherman, ethermanForL1, m.State, m.Pool, m.EthTxManager, m.ZKEVMClient, nil, genesis, cfg, false)
 	require.NoError(t, err)
+	parentHash := common.HexToHash("0x111")
+	ethHeader := &ethTypes.Header{Number: big.NewInt(123456), ParentHash: parentHash}
+	ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
+	lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
+	m.State.
+		On("GetLastBlock", mock.Anything, mock.Anything).
+		Return(lastBlock, nil).
+		Once()
 
 	// state preparation
 	ctxMatchBy := mock.MatchedBy(func(ctx context.Context) bool { return ctx != nil })
@@ -398,10 +411,6 @@ func TestSequenceForcedBatchIncaberry(t *testing.T) {
 		On("BeginStateTransaction", ctxMatchBy).
 		Run(func(args mock.Arguments) {
 			ctx := args[0].(context.Context)
-			parentHash := common.HexToHash("0x111")
-			ethHeader := &ethTypes.Header{Number: big.NewInt(1), ParentHash: parentHash}
-			ethBlock := ethTypes.NewBlockWithHeader(ethHeader)
-			lastBlock := &state.Block{BlockHash: ethBlock.Hash(), BlockNumber: ethBlock.Number().Uint64()}
 			m.State.
 				On("GetForkIDByBatchNumber", mock.Anything).
 				Return(uint64(1), nil).

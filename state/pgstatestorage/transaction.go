@@ -63,13 +63,16 @@ func (p *PostgresStorage) GetTxsOlderThanNL1BlocksUntilTxHash(ctx context.Contex
 	} else if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
+
 	hashes := make([]common.Hash, 0, len(rows.RawValues()))
 	for rows.Next() {
 		var hash string
-		err := rows.Scan(&hash)
-		if err != nil {
+		if err := rows.Scan(&hash); err != nil {
 			return nil, err
 		}
+
 		hashes = append(hashes, common.HexToHash(hash))
 	}
 
@@ -108,13 +111,16 @@ func (p *PostgresStorage) GetTxsOlderThanNL1Blocks(ctx context.Context, nL1Block
 	} else if err != nil {
 		return nil, err
 	}
+
+	defer rows.Close()
+
 	hashes := make([]common.Hash, 0, len(rows.RawValues()))
 	for rows.Next() {
 		var hash string
-		err := rows.Scan(&hash)
-		if err != nil {
+		if err := rows.Scan(&hash); err != nil {
 			return nil, err
 		}
+
 		hashes = append(hashes, common.HexToHash(hash))
 	}
 
@@ -515,7 +521,7 @@ func (p *PostgresStorage) GetTxsByBatchNumber(ctx context.Context, batchNumber u
 }
 
 // AddReceipt adds a new receipt to the State Store
-func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt, imStateRoot common.Hash, dbTx pgx.Tx) error {
 	e := p.getExecQuerier(dbTx)
 
 	var effectiveGasPrice *uint64
@@ -526,31 +532,31 @@ func (p *PostgresStorage) AddReceipt(ctx context.Context, receipt *types.Receipt
 	}
 
 	const addReceiptSQL = `
-        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address)
-                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10)`
-	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String())
+        INSERT INTO state.receipt (tx_hash, type, post_state, status, cumulative_gas_used, gas_used, effective_gas_price, block_num, tx_index, contract_address, im_state_root)
+                           VALUES (     $1,   $2,         $3,     $4,                  $5,       $6,        		  $7,        $8,       $9,			    $10,           $11)`
+	_, err := e.Exec(ctx, addReceiptSQL, receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, effectiveGasPrice, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String(), imStateRoot.Bytes())
 	return err
 }
 
 // AddReceipts adds a list of receipts to the State Store
-func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, dbTx pgx.Tx) error {
+func (p *PostgresStorage) AddReceipts(ctx context.Context, receipts []*types.Receipt, imStateRoots []common.Hash, dbTx pgx.Tx) error {
 	if len(receipts) == 0 {
 		return nil
 	}
 
 	receiptRows := [][]interface{}{}
 
-	for _, receipt := range receipts {
+	for i, receipt := range receipts {
 		var egp uint64
 		if receipt.EffectiveGasPrice != nil {
 			egp = receipt.EffectiveGasPrice.Uint64()
 		}
-		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String()}
+		receiptRow := []interface{}{receipt.TxHash.String(), receipt.Type, receipt.PostState, receipt.Status, receipt.CumulativeGasUsed, receipt.GasUsed, egp, receipt.BlockNumber.Uint64(), receipt.TransactionIndex, receipt.ContractAddress.String(), imStateRoots[i].Bytes()}
 		receiptRows = append(receiptRows, receiptRow)
 	}
 
 	_, err := dbTx.CopyFrom(ctx, pgx.Identifier{"state", "receipt"},
-		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address"},
+		[]string{"tx_hash", "type", "post_state", "status", "cumulative_gas_used", "gas_used", "effective_gas_price", "block_num", "tx_index", "contract_address", "im_state_root"},
 		pgx.CopyFromRows(receiptRows))
 
 	return err

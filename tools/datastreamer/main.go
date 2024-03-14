@@ -299,6 +299,11 @@ func getImStateRoots(ctx context.Context, start, end uint64, isStateRoots *map[u
 			log.Errorf("Error: %v\n", err)
 			os.Exit(1)
 		}
+
+		if common.BytesToHash(imStateRoot.Bytes()) == state.ZeroHash && x != 0 {
+			break
+		}
+
 		imStateRootMux.Lock()
 		(*isStateRoots)[x] = imStateRoot.Bytes()
 		imStateRootMux.Unlock()
@@ -558,14 +563,13 @@ func decodeEntry(cliCtx *cli.Context) error {
 		os.Exit(1)
 	}
 
-	client.FromEntry = cliCtx.Uint64("entry")
-	err = client.ExecCommand(datastreamer.CmdEntry)
+	entry, err := client.ExecCommandGetEntry(cliCtx.Uint64("entry"))
 	if err != nil {
 		log.Error(err)
 		os.Exit(1)
 	}
 
-	printEntry(client.Entry)
+	printEntry(entry)
 	return nil
 }
 
@@ -597,35 +601,28 @@ func decodeL2Block(cliCtx *cli.Context) error {
 		Value: l2BlockNumber,
 	}
 
-	client.FromBookmark = bookMark.Encode()
-	err = client.ExecCommand(datastreamer.CmdBookmark)
+	firstEntry, err := client.ExecCommandGetBookmark(bookMark.Encode())
 	if err != nil {
 		log.Error(err)
 		os.Exit(1)
 	}
-
-	firstEntry := client.Entry
 	printEntry(firstEntry)
 
-	client.FromEntry = firstEntry.Number + 1
-	err = client.ExecCommand(datastreamer.CmdEntry)
+	secondEntry, err := client.ExecCommandGetEntry(firstEntry.Number + 1)
 	if err != nil {
 		log.Error(err)
 		os.Exit(1)
 	}
-
-	secondEntry := client.Entry
 	printEntry(secondEntry)
 
 	i := uint64(2) //nolint:gomnd
 	for secondEntry.Type == state.EntryTypeL2Tx {
-		client.FromEntry = firstEntry.Number + i
-		err = client.ExecCommand(datastreamer.CmdEntry)
+		entry, err := client.ExecCommandGetEntry(firstEntry.Number + i)
 		if err != nil {
 			log.Error(err)
 			os.Exit(1)
 		}
-		secondEntry = client.Entry
+		secondEntry = entry
 		printEntry(secondEntry)
 		i++
 	}
@@ -778,6 +775,8 @@ func printEntry(entry datastreamer.FileEntry) {
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ForkID))
 		printColored(color.FgGreen, "Chain ID........: ")
 		printColored(color.FgHiWhite, fmt.Sprintf("%d\n", blockStart.ChainID))
+		printColored(color.FgGreen, "Local Exit Root.: ")
+		printColored(color.FgHiWhite, fmt.Sprintf("%s\n", blockStart.LocalExitRoot))
 	case state.EntryTypeL2Tx:
 		dsTx := state.DSL2Transaction{}.Decode(entry.Data)
 		printColored(color.FgGreen, "Entry Type......: ")

@@ -61,6 +61,11 @@ func Test_Defaults(t *testing.T) {
 			expectedValue: true,
 		},
 		{
+			path:          "Synchronizer.L2Synchronization.CheckLastL2BlockHashOnCloseBatch",
+			expectedValue: true,
+		},
+
+		{
 			path:          "Sequencer.DeletePoolTxsL1BlockConfirmations",
 			expectedValue: uint64(100),
 		},
@@ -123,6 +128,14 @@ func Test_Defaults(t *testing.T) {
 		{
 			path:          "Sequencer.Finalizer.BatchMaxDeltaTimestamp",
 			expectedValue: types.NewDuration(10 * time.Second),
+		},
+		{
+			path:          "Sequencer.Finalizer.Metrics.Interval",
+			expectedValue: types.NewDuration(60 * time.Minute),
+		},
+		{
+			path:          "Sequencer.Finalizer.Metrics.EnableLog",
+			expectedValue: true,
 		},
 		{
 			path:          "Sequencer.StreamServer.Port",

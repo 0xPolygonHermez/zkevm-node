@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"math/big"
+	"sync"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/pool"
@@ -283,6 +284,6 @@ func TestWorkerGetBestTx(t *testing.T) {
 }
 
 func initWorker(stateMock *StateMock, rcMax state.BatchConstraintsCfg) *Worker {
-	worker := NewWorker(stateMock, rcMax)
+	worker := NewWorker(stateMock, rcMax, newTimeoutCond(&sync.Mutex{}))
 	return worker
 }
