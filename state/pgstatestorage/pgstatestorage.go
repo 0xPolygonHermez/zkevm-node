@@ -159,7 +159,7 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 	const queryFilterByBlockHash = `AND b.block_hash = $7 `
 	const queryFilterByBlockNumbers = `AND b.block_num BETWEEN $7 AND $8 `
 
-	const queryOrder = `ORDER BY b.block_num ASC, r.tx_index ASC`
+	const queryOrder = `ORDER BY b.block_num ASC, r.tx_index ASC, l.log_index ASC`
 
 	// count queries
 	const queryToCountLogsByBlockHash = "" +
