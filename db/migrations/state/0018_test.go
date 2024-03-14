@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type migrationTest0017 struct{}
+type migrationTest0018 struct{}
 
-func (m migrationTest0017) InsertData(db *sql.DB) error {
+func (m migrationTest0018) InsertData(db *sql.DB) error {
 	const insertBatch1 = `
 		INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) 
 		VALUES (1,'0x0001', '0x0001', '0x0001', '0x0001', now(), '0x0001', null, null, true)`
@@ -45,7 +45,7 @@ func (m migrationTest0017) InsertData(db *sql.DB) error {
 	return nil
 }
 
-func (m migrationTest0017) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
+func (m migrationTest0018) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
 	assertTableNotExists(t, db, "state", "proof")
 
 	assertTableExists(t, db, "state", "blob_inner")
@@ -77,7 +77,7 @@ func (m migrationTest0017) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, err)
 }
 
-func (m migrationTest0017) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
+func (m migrationTest0018) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
 	var result int
 
 	assertTableExists(t, db, "state", "proof")
@@ -110,6 +110,6 @@ func (m migrationTest0017) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	assert.Equal(t, 0, result)
 }
 
-func TestMigration0017(t *testing.T) {
-	runMigrationTest(t, 17, migrationTest0017{})
+func TestMigration0018(t *testing.T) {
+	runMigrationTest(t, 18, migrationTest0018{})
 }
