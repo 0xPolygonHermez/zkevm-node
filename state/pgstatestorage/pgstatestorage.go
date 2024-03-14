@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -239,7 +238,6 @@ func (p *PostgresStorage) GetLogs(ctx context.Context, fromBlock uint64, toBlock
 			return nil, state.ErrMaxLogsCountLimitExceeded
 		}
 	}
-	log.Infof("queryToSelect: %s", queryToSelect)
 	rows, err := q.Query(ctx, queryToSelect, args...)
 	if err != nil {
 		return nil, err
