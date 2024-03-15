@@ -658,7 +658,7 @@ func NewReceipt(tx types.Transaction, r *types.Receipt, l2Hash *common.Hash) (Re
 		Type:              ArgUint64(r.Type),
 		TxL2Hash:          l2Hash,
 	}
-	if common.BytesToHash(r.PostState).String() != state.ZeroHash.String() {
+	if len(r.PostState) > 0 {
 		root := common.BytesToHash(r.PostState)
 		receipt.Root = &root
 	}
