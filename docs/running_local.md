@@ -175,7 +175,7 @@ To configure your Metamask to use your local environment, follow these steps:
 5. Fill up the L2 network information
     1. `Network Name:` X1 - Local
     2. `New RPC URL:` <http://localhost:8123>
-    3. `ChainID:` 1001
+    3. `ChainID:` 195
     4. `Currency Symbol:` ETH
     5. `Block Explorer URL:` <http://localhost:4000>
 6. Click on Save

@@ -231,7 +231,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "MTClient.URI",
-			expectedValue: "zkevm-prover:50061",
+			expectedValue: "x1-prover:50061",
 		},
 		{
 			path:          "State.DB.User",
@@ -247,7 +247,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "State.DB.Host",
-			expectedValue: "zkevm-state-db",
+			expectedValue: "x1-state-db",
 		},
 		{
 			path:          "State.DB.Port",
@@ -344,7 +344,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Pool.DB.Host",
-			expectedValue: "zkevm-pool-db",
+			expectedValue: "x1-pool-db",
 		},
 		{
 			path:          "Pool.DB.Port",
@@ -428,7 +428,7 @@ func Test_Defaults(t *testing.T) {
 		},
 		{
 			path:          "Executor.URI",
-			expectedValue: "zkevm-prover:50071",
+			expectedValue: "x1-prover:50071",
 		},
 		{
 			path:          "Executor.MaxResourceExhaustedAttempts",

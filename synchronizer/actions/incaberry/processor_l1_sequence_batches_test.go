@@ -11,7 +11,7 @@ import (
 
 func TestProcessorL1SequenceBatches_Process(t *testing.T) {
 	ctx := context.Background()
-	sut := NewProcessorL1SequenceBatches(nil, nil, nil, nil, nil)
+	sut := NewProcessorL1SequenceBatches(nil, nil, nil, nil, nil, nil)
 
 	l1Block := &etherman.Block{
 		//SequencedBatches: []Batch{}, // Mock sequenced batches

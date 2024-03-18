@@ -42,7 +42,6 @@ func (etherMan *Client) sequenceMockBatches(opts bind.TransactOpts,
 	initSequencedBatch uint64,
 	l2Coinbase common.Address,
 	dataAvailabilityMessage []byte) (*types.Transaction, error) {
-
 	var tx *types.Transaction
 	var err error
 	tx, err = etherMan.ZkEVM.SequenceBatchesValidium(&opts, validiumBatchData, maxSequenceTimestamp, initSequencedBatch, l2Coinbase, dataAvailabilityMessage)

@@ -334,13 +334,15 @@ func TestDebugTraceTransaction(t *testing.T) {
 	}
 
 	privateKey, err := crypto.GenerateKey()
+	sendToSequencer(t, ctx, operations.MustGetClient(l2NetworkURL), common.HexToAddress(operations.DefaultSequencerAddress))
 	require.NoError(t, err)
 	for _, network := range networks {
 		auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(0).SetUint64(network.ChainID))
 		require.NoError(t, err)
 
 		ethereumClient := operations.MustGetClient(network.URL)
-		sourceAuth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		priKey := network.PrivateKey
+		sourceAuth := operations.MustGetAuth(priKey, network.ChainID)
 
 		nonce, err := ethereumClient.NonceAt(ctx, sourceAuth.From, nil)
 		require.NoError(t, err)
@@ -404,7 +406,7 @@ func TestDebugTraceTransaction(t *testing.T) {
 					var err error
 					if forceTxIndexDifferentFromZero {
 						// send eth transfers txs to make the trace tx to not be the index 0 in the block
-						sendEthTransfersWithoutWaiting(t, ctx, ethereumClient, auth, common.HexToAddress(operations.DefaultSequencerAddress), big.NewInt(1), 3)
+						sendEthTransfersWithoutWaiting(t, ctx, ethereumClient, auth, common.HexToAddress(fromAddressHex), big.NewInt(1), 3)
 					}
 
 					signedTx, err = tc.createSignedTx(t, ctx, auth, ethereumClient, customData)
@@ -608,6 +610,8 @@ func TestDebugTraceBlock(t *testing.T) {
 		{name: "erc20 transfer reverted by hash", blockNumberOrHash: "hash", prepare: prepareERC20TransferReverted, createSignedTx: createERC20TransferRevertedSignedTx},
 	}
 
+	sendToSequencer(t, ctx, operations.MustGetClient(l2NetworkURL), common.HexToAddress(operations.DefaultSequencerAddress))
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			log.Debug("************************ ", tc.name, " ************************")
@@ -616,7 +620,8 @@ func TestDebugTraceBlock(t *testing.T) {
 				debugID := fmt.Sprintf("TraceBlock[%s/%s]", tc.name, network.Name)
 				log.Debug("------------------------ ", network.Name, " ------------------------")
 				ethereumClient := operations.MustGetClient(network.URL)
-				auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+				priKey := network.PrivateKey
+				auth := operations.MustGetAuth(priKey, network.ChainID)
 
 				var customData map[string]interface{}
 				if tc.prepare != nil {
@@ -746,4 +751,40 @@ func convertJson(t *testing.T, response json.RawMessage, debugPrefix string) map
 	err := json.Unmarshal(response, &valueMap)
 	require.NoError(t, err)
 	return valueMap
+}
+
+func sendToSequencer(t *testing.T, ctx context.Context, client *ethclient.Client, to common.Address) {
+	auth, err := operations.GetAuth("0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38", operations.DefaultL2ChainID)
+	require.NoError(t, err)
+	fromBalance, err := client.BalanceAt(ctx, auth.From, nil)
+	log.Debug("from balance:", fromBalance)
+
+	nonce, err := client.NonceAt(ctx, auth.From, nil)
+	require.NoError(t, err)
+
+	amount := fromBalance.Div(fromBalance, big.NewInt(10))
+	gasLimit, err := client.EstimateGas(ctx, ethereum.CallMsg{
+		From:  auth.From,
+		To:    &to,
+		Value: amount,
+	})
+	require.NoError(t, err)
+
+	gasPrice, err := client.SuggestGasPrice(ctx)
+	require.NoError(t, err)
+
+	tx := ethTypes.NewTransaction(nonce, to, amount, gasLimit, gasPrice, nil)
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	log.Debug("sending tx")
+	err = client.SendTransaction(ctx, signedTx)
+	require.NoError(t, err)
+
+	err = operations.WaitTxToBeMined(ctx, client, signedTx, operations.DefaultTimeoutTxToBeMined)
+	require.NoError(t, err)
+
+	seqBalance, err := client.BalanceAt(ctx, to, nil)
+	log.Debug("sequencer balance:", seqBalance)
+	require.NoError(t, err)
 }

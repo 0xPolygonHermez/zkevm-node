@@ -9,7 +9,7 @@
     "output": "",
     "nonce": 0,
     "gasPrice": "1000000000",
-    "chainId": 1001,
+    "chainId": 195,
     "oldStateRoot": "0x6d5c38b26295240acbfdc4ad5ea3f9b7c12e38fb159480c4ab0be98f0e3057ab",
     "time": 2859,
     "gasUsed": "117943"
@@ -13207,7 +13207,7 @@
     {
       "stateRoot": "0x5e74efcde7ed6066d034322b10ed84ffb0f8f618d7e9768494e2adf302a4731e",
       "depth": 1,
-      "pc": 1001,
+      "pc": 195,
       "gas": "774054",
       "opcode": "EQ",
       "refund": "0",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"math/big"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,23 @@ func TestPreEIP155Tx(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	// Edit config
+	const path = "../../test/config/test.node.config.toml"
+	require.NoError(t,
+		exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 1000000000/DefaultMinGasPriceAllowed = 0/g", path).Run(),
+	)
+	require.NoError(t,
+		exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = true/EnableL2SuggestedGasPricePolling = false/g", path).Run(),
+	)
+	// Undo edit config
+	defer func() {
+		require.NoError(t,
+			exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 0/DefaultMinGasPriceAllowed = 1000000000/g", path).Run(),
+		)
+		require.NoError(t,
+			exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = false/EnableL2SuggestedGasPricePolling = true/g", path).Run(),
+		)
+	}()
 
 	var err error
 	err = operations.Teardown()
@@ -41,7 +59,11 @@ func TestPreEIP155Tx(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		priKey := network.PrivateKey
+		if network.Name == "Local L2" {
+			priKey = "0xde3ca643a52f5543e84ba984c4419ff40dbabd0e483c31c1d09fee8168d68e38"
+		}
+		auth := operations.MustGetAuth(priKey, network.ChainID)
 
 		nonce, err := client.PendingNonceAt(ctx, auth.From)
 		require.NoError(t, err)
@@ -67,12 +89,13 @@ func TestPreEIP155Tx(t *testing.T) {
 			Data:     data,
 		})
 
-		privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(network.PrivateKey, "0x"))
+		privateKey, err := crypto.HexToECDSA(strings.TrimPrefix(priKey, "0x"))
 		require.NoError(t, err)
 
 		signedTx, err := types.SignTx(tx, types.HomesteadSigner{}, privateKey)
 		require.NoError(t, err)
 
+		//log.Debug("privateKey:", privateKey, ", from:", auth.From)
 		err = client.SendTransaction(ctx, signedTx)
 		require.NoError(t, err)
 
@@ -95,6 +118,23 @@ func TestFakeEIP155With_V_As35(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
+	// Edit config
+	const path = "../../test/config/test.node.config.toml"
+	require.NoError(t,
+		exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 1000000000/DefaultMinGasPriceAllowed = 0/g", path).Run(),
+	)
+	require.NoError(t,
+		exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = true/EnableL2SuggestedGasPricePolling = false/g", path).Run(),
+	)
+	// Undo edit config
+	defer func() {
+		require.NoError(t,
+			exec.Command("sed", "-i", "s/DefaultMinGasPriceAllowed = 0/DefaultMinGasPriceAllowed = 1000000000/g", path).Run(),
+		)
+		require.NoError(t,
+			exec.Command("sed", "-i", "s/EnableL2SuggestedGasPricePolling = false/EnableL2SuggestedGasPricePolling = true/g", path).Run(),
+		)
+	}()
 
 	var err error
 	err = operations.Teardown()

@@ -88,6 +88,7 @@ func TestLoadCustomNetworkConfig(t *testing.T) {
 					PolAddr:                   common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 					GlobalExitRootManagerAddr: common.HexToAddress("0xc949254d682d8c9ad5682521675b8f43b102aec4"),
 				},
+				L2BridgeAddr: common.HexToAddress("0x9D98DeAbC42dd696Deb9e40b4f1CAB7dDBF55988"),
 				Genesis: state.Genesis{
 					Root:        common.HexToHash("0xBEEF"),
 					BlockNumber: 69,

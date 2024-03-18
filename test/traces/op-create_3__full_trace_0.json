@@ -9,7 +9,7 @@
     "output": "",
     "nonce": 0,
     "gasPrice": "1000000000",
-    "chainId": 1001,
+    "chainId": 195,
     "oldStateRoot": "0x6d5c38b26295240acbfdc4ad5ea3f9b7c12e38fb159480c4ab0be98f0e3057ab",
     "time": 277,
     "gasUsed": "43286"

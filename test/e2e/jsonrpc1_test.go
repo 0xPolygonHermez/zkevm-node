@@ -35,7 +35,7 @@ func TestJSONRPC(t *testing.T) {
 	defer teardown()
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
-		sc, err := deployContracts(network.URL, operations.DefaultSequencerPrivateKey, network.ChainID)
+		sc, err := deployContracts(network.URL, fromPriKey, network.ChainID)
 		require.NoError(t, err)
 
 		callOpts := &bind.CallOpts{Pending: false}
@@ -159,7 +159,7 @@ func Test_Filters(t *testing.T) {
 
 		ethereumClient := operations.MustGetClient(network.URL)
 		zkEVMClient := client.NewClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		// test getFilterChanges for a blockFilter ID
 		var blockBeforeFilterHash common.Hash
@@ -296,17 +296,22 @@ func Test_Gas(t *testing.T) {
 
 	for _, network := range networks {
 		log.Infof("Network %s", network.Name)
+		from := operations.DefaultSequencerAddress
+		if network.Name == "Local L2" {
+			from = fromAddressHex
+		}
 
 		for _, value := range Values {
 			client, err := ethclient.Dial(network.URL)
 			require.NoError(t, err)
-			msg := ethereum.CallMsg{From: common.HexToAddress(operations.DefaultSequencerAddress),
+			msg := ethereum.CallMsg{From: common.HexToAddress(from),
 				To:    &Address1,
 				Value: value}
 
-			balance, err := client.BalanceAt(context.Background(), common.HexToAddress(operations.DefaultSequencerAddress), nil)
+			balance, err := client.BalanceAt(context.Background(), common.HexToAddress(from), nil)
 			require.NoError(t, err)
 
+			//log.Debug("address:", from, ", url:", network.URL)
 			log.Infof("Balance: %d", balance)
 			require.GreaterOrEqual(t, balance.Cmp(big.NewInt(1)), 1)
 
@@ -351,7 +356,7 @@ func Test_Block(t *testing.T) {
 		ethereumClient, err := ethclient.Dial(network.URL)
 		zkEVMClient := client.NewClient(network.URL)
 		require.NoError(t, err)
-		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
+		auth, err := operations.GetAuth(fromPriKey, network.ChainID)
 		require.NoError(t, err)
 
 		tx, err := createTX(ethereumClient, auth, toAddress, big.NewInt(1000))
@@ -470,7 +475,7 @@ func Test_Transactions(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 		ethClient, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
-		auth, err := operations.GetAuth(network.PrivateKey, network.ChainID)
+		auth, err := operations.GetAuth(fromPriKey, network.ChainID)
 		require.NoError(t, err)
 
 		// Test Case: Successful transfer
@@ -574,7 +579,7 @@ func Test_OOCErrors(t *testing.T) {
 	defer teardown()
 	ethClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+	auth, err := operations.GetAuth(fromPriKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
 
 	type testCase struct {
@@ -680,7 +685,7 @@ func Test_EstimateCounters(t *testing.T) {
 	defer teardown()
 	ethClient, err := ethclient.Dial(operations.DefaultL2NetworkURL)
 	require.NoError(t, err)
-	auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, operations.DefaultL2ChainID)
+	auth, err := operations.GetAuth(fromPriKey, operations.DefaultL2ChainID)
 	require.NoError(t, err)
 
 	expectedCountersLimits := types.ZKCountersLimits{

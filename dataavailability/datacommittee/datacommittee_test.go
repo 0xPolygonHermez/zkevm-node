@@ -112,10 +112,12 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	if err != nil {
 		return &DataCommitteeBackend{}, nil, nil, err
 	}
+	client.Commit()
 	_, err = da.Initialize(auth)
 	if err != nil {
 		return &DataCommitteeBackend{}, nil, nil, err
 	}
+	client.Commit()
 	_, err = da.SetupCommittee(auth, big.NewInt(0), []string{}, []byte{})
 	if err != nil {
 		return &DataCommitteeBackend{}, nil, nil, err

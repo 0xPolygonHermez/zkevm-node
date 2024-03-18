@@ -104,9 +104,9 @@ var (
 	upgradedSignatureHash         = crypto.Keccak256Hash([]byte("Upgraded(address)"))
 
 	// methodIDSequenceBatchesEtrog: MethodID for sequenceBatches in Etrog
-	methodIDSequenceBatchesEtrog = []byte{0xec, 0xef, 0x3f, 0x99} // 0xecef3f99
+	methodIDSequenceBatchesEtrog = []byte{0xec, 0xef, 0x3f, 0x99} // nolint:unused // 0xecef3f99
 	// methodIDSequenceBatchesElderberry: MethodID for sequenceBatches in Elderberry
-	methodIDSequenceBatchesElderberry = []byte{0xde, 0xf5, 0x7e, 0x54} // 0xdef57e54 sequenceBatches((bytes,bytes32,uint64,bytes32)[],uint64,uint64,address)
+	methodIDSequenceBatchesElderberry = []byte{0xde, 0xf5, 0x7e, 0x54} // nolint:unused // 0xdef57e54 sequenceBatches((bytes,bytes32,uint64,bytes32)[],uint64,uint64,address)
 
 	// ErrNotFound is used when the object is not found
 	ErrNotFound = errors.New("not found")
@@ -1416,7 +1416,7 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 	}
 }
 
-func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) {
+func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) { // nolint:unused
 	// Extract coded txs.
 	// Load contract ABI
 	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))

@@ -43,7 +43,7 @@ func TestCounter(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		_, scTx, sc, err := Counter.DeployCounter(auth, client)
 		require.NoError(t, err)
@@ -294,7 +294,7 @@ func TestEmitLog2(t *testing.T) {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
 		wsClient := operations.MustGetClient(network.WebSocketURL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		// deploy sc
 		scAddr, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
@@ -360,7 +360,7 @@ func TestLogTxIndex(t *testing.T) {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
 		wsClient := operations.MustGetClient(network.WebSocketURL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		// deploy sc
 		scAddr, scTx, sc, err := EmitLog2.DeployEmitLog2(auth, client)
@@ -504,7 +504,7 @@ func TestFailureTest(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		log.Debug("deploying SC")
 		_, scTx, sc, err := FailureTest.DeployFailureTest(auth, client)
@@ -549,7 +549,7 @@ func TestRead(t *testing.T) {
 	for _, network := range networks {
 		log.Debugf(network.Name)
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		const ownerName = "this is the owner name"
 		callOpts := &bind.CallOpts{Pending: false}

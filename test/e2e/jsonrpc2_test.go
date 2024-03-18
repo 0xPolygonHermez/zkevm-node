@@ -66,7 +66,7 @@ func Test_Misc(t *testing.T) {
 		// first deploy sample smart contract
 		sc_payload := int64(42)
 		sc_retrieve := common.HexToHash("0x2a")
-		auth, err := operations.GetAuth(operations.DefaultSequencerPrivateKey, network.ChainID)
+		auth, err := operations.GetAuth(fromPriKey, network.ChainID)
 		require.NoError(t, err)
 		contractAddress, tx, storageSC, err := Storage.DeployStorage(auth, ethereumClient)
 		require.NoError(t, err)
@@ -231,7 +231,7 @@ func Test_WebSocketsSubscription(t *testing.T) {
 		}()
 
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 		for i := 0; i <= numberOfBlocks; i++ {
 			tx, err := createTX(client, auth, toAddress, big.NewInt(1000000000))
 			require.NoError(t, err)
@@ -271,7 +271,7 @@ func Test_RevertOnConstructorTransaction(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		auth.GasLimit = 1000000
 
@@ -327,7 +327,7 @@ func Test_RevertOnSCCallTransaction(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		auth.GasLimit = 1000000
 
@@ -388,7 +388,7 @@ func Test_RevertOnSCCallGasEstimation(t *testing.T) {
 		log.Infof("Network %s", network.Name)
 
 		client := operations.MustGetClient(network.URL)
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		auth.GasLimit = 1000000
 
@@ -603,7 +603,7 @@ func TestEstimateGas(t *testing.T) {
 		ethereumClient, err := ethclient.Dial(network.URL)
 		require.NoError(t, err)
 
-		auth := operations.MustGetAuth(network.PrivateKey, network.ChainID)
+		auth := operations.MustGetAuth(fromPriKey, network.ChainID)
 
 		// deploy a smart contract
 		_, tx, sc, err := Counter.DeployCounter(auth, ethereumClient)

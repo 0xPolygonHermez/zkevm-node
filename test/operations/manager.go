@@ -54,7 +54,7 @@ const (
 	PermissionlessL2NetworkURL                 = "http://localhost:8125"
 	DefaultL2NetworkWebSocketURL               = "ws://localhost:8133"
 	PermissionlessL2NetworkWebSocketURL        = "ws://localhost:8135"
-	DefaultL2ChainID                    uint64 = 1001
+	DefaultL2ChainID                    uint64 = 195
 
 	DefaultTimeoutTxToBeMined = 1 * time.Minute
 
@@ -621,7 +621,7 @@ func RunMakeTarget(target string) error {
 // GetDefaultOperationsConfig provides a default configuration to run the environment
 func GetDefaultOperationsConfig() *Config {
 	return &Config{
-		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 1001,
+		State: &state.Config{MaxCumulativeGasUsed: DefaultMaxCumulativeGasUsed, ChainID: 195,
 			ForkIDIntervals: []state.ForkIDInterval{{
 				FromBatchNumber: 0,
 				ToBatchNumber:   math.MaxUint64,
