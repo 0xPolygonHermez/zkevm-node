@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
+	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	evmtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -260,4 +263,66 @@ func (e *EthEndpoints) newPendingTransactionFilterX1(wsConn *concurrentWsConn) (
 		return RPCErrorResponse(types.DefaultErrorCode, "failed to create new pending transaction filter", err, true)
 	}
 	return id, nil
+}
+
+const (
+	maxLimitSize = 32
+)
+
+// GetBlockInternalTransactionsByIndexAndLimit returns internal transactions by block hash/index/limit
+func (e *EthEndpoints) GetBlockInternalTransactionsByIndexAndLimit(hash types.ArgHash, index, limit types.Index) (interface{}, types.Error) {
+	if limit > maxLimitSize {
+		overSizeMsg := fmt.Sprintf("limit exceeds maximum size: %d", maxLimitSize)
+		return RPCErrorResponse(types.DefaultErrorCode, overSizeMsg, nil, true)
+	}
+	blockInternalTxs := make([]*evmtypes.Transaction, 0, int(limit))
+	_, err := e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
+		c, err := e.state.GetL2BlockTransactionCountByHash(ctx, hash.Hash(), dbTx)
+		if err != nil {
+			return RPCErrorResponse(types.DefaultErrorCode, "failed to count transactions", err, true)
+		}
+		start := min(int(c), int(index))
+		end := min(int(c), int(index)+int(limit))
+		for i := start; i < end; i++ {
+			tx, err := e.state.GetTransactionByL2BlockHashAndIndex(ctx, hash.Hash(), uint64(i), dbTx)
+			if errors.Is(err, state.ErrNotFound) {
+				return nil, nil
+			} else if err != nil {
+				return RPCErrorResponse(types.DefaultErrorCode, "failed to get transaction", err, true)
+			}
+			blockInternalTxs = append(blockInternalTxs, tx)
+		}
+
+		return nil, nil
+	})
+	if err != nil {
+		return RPCErrorResponse(types.DefaultErrorCode, "failed to count transactions", err, true)
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(blockInternalTxs))
+	type pair struct {
+		tx *evmtypes.Transaction
+		v  interface{}
+	}
+	retChan := make(chan pair, len(blockInternalTxs))
+	for _, tx := range blockInternalTxs {
+		go func(transaction *evmtypes.Transaction) {
+			defer wg.Done()
+			ret, err := e.GetInternalTransactions(types.ArgHash(transaction.Hash()))
+			if err != nil {
+				log.Errorf("failed to get internal transaction: %v", err)
+			}
+			retChan <- pair{tx: transaction, v: ret}
+		}(tx)
+	}
+	wg.Wait()
+	close(retChan)
+
+	ret := make(map[common.Hash]interface{})
+	for r := range retChan {
+		ret[r.tx.Hash()] = r.v
+	}
+
+	return ret, nil
 }
