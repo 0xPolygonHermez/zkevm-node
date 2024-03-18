@@ -37,6 +37,8 @@ Outputs = ["stderr"]
 [Pool]
 FreeClaimGasLimit = 150000
 IntervalToRefreshBlockedAddresses = "5m"
+EnableWhitelist = false
+IntervalToRefreshWhiteAddresses = "1m"
 IntervalToRefreshGasPrices = "5s"
 MaxTxBytesSize=100132
 MaxTxDataBytesSize=100000

@@ -12,6 +12,7 @@ type apolloConfig struct {
 	FreeGasAddresses []string
 	GlobalQueue      uint64
 	AccountQueue     uint64
+	EnableWhitelist  bool
 
 	sync.RWMutex
 }
@@ -45,12 +46,14 @@ func (c *apolloConfig) setFreeGasAddresses(freeGasAddrs []string) {
 // GlobalQueue
 // AccountQueue
 // FreeGasAddress
+// EnableWhitelist
 func UpdateConfig(apolloConfig Config) {
 	getApolloConfig().Lock()
 	getApolloConfig().EnableApollo = true
 	getApolloConfig().GlobalQueue = apolloConfig.GlobalQueue
 	getApolloConfig().AccountQueue = apolloConfig.AccountQueue
 	getApolloConfig().setFreeGasAddresses(apolloConfig.FreeGasAddress)
+	getApolloConfig().EnableWhitelist = apolloConfig.EnableWhitelist
 	getApolloConfig().Unlock()
 }
 
@@ -82,4 +85,14 @@ func getAccountQueue(accountQueue uint64) uint64 {
 	}
 
 	return accountQueue
+}
+
+func getEnableWhitelist(enableWhitelist bool) bool {
+	if getApolloConfig().enable() {
+		getApolloConfig().RLock()
+		defer getApolloConfig().RUnlock()
+		return getApolloConfig().EnableWhitelist
+	}
+
+	return enableWhitelist
 }

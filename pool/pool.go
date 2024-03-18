@@ -43,6 +43,7 @@ type Pool struct {
 	cfg                     Config
 	batchConstraintsCfg     state.BatchConstraintsCfg
 	blockedAddresses        sync.Map
+	whitelistedAddresses    sync.Map
 	minSuggestedGasPrice    *big.Int
 	minSuggestedGasPriceMux *sync.RWMutex
 	eventLog                *event.EventLog
@@ -79,6 +80,7 @@ func NewPool(cfg Config, batchConstraintsCfg state.BatchConstraintsCfg, s storag
 		state:                   st,
 		chainID:                 chainID,
 		blockedAddresses:        sync.Map{},
+		whitelistedAddresses:    sync.Map{},
 		minSuggestedGasPriceMux: new(sync.RWMutex),
 		minSuggestedGasPrice:    big.NewInt(int64(cfg.DefaultMinGasPriceAllowed)),
 		eventLog:                eventLog,
@@ -461,6 +463,15 @@ func (p *Pool) validateTx(ctx context.Context, poolTx Transaction) error {
 	if blocked {
 		log.Infof("%v: %v", ErrBlockedSender.Error(), from.String())
 		return ErrBlockedSender
+	}
+
+	// check if sender is whitelisted
+	if getEnableWhitelist(p.cfg.EnableWhitelist) {
+		_, listed := p.whitelistedAddresses.Load(from.String())
+		if !listed {
+			log.Infof("%v: %v", ErrNoWhitelistedSender.Error(), from.String())
+			return ErrNoWhitelistedSender
+		}
 	}
 
 	lastL2Block, err := p.state.GetLastL2Block(ctx, nil)

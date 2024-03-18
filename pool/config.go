@@ -11,6 +11,12 @@ type Config struct {
 	// blocked address list from db to memory
 	IntervalToRefreshBlockedAddresses types.Duration `mapstructure:"IntervalToRefreshBlockedAddresses"`
 
+	// IntervalToRefreshWhiteAddresses is the time it takes to sync the
+	// white address list from db to memory
+	IntervalToRefreshWhiteAddresses types.Duration `mapstructure:"IntervalToRefreshWhiteAddresses"`
+	// EnableWhitelist is a flag to enable/disable the whitelist
+	EnableWhitelist bool `mapstructure:"EnableWhitelist"`
+
 	// IntervalToRefreshGasPrices is the time to wait to refresh the gas prices
 	IntervalToRefreshGasPrices types.Duration `mapstructure:"IntervalToRefreshGasPrices"`
 

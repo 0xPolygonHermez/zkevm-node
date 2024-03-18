@@ -1540,6 +1540,249 @@ func Test_BlockedAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func Test_WhitelistedAddress_Enable(t *testing.T) {
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	require.NoError(t, err)
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := newState(stateSqlDB, eventLog)
+
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, chainID.Uint64())
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: auth.From.String(),
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+
+	require.NoError(t, err)
+
+	cfg := pool.Config{
+		MaxTxBytesSize:                    30132,
+		MaxTxDataBytesSize:                30000,
+		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:         1000000000,
+		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		IntervalToRefreshWhiteAddresses:   cfgTypes.NewDuration(1 * time.Second),
+		EnableWhitelist:                   true,
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
+		AccountQueue:                      64,
+		GlobalQueue:                       1024,
+	}
+
+	p := setupPool(t, cfg, bc, s, st, chainID.Uint64(), ctx, eventLog)
+	p.StartRefreshingWhiteAddressesPeriodically()
+
+	gasPrices, err := p.GetGasPrices(ctx)
+	require.NoError(t, err)
+
+	// Add tx while address is not whitelisted
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    0,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.Equal(t, pool.ErrNoWhitelistedSender, err)
+
+	// whitelist address
+	_, err = poolSqlDB.Exec(ctx, "INSERT INTO pool.whitelisted(addr) VALUES($1)", auth.From.String())
+	require.NoError(t, err)
+
+	// wait it to refresh
+	time.Sleep(cfg.IntervalToRefreshWhiteAddresses.Duration)
+
+	// get whitelisted when try to add new tx
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+
+	// remove whitelist
+	_, err = poolSqlDB.Exec(ctx, "DELETE FROM pool.whitelisted WHERE addr = $1", auth.From.String())
+	require.NoError(t, err)
+
+	// wait it to refresh
+	time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+
+	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    1,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	// disallowed to add tx again
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.Equal(t, pool.ErrNoWhitelistedSender, err)
+}
+
+func Test_WhitelistedAddress_Disable(t *testing.T) {
+	initOrResetDB(t)
+
+	stateSqlDB, err := db.NewSQLDB(stateDBCfg)
+	require.NoError(t, err)
+	defer stateSqlDB.Close() //nolint:gosec,errcheck
+
+	poolSqlDB, err := db.NewSQLDB(poolDBCfg)
+	require.NoError(t, err)
+	defer poolSqlDB.Close() //nolint:gosec,errcheck
+
+	eventStorage, err := nileventstorage.NewNilEventStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	eventLog := event.NewEventLog(event.Config{}, eventStorage)
+
+	st := newState(stateSqlDB, eventLog)
+
+	auth := operations.MustGetAuth(operations.DefaultSequencerPrivateKey, chainID.Uint64())
+
+	genesisBlock := state.Block{
+		BlockNumber: 0,
+		BlockHash:   state.ZeroHash,
+		ParentHash:  state.ZeroHash,
+		ReceivedAt:  time.Now(),
+	}
+
+	genesis := state.Genesis{
+		Actions: []*state.GenesisAction{
+			{
+				Address: auth.From.String(),
+				Type:    int(merkletree.LeafTypeBalance),
+				Value:   "1000000000000000000000",
+			},
+		},
+	}
+	ctx := context.Background()
+	dbTx, err := st.BeginStateTransaction(ctx)
+	require.NoError(t, err)
+
+	_, err = st.SetGenesis(ctx, genesisBlock, genesis, metrics.SynchronizerCallerLabel, dbTx)
+	require.NoError(t, err)
+	require.NoError(t, dbTx.Commit(ctx))
+
+	s, err := pgpoolstorage.NewPostgresPoolStorage(poolDBCfg)
+
+	require.NoError(t, err)
+
+	cfg := pool.Config{
+		MaxTxBytesSize:                    30132,
+		MaxTxDataBytesSize:                30000,
+		MinAllowedGasPriceInterval:        cfgTypes.NewDuration(5 * time.Minute),
+		PollMinAllowedGasPriceInterval:    cfgTypes.NewDuration(15 * time.Second),
+		DefaultMinGasPriceAllowed:         1000000000,
+		IntervalToRefreshBlockedAddresses: cfgTypes.NewDuration(5 * time.Second),
+		IntervalToRefreshWhiteAddresses:   cfgTypes.NewDuration(1 * time.Second),
+		EnableWhitelist:                   false,
+		IntervalToRefreshGasPrices:        cfgTypes.NewDuration(5 * time.Second),
+		AccountQueue:                      64,
+		GlobalQueue:                       1024,
+	}
+
+	p := setupPool(t, cfg, bc, s, st, chainID.Uint64(), ctx, eventLog)
+	p.StartRefreshingWhiteAddressesPeriodically()
+
+	gasPrices, err := p.GetGasPrices(ctx)
+	require.NoError(t, err)
+
+	// Add tx while address is not whitelisted
+	tx := ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    0,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err := auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+
+	// whitelist address
+	_, err = poolSqlDB.Exec(ctx, "INSERT INTO pool.whitelisted(addr) VALUES($1)", auth.From.String())
+	require.NoError(t, err)
+
+	// wait it to refresh
+	time.Sleep(cfg.IntervalToRefreshWhiteAddresses.Duration)
+
+	// get whitelisted when try to add new tx
+	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    1,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+
+	// remove whitelist
+	_, err = poolSqlDB.Exec(ctx, "DELETE FROM pool.whitelisted WHERE addr = $1", auth.From.String())
+	require.NoError(t, err)
+
+	// get whitelisted when try to add new tx
+	tx = ethTypes.NewTx(&ethTypes.LegacyTx{
+		Nonce:    2,
+		GasPrice: big.NewInt(0).SetInt64(int64(gasPrices.L2GasPrice)),
+		Gas:      24000,
+		To:       &auth.From,
+		Value:    big.NewInt(1000),
+	})
+	signedTx, err = auth.Signer(auth.From, tx)
+	require.NoError(t, err)
+
+	// wait it to refresh
+	time.Sleep(cfg.IntervalToRefreshBlockedAddresses.Duration)
+
+	// allowed to add tx again
+	err = p.AddTx(ctx, *signedTx, ip)
+	require.NoError(t, err)
+}
+
 /*
 func Test_AddTx_GasOverBatchLimit(t *testing.T) {
 	testCases := []struct {
