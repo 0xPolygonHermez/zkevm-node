@@ -951,7 +951,7 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 
 // EstimateGasSequenceBatchesX1 estimates gas for sending batches
 func (etherMan *Client) EstimateGasSequenceBatchesX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	opts, err := etherMan.getAuthByAddress(sender)
+	opts, err := etherMan.generateMockAuthX1(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
 	}
@@ -967,7 +967,7 @@ func (etherMan *Client) EstimateGasSequenceBatchesX1(sender common.Address, sequ
 
 // BuildSequenceBatchesTxDataX1 builds a []bytes to be sent to the PoE SC method SequenceBatches.
 func (etherMan *Client) BuildSequenceBatchesTxDataX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
-	opts, err := etherMan.getAuthByAddress(sender)
+	opts, err := etherMan.generateMockAuthX1(sender)
 	if err == ErrNotFound {
 		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
 	}
@@ -2175,4 +2175,34 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	}
 
 	return tx.To(), tx.Data(), nil
+}
+
+// generateMockAuthX1 generates an authorization instance from a
+// randomly generated private key to be used to estimate gas for PoE
+// operations NOT restricted to the Trusted Sequencer
+func (etherMan *Client) generateMockAuthX1(sender common.Address) (bind.TransactOpts, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a private key to estimate L1 txs")
+	}
+	chainID := big.NewInt(0).SetUint64(etherMan.l1Cfg.L1ChainID)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, chainID)
+	if err != nil {
+		return bind.TransactOpts{}, errors.New("failed to generate a fake authorization to estimate L1 txs")
+	}
+
+	auth.From = sender
+	auth.Signer = func(address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		chainID := big.NewInt(0).SetUint64(etherMan.l1Cfg.L1ChainID)
+		signer := types.LatestSignerForChainID(chainID)
+		if err != nil {
+			return nil, err
+		}
+		signature, err := crypto.Sign(signer.Hash(tx).Bytes(), privateKey)
+		if err != nil {
+			return nil, err
+		}
+		return tx.WithSignature(signer, signature)
+	}
+	return *auth, nil
 }
