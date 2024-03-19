@@ -53,8 +53,10 @@ const (
 	OpenNewWIPL2Block logTag = "OpenNewWIPL2Block"
 	// StoreL2Block is used to log L2 block storage events.
 	StoreL2Block logTag = "StoreL2Block"
-	// PoolUpdateTxStatus is used to log pool update transaction status events.
-	PoolUpdateTxStatus logTag = "PoolUpdateTxStatus"
+
+	PoolUpdateTxStatus     logTag = "PoolUpdateTxStatus"
+	DeletePendingTxToStore logTag = "DeletePendingTxToStore"
+	UpdateWIPBatch         logTag = "UpdateWIPBatch"
 
 	// FinalizeBatchTiming is used to log batch finalization time.
 	FinalizeBatchTiming logTag = "FinalizeBatchTiming"

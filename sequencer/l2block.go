@@ -402,6 +402,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		receipt.GlobalExitRoot = batch.GlobalExitRoot
 	}
 
+	startUpdateWIPBatch := time.Now()
 	err = f.stateIntf.UpdateWIPBatch(ctx, receipt, dbTx)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("error when updating wip batch %d, error: %v", f.wipBatch.batchNumber, err))
@@ -411,6 +412,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	if err != nil {
 		return err
 	}
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.UpdateWIPBatch, time.Since(startUpdateWIPBatch))
 
 	startUpdatePool := time.Now()
 	// Update txs status in the pool
@@ -430,10 +432,13 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		log.Errorf("error sending L2 block %d [%d] to data streamer, error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
 
+	startDelete := time.Now()
 	for _, tx := range l2Block.transactions {
 		// Delete the tx from the pending list in the worker (addrQueue)
 		f.workerIntf.DeletePendingTxToStore(tx.Hash, tx.From)
 	}
+
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.DeletePendingTxToStore, time.Since(startDelete))
 
 	endStoring := time.Now()
 

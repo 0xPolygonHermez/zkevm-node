@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -340,7 +341,12 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		// Check if we must finalize the batch due to a closing reason (resources exhausted, max txs, timestamp resolution, forced batches deadline)
 		if finalize, closeReason := f.checkIfFinalizeBatch(); finalize {
+			start := time.Now()
 			f.finalizeWIPBatch(ctx, closeReason)
+			smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchTiming, time.Since(start))
+			log.Infof(smetrics.GetLogStatistics().Summary())
+			smetrics.GetLogStatistics().ResetStatistics()
+			smetrics.GetLogStatistics().UpdateTimestamp(smetrics.NewRound, time.Now())
 		}
 
 		if err := ctx.Err(); err != nil {
