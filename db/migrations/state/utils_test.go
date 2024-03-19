@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	migrate "github.com/rubenv/sql-migrate"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,4 +116,64 @@ func runMigrationsDown(d *sql.DB, n int, packrName string) error {
 		return fmt.Errorf("Unexpected amount of migrations: expected: %d, actual: %d", n, nMigrations)
 	}
 	return nil
+}
+
+func checkColumn(t *testing.T, db *sql.DB, schema string, table string, column string, exists bool) (bool, error) {
+	const getColumn = `SELECT count(*) FROM information_schema.columns WHERE table_schema=$1 AND table_name=$2 AND column_name=$3`
+	var result int
+
+	row := db.QueryRow(getColumn, schema, table, column)
+	err := row.Scan(&result)
+
+	if err != nil {
+		return false, nil
+	}
+
+	if exists {
+		return (result == 1), nil
+	} else {
+		return (result == 0), nil
+	}
+}
+
+func assertColumnExists(t *testing.T, db *sql.DB, schema string, table string, column string) {
+	exists, err := checkColumn(t, db, schema, table, column, true)
+	assert.NoError(t, err)
+	assert.Equal(t, true, exists)
+}
+
+func assertColumnNotExists(t *testing.T, db *sql.DB, schema string, table string, column string) {
+	notExists, err := checkColumn(t, db, schema, table, column, false)
+	assert.NoError(t, err)
+	assert.Equal(t, true, notExists)
+}
+
+func checkTable(t *testing.T, db *sql.DB, schema string, table string, exists bool) (bool, error) {
+	const getTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema=$1 AND table_name=$2`
+	var result int
+
+	row := db.QueryRow(getTable, schema, table)
+	err := row.Scan(&result)
+
+	if err != nil {
+		return false, nil
+	}
+
+	if exists {
+		return (result == 1), nil
+	} else {
+		return (result == 0), nil
+	}
+}
+
+func assertTableExists(t *testing.T, db *sql.DB, schema string, table string) {
+	exists, err := checkTable(t, db, schema, table, true)
+	assert.NoError(t, err)
+	assert.Equal(t, true, exists)
+}
+
+func assertTableNotExists(t *testing.T, db *sql.DB, schema string, table string) {
+	notExists, err := checkTable(t, db, schema, table, false)
+	assert.NoError(t, err)
+	assert.Equal(t, true, notExists)
 }

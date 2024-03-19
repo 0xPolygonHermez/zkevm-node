@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type migrationTest0017 struct{}
+type migrationTest0018 struct{}
 
-func (m migrationTest0017) InsertData(db *sql.DB) error {
+func (m migrationTest0018) InsertData(db *sql.DB) error {
 	const insertBatch1 = `
 		INSERT INTO state.batch (batch_num, global_exit_root, local_exit_root, acc_input_hash, state_root, timestamp, coinbase, raw_txs_data, forced_batch_num, wip) 
 		VALUES (1,'0x0001', '0x0001', '0x0001', '0x0001', now(), '0x0001', null, null, true)`
@@ -45,32 +45,17 @@ func (m migrationTest0017) InsertData(db *sql.DB) error {
 	return nil
 }
 
-func (m migrationTest0017) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
-	var result int
+func (m migrationTest0018) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) {
+	assertTableNotExists(t, db, "state", "proof")
 
-	// Check table state.blob_inner exists
-	const getBlobInnerTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema='state' and table_name='blob_inner'`
-	row := db.QueryRow(getBlobInnerTable)
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 1, result)
+	assertTableExists(t, db, "state", "blob_inner")
+	assertTableExists(t, db, "state", "batch_proof")
+	assertTableExists(t, db, "state", "blob_inner_proof")
+	assertTableExists(t, db, "state", "blob_outer_proof")
 
-	// Check column blob_inner_num exists in state.virtual_batch table
-	const getBlobInnerNumColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='virtual_batch' and column_name='blob_inner_num'`
-	row = db.QueryRow(getBlobInnerNumColumn)
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 1, result)
-
-	// Check column prev_l1_it_root exists in state.virtual_batch table
-	const getPrevL1ITRootColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='virtual_batch' and column_name='prev_l1_it_root'`
-	row = db.QueryRow(getPrevL1ITRootColumn)
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 1, result)
-
-	// Check column prev_l1_it_index exists in state.virtual_batch table
-	const getPrevL1ITIndexColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='virtual_batch' and column_name='prev_l1_it_index'`
-	row = db.QueryRow(getPrevL1ITIndexColumn)
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 1, result)
+	assertColumnExists(t, db, "state", "virtual_batch", "blob_inner_num")
+	assertColumnExists(t, db, "state", "virtual_batch", "prev_l1_it_root")
+	assertColumnExists(t, db, "state", "virtual_batch", "prev_l1_it_index")
 
 	// Insert blobInner 1
 	const insertBlobInner = `INSERT INTO state.blob_inner (blob_inner_num, data, block_num) VALUES (1, E'\\x1234', 1);`
@@ -92,18 +77,23 @@ func (m migrationTest0017) RunAssertsAfterMigrationUp(t *testing.T, db *sql.DB) 
 	assert.NoError(t, err)
 }
 
-func (m migrationTest0017) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
+func (m migrationTest0018) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB) {
 	var result int
 
-	// Check table state.blob_inner doesn't exists
-	const getBlobInnerTable = `SELECT count(*) FROM information_schema.tables WHERE table_schema='state' and table_name='blob_inner'`
-	row := db.QueryRow(getBlobInnerTable)
-	assert.NoError(t, row.Scan(&result))
-	assert.Equal(t, 0, result)
+	assertTableExists(t, db, "state", "proof")
+
+	assertTableNotExists(t, db, "state", "blob_inner")
+	assertTableNotExists(t, db, "state", "batch_proof")
+	assertTableNotExists(t, db, "state", "blob_inner_proof")
+	assertTableNotExists(t, db, "state", "blob_outer_proof")
+
+	assertColumnNotExists(t, db, "state", "virtual_batch", "blob_inner_num")
+	assertColumnNotExists(t, db, "state", "virtual_batch", "prev_l1_it_root")
+	assertColumnNotExists(t, db, "state", "virtual_batch", "prev_l1_it_index")
 
 	// Check column blob_inner_num doesn't exists in state.virtual_batch table
 	const getBlobInnerNumColumn = `SELECT count(*) FROM information_schema.columns WHERE table_name='virtual_batch' and column_name='blob_inner_num'`
-	row = db.QueryRow(getBlobInnerNumColumn)
+	row := db.QueryRow(getBlobInnerNumColumn)
 	assert.NoError(t, row.Scan(&result))
 	assert.Equal(t, 0, result)
 
@@ -120,6 +110,6 @@ func (m migrationTest0017) RunAssertsAfterMigrationDown(t *testing.T, db *sql.DB
 	assert.Equal(t, 0, result)
 }
 
-func TestMigration0017(t *testing.T) {
-	runMigrationTest(t, 17, migrationTest0017{})
+func TestMigration0018(t *testing.T) {
+	runMigrationTest(t, 18, migrationTest0018{})
 }
