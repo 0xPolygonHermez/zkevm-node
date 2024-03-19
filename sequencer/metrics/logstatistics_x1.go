@@ -21,6 +21,8 @@ type logStatistics interface {
 }
 
 const (
+	// BlockCounter is a constant for logging block counts.
+	BlockCounter logTag = "BlockCounter"
 	// TxCounter is a constant for logging transaction counts.
 	TxCounter logTag = "TxCounter"
 	// GetTx is a constant for logging tx.
@@ -33,6 +35,9 @@ const (
 	ReprocessingTxCounter logTag = "ReProcessingTxCounter"
 	// FailTxCounter is used to log the failed transaction counter.
 	FailTxCounter logTag = "FailTxCounter"
+	// FailTxResourceOverCounter is used to log the failed transaction resource overflow counter.
+	FailTxResourceOverCounter logTag = "FailTxResourceOverCounter"
+
 	// NewRound is used to log new round events.
 	NewRound logTag = "NewRound"
 	// BatchGas is used to log batch gas-related information.
@@ -46,6 +51,24 @@ const (
 	ProcessingTxCommit logTag = "ProcessingTxCommit"
 	// ProcessingTxResponse is used to log transaction response events.
 	ProcessingTxResponse logTag = "ProcessingTxResponse"
+
+	// CloseWIPL2Block is used to log close WIP L2 block events.
+	CloseWIPL2Block logTag = "CloseWIPL2Block"
+	// OpenNewWIPL2Block is used to log open new WIP L2 block events.
+	OpenNewWIPL2Block logTag = "OpenNewWIPL2Block"
+	// StoreL2Block is used to log L2 block storage events.
+	StoreL2Block logTag = "StoreL2Block"
+
+	// PoolUpdateTxStatus is used to log pool update transaction status events.
+	PoolUpdateTxStatus logTag = "PoolUpdateTxStatus"
+	// DeletePendingTxToStore is used to log delete pending transaction to store events.
+	DeletePendingTxToStore logTag = "DeletePendingTxToStore"
+	// UpdateWIPBatch is used to log update WIP batch events.
+	UpdateWIPBatch logTag = "UpdateWIPBatch"
+	// DSSendL2Block is used to log DS send L2 block events.
+	DSSendL2Block logTag = "DSSendL2Block"
+	// StateStoreL2Block is used to log state store L2 block events.
+	StateStoreL2Block logTag = "StateStoreL2Block"
 
 	// FinalizeBatchTiming is used to log batch finalization time.
 	FinalizeBatchTiming logTag = "FinalizeBatchTiming"

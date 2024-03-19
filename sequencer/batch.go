@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -143,6 +145,13 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
+	start := time.Now()
+	seqMetrics.GetLogStatistics().SetTag(seqMetrics.FinalizeBatchNumber, strconv.Itoa(int(f.wipBatch.batchNumber)))
+	defer func() {
+		seqMetrics.ProcessingTime(time.Since(start))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchTiming, time.Since(start))
+	}()
+
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
 
@@ -196,6 +205,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 
 	log.Infof("batch %d closed, closing reason: %s", f.wipBatch.batchNumber, closeReason)
 
+	startSanityCheck := time.Now()
 	// Reprocess full batch as sanity check
 	if f.cfg.SequentialBatchSanityCheck {
 		// Do the full batch reprocess now
@@ -206,6 +216,8 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 			_, _ = f.batchSanityCheck(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot)
 		}()
 	}
+
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchReprocessFullBatch, time.Since(startSanityCheck))
 
 	if f.wipBatch.batchNumber+1 == f.cfg.HaltOnBatchNumber {
 		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber), false)
@@ -244,6 +256,11 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch
 func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot common.Hash) (*Batch, error) {
+	tsOpenBatch := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchOpenBatch, time.Since(tsOpenBatch))
+	}()
+
 	// open next batch
 	newStateBatch := state.Batch{
 		BatchNumber:    batchNumber,
@@ -298,6 +315,11 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 
 // closeWIPBatch closes the current batch in the state
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
+	tsCloseBatch := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchCloseBatch, time.Since(tsCloseBatch))
+	}()
+
 	// Sanity check: batch must not be empty (should have L2 blocks)
 	if f.wipBatch.isEmpty() {
 		f.Halt(ctx, fmt.Errorf("closing WIP batch %d without L2 blocks and should have at least 1", f.wipBatch.batchNumber), false)

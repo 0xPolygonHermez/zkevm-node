@@ -14,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -279,7 +280,9 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			f.finalizeWIPL2Block(ctx)
 		}
 
+		start := now()
 		tx, err := f.workerIntf.GetBestFittingTx(f.wipBatch.imRemainingResources)
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.GetTx, time.Since(start))
 
 		// If we have txs pending to process but none of them fits into the wip batch, we close the wip batch and open a new one
 		if err == ErrNoFittingTransaction {
@@ -291,6 +294,8 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		f.tryToSleep()
 
 		if tx != nil {
+			seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.TxCounter)
+
 			log.Debugf("processing tx %s", tx.HashStr)
 			showNotFoundTxLog = true
 
@@ -303,15 +308,19 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 					if err == ErrEffectiveGasPriceReprocess {
 						firstTxProcess = false
 						log.Infof("reprocessing tx %s because of effective gas price calculation", tx.HashStr)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.ReprocessingTxCounter)
 						continue
 					} else if err == ErrBatchResourceOverFlow {
 						log.Infof("skipping tx %s due to a batch resource overflow", tx.HashStr)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.FailTxResourceOverCounter)
 						break
 					} else {
 						log.Errorf("failed to process tx %s, error: %v", err)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.FailTxCounter)
 						break
 					}
 				}
+				seqMetrics.GetLogStatistics().CumulativeValue(seqMetrics.BatchGas, int64(tx.Gas))
 				break
 			}
 		} else {
@@ -341,6 +350,13 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		// Check if we must finalize the batch due to a closing reason (resources exhausted, max txs, timestamp resolution, forced batches deadline)
 		if finalize, closeReason := f.checkIfFinalizeBatch(); finalize {
 			f.finalizeWIPBatch(ctx, closeReason)
+			seqMetrics.GetLogStatistics().SetTag(seqMetrics.BatchCloseReason, string(closeReason))
+
+			log.Infof(seqMetrics.GetLogStatistics().Summary())
+			seqMetrics.BatchExecuteTime(seqMetrics.BatchFinalizeTypeLabelDeadline, seqMetrics.GetLogStatistics().GetStatistics(seqMetrics.ProcessingTxCommit))
+			seqMetrics.GetLogStatistics().ResetStatistics()
+			seqMetrics.GetLogStatistics().UpdateTimestamp(seqMetrics.NewRound, time.Now())
+			seqMetrics.TrustBatchNum(f.wipBatch.batchNumber - 1)
 		}
 
 		if err := ctx.Err(); err != nil {
@@ -353,6 +369,13 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 // processTransaction processes a single transaction.
 func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, firstTxProcess bool) (errWg *sync.WaitGroup, err error) {
 	start := time.Now()
+
+	defer func() {
+		seqMetrics.ProcessingTime(time.Since(start))
+		if tx != nil {
+			seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxTiming, time.Since(start))
+		}
+	}()
 
 	log.Infof("processing tx %s, batchNumber: %d, l2Block: [%d], oldStateRoot: %s, L1InfoRootIndex: %d",
 		tx.HashStr, f.wipBatch.batchNumber, f.wipL2Block.trackingNum, f.wipBatch.imStateRoot, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex)
@@ -449,6 +472,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	executionTime := time.Since(executionStart)
 	f.wipL2Block.metrics.transactionsTimes.executor += executionTime
 
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxCommit, time.Since(executionStart))
+
+	tsProcessResponse := time.Now()
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
 		log.Errorf("failed to process tx %s, error: %v", tx.HashStr, err)
 		return nil, err
@@ -466,6 +492,8 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		err = f.poolIntf.UpdateTxStatus(ctx, tx.Hash, pool.TxStatusInvalid, false, &errMsg)
 		if err != nil {
 			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
+		} else {
+			seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.ProcessingInvalidTxCounter)
 		}
 		return nil, err
 	}
@@ -485,6 +513,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		tx.HashStr, batchRequest.BatchNumber, f.wipL2Block.trackingNum, batchResponse.NewStateRoot.String(), batchRequest.OldStateRoot.String(),
 		time.Since(start), executionTime, f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
 
+	if tx != nil {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxResponse, time.Since(tsProcessResponse))
+	}
 	return nil, nil
 }
 

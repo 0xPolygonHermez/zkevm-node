@@ -9,6 +9,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -355,11 +356,13 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		txsEGPLog = append(txsEGPLog, &egpLog)
 	}
 
+	startStateStoreL2Block := time.Now()
 	// Store L2 block in the state
 	err = f.stateIntf.StoreL2Block(ctx, f.wipBatch.batchNumber, blockResponse, txsEGPLog, dbTx)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d [%d], error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err))
 	}
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.StateStoreL2Block, time.Since(startStateStoreL2Block))
 
 	// Now we need to update de BatchL2Data of the wip batch and also update the status of the L2 block txs in the pool
 
@@ -401,6 +404,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		receipt.GlobalExitRoot = batch.GlobalExitRoot
 	}
 
+	startUpdateWIPBatch := time.Now()
 	err = f.stateIntf.UpdateWIPBatch(ctx, receipt, dbTx)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("error when updating wip batch %d, error: %v", f.wipBatch.batchNumber, err))
@@ -410,7 +414,9 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	if err != nil {
 		return err
 	}
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.UpdateWIPBatch, time.Since(startUpdateWIPBatch))
 
+	startUpdatePool := time.Now()
 	// Update txs status in the pool
 	for _, txResponse := range blockResponse.TransactionResponses {
 		// Change Tx status to selected
@@ -419,18 +425,24 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 			return err
 		}
 	}
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.PoolUpdateTxStatus, time.Since(startUpdatePool))
 
+	startDSSendL2Block := time.Now()
 	// Send L2 block to data streamer
 	err = f.DSSendL2Block(f.wipBatch.batchNumber, blockResponse, l2Block.getL1InfoTreeIndex())
 	if err != nil {
 		//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
 		log.Errorf("error sending L2 block %d [%d] to data streamer, error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.DSSendL2Block, time.Since(startDSSendL2Block))
 
+	startDelete := time.Now()
 	for _, tx := range l2Block.transactions {
 		// Delete the tx from the pending list in the worker (addrQueue)
 		f.workerIntf.DeletePendingTxToStore(tx.Hash, tx.From)
 	}
+
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.DeletePendingTxToStore, time.Since(startDelete))
 
 	endStoring := time.Now()
 
@@ -438,6 +450,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.deltaTimestamp, l2Block.timestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		l2Block.l1InfoTreeExitRootChanged, len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
 
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.StoreL2Block, time.Since(startStoring))
 	return nil
 }
 
@@ -456,6 +469,10 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 // closeWIPL2Block closes the wip L2 block
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	log.Debugf("closing WIP L2 block [%d]", f.wipL2Block.trackingNum)
+	start := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.CloseWIPL2Block, time.Since(start))
+	}()
 
 	f.wipBatch.countOfL2Blocks++
 
@@ -478,6 +495,10 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 // openNewWIPL2Block opens a new wip L2 block
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64, prevL1InfoTreeIndex *uint32) {
 	processStart := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.OpenNewWIPL2Block, time.Since(processStart))
+	}()
+	seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.BlockCounter)
 
 	newL2Block := &L2Block{}
 	newL2Block.createdAt = time.Now()
