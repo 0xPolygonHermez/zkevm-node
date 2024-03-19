@@ -57,6 +57,7 @@ type Batch struct {
 
 // AggData is the data for aggregate operation
 type AggData struct {
+	RollupId         uint64         `json:"rollupID"`
 	NewLocalExitRoot string         `json:"newLocalExitRoot"`
 	NewStateRoot     string         `json:"newStateRoot"`
 	FinalNewBatch    uint64         `json:"finalNewBatch"`

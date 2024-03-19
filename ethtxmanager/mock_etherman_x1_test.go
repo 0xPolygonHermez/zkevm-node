@@ -7,7 +7,6 @@ import (
 )
 
 // GetZkEvmAddress provides a mock function with given fields:
-func (_m *ethermanMock) GetZkEVMAddressAndL1ChainID() (common.Address, uint64, error) {
-	return common.Address{}, 0, nil
+func (_m *ethermanMock) GetZkEVMAddressAndL1ChainID() (common.Address, common.Address, uint64, error) {
+	return common.Address{}, common.Address{}, 0, nil
 }
-

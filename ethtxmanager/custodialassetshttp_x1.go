@@ -273,7 +273,7 @@ func (c *Client) checkSignedTransaction(ctx context.Context, mTx monitoredTx, tr
 	mLog := log.WithFields(getTraceID(ctx))
 	mLog.Infof("check signed transaction: %v", transaction.Hash())
 
-	contractAddress, l1ChainID, err := c.etherman.GetZkEVMAddressAndL1ChainID()
+	contractAddress, rollupManagerAddr, l1ChainID, err := c.etherman.GetZkEVMAddressAndL1ChainID()
 	if err != nil {
 		return fmt.Errorf("failed to get zkEVM address: %v", err)
 	}
@@ -293,7 +293,7 @@ func (c *Client) checkSignedTransaction(ctx context.Context, mTx monitoredTx, tr
 		if err != nil {
 			return fmt.Errorf("error unpack sequence batches tx: %w", err)
 		}
-		signedRequest, err = args.marshal(contractAddress, mTx)
+		signedRequest, err = args.marshal(rollupManagerAddr, mTx)
 		if err != nil {
 			return fmt.Errorf("error marshal sequence batches tx: %w", err)
 		}

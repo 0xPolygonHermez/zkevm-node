@@ -389,7 +389,7 @@ func (c *Client) monitorTx(ctx context.Context, mTx monitoredTx, logger *log.Log
 			signedTx, err = c.signTx(mTx, tx)
 			if err != nil {
 				metrics.HaltCount()
-				c.halt(err)
+				logger.Fatalf("failed to sign tx %v: %v", tx.Hash().String(), err)
 			}
 		} else {
 			signedTx, err = c.etherman.SignTx(ctx, mTx.from, tx)

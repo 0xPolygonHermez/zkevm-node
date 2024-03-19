@@ -78,7 +78,7 @@ func (c *Client) signTx(mTx monitoredTx, tx *types.Transaction) (*types.Transact
 	mLog.Infof("begin sign tx %x", tx.Hash())
 
 	var ret *types.Transaction
-	contractAddress, _, err := c.etherman.GetZkEVMAddressAndL1ChainID()
+	contractAddress, rollupManagerAddr, _, err := c.etherman.GetZkEVMAddressAndL1ChainID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get zkEVM address and L1 ChainID: %v", err)
 	}
@@ -106,7 +106,7 @@ func (c *Client) signTx(mTx monitoredTx, tx *types.Transaction) (*types.Transact
 			mLog.Errorf("failed to unpack tx %x data: %v", tx.Hash(), err)
 			return nil, fmt.Errorf("failed to unpack tx %x data: %v", tx.Hash(), err)
 		}
-		infos, err := args.marshal(contractAddress, mTx)
+		infos, err := args.marshal(rollupManagerAddr, mTx)
 		if err != nil {
 			mLog.Errorf("failed to marshal tx %x data: %v", tx.Hash(), err)
 			return nil, fmt.Errorf("failed to marshal tx %x data: %v", tx.Hash(), err)
@@ -260,7 +260,7 @@ func (v *verifyBatchesTrustedAggregatorArgs) marshal(contractAddress common.Addr
 
 	gp := getGasPriceEther(mTx.gasPrice)
 	httpArgs := struct {
-		RollupId         uint64           `json:"rollupId"`
+		RollupId         uint64           `json:"rollupID"`
 		PendingStateNum  uint64           `json:"pendingStateNum"`
 		InitNumBatch     uint64           `json:"initNumBatch"`
 		FinalNewBatch    uint64           `json:"finalNewBatch"`
@@ -295,12 +295,4 @@ func (v *verifyBatchesTrustedAggregatorArgs) marshal(contractAddress common.Addr
 	}
 
 	return string(ret), nil
-}
-
-func (c *Client) halt(err error) {
-	for {
-		log.Errorf("fatal error: %s", err.Error())
-		log.Error("halting the eth tx manager")
-		time.Sleep(5 * time.Second) //nolint:gomnd
-	}
 }

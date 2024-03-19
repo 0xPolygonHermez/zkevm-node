@@ -7,9 +7,9 @@ import (
 )
 
 // GetZkEVMAddressAndL1ChainID returns the ZkEVM address and the L1 chain ID
-func (etherMan *Client) GetZkEVMAddressAndL1ChainID() (common.Address, uint64, error) {
+func (etherMan *Client) GetZkEVMAddressAndL1ChainID() (common.Address, common.Address, uint64, error) {
 	if etherMan == nil {
-		return common.Address{}, 0, fmt.Errorf("etherMan is nil")
+		return common.Address{}, common.Address{}, 0, fmt.Errorf("etherMan is nil")
 	}
-	return etherMan.l1Cfg.ZkEVMAddr, etherMan.l1Cfg.L1ChainID, nil
+	return etherMan.l1Cfg.ZkEVMAddr, etherMan.l1Cfg.RollupManagerAddr, etherMan.l1Cfg.L1ChainID, nil
 }

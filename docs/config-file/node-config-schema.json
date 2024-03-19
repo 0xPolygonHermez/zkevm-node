@@ -202,12 +202,12 @@
 						"OperateTypeSeq": {
 							"type": "integer",
 							"description": "OperateTypeSeq is the operate type of the custodial assets for the sequencer",
-							"default": 1
+							"default": 3
 						},
 						"OperateTypeAgg": {
 							"type": "integer",
 							"description": "OperateTypeAgg is the operate type of the custodial assets for the aggregator",
-							"default": 2
+							"default": 4
 						},
 						"ProjectSymbol": {
 							"type": "integer",

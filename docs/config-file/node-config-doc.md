@@ -534,28 +534,28 @@ WaitResultTimeout="2m0s"
 
 **Type:** : `integer`
 
-**Default:** `1`
+**Default:** `3`
 
 **Description:** OperateTypeSeq is the operate type of the custodial assets for the sequencer
 
-**Example setting the default value** (1):
+**Example setting the default value** (3):
 ```
 [EthTxManager.CustodialAssets]
-OperateTypeSeq=1
+OperateTypeSeq=3
 ```
 
 #### <a name="EthTxManager_CustodialAssets_OperateTypeAgg"></a>6.7.8. `EthTxManager.CustodialAssets.OperateTypeAgg`
 
 **Type:** : `integer`
 
-**Default:** `2`
+**Default:** `4`
 
 **Description:** OperateTypeAgg is the operate type of the custodial assets for the aggregator
 
-**Example setting the default value** (2):
+**Example setting the default value** (4):
 ```
 [EthTxManager.CustodialAssets]
-OperateTypeAgg=2
+OperateTypeAgg=4
 ```
 
 #### <a name="EthTxManager_CustodialAssets_ProjectSymbol"></a>6.7.9. `EthTxManager.CustodialAssets.ProjectSymbol`
