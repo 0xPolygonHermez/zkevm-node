@@ -81,6 +81,7 @@ func (l *logStatisticsInstance) Summary() string {
 	result := "Batch<" + l.tags[FinalizeBatchNumber] + ">, " +
 		"TotalDuration<" + batchTotalDuration + "ms>, " +
 		"GasUsed<" + strconv.Itoa(int(l.statistics[BatchGas])) + ">, " +
+		"Block<" + strconv.Itoa(int(l.statistics[BlockCounter])) + ">, " +
 		"Tx<" + strconv.Itoa(int(l.statistics[TxCounter])) + ">, " +
 		"GetTx<" + strconv.Itoa(int(l.statistics[GetTx])) + "ms>, " +
 		"GetTxPause<" + strconv.Itoa(int(l.statistics[GetTxPauseCounter])) + ">, " +

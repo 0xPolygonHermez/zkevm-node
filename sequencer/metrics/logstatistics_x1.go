@@ -21,6 +21,8 @@ type logStatistics interface {
 }
 
 const (
+	// BlockCounter is a constant for logging block counts.
+	BlockCounter logTag = "BlockCounter"
 	// TxCounter is a constant for logging transaction counts.
 	TxCounter logTag = "TxCounter"
 	// GetTx is a constant for logging tx.

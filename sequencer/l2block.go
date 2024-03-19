@@ -498,6 +498,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	defer func() {
 		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.OpenNewWIPL2Block, time.Since(processStart))
 	}()
+	seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.BlockCounter)
 
 	newL2Block := &L2Block{}
 	newL2Block.createdAt = time.Now()
