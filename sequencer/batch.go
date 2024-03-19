@@ -296,6 +296,7 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 	}
 
 	maxRemainingResources := getMaxRemainingResources(f.batchConstraints)
+
 	return &Batch{
 		batchNumber:             newStateBatch.BatchNumber,
 		coinbase:                newStateBatch.Coinbase,
