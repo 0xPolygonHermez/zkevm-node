@@ -82,6 +82,8 @@ func (l *logStatisticsInstance) Summary() string {
 		finalizeBatchTiming +
 		"BatchCloseReason<" + l.tags[BatchCloseReason] + ">"
 
+	result = "FinalizeBatch:" + strconv.Itoa(int(l.statistics[FinalizeBatchTiming])) + "ms, " + "CloseWIPL2Block:" + strconv.Itoa(int(l.statistics[CloseWIPL2Block])) + "ms, " + "OpenNewWIPL2Block:" + strconv.Itoa(int(l.statistics[OpenNewWIPL2Block])) + "ms, " + "StoreL2Block:" + strconv.Itoa(int(l.statistics[StoreL2Block])) + "ms, " + "PoolUpdateTxStatus:" + strconv.Itoa(int(l.statistics[PoolUpdateTxStatus])) + "ms, "
+
 	return result
 }
 

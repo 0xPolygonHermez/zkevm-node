@@ -3,6 +3,7 @@ package sequencer
 import (
 	"context"
 	"fmt"
+	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
@@ -411,6 +412,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		return err
 	}
 
+	startUpdatePool := time.Now()
 	// Update txs status in the pool
 	for _, txResponse := range blockResponse.TransactionResponses {
 		// Change Tx status to selected
@@ -419,6 +421,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 			return err
 		}
 	}
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.PoolUpdateTxStatus, time.Since(startUpdatePool))
 
 	// Send L2 block to data streamer
 	err = f.DSSendL2Block(f.wipBatch.batchNumber, blockResponse, l2Block.getL1InfoTreeIndex())
@@ -438,6 +441,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.deltaTimestamp, l2Block.timestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		l2Block.l1InfoTreeExitRootChanged, len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
 
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.StoreL2Block, time.Since(startStoring))
 	return nil
 }
 
@@ -456,6 +460,7 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 // closeWIPL2Block closes the wip L2 block
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	log.Debugf("closing WIP L2 block [%d]", f.wipL2Block.trackingNum)
+	start := time.Now()
 
 	f.wipBatch.countOfL2Blocks++
 
@@ -472,6 +477,7 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 	}
 
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.CloseWIPL2Block, time.Since(start))
 	f.wipL2Block = nil
 }
 
@@ -565,6 +571,8 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, imStateRoot: %s, used counters: %s, reserved counters: %s",
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, oldIMStateRoot, f.wipL2Block.imStateRoot, f.logZKCounters(f.wipL2Block.usedZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters))
+
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.OpenNewWIPL2Block, time.Since(processStart))
 }
 
 // executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor

@@ -8,6 +8,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -143,6 +144,7 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
+	start := time.Now()
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
 
@@ -160,6 +162,10 @@ func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.Clos
 	if f.wipL2Block == nil {
 		f.openNewWIPL2Block(ctx, prevTimestamp, &prevL1InfoTreeIndex)
 	}
+
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchTiming, time.Since(start))
+	log.Infof(smetrics.GetLogStatistics().Summary())
+	smetrics.GetLogStatistics().ResetStatistics()
 }
 
 // closeAndOpenNewWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new wip batch

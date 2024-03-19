@@ -47,6 +47,15 @@ const (
 	// ProcessingTxResponse is used to log transaction response events.
 	ProcessingTxResponse logTag = "ProcessingTxResponse"
 
+	// CloseWIPL2Block is used to log close WIP L2 block events.
+	CloseWIPL2Block logTag = "CloseWIPL2Block"
+	// OpenNewWIPL2Block is used to log open new WIP L2 block events.
+	OpenNewWIPL2Block logTag = "OpenNewWIPL2Block"
+	// StoreL2Block is used to log L2 block storage events.
+	StoreL2Block logTag = "StoreL2Block"
+	// PoolUpdateTxStatus is used to log pool update transaction status events.
+	PoolUpdateTxStatus logTag = "PoolUpdateTxStatus"
+
 	// FinalizeBatchTiming is used to log batch finalization time.
 	FinalizeBatchTiming logTag = "FinalizeBatchTiming"
 	// FinalizeBatchNumber is used to log batch numbers.

@@ -34,6 +34,11 @@ func Test_logStatisticsInstance_Summary(t *testing.T) {
 				FinalizeBatchReprocessFullBatch: time.Second.Milliseconds() * 20,
 				FinalizeBatchCloseBatch:         time.Second.Milliseconds() * 10,
 				FinalizeBatchOpenBatch:          time.Second.Milliseconds() * 10,
+
+				CloseWIPL2Block:    1,
+				OpenNewWIPL2Block:  1,
+				StoreL2Block:       1,
+				PoolUpdateTxStatus: 1,
 			},
 			tags: map[logTag]string{BatchCloseReason: "deadline", FinalizeBatchNumber: "123"},
 		}, "test"},
