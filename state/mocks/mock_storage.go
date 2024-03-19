@@ -8103,7 +8103,6 @@ func (_c *StorageMock_UpdateBatchL2Data_Call) RunAndReturn(run func(context.Cont
 	return _c
 }
 
-<<<<<<< HEAD
 // UpdateBatchProof provides a mock function with given fields: ctx, proof, dbTx
 func (_m *StorageMock) UpdateBatchProof(ctx context.Context, proof *state.Proof, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, proof, dbTx)
@@ -8152,14 +8151,9 @@ func (_c *StorageMock_UpdateBatchProof_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// UpdateForkID provides a mock function with given fields: ctx, forkID, dbTx
-func (_m *StorageMock) UpdateForkID(ctx context.Context, forkID state.ForkIDInterval, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, forkID, dbTx)
-=======
 // UpdateForkIDBlockNumber provides a mock function with given fields: ctx, forkdID, newBlockNumber, updateMemCache, dbTx
 func (_m *StorageMock) UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, forkdID, newBlockNumber, updateMemCache, dbTx)
->>>>>>> 8ffd1dc6 (Synchronizer accept forkids that are the same as in database (#3452))
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateForkIDBlockNumber")
