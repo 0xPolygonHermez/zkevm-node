@@ -8151,17 +8151,17 @@ func (_c *StorageMock_UpdateBatchProof_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
-// UpdateForkID provides a mock function with given fields: ctx, forkID, dbTx
-func (_m *StorageMock) UpdateForkID(ctx context.Context, forkID state.ForkIDInterval, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, forkID, dbTx)
+// UpdateForkIDBlockNumber provides a mock function with given fields: ctx, forkdID, newBlockNumber, updateMemCache, dbTx
+func (_m *StorageMock) UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, forkdID, newBlockNumber, updateMemCache, dbTx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateForkID")
+		panic("no return value specified for UpdateForkIDBlockNumber")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, state.ForkIDInterval, pgx.Tx) error); ok {
-		r0 = rf(ctx, forkID, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, uint64, bool, pgx.Tx) error); ok {
+		r0 = rf(ctx, forkdID, newBlockNumber, updateMemCache, dbTx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -8169,32 +8169,34 @@ func (_m *StorageMock) UpdateForkID(ctx context.Context, forkID state.ForkIDInte
 	return r0
 }
 
-// StorageMock_UpdateForkID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateForkID'
-type StorageMock_UpdateForkID_Call struct {
+// StorageMock_UpdateForkIDBlockNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateForkIDBlockNumber'
+type StorageMock_UpdateForkIDBlockNumber_Call struct {
 	*mock.Call
 }
 
-// UpdateForkID is a helper method to define mock.On call
+// UpdateForkIDBlockNumber is a helper method to define mock.On call
 //   - ctx context.Context
-//   - forkID state.ForkIDInterval
+//   - forkdID uint64
+//   - newBlockNumber uint64
+//   - updateMemCache bool
 //   - dbTx pgx.Tx
-func (_e *StorageMock_Expecter) UpdateForkID(ctx interface{}, forkID interface{}, dbTx interface{}) *StorageMock_UpdateForkID_Call {
-	return &StorageMock_UpdateForkID_Call{Call: _e.mock.On("UpdateForkID", ctx, forkID, dbTx)}
+func (_e *StorageMock_Expecter) UpdateForkIDBlockNumber(ctx interface{}, forkdID interface{}, newBlockNumber interface{}, updateMemCache interface{}, dbTx interface{}) *StorageMock_UpdateForkIDBlockNumber_Call {
+	return &StorageMock_UpdateForkIDBlockNumber_Call{Call: _e.mock.On("UpdateForkIDBlockNumber", ctx, forkdID, newBlockNumber, updateMemCache, dbTx)}
 }
 
-func (_c *StorageMock_UpdateForkID_Call) Run(run func(ctx context.Context, forkID state.ForkIDInterval, dbTx pgx.Tx)) *StorageMock_UpdateForkID_Call {
+func (_c *StorageMock_UpdateForkIDBlockNumber_Call) Run(run func(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx)) *StorageMock_UpdateForkIDBlockNumber_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(state.ForkIDInterval), args[2].(pgx.Tx))
+		run(args[0].(context.Context), args[1].(uint64), args[2].(uint64), args[3].(bool), args[4].(pgx.Tx))
 	})
 	return _c
 }
 
-func (_c *StorageMock_UpdateForkID_Call) Return(_a0 error) *StorageMock_UpdateForkID_Call {
+func (_c *StorageMock_UpdateForkIDBlockNumber_Call) Return(_a0 error) *StorageMock_UpdateForkIDBlockNumber_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *StorageMock_UpdateForkID_Call) RunAndReturn(run func(context.Context, state.ForkIDInterval, pgx.Tx) error) *StorageMock_UpdateForkID_Call {
+func (_c *StorageMock_UpdateForkIDBlockNumber_Call) RunAndReturn(run func(context.Context, uint64, uint64, bool, pgx.Tx) error) *StorageMock_UpdateForkIDBlockNumber_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -8228,6 +8230,54 @@ func (_c *StorageMock_UpdateForkIDIntervalsInMemory_Call) Return() *StorageMock_
 }
 
 func (_c *StorageMock_UpdateForkIDIntervalsInMemory_Call) RunAndReturn(run func([]state.ForkIDInterval)) *StorageMock_UpdateForkIDIntervalsInMemory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateForkIDToBatchNumber provides a mock function with given fields: ctx, forkID, dbTx
+func (_m *StorageMock) UpdateForkIDToBatchNumber(ctx context.Context, forkID state.ForkIDInterval, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, forkID, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateForkIDToBatchNumber")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, state.ForkIDInterval, pgx.Tx) error); ok {
+		r0 = rf(ctx, forkID, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StorageMock_UpdateForkIDToBatchNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateForkIDToBatchNumber'
+type StorageMock_UpdateForkIDToBatchNumber_Call struct {
+	*mock.Call
+}
+
+// UpdateForkIDToBatchNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - forkID state.ForkIDInterval
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) UpdateForkIDToBatchNumber(ctx interface{}, forkID interface{}, dbTx interface{}) *StorageMock_UpdateForkIDToBatchNumber_Call {
+	return &StorageMock_UpdateForkIDToBatchNumber_Call{Call: _e.mock.On("UpdateForkIDToBatchNumber", ctx, forkID, dbTx)}
+}
+
+func (_c *StorageMock_UpdateForkIDToBatchNumber_Call) Run(run func(ctx context.Context, forkID state.ForkIDInterval, dbTx pgx.Tx)) *StorageMock_UpdateForkIDToBatchNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(state.ForkIDInterval), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_UpdateForkIDToBatchNumber_Call) Return(_a0 error) *StorageMock_UpdateForkIDToBatchNumber_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StorageMock_UpdateForkIDToBatchNumber_Call) RunAndReturn(run func(context.Context, state.ForkIDInterval, pgx.Tx) error) *StorageMock_UpdateForkIDToBatchNumber_Call {
 	_c.Call.Return(run)
 	return _c
 }
