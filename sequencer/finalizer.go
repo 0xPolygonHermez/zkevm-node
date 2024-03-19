@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -15,6 +14,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state/runtime"
@@ -282,7 +282,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 
 		start := now()
 		tx, err := f.workerIntf.GetBestFittingTx(f.wipBatch.imRemainingResources)
-		smetrics.GetLogStatistics().CumulativeTiming(smetrics.GetTx, time.Since(start))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.GetTx, time.Since(start))
 
 		// If we have txs pending to process but none of them fits into the wip batch, we close the wip batch and open a new one
 		if err == ErrNoFittingTransaction {
@@ -294,7 +294,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		f.tryToSleep()
 
 		if tx != nil {
-			smetrics.GetLogStatistics().CumulativeCounting(smetrics.TxCounter)
+			seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.TxCounter)
 
 			log.Debugf("processing tx %s", tx.HashStr)
 			showNotFoundTxLog = true
@@ -308,19 +308,19 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 					if err == ErrEffectiveGasPriceReprocess {
 						firstTxProcess = false
 						log.Infof("reprocessing tx %s because of effective gas price calculation", tx.HashStr)
-						smetrics.GetLogStatistics().CumulativeCounting(smetrics.ReprocessingTxCounter)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.ReprocessingTxCounter)
 						continue
 					} else if err == ErrBatchResourceOverFlow {
 						log.Infof("skipping tx %s due to a batch resource overflow", tx.HashStr)
-						smetrics.GetLogStatistics().CumulativeCounting(smetrics.FailTxResourceOverCounter)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.FailTxResourceOverCounter)
 						break
 					} else {
 						log.Errorf("failed to process tx %s, error: %v", err)
-						smetrics.GetLogStatistics().CumulativeCounting(smetrics.FailTxCounter)
+						seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.FailTxCounter)
 						break
 					}
 				}
-				smetrics.GetLogStatistics().CumulativeValue(smetrics.BatchGas, int64(tx.Gas))
+				seqMetrics.GetLogStatistics().CumulativeValue(seqMetrics.BatchGas, int64(tx.Gas))
 				break
 			}
 		} else {
@@ -350,13 +350,13 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 		// Check if we must finalize the batch due to a closing reason (resources exhausted, max txs, timestamp resolution, forced batches deadline)
 		if finalize, closeReason := f.checkIfFinalizeBatch(); finalize {
 			f.finalizeWIPBatch(ctx, closeReason)
-			smetrics.GetLogStatistics().SetTag(smetrics.BatchCloseReason, string(closeReason))
+			seqMetrics.GetLogStatistics().SetTag(seqMetrics.BatchCloseReason, string(closeReason))
 
-			log.Infof(smetrics.GetLogStatistics().Summary())
-			smetrics.BatchExecuteTime(smetrics.BatchFinalizeTypeLabelDeadline, smetrics.GetLogStatistics().GetStatistics(smetrics.ProcessingTxCommit))
-			smetrics.GetLogStatistics().ResetStatistics()
-			smetrics.GetLogStatistics().UpdateTimestamp(smetrics.NewRound, time.Now())
-			smetrics.TrustBatchNum(f.wipBatch.batchNumber - 1)
+			log.Infof(seqMetrics.GetLogStatistics().Summary())
+			seqMetrics.BatchExecuteTime(seqMetrics.BatchFinalizeTypeLabelDeadline, seqMetrics.GetLogStatistics().GetStatistics(seqMetrics.ProcessingTxCommit))
+			seqMetrics.GetLogStatistics().ResetStatistics()
+			seqMetrics.GetLogStatistics().UpdateTimestamp(seqMetrics.NewRound, time.Now())
+			seqMetrics.TrustBatchNum(f.wipBatch.batchNumber - 1)
 		}
 
 		if err := ctx.Err(); err != nil {
@@ -371,9 +371,9 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	start := time.Now()
 
 	defer func() {
-		smetrics.ProcessingTime(time.Since(start))
+		seqMetrics.ProcessingTime(time.Since(start))
 		if tx != nil {
-			smetrics.GetLogStatistics().CumulativeTiming(smetrics.ProcessingTxTiming, time.Since(start))
+			seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxTiming, time.Since(start))
 		}
 	}()
 
@@ -472,7 +472,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 	executionTime := time.Since(executionStart)
 	f.wipL2Block.metrics.transactionsTimes.executor += executionTime
 
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.ProcessingTxCommit, time.Since(executionStart))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxCommit, time.Since(executionStart))
 
 	tsProcessResponse := time.Now()
 	if err != nil && (errors.Is(err, runtime.ErrExecutorDBError) || errors.Is(err, runtime.ErrInvalidTxChangeL2BlockMinTimestamp)) {
@@ -493,7 +493,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		if err != nil {
 			log.Errorf("failed to update status to invalid in the pool for tx %s, error: %v", tx.Hash.String(), err)
 		} else {
-			smetrics.GetLogStatistics().CumulativeCounting(smetrics.ProcessingInvalidTxCounter)
+			seqMetrics.GetLogStatistics().CumulativeCounting(seqMetrics.ProcessingInvalidTxCounter)
 		}
 		return nil, err
 	}
@@ -514,7 +514,7 @@ func (f *finalizer) processTransaction(ctx context.Context, tx *TxTracker, first
 		time.Since(start), executionTime, f.logZKCounters(batchResponse.UsedZkCounters), f.logZKCounters(batchResponse.ReservedZkCounters))
 
 	if tx != nil {
-		smetrics.GetLogStatistics().CumulativeTiming(smetrics.ProcessingTxResponse, time.Since(tsProcessResponse))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.ProcessingTxResponse, time.Since(tsProcessResponse))
 	}
 	return nil, nil
 }

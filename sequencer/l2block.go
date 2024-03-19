@@ -3,13 +3,13 @@ package sequencer
 import (
 	"context"
 	"fmt"
-	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -362,7 +362,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d [%d], error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err))
 	}
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.StateStoreL2Block, time.Since(startStateStoreL2Block))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.StateStoreL2Block, time.Since(startStateStoreL2Block))
 
 	// Now we need to update de BatchL2Data of the wip batch and also update the status of the L2 block txs in the pool
 
@@ -414,7 +414,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	if err != nil {
 		return err
 	}
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.UpdateWIPBatch, time.Since(startUpdateWIPBatch))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.UpdateWIPBatch, time.Since(startUpdateWIPBatch))
 
 	startUpdatePool := time.Now()
 	// Update txs status in the pool
@@ -425,7 +425,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 			return err
 		}
 	}
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.PoolUpdateTxStatus, time.Since(startUpdatePool))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.PoolUpdateTxStatus, time.Since(startUpdatePool))
 
 	startDSSendL2Block := time.Now()
 	// Send L2 block to data streamer
@@ -434,7 +434,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
 		log.Errorf("error sending L2 block %d [%d] to data streamer, error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.DSSendL2Block, time.Since(startDSSendL2Block))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.DSSendL2Block, time.Since(startDSSendL2Block))
 
 	startDelete := time.Now()
 	for _, tx := range l2Block.transactions {
@@ -442,7 +442,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		f.workerIntf.DeletePendingTxToStore(tx.Hash, tx.From)
 	}
 
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.DeletePendingTxToStore, time.Since(startDelete))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.DeletePendingTxToStore, time.Since(startDelete))
 
 	endStoring := time.Now()
 
@@ -450,7 +450,7 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		blockResponse.BlockNumber, l2Block.trackingNum, f.wipBatch.batchNumber, l2Block.deltaTimestamp, l2Block.timestamp, l2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		l2Block.l1InfoTreeExitRootChanged, len(l2Block.transactions), len(blockResponse.TransactionResponses), blockResponse.BlockHash, blockResponse.BlockInfoRoot.String(), endStoring.Sub(startStoring))
 
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.StoreL2Block, time.Since(startStoring))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.StoreL2Block, time.Since(startStoring))
 	return nil
 }
 
@@ -486,7 +486,7 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 	}
 
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.CloseWIPL2Block, time.Since(start))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.CloseWIPL2Block, time.Since(start))
 	f.wipL2Block = nil
 }
 
@@ -581,7 +581,7 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, oldIMStateRoot, f.wipL2Block.imStateRoot, f.logZKCounters(f.wipL2Block.usedZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters))
 
-	smetrics.GetLogStatistics().CumulativeTiming(smetrics.OpenNewWIPL2Block, time.Since(processStart))
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.OpenNewWIPL2Block, time.Since(processStart))
 }
 
 // executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor

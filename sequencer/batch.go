@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	smetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"strconv"
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
+	seqMetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	stateMetrics "github.com/0xPolygonHermez/zkevm-node/state/metrics"
 	"github.com/ethereum/go-ethereum/common"
@@ -146,10 +146,10 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
 	start := time.Now()
-	smetrics.GetLogStatistics().SetTag(smetrics.FinalizeBatchNumber, strconv.Itoa(int(f.wipBatch.batchNumber)))
+	seqMetrics.GetLogStatistics().SetTag(seqMetrics.FinalizeBatchNumber, strconv.Itoa(int(f.wipBatch.batchNumber)))
 	defer func() {
-		smetrics.ProcessingTime(time.Since(start))
-		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchTiming, time.Since(start))
+		seqMetrics.ProcessingTime(time.Since(start))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchTiming, time.Since(start))
 	}()
 
 	prevTimestamp := f.wipL2Block.timestamp
@@ -255,7 +255,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot common.Hash) (*Batch, error) {
 	tsOpenBatch := time.Now()
 	defer func() {
-		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchOpenBatch, time.Since(tsOpenBatch))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchOpenBatch, time.Since(tsOpenBatch))
 	}()
 
 	// open next batch
@@ -313,7 +313,7 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
 	tsCloseBatch := time.Now()
 	defer func() {
-		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchCloseBatch, time.Since(tsCloseBatch))
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchCloseBatch, time.Since(tsCloseBatch))
 	}()
 
 	// Sanity check: batch must not be empty (should have L2 blocks)
