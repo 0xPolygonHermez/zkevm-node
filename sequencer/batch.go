@@ -205,6 +205,7 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 
 	log.Infof("batch %d closed, closing reason: %s", f.wipBatch.batchNumber, closeReason)
 
+	startSanityCheck := time.Now()
 	// Reprocess full batch as sanity check
 	if f.cfg.SequentialBatchSanityCheck {
 		// Do the full batch reprocess now
@@ -215,6 +216,8 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 			_, _ = f.batchSanityCheck(ctx, f.wipBatch.batchNumber, f.wipBatch.initialStateRoot, f.wipBatch.finalStateRoot)
 		}()
 	}
+
+	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.FinalizeBatchReprocessFullBatch, time.Since(startSanityCheck))
 
 	if f.wipBatch.batchNumber+1 == f.cfg.HaltOnBatchNumber {
 		f.Halt(ctx, fmt.Errorf("finalizer reached stop sequencer on batch number: %d", f.cfg.HaltOnBatchNumber), false)

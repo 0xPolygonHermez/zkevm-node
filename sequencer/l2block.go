@@ -470,6 +470,9 @@ func (f *finalizer) finalizeWIPL2Block(ctx context.Context) {
 func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 	log.Debugf("closing WIP L2 block [%d]", f.wipL2Block.trackingNum)
 	start := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.CloseWIPL2Block, time.Since(start))
+	}()
 
 	f.wipBatch.countOfL2Blocks++
 
@@ -486,13 +489,15 @@ func (f *finalizer) closeWIPL2Block(ctx context.Context) {
 		f.addPendingL2BlockToProcess(ctx, f.wipL2Block)
 	}
 
-	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.CloseWIPL2Block, time.Since(start))
 	f.wipL2Block = nil
 }
 
 // openNewWIPL2Block opens a new wip L2 block
 func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64, prevL1InfoTreeIndex *uint32) {
 	processStart := time.Now()
+	defer func() {
+		seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.OpenNewWIPL2Block, time.Since(processStart))
+	}()
 
 	newL2Block := &L2Block{}
 	newL2Block.createdAt = time.Now()
@@ -580,8 +585,6 @@ func (f *finalizer) openNewWIPL2Block(ctx context.Context, prevTimestamp uint64,
 	log.Infof("created new WIP L2 block [%d], batch: %d, deltaTimestamp: %d, timestamp: %d, l1InfoTreeIndex: %d, l1InfoTreeIndexChanged: %v, oldStateRoot: %s, imStateRoot: %s, used counters: %s, reserved counters: %s",
 		f.wipL2Block.trackingNum, f.wipBatch.batchNumber, f.wipL2Block.deltaTimestamp, f.wipL2Block.timestamp, f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex,
 		f.wipL2Block.l1InfoTreeExitRootChanged, oldIMStateRoot, f.wipL2Block.imStateRoot, f.logZKCounters(f.wipL2Block.usedZKCounters), f.logZKCounters(f.wipL2Block.reservedZKCounters))
-
-	seqMetrics.GetLogStatistics().CumulativeTiming(seqMetrics.OpenNewWIPL2Block, time.Since(processStart))
 }
 
 // executeNewWIPL2Block executes an empty L2 Block in the executor and returns the batch response from the executor
