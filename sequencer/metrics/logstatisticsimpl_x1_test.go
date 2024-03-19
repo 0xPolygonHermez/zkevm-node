@@ -25,6 +25,7 @@ func Test_logStatisticsInstance_Summary(t *testing.T) {
 				GetTx:                           time.Second.Milliseconds(),
 				GetTxPauseCounter:               2,
 				ReprocessingTxCounter:           3,
+				FailTxResourceOverCounter:       1,
 				FailTxCounter:                   1,
 				ProcessingInvalidTxCounter:      2,
 				ProcessingTxTiming:              time.Second.Milliseconds() * 30,

@@ -145,7 +145,12 @@ func (f *finalizer) initWIPBatch(ctx context.Context) {
 
 // finalizeWIPBatch closes the current batch and opens a new one, potentially processing forced batches between the batch is closed and the resulting new empty batch
 func (f *finalizer) finalizeWIPBatch(ctx context.Context, closeReason state.ClosingReason) {
+	start := time.Now()
 	smetrics.GetLogStatistics().SetTag(smetrics.FinalizeBatchNumber, strconv.Itoa(int(f.wipBatch.batchNumber)))
+	defer func() {
+		smetrics.ProcessingTime(time.Since(start))
+		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchTiming, time.Since(start))
+	}()
 
 	prevTimestamp := f.wipL2Block.timestamp
 	prevL1InfoTreeIndex := f.wipL2Block.l1InfoTreeExitRoot.L1InfoTreeIndex
@@ -248,6 +253,11 @@ func (f *finalizer) closeAndOpenNewWIPBatch(ctx context.Context, closeReason sta
 
 // openNewWIPBatch opens a new batch in the state and returns it as WipBatch
 func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, stateRoot common.Hash) (*Batch, error) {
+	tsOpenBatch := time.Now()
+	defer func() {
+		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchOpenBatch, time.Since(tsOpenBatch))
+	}()
+
 	// open next batch
 	newStateBatch := state.Batch{
 		BatchNumber:    batchNumber,
@@ -286,7 +296,6 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 	}
 
 	maxRemainingResources := getMaxRemainingResources(f.batchConstraints)
-
 	return &Batch{
 		batchNumber:             newStateBatch.BatchNumber,
 		coinbase:                newStateBatch.Coinbase,
@@ -302,6 +311,11 @@ func (f *finalizer) openNewWIPBatch(ctx context.Context, batchNumber uint64, sta
 
 // closeWIPBatch closes the current batch in the state
 func (f *finalizer) closeWIPBatch(ctx context.Context) error {
+	tsCloseBatch := time.Now()
+	defer func() {
+		smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchCloseBatch, time.Since(tsCloseBatch))
+	}()
+
 	// Sanity check: batch must not be empty (should have L2 blocks)
 	if f.wipBatch.isEmpty() {
 		f.Halt(ctx, fmt.Errorf("closing WIP batch %d without L2 blocks and should have at least 1", f.wipBatch.batchNumber), false)

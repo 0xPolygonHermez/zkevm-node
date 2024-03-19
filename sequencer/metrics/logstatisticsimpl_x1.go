@@ -69,9 +69,14 @@ func (l *logStatisticsInstance) Summary() string {
 		"CloseBatch<" + strconv.Itoa(int(l.statistics[FinalizeBatchCloseBatch])) + "ms>, " +
 		"OpenBatch<" + strconv.Itoa(int(l.statistics[FinalizeBatchOpenBatch])) + "ms>>, "
 
-	wipBlock := "<CloseWIPL2Block:" + strconv.Itoa(int(l.statistics[CloseWIPL2Block])) + "ms, " + "OpenNewWIPL2Block:" + strconv.Itoa(int(l.statistics[OpenNewWIPL2Block])) + "ms>, "
+	wipBlock := "CloseWIPL2Block<" + strconv.Itoa(int(l.statistics[CloseWIPL2Block])) + "ms>, " + "OpenNewWIPL2Block<" + strconv.Itoa(int(l.statistics[OpenNewWIPL2Block])) + "ms>, "
 
-	storeL2Block := "<StoreL2Block:" + strconv.Itoa(int(l.statistics[StoreL2Block])) + "ms, " + "PoolUpdateTxStatus:" + strconv.Itoa(int(l.statistics[PoolUpdateTxStatus])) + "ms, " + "DeletePendingTxToStore:" + strconv.Itoa(int(l.statistics[DeletePendingTxToStore])) + "ms, " + "UpdateWIPBatch:" + strconv.Itoa(int(l.statistics[UpdateWIPBatch])) + "ms>,"
+	storeL2Block := "StoreL2Block<" + strconv.Itoa(int(l.statistics[StoreL2Block])) + "ms, " +
+		"PoolUpdateTxStatus<" + strconv.Itoa(int(l.statistics[PoolUpdateTxStatus])) + "ms>, " +
+		"DeletePendingTxToStore<" + strconv.Itoa(int(l.statistics[DeletePendingTxToStore])) + "ms>, " +
+		"UpdateWIPBatch<" + strconv.Itoa(int(l.statistics[UpdateWIPBatch])) + "ms>, " +
+		"DSSendL2Block<" + strconv.Itoa(int(l.statistics[DSSendL2Block])) + "ms>, " +
+		"StateStoreL2Block<" + strconv.Itoa(int(l.statistics[StateStoreL2Block])) + "ms>>, "
 
 	result := "Batch<" + l.tags[FinalizeBatchNumber] + ">, " +
 		"TotalDuration<" + batchTotalDuration + "ms>, " +
@@ -80,6 +85,7 @@ func (l *logStatisticsInstance) Summary() string {
 		"GetTx<" + strconv.Itoa(int(l.statistics[GetTx])) + "ms>, " +
 		"GetTxPause<" + strconv.Itoa(int(l.statistics[GetTxPauseCounter])) + ">, " +
 		"ReprocessTx<" + strconv.Itoa(int(l.statistics[ReprocessingTxCounter])) + ">, " +
+		"ResourceOverTx<" + strconv.Itoa(int(l.statistics[FailTxResourceOverCounter])) + ">, " +
 		"FailTx<" + strconv.Itoa(int(l.statistics[FailTxCounter])) + ">, " +
 		"InvalidTx<" + strconv.Itoa(int(l.statistics[ProcessingInvalidTxCounter])) + ">, " +
 		processTxTiming +

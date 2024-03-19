@@ -356,11 +356,13 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 		txsEGPLog = append(txsEGPLog, &egpLog)
 	}
 
+	startStateStoreL2Block := time.Now()
 	// Store L2 block in the state
 	err = f.stateIntf.StoreL2Block(ctx, f.wipBatch.batchNumber, blockResponse, txsEGPLog, dbTx)
 	if err != nil {
 		return rollbackOnError(fmt.Errorf("database error on storing L2 block %d [%d], error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err))
 	}
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.StateStoreL2Block, time.Since(startStateStoreL2Block))
 
 	// Now we need to update de BatchL2Data of the wip batch and also update the status of the L2 block txs in the pool
 
@@ -425,12 +427,14 @@ func (f *finalizer) storeL2Block(ctx context.Context, l2Block *L2Block) error {
 	}
 	smetrics.GetLogStatistics().CumulativeTiming(smetrics.PoolUpdateTxStatus, time.Since(startUpdatePool))
 
+	startDSSendL2Block := time.Now()
 	// Send L2 block to data streamer
 	err = f.DSSendL2Block(f.wipBatch.batchNumber, blockResponse, l2Block.getL1InfoTreeIndex())
 	if err != nil {
 		//TODO: we need to halt/rollback the L2 block if we had an error sending to the data streamer?
 		log.Errorf("error sending L2 block %d [%d] to data streamer, error: %v", blockResponse.BlockNumber, l2Block.trackingNum, err)
 	}
+	smetrics.GetLogStatistics().CumulativeTiming(smetrics.DSSendL2Block, time.Since(startDSSendL2Block))
 
 	startDelete := time.Now()
 	for _, tx := range l2Block.transactions {

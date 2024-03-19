@@ -33,6 +33,9 @@ const (
 	ReprocessingTxCounter logTag = "ReProcessingTxCounter"
 	// FailTxCounter is used to log the failed transaction counter.
 	FailTxCounter logTag = "FailTxCounter"
+	// FailTxResourceOverCounter is used to log the failed transaction resource overflow counter.
+	FailTxResourceOverCounter logTag = "FailTxResourceOverCounter"
+
 	// NewRound is used to log new round events.
 	NewRound logTag = "NewRound"
 	// BatchGas is used to log batch gas-related information.
@@ -57,6 +60,8 @@ const (
 	PoolUpdateTxStatus     logTag = "PoolUpdateTxStatus"
 	DeletePendingTxToStore logTag = "DeletePendingTxToStore"
 	UpdateWIPBatch         logTag = "UpdateWIPBatch"
+	DSSendL2Block          logTag = "DSSendL2Block"
+	StateStoreL2Block      logTag = "StateStoreL2Block"
 
 	// FinalizeBatchTiming is used to log batch finalization time.
 	FinalizeBatchTiming logTag = "FinalizeBatchTiming"
