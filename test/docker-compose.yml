@@ -455,7 +455,7 @@ services:
 
   x1-mock-l1-network:
     container_name: x1-mock-l1-network
-    image: chengzhinei2/geth:fork8_20240313_1
+    image: okexchain/x1-geth:e2e_v0.2.0_20240318
       #image: hermeznetwork/geth-zkevm-contracts:v2.1.3-fork.8-geth1.12.0
       #image: hermeznetwork/geth-zkevm-contracts:v2.0.0-RC1-fork.5-geth1.12.0
     ports:
@@ -689,7 +689,7 @@ services:
 
   x1-data-availability:
     container_name: x1-data-availability
-    image: chengzhinei2/geth:x1-data-availability-fork8
+    image: okexchain/x1-dac:e2e_v0.2.0_20240318
     ports:
       - 8444:8444
     volumes:
@@ -717,7 +717,7 @@ services:
   x1-signer:
     container_name: x1-signer
     restart: unless-stopped
-    image: chengzhinei2/geth:x1-signer
+    image: x1-signer
     ports:
       - 7001:7001
     volumes:
