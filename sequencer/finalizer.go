@@ -344,9 +344,12 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			start := time.Now()
 			f.finalizeWIPBatch(ctx, closeReason)
 			smetrics.GetLogStatistics().CumulativeTiming(smetrics.FinalizeBatchTiming, time.Since(start))
+
 			log.Infof(smetrics.GetLogStatistics().Summary())
+			smetrics.BatchExecuteTime(smetrics.BatchFinalizeTypeLabelDeadline, smetrics.GetLogStatistics().GetStatistics(smetrics.ProcessingTxCommit))
 			smetrics.GetLogStatistics().ResetStatistics()
 			smetrics.GetLogStatistics().UpdateTimestamp(smetrics.NewRound, time.Now())
+			smetrics.TrustBatchNum(f.wipBatch.batchNumber - 1)
 		}
 
 		if err := ctx.Err(); err != nil {
