@@ -123,7 +123,13 @@ StateConsistencyCheckInterval = "5s"
 	[Sequencer.StreamServer]
 		Port = 6900
 		Filename = "/datastreamer/datastream.bin"
-		Version = 1
+		Version = 2
+		ChainID = 1337
+		Enabled = true
+	[Sequencer.StreamServer2]
+		Port = 6903
+		Filename = "/datastreamer/datastream_v3.bin"
+		Version = 3
 		ChainID = 1337
 		Enabled = true
 

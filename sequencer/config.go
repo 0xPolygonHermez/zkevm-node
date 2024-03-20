@@ -28,8 +28,11 @@ type Config struct {
 	// Finalizer's specific config properties
 	Finalizer FinalizerCfg `mapstructure:"Finalizer"`
 
-	// StreamServerCfg is the config for the stream server
+	// StreamServer is the config for the stream server
 	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
+
+	// StreamServer2 is the config for the stream server 2
+	StreamServer2 StreamServerCfg `mapstructure:"StreamServer2"`
 }
 
 // StreamServerCfg contains the data streamer's configuration properties
