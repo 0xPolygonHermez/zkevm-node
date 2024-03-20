@@ -18,13 +18,13 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/etherman/etherscan"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/ethgasstation"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/metrics"
-	dataavailabilityprotocol "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/dataavailabilityprotocol_x1"
+	dataavailabilityprotocol "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/dataavailabilityprotocol_xlayer"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/etrogpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevm"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/oldpolygonzkevmglobalexitroot"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/pol"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
-	polygonzkevm "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_x1"
+	polygonzkevm "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_xlayer"
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonzkevmglobalexitroot"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -186,7 +186,7 @@ type Client struct {
 	EthClient                ethereumClient
 	OldZkEVM                 *oldpolygonzkevm.Polygonzkevm
 	EtrogZKEVM               *etrogpolygonzkevm.Etrogpolygonzkevm
-	ZkEVM                    *polygonzkevm.PolygonvalidiumX1
+	ZkEVM                    *polygonzkevm.PolygonvalidiumXlayer
 	RollupManager            *polygonrollupmanager.Polygonrollupmanager
 	GlobalExitRootManager    *polygonzkevmglobalexitroot.Polygonzkevmglobalexitroot
 	OldGlobalExitRootManager *oldpolygonzkevmglobalexitroot.Oldpolygonzkevmglobalexitroot
@@ -214,7 +214,7 @@ func NewClient(cfg Config, l1Config L1Config) (*Client, error) {
 		return nil, err
 	}
 	// Create smc clients
-	zkevm, err := polygonzkevm.NewPolygonvalidiumX1(l1Config.ZkEVMAddr, ethClient)
+	zkevm, err := polygonzkevm.NewPolygonvalidiumXlayer(l1Config.ZkEVMAddr, ethClient)
 	if err != nil {
 		log.Errorf("error creating Polygonzkevm client (%s). Error: %w", l1Config.ZkEVMAddr.String(), err)
 		return nil, err
@@ -949,15 +949,15 @@ func (etherMan *Client) WaitTxToBeMined(ctx context.Context, tx *types.Transacti
 	return true, nil
 }
 
-// EstimateGasSequenceBatchesX1 estimates gas for sending batches
-func (etherMan *Client) EstimateGasSequenceBatchesX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
-	opts, err := etherMan.generateMockAuthX1(sender)
+// EstimateGasSequenceBatchesXLayer estimates gas for sending batches
+func (etherMan *Client) EstimateGasSequenceBatchesXLayer(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+	opts, err := etherMan.generateMockAuthXLayer(sender)
 	if err == ErrNotFound {
 		return nil, ErrPrivateKeyNotFound
 	}
 	opts.NoSend = true
 
-	tx, err := etherMan.sequenceBatchesX1(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	tx, err := etherMan.sequenceBatchesXLayer(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		return nil, err
 	}
@@ -965,9 +965,9 @@ func (etherMan *Client) EstimateGasSequenceBatchesX1(sender common.Address, sequ
 	return tx, nil
 }
 
-// BuildSequenceBatchesTxDataX1 builds a []bytes to be sent to the PoE SC method SequenceBatches.
-func (etherMan *Client) BuildSequenceBatchesTxDataX1(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
-	opts, err := etherMan.generateMockAuthX1(sender)
+// BuildSequenceBatchesTxDataXLayer builds a []bytes to be sent to the PoE SC method SequenceBatches.
+func (etherMan *Client) BuildSequenceBatchesTxDataXLayer(sender common.Address, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (to *common.Address, data []byte, err error) {
+	opts, err := etherMan.generateMockAuthXLayer(sender)
 	if err == ErrNotFound {
 		return nil, nil, fmt.Errorf("failed to build sequence batches, err: %w", ErrPrivateKeyNotFound)
 	}
@@ -977,7 +977,7 @@ func (etherMan *Client) BuildSequenceBatchesTxDataX1(sender common.Address, sequ
 	opts.GasLimit = uint64(1)
 	opts.GasPrice = big.NewInt(1)
 
-	tx, err := etherMan.sequenceBatchesX1(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
+	tx, err := etherMan.sequenceBatchesXLayer(opts, sequences, maxSequenceTimestamp, lastSequencedBatchNumber, l2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -985,7 +985,7 @@ func (etherMan *Client) BuildSequenceBatchesTxDataX1(sender common.Address, sequ
 	return tx.To(), tx.Data(), nil
 }
 
-func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
+func (etherMan *Client) sequenceBatchesXLayer(opts bind.TransactOpts, sequences []ethmanTypes.Sequence, maxSequenceTimestamp uint64, lastSequencedBatchNumber uint64, l2Coinbase common.Address, dataAvailabilityMessage []byte) (*types.Transaction, error) {
 	var batches []polygonzkevm.PolygonValidiumEtrogValidiumBatchData
 	for _, seq := range sequences {
 		var ger common.Hash
@@ -1007,7 +1007,7 @@ func (etherMan *Client) sequenceBatchesX1(opts bind.TransactOpts, sequences []et
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonvalidiumX1MetaData.GetAbi()
+		a, err2 := polygonzkevm.PolygonvalidiumXlayerMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
@@ -1150,7 +1150,7 @@ func (etherMan *Client) forcedBatchEvent(ctx context.Context, vLog types.Log, bl
 		txData := tx.Data()
 		// Extract coded txs.
 		// Load contract ABI
-		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
+		abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
 		if err != nil {
 			return err
 		}
@@ -1320,7 +1320,7 @@ func (etherMan *Client) sequencedBatchesPreEtrogEvent(ctx context.Context, vLog 
 func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1419,7 +1419,7 @@ func decodeSequencesElderberry(txData []byte, lastBatchNumber uint64, sequencer 
 func decodeSequencesEtrog(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, nonce uint64, l1InfoRoot common.Hash, da dataavailability.BatchDataProvider) ([]SequencedBatch, error) { // nolint:unused
 	// Extract coded txs.
 	// Load contract ABI
-	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
+	smcAbi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1655,7 +1655,7 @@ func (etherMan *Client) forceSequencedBatchesEvent(ctx context.Context, vLog typ
 func decodeSequencedForceBatches(txData []byte, lastBatchNumber uint64, sequencer common.Address, txHash common.Hash, block *types.Block, nonce uint64) ([]SequencedForceBatch, error) {
 	// Extract coded txs.
 	// Load contract ABI
-	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumX1ABI))
+	abi, err := abi.JSON(strings.NewReader(polygonzkevm.PolygonvalidiumXlayerABI))
 	if err != nil {
 		return nil, err
 	}
@@ -1997,9 +1997,9 @@ func newAuthFromKeystore(path, password string, chainID uint64) (bind.TransactOp
 	return *auth, nil
 }
 
-// LoadAuthFromKeyStoreX1 loads an authorization from a key store file
-func (etherMan *Client) LoadAuthFromKeyStoreX1(path, password string) (*bind.TransactOpts, *ecdsa.PrivateKey, error) {
-	auth, pk, err := newAuthFromKeystoreX1(path, password, etherMan.l1Cfg.L1ChainID)
+// LoadAuthFromKeyStoreXLayer loads an authorization from a key store file
+func (etherMan *Client) LoadAuthFromKeyStoreXLayer(path, password string) (*bind.TransactOpts, *ecdsa.PrivateKey, error) {
+	auth, pk, err := newAuthFromKeystoreXLayer(path, password, etherMan.l1Cfg.L1ChainID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2026,8 +2026,8 @@ func newKeyFromKeystore(path, password string) (*keystore.Key, error) {
 	return key, nil
 }
 
-// newAuthFromKeystoreX1 an authorization instance from a keystore file
-func newAuthFromKeystoreX1(path, password string, chainID uint64) (bind.TransactOpts, *ecdsa.PrivateKey, error) {
+// newAuthFromKeystoreXLayer an authorization instance from a keystore file
+func newAuthFromKeystoreXLayer(path, password string, chainID uint64) (bind.TransactOpts, *ecdsa.PrivateKey, error) {
 	log.Infof("reading key from: %v", path)
 	key, err := newKeyFromKeystore(path, password)
 	if err != nil {
@@ -2123,7 +2123,7 @@ func (etherMan *Client) sequenceBatches(opts bind.TransactOpts, sequences []ethm
 		log.Debugf("Batches to send: %+v", batches)
 		log.Debug("l2CoinBase: ", l2Coinbase)
 		log.Debug("Sequencer address: ", opts.From)
-		a, err2 := polygonzkevm.PolygonvalidiumX1MetaData.GetAbi()
+		a, err2 := polygonzkevm.PolygonvalidiumXlayerMetaData.GetAbi()
 		if err2 != nil {
 			log.Error("error getting abi. Error: ", err2)
 		}
@@ -2177,10 +2177,10 @@ func (etherMan *Client) BuildSequenceBatchesTxData(sender common.Address, sequen
 	return tx.To(), tx.Data(), nil
 }
 
-// generateMockAuthX1 generates an authorization instance from a
+// generateMockAuthXLayer generates an authorization instance from a
 // randomly generated private key to be used to estimate gas for PoE
 // operations NOT restricted to the Trusted Sequencer
-func (etherMan *Client) generateMockAuthX1(sender common.Address) (bind.TransactOpts, error) {
+func (etherMan *Client) generateMockAuthXLayer(sender common.Address) (bind.TransactOpts, error) {
 	privateKey, err := crypto.GenerateKey()
 	if err != nil {
 		return bind.TransactOpts{}, errors.New("failed to generate a private key to estimate L1 txs")

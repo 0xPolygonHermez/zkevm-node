@@ -189,6 +189,6 @@ require (
 	golang.org/x/time v0.5.0
 )
 
-//replace github.com/0xPolygon/cdk-data-availability => github.com/okx/x1-data-availability v0.0.0-20240131134146-9deeeea46e13
+//replace github.com/0xPolygon/cdk-data-availability => github.com/okx/xlayer-data-availability v0.0.0-20240131134146-9deeeea46e13
 
 replace github.com/0xPolygonHermez/zkevm-node => ./

@@ -27,7 +27,7 @@ var (
 		},
 	}
 
-	gaugesX1 = []prometheus.GaugeOpts{
+	gaugesXLayer = []prometheus.GaugeOpts{
 		{
 			Name: PendingTxCountName,
 			Help: "[SEQUENCER] number of pending transactions",
@@ -37,7 +37,7 @@ var (
 			Help: "[SEQUENCER] trust batch num",
 		},
 	}
-	countersX1 = []prometheus.CounterOpts{
+	countersXLayer = []prometheus.CounterOpts{
 		{
 			Name: HaltCountName,
 			Help: "[SEQUENCER] total count of halt",

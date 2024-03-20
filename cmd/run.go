@@ -147,8 +147,8 @@ func start(cliCtx *cli.Context) error {
 		go startProfilingHttpServer(c.Metrics)
 	}
 
-	// init for x1
-	initRunForX1(c, components)
+	// init for xlayer
+	initRunForXLayer(c, components)
 
 	for _, component := range components {
 		switch component {
@@ -187,7 +187,7 @@ func start(cliCtx *cli.Context) error {
 			if poolInstance == nil {
 				poolInstance = createPool(c.Pool, c.State.Batch.Constraints, l2ChainID, st, eventLog)
 			}
-			seqSender := createSequenceSenderX1(*c, poolInstance, ethTxManagerStorage, st, eventLog)
+			seqSender := createSequenceSenderXLayer(*c, poolInstance, ethTxManagerStorage, st, eventLog)
 			go seqSender.Start(cliCtx.Context)
 		case RPC:
 			ev.Component = event.Component_RPC
@@ -311,15 +311,15 @@ func runSynchronizer(cfg config.Config, etherman *etherman.Client, ethTxManagerS
 				log.Fatal(err)
 			}
 
-			// X1 handler
-			setEthermanDaX1(cfg, st, eth, false)
+			// XLayer handler
+			setEthermanDaXLayer(cfg, st, eth, false)
 
 			etherManForL1 = append(etherManForL1, eth)
 		}
 	}
 
-	// X1 handler
-	setEthermanDaX1(cfg, st, etherman, false)
+	// XLayer handler
+	setEthermanDaXLayer(cfg, st, etherman, false)
 
 	etm := ethtxmanager.New(cfg.EthTxManager, etherman, ethTxManagerStorage, st)
 	sy, err := synchronizer.NewSynchronizer(

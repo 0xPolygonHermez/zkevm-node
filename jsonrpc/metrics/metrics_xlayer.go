@@ -37,7 +37,7 @@ var (
 			Labels: []string{requestMethodLabelName},
 		},
 	}
-	counterVecsX1 = []metrics.CounterVecOpts{
+	counterVecsXLayer = []metrics.CounterVecOpts{
 		{
 			CounterOpts: prometheus.CounterOpts{
 				Name: requestMethodName,

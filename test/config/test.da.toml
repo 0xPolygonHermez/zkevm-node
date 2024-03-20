@@ -1,8 +1,8 @@
 PrivateKey = {Path = "/pk/test-member.keystore", Password = "testonly"}
 
 [L1]
-WsURL = "ws://x1-mock-l1-network:8546"
-RpcURL = "http://x1-mock-l1-network:8545"
+WsURL = "ws://xlayer-mock-l1-network:8546"
+RpcURL = "http://xlayer-mock-l1-network:8545"
 PolygonValidiumAddress = "0x975725832B4909Aab87D3604A0b501569dbBE7A9"
 DataCommitteeAddress = "0x2f08F654B896208dD968aFdAEf733edC5FF62c03"
 Timeout = "3m"
@@ -18,7 +18,7 @@ Outputs = ["stderr"]
 User = "committee_user"
 Password = "committee_password"
 Name = "committee_db"
-Host = "x1-data-availability-db"
+Host = "xlayer-data-availability-db"
 Port = "5432"
 EnableLog = false
 MaxConns = 200

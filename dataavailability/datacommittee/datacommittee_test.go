@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"testing"
 
-	polygondatacommittee "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee_x1"
+	polygondatacommittee "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee_xlayer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
@@ -65,7 +65,7 @@ func newTestingEnv(t *testing.T) (
 	dac *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
 	auth *bind.TransactOpts,
-	da *polygondatacommittee.Polygondatacommittee,
+	da *polygondatacommittee.PolygondatacommitteeXlayer,
 ) {
 	t.Helper()
 	privateKey, err := crypto.GenerateKey()
@@ -88,7 +88,7 @@ func newTestingEnv(t *testing.T) (
 func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	dacman *DataCommitteeBackend,
 	ethBackend *backends.SimulatedBackend,
-	da *polygondatacommittee.Polygondatacommittee,
+	da *polygondatacommittee.PolygondatacommitteeXlayer,
 	err error,
 ) {
 	t.Helper()
@@ -108,7 +108,7 @@ func newSimulatedDacman(t *testing.T, auth *bind.TransactOpts) (
 	client := backends.NewSimulatedBackend(genesisAlloc, uint64(999999999999999999)) //nolint:staticcheck,gomnd
 
 	// DAC Setup
-	_, _, da, err = polygondatacommittee.DeployPolygondatacommittee(auth, client)
+	_, _, da, err = polygondatacommittee.DeployPolygondatacommitteeXlayer(auth, client)
 	if err != nil {
 		return &DataCommitteeBackend{}, nil, nil, err
 	}

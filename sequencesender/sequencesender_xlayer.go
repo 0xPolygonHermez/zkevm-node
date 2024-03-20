@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
+func (s *SequenceSender) tryToSendSequenceXLayer(ctx context.Context) {
 	retry := false
 	// process monitored sequences before starting a next cycle
 	s.ethTxManager.ProcessPendingMonitoredTxs(ctx, ethTxManagerOwner, func(result ethtxmanager.MonitoredTxResult, dbTx pgx.Tx) {
@@ -41,7 +41,7 @@ func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
 
 	// Check if should send sequence to L1
 	log.Infof("getting sequences to send")
-	sequences, err := s.getSequencesToSendX1(ctx)
+	sequences, err := s.getSequencesToSendXLayer(ctx)
 	if err != nil || len(sequences) == 0 {
 		if err != nil {
 			log.Errorf("error getting sequences: %v", err)
@@ -117,7 +117,7 @@ func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
 		log.Error("error posting sequences to the data availability protocol: ", err)
 		return
 	}
-	to, data, err := s.etherman.BuildSequenceBatchesTxDataX1(s.cfg.SenderAddress, sequences, uint64(lastSequence.LastL2BLockTimestamp), firstSequence.BatchNumber-1, s.cfg.L2Coinbase, dataAvailabilityMessage)
+	to, data, err := s.etherman.BuildSequenceBatchesTxDataXLayer(s.cfg.SenderAddress, sequences, uint64(lastSequence.LastL2BLockTimestamp), firstSequence.BatchNumber-1, s.cfg.L2Coinbase, dataAvailabilityMessage)
 	if err != nil {
 		log.Error("error estimating new sequenceBatches to add to eth tx manager: ", err)
 		return
@@ -135,7 +135,7 @@ func (s *SequenceSender) tryToSendSequenceX1(ctx context.Context) {
 // getSequencesToSend generates an array of sequences to be send to L1.
 // If the array is empty, it doesn't necessarily mean that there are no sequences to be sent,
 // it could be that it's not worth it to do so yet.
-func (s *SequenceSender) getSequencesToSendX1(ctx context.Context) ([]types.Sequence, error) {
+func (s *SequenceSender) getSequencesToSendXLayer(ctx context.Context) ([]types.Sequence, error) {
 	lastVirtualBatchNum, err := s.state.GetLastVirtualBatchNum(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last virtual batch num, err: %v", err)

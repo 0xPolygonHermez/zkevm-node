@@ -201,8 +201,8 @@ func (e *EthEndpoints) EstimateGas(arg *types.TxArgs, blockArg *types.BlockNumbe
 			return nil, types.NewRPCError(types.DefaultErrorCode, err.Error())
 		}
 
-		// X1 handler
-		gasEstimation = e.getGasEstimationWithFactorX1(gasEstimation)
+		// XLayer handler
+		gasEstimation = e.getGasEstimationWithFactorXLayer(gasEstimation)
 
 		return hex.EncodeUint64(gasEstimation), nil
 	})
@@ -540,7 +540,7 @@ func (e *EthEndpoints) GetFilterLogs(filterID string) (interface{}, types.Error)
 // GetLogs returns a list of logs accordingly to the provided filter
 func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 	return e.txMan.NewDbTxScope(e.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
-		// X1 handler
+		// XLayer handler
 		if filter.FromBlock == nil {
 			bn := types.LatestBlockNumber
 			filter.FromBlock = &bn
@@ -551,7 +551,7 @@ func (e *EthEndpoints) GetLogs(filter LogFilter) (interface{}, types.Error) {
 }
 
 func (e *EthEndpoints) internalGetLogs(ctx context.Context, dbTx pgx.Tx, filter LogFilter) (interface{}, types.Error) {
-	// X1 handler
+	// XLayer handler
 	if e.isDisabled("eth_getLogs") {
 		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
 	}
@@ -923,7 +923,7 @@ func (e *EthEndpoints) NewBlockFilter() (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newBlockFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
-	//X1 handle
+	//XLayer handle
 	if e.isDisabled("eth_newBlockFilter") {
 		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
 	}
@@ -947,7 +947,7 @@ func (e *EthEndpoints) NewFilter(filter LogFilter) (interface{}, types.Error) {
 
 // internal
 func (e *EthEndpoints) newFilter(ctx context.Context, wsConn *concurrentWsConn, filter LogFilter, dbTx pgx.Tx) (interface{}, types.Error) {
-	//X1 handle
+	//XLayer handle
 	if e.isDisabled("eth_newFilter") {
 		return RPCErrorResponse(types.DefaultErrorCode, "not supported yet", nil, true)
 	}
@@ -978,8 +978,8 @@ func (e *EthEndpoints) NewPendingTransactionFilter() (interface{}, types.Error) 
 
 // internal
 func (e *EthEndpoints) newPendingTransactionFilter(wsConn *concurrentWsConn) (interface{}, types.Error) {
-	//X1 handle
-	return e.newPendingTransactionFilterX1(wsConn)
+	//XLayer handle
+	return e.newPendingTransactionFilterXLayer(wsConn)
 
 	// return nil, types.NewRPCError(types.DefaultErrorCode, "not supported yet")
 	// id, err := e.storage.NewPendingTransactionFilter(wsConn)

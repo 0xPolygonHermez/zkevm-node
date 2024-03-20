@@ -31,7 +31,7 @@ type Config struct {
 	// StreamServerCfg is the config for the stream server
 	StreamServer StreamServerCfg `mapstructure:"StreamServer"`
 
-	// X1 config
+	// XLayer config
 	// PackBatchSpacialList is the list of addresses that will have a special gas price
 	PackBatchSpacialList []string `mapstructure:"PackBatchSpacialList"`
 	// GasPriceMultiple is the multiple of the gas price
@@ -97,7 +97,7 @@ type FinalizerCfg struct {
 	// in the processPendingL2Blocks go func
 	SequentialProcessL2Block bool `mapstructure:"SequentialProcessL2Block"`
 
-	// X1 config
+	// XLayer config
 	// FullBatchSleepDuration is the time the finalizer sleeps between each full batch iteration
 	FullBatchSleepDuration types.Duration `mapstructure:"FullBatchSleepDuration"`
 

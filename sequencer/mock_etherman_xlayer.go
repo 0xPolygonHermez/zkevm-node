@@ -12,7 +12,7 @@ import (
 
 
 // BuildSequenceBatchesTxData provides a mock function with given fields: sender, sequences, l2CoinBase
-func (_m *EthermanMock) BuildSequenceBatchesTxDataX1(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*common.Address, []byte, error) {
+func (_m *EthermanMock) BuildSequenceBatchesTxDataXLayer(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*common.Address, []byte, error) {
 	ret := _m.Called(sender, sequences, l2CoinBase)
 
 	if len(ret) == 0 {
@@ -50,8 +50,8 @@ func (_m *EthermanMock) BuildSequenceBatchesTxDataX1(sender common.Address, sequ
 	return r0, r1, r2
 }
 
-// EstimateGasSequenceBatches provides a mock function with given fields: sender, sequences, l2CoinBase
-func (_m *EthermanMock) EstimateGasSequenceBatchesX1(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*coretypes.Transaction, error) {
+// EstimateGasSequenceBatchesXLayer provides a mock function with given fields: sender, sequences, l2CoinBase
+func (_m *EthermanMock) EstimateGasSequenceBatchesXLayer(sender common.Address, sequences []types.Sequence, l2CoinBase common.Address, committeeSignaturesAndAddrs []byte) (*coretypes.Transaction, error) {
 	ret := _m.Called(sender, sequences, l2CoinBase)
 
 	if len(ret) == 0 {

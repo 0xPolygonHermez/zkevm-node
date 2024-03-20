@@ -11,7 +11,7 @@ import (
 
 	"github.com/0xPolygonHermez/zkevm-node/aggregator/prover"
 	"github.com/0xPolygonHermez/zkevm-node/etherman"
-	polygonzkevm "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_x1"
+	polygonzkevm "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_xlayer"
 	ethmanTypes "github.com/0xPolygonHermez/zkevm-node/etherman/types"
 	"github.com/0xPolygonHermez/zkevm-node/hex"
 	"github.com/0xPolygonHermez/zkevm-node/log"
@@ -74,7 +74,7 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 		log.Fatal("error creating etherman client. Error: %v", err)
 	}
 
-	_, srv.seqPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreX1(cfg.L1.SeqPrivateKey.Path, cfg.L1.SeqPrivateKey.Password)
+	_, srv.seqPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(cfg.L1.SeqPrivateKey.Path, cfg.L1.SeqPrivateKey.Password)
 	if err != nil {
 		log.Fatal("error loading sequencer private key. Error: %v", err)
 	}
@@ -82,7 +82,7 @@ func NewServer(cfg *config.Config, ctx context.Context) *Server {
 	srv.seqAddress = crypto.PubkeyToAddress(srv.seqPrivateKey.PublicKey)
 	log.Infof("Sequencer address: %s", srv.seqAddress.String())
 
-	_, srv.aggPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreX1(cfg.L1.AggPrivateKey.Path, cfg.L1.AggPrivateKey.Password)
+	_, srv.aggPrivateKey, err = srv.ethClient.LoadAuthFromKeyStoreXLayer(cfg.L1.AggPrivateKey.Path, cfg.L1.AggPrivateKey.Password)
 	if err != nil {
 		log.Fatal("error loading aggregator private key. Error: %v", err)
 	}

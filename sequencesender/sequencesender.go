@@ -42,7 +42,7 @@ type SequenceSender struct {
 	etherman     etherman
 	eventLog     *event.EventLog
 
-	// x1 config
+	// xlayer config
 	da dataAbilitier
 }
 
@@ -60,7 +60,7 @@ func New(cfg Config, state stateInterface, etherman etherman, manager ethTxManag
 // Start starts the sequence sender
 func (s *SequenceSender) Start(ctx context.Context) {
 	for {
-		s.tryToSendSequenceX1(ctx)
+		s.tryToSendSequenceXLayer(ctx)
 	}
 }
 

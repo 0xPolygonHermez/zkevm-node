@@ -290,7 +290,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			continue
 		}
 
-		// X1 handle
+		// XLayer handle
 		f.tryToSleep()
 
 		if tx != nil {

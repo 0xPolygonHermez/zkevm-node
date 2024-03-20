@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonrollupmanager"
-	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_x1"
+	"github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygonvalidium_xlayer"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -43,11 +43,11 @@ func (key contextKey) String() string {
 }
 
 type sequenceBatchesArgs struct {
-	Batches                 []polygonvalidium_x1.PolygonValidiumEtrogValidiumBatchData `json:"batches"`
-	MaxSequenceTimestamp    uint64                                                     `json:"maxSequenceTimestamp"`
-	InitSequencedBatch      uint64                                                     `json:"initSequencedBatch"`
-	L2Coinbase              common.Address                                             `json:"l2Coinbase"`
-	DataAvailabilityMessage []byte                                                     `json:"dataAvailabilityMessage"`
+	Batches                 []polygonvalidium_xlayer.PolygonValidiumEtrogValidiumBatchData `json:"batches"`
+	MaxSequenceTimestamp    uint64                                                         `json:"maxSequenceTimestamp"`
+	InitSequencedBatch      uint64                                                         `json:"initSequencedBatch"`
+	L2Coinbase              common.Address                                                 `json:"l2Coinbase"`
+	DataAvailabilityMessage []byte                                                         `json:"dataAvailabilityMessage"`
 }
 
 type verifyBatchesTrustedAggregatorArgs struct {
@@ -128,7 +128,7 @@ func (c *Client) unpackSequenceBatchesTx(tx *types.Transaction) (*sequenceBatche
 	if tx == nil || len(tx.Data()) < sigLen {
 		return nil, errEmptyTx
 	}
-	retArgs, err := unpack(tx.Data(), polygonvalidium_x1.PolygonvalidiumX1MetaData.ABI)
+	retArgs, err := unpack(tx.Data(), polygonvalidium_xlayer.PolygonvalidiumXlayerMetaData.ABI)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unpack tx %x data: %v", tx.Hash(), err)
 	}

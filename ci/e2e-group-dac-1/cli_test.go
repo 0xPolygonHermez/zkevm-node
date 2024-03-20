@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"testing"
 
-	polygondatacommittee "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee_x1"
+	polygondatacommittee "github.com/0xPolygonHermez/zkevm-node/etherman/smartcontracts/polygondatacommittee_xlayer"
 	"github.com/0xPolygonHermez/zkevm-node/test/operations"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/stretchr/testify/require"
@@ -39,7 +39,7 @@ func TestSetDataAvailabilityProtocol(t *testing.T) {
 	require.NoError(t, err)
 
 	// New DAC Setup
-	_, tx, newDA, err := polygondatacommittee.DeployPolygondatacommittee(auth, clientL1)
+	_, tx, newDA, err := polygondatacommittee.DeployPolygondatacommitteeXlayer(auth, clientL1)
 	require.NoError(t, err)
 	require.NoError(t, operations.WaitTxToBeMined(ctx, clientL1, tx, operations.DefaultTimeoutTxToBeMined))
 

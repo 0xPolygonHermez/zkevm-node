@@ -22,15 +22,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func createSequenceSenderX1(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
+func createSequenceSenderXLayer(cfg config.Config, pool *pool.Pool, etmStorage *ethtxmanager.PostgresStorage, st *state.State, eventLog *event.EventLog) *sequencesender.SequenceSender {
 	etherman, err := newEtherman(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	da := setEthermanDaX1(cfg, st, etherman, true)
+	da := setEthermanDaXLayer(cfg, st, etherman, true)
 
-	_, privKey, err := etherman.LoadAuthFromKeyStoreX1(cfg.SequenceSender.DAPermitApiPrivateKey.Path, cfg.SequenceSender.DAPermitApiPrivateKey.Password)
+	_, privKey, err := etherman.LoadAuthFromKeyStoreXLayer(cfg.SequenceSender.DAPermitApiPrivateKey.Path, cfg.SequenceSender.DAPermitApiPrivateKey.Password)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func createSequenceSenderX1(cfg config.Config, pool *pool.Pool, etmStorage *etht
 	return seqSender
 }
 
-func initRunForX1(c *config.Config, components []string) {
+func initRunForXLayer(c *config.Config, components []string) {
 	// Read configure from apollo
 	apolloClient := apollo.NewClient(c)
 	if apolloClient.LoadConfig() {
@@ -103,7 +103,7 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 			err error
 		)
 		if isSequenceSender {
-			_, pk, err = etherman.LoadAuthFromKeyStoreX1(c.SequenceSender.DAPermitApiPrivateKey.Path, c.SequenceSender.DAPermitApiPrivateKey.Password)
+			_, pk, err = etherman.LoadAuthFromKeyStoreXLayer(c.SequenceSender.DAPermitApiPrivateKey.Path, c.SequenceSender.DAPermitApiPrivateKey.Password)
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +134,7 @@ func newDataAvailability(c config.Config, st *state.State, etherman *etherman.Cl
 	)
 }
 
-func setEthermanDaX1(c config.Config, st *state.State, etherman *etherman.Client, isSequenceSender bool) *dataavailability.DataAvailability {
+func setEthermanDaXLayer(c config.Config, st *state.State, etherman *etherman.Client, isSequenceSender bool) *dataavailability.DataAvailability {
 	da, err := newDataAvailability(c, st, etherman, isSequenceSender)
 	if err != nil {
 		log.Fatal(err)
