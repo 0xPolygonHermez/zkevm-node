@@ -83,7 +83,6 @@ type DSL2BlockStart struct {
 	Coinbase        common.Address // 20 bytes
 	ForkID          uint16         // 2 bytes
 	ChainID         uint32         // 4 bytes
-
 }
 
 // Encode returns the encoded DSL2BlockStart as a byte slice
@@ -114,7 +113,6 @@ func (b DSL2BlockStart) Decode(data []byte) DSL2BlockStart {
 	b.Coinbase = common.BytesToAddress(data[96:116])
 	b.ForkID = binary.BigEndian.Uint16(data[116:118])
 	b.ChainID = binary.BigEndian.Uint32(data[118:122])
-
 	return b
 }
 
@@ -163,7 +161,6 @@ func (b DSL2BlockStartV3) Decode(data []byte) DSL2BlockStartV3 {
 	b.ForkID = binary.BigEndian.Uint16(data[116:118])
 	b.ChainID = binary.BigEndian.Uint32(data[118:122])
 	b.LocalExitRoot = common.BytesToHash(data[122:154])
-
 	return b
 }
 

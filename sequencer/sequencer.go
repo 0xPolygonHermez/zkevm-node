@@ -378,7 +378,7 @@ func (s *Sequencer) sendDataToStreamer(chainID uint64) {
 			}
 		}
 
-		// Duplicated code, but it is temporal until we just leave just one stream
+		// Duplicated code, but it is temporal until just one stream is left
 		if s.streamServer2 != nil {
 			switch data := dataStream.(type) {
 			// Stream a complete L2 block with its transactions
