@@ -76,8 +76,9 @@ type finalizer struct {
 	// interval metrics
 	metrics *intervalMetrics
 	// stream server
-	streamServer *datastreamer.StreamServer
-	dataToStream chan interface{}
+	streamServer  *datastreamer.StreamServer
+	streamServer2 *datastreamer.StreamServer
+	dataToStream  chan interface{}
 }
 
 // newFinalizer returns a new instance of Finalizer.
@@ -93,6 +94,7 @@ func newFinalizer(
 	batchConstraints state.BatchConstraintsCfg,
 	eventLog *event.EventLog,
 	streamServer *datastreamer.StreamServer,
+	streamServer2 *datastreamer.StreamServer,
 	workerReadyTxsCond *timeoutCond,
 	dataToStream chan interface{},
 ) *finalizer {
@@ -134,8 +136,9 @@ func newFinalizer(
 		// metrics
 		metrics: newIntervalMetrics(cfg.Metrics.Interval.Duration),
 		// stream server
-		streamServer: streamServer,
-		dataToStream: dataToStream,
+		streamServer:  streamServer,
+		streamServer2: streamServer2,
+		dataToStream:  dataToStream,
 	}
 
 	f.haltFinalizer.Store(false)

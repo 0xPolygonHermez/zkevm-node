@@ -907,7 +907,78 @@
 					},
 					"additionalProperties": false,
 					"type": "object",
-					"description": "StreamServerCfg is the config for the stream server"
+					"description": "StreamServer is the config for the stream server"
+				},
+				"StreamServer2": {
+					"properties": {
+						"Port": {
+							"type": "integer",
+							"description": "Port to listen on",
+							"default": 0
+						},
+						"Filename": {
+							"type": "string",
+							"description": "Filename of the binary data file",
+							"default": ""
+						},
+						"Version": {
+							"type": "integer",
+							"description": "Version of the binary data file",
+							"default": 0
+						},
+						"ChainID": {
+							"type": "integer",
+							"description": "ChainID is the chain ID",
+							"default": 0
+						},
+						"Enabled": {
+							"type": "boolean",
+							"description": "Enabled is a flag to enable/disable the data streamer",
+							"default": false
+						},
+						"Log": {
+							"properties": {
+								"Environment": {
+									"type": "string",
+									"enum": [
+										"production",
+										"development"
+									],
+									"default": ""
+								},
+								"Level": {
+									"type": "string",
+									"enum": [
+										"debug",
+										"info",
+										"warn",
+										"error",
+										"dpanic",
+										"panic",
+										"fatal"
+									],
+									"default": ""
+								},
+								"Outputs": {
+									"items": {
+										"type": "string"
+									},
+									"type": "array"
+								}
+							},
+							"additionalProperties": false,
+							"type": "object",
+							"description": "Log is the log configuration"
+						},
+						"UpgradeEtrogBatchNumber": {
+							"type": "integer",
+							"description": "UpgradeEtrogBatchNumber is the batch number of the upgrade etrog",
+							"default": 0
+						}
+					},
+					"additionalProperties": false,
+					"type": "object",
+					"description": "StreamServer2 is the config for the stream server 2"
 				}
 			},
 			"additionalProperties": false,
