@@ -1777,7 +1777,8 @@ CheckLastL2BlockHashOnCloseBatch=true
 | - [LoadPoolTxsCheckInterval](#Sequencer_LoadPoolTxsCheckInterval )                   | No      | string  | No         | -          | Duration                                                                                         |
 | - [StateConsistencyCheckInterval](#Sequencer_StateConsistencyCheckInterval )         | No      | string  | No         | -          | Duration                                                                                         |
 | - [Finalizer](#Sequencer_Finalizer )                                                 | No      | object  | No         | -          | Finalizer's specific config properties                                                           |
-| - [StreamServer](#Sequencer_StreamServer )                                           | No      | object  | No         | -          | StreamServerCfg is the config for the stream server                                              |
+| - [StreamServer](#Sequencer_StreamServer )                                           | No      | object  | No         | -          | StreamServer is the config for the stream server                                                 |
+| - [StreamServer2](#Sequencer_StreamServer2 )                                         | No      | object  | No         | -          | StreamServer2 is the config for the stream server 2                                              |
 
 ### <a name="Sequencer_DeletePoolTxsL1BlockConfirmations"></a>10.1. `Sequencer.DeletePoolTxsL1BlockConfirmations`
 
@@ -2240,7 +2241,7 @@ EnableLog=true
 ### <a name="Sequencer_StreamServer"></a>10.8. `[Sequencer.StreamServer]`
 
 **Type:** : `object`
-**Description:** StreamServerCfg is the config for the stream server
+**Description:** StreamServer is the config for the stream server
 
 | Property                                                                      | Pattern | Type    | Deprecated | Definition | Title/Description                                                |
 | ----------------------------------------------------------------------------- | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------- |
@@ -2385,6 +2386,157 @@ Must be one of:
 **Example setting the default value** (0):
 ```
 [Sequencer.StreamServer]
+UpgradeEtrogBatchNumber=0
+```
+
+### <a name="Sequencer_StreamServer2"></a>10.9. `[Sequencer.StreamServer2]`
+
+**Type:** : `object`
+**Description:** StreamServer2 is the config for the stream server 2
+
+| Property                                                                       | Pattern | Type    | Deprecated | Definition | Title/Description                                                |
+| ------------------------------------------------------------------------------ | ------- | ------- | ---------- | ---------- | ---------------------------------------------------------------- |
+| - [Port](#Sequencer_StreamServer2_Port )                                       | No      | integer | No         | -          | Port to listen on                                                |
+| - [Filename](#Sequencer_StreamServer2_Filename )                               | No      | string  | No         | -          | Filename of the binary data file                                 |
+| - [Version](#Sequencer_StreamServer2_Version )                                 | No      | integer | No         | -          | Version of the binary data file                                  |
+| - [ChainID](#Sequencer_StreamServer2_ChainID )                                 | No      | integer | No         | -          | ChainID is the chain ID                                          |
+| - [Enabled](#Sequencer_StreamServer2_Enabled )                                 | No      | boolean | No         | -          | Enabled is a flag to enable/disable the data streamer            |
+| - [Log](#Sequencer_StreamServer2_Log )                                         | No      | object  | No         | -          | Log is the log configuration                                     |
+| - [UpgradeEtrogBatchNumber](#Sequencer_StreamServer2_UpgradeEtrogBatchNumber ) | No      | integer | No         | -          | UpgradeEtrogBatchNumber is the batch number of the upgrade etrog |
+
+#### <a name="Sequencer_StreamServer2_Port"></a>10.9.1. `Sequencer.StreamServer2.Port`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Port to listen on
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer2]
+Port=0
+```
+
+#### <a name="Sequencer_StreamServer2_Filename"></a>10.9.2. `Sequencer.StreamServer2.Filename`
+
+**Type:** : `string`
+
+**Default:** `""`
+
+**Description:** Filename of the binary data file
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer2]
+Filename=""
+```
+
+#### <a name="Sequencer_StreamServer2_Version"></a>10.9.3. `Sequencer.StreamServer2.Version`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** Version of the binary data file
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer2]
+Version=0
+```
+
+#### <a name="Sequencer_StreamServer2_ChainID"></a>10.9.4. `Sequencer.StreamServer2.ChainID`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** ChainID is the chain ID
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer2]
+ChainID=0
+```
+
+#### <a name="Sequencer_StreamServer2_Enabled"></a>10.9.5. `Sequencer.StreamServer2.Enabled`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** Enabled is a flag to enable/disable the data streamer
+
+**Example setting the default value** (false):
+```
+[Sequencer.StreamServer2]
+Enabled=false
+```
+
+#### <a name="Sequencer_StreamServer2_Log"></a>10.9.6. `[Sequencer.StreamServer2.Log]`
+
+**Type:** : `object`
+**Description:** Log is the log configuration
+
+| Property                                                   | Pattern | Type             | Deprecated | Definition | Title/Description |
+| ---------------------------------------------------------- | ------- | ---------------- | ---------- | ---------- | ----------------- |
+| - [Environment](#Sequencer_StreamServer2_Log_Environment ) | No      | enum (of string) | No         | -          | -                 |
+| - [Level](#Sequencer_StreamServer2_Log_Level )             | No      | enum (of string) | No         | -          | -                 |
+| - [Outputs](#Sequencer_StreamServer2_Log_Outputs )         | No      | array of string  | No         | -          | -                 |
+
+##### <a name="Sequencer_StreamServer2_Log_Environment"></a>10.9.6.1. `Sequencer.StreamServer2.Log.Environment`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer2.Log]
+Environment=""
+```
+
+Must be one of:
+* "production"
+* "development"
+
+##### <a name="Sequencer_StreamServer2_Log_Level"></a>10.9.6.2. `Sequencer.StreamServer2.Log.Level`
+
+**Type:** : `enum (of string)`
+
+**Default:** `""`
+
+**Example setting the default value** (""):
+```
+[Sequencer.StreamServer2.Log]
+Level=""
+```
+
+Must be one of:
+* "debug"
+* "info"
+* "warn"
+* "error"
+* "dpanic"
+* "panic"
+* "fatal"
+
+##### <a name="Sequencer_StreamServer2_Log_Outputs"></a>10.9.6.3. `Sequencer.StreamServer2.Log.Outputs`
+
+**Type:** : `array of string`
+
+#### <a name="Sequencer_StreamServer2_UpgradeEtrogBatchNumber"></a>10.9.7. `Sequencer.StreamServer2.UpgradeEtrogBatchNumber`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** UpgradeEtrogBatchNumber is the batch number of the upgrade etrog
+
+**Example setting the default value** (0):
+```
+[Sequencer.StreamServer2]
 UpgradeEtrogBatchNumber=0
 ```
 
