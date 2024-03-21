@@ -39,6 +39,7 @@ type State struct {
 
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
+	StateL1InfoTreeV2
 }
 
 // NewState creates a new State
@@ -57,6 +58,7 @@ func NewState(cfg Config, storage storage, executorClient executor.ExecutorServi
 		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 		l1InfoTree:              mt,
+		StateL1InfoTreeV2:       StateL1InfoTreeV2{storageL1InfoTreeV2: storage},
 	}
 
 	return state

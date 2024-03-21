@@ -13,7 +13,7 @@ import (
 type storageL1InfoTreeV2 interface {
 	AddL1InfoRootToExitRootV2Feijoa(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntryV2Feijoa, dbTx pgx.Tx) error
 	GetAllL1InfoRootEntriesV2Feijoa(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntryV2Feijoa, error)
-	GetLatestL1InfoRootV2Feijoa(ctx context.Context, maxBlockNumber uint64) (L1InfoTreeExitRootStorageEntryV2Feijoa, error)
+	GetLatestL1InfoRootV2Feijoa(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (L1InfoTreeExitRootStorageEntryV2Feijoa, error)
 }
 type storage interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)

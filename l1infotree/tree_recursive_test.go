@@ -11,14 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testL1InfoEntry struct {
-	ger          common.Hash
-	blockhash    common.Hash
-	timestamp    uint64
-	index        uint32
-	expectedRoot common.Hash
-}
-
 const (
 	L1InfoRootRecursiveHeight = uint8(32)
 	EmptyL1InfoRootRecursive  = "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -37,10 +29,6 @@ type vectorTestData struct {
 	L1DataHash             common.Hash   `json:"l1DataHash"`
 	L1InfoTreeRoot         common.Hash   `json:"l1InfoTreeRoot"`
 	HistoricL1InfoRoot     common.Hash   `json:"historicL1InfoRoot"`
-}
-
-func hash(leaf testL1InfoEntry) [32]byte {
-	return l1infotree.HashLeafData(leaf.ger, leaf.blockhash, leaf.timestamp)
 }
 
 func readData(t *testing.T) []vectorTestData {
@@ -64,7 +52,6 @@ func TestBuildTreeVectorData(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, testVector.L1InfoTreeRoot.String(), root.String(), "Roots do not match leaf", testVector.Index)
 		require.Equal(t, testVector.L1DataHash.String(), leafDataHash.String(), "leafData do not match leaf", testVector.Index)
-
 	}
 }
 
@@ -93,7 +80,6 @@ func TestProofsTreeVectorData(t *testing.T) {
 			if c.String() != testVector.SmtProofPreviousIndex[i].String() {
 				log.Info("MerkleProof: index ", testVector.Index, " mk:", i, " v:", c.String(), " expected:", testVector.SmtProofPreviousIndex[i].String())
 			}
-
 		}
 	}
 }
