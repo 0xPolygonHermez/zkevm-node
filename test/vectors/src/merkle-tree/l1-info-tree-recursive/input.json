@@ -1,0 +1,17 @@
+[
+    {
+        "globalExitRoot": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "timestamp": "0"
+    },
+    {
+        "globalExitRoot": "0x16994edfddddb9480667b64174fc00d3b6da7290d37b8db3a16571b4ddf0789f",
+        "blockHash": "0x24a5871d68723340d9eadc674aa8ad75f3e33b61d5a9db7db92af856a19270bb",
+        "timestamp": "42"
+    },
+    {
+        "globalExitRoot": "0x887c22bd8750d34016ac3c66b5ff102dacdd73f6b014e710b51e8022af9a1968",
+        "blockHash": "0xc1df82d9c4b87413eae2ef048f94b4d3554cea73d92b0f7af96e0271c691e2bb",
+        "timestamp": "42"
+    }
+]

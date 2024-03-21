@@ -10,6 +10,11 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+type storageL1InfoTreeV2 interface {
+	AddL1InfoRootToExitRootV2Feijoa(ctx context.Context, exitRoot *L1InfoTreeExitRootStorageEntryV2Feijoa, dbTx pgx.Tx) error
+	GetAllL1InfoRootEntriesV2Feijoa(ctx context.Context, dbTx pgx.Tx) ([]L1InfoTreeExitRootStorageEntryV2Feijoa, error)
+	GetLatestL1InfoRootV2Feijoa(ctx context.Context, maxBlockNumber uint64) (L1InfoTreeExitRootStorageEntryV2Feijoa, error)
+}
 type storage interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
@@ -158,4 +163,6 @@ type storage interface {
 	UpdateBatchAsChecked(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) error
 	GetNotCheckedBatches(ctx context.Context, dbTx pgx.Tx) ([]*Batch, error)
 	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*L2Block, error)
+
+	storageL1InfoTreeV2
 }
