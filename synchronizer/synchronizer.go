@@ -131,7 +131,25 @@ func NewSynchronizer(
 			uint64(state.FORKID_ELDERBERRY): syncTrustedStateEtrog,
 		}, res.state)
 	}
-	res.l1EventProcessors = defaultsL1EventProcessors(res)
+	var l1checkerL2Blocks *actions.CheckL2BlockHash
+	if cfg.L1SyncCheckL2BlockHash {
+		if !isTrustedSequencer {
+			log.Infof("Permissionless: L1SyncCheckL2BlockHash is enabled")
+			initialL2Block, err := res.state.GetLastL2BlockNumber(res.ctx, nil)
+			if errors.Is(err, state.ErrStateNotSynchronized) {
+				initialL2Block = 1
+				log.Info("State is empty, can't get last L2Block number. Using %d as initial L2Block number", initialL2Block)
+			} else if err != nil {
+				log.Errorf("error getting last L2Block number from state. Error: %v", err)
+				return nil, err
+			}
+			l1checkerL2Blocks = actions.NewCheckL2BlockHash(res.state, res.zkEVMClient, initialL2Block, cfg.L1SyncCheckL2BlockNumberhModulus)
+		} else {
+			log.Infof("Trusted Node can't check L2Block hash, ignoring parameter")
+		}
+	}
+
+	res.l1EventProcessors = defaultsL1EventProcessors(res, l1checkerL2Blocks)
 	res.blockRangeProcessor = NewBlockRangeProcessLegacy(st, res.l1EventProcessors, res)
 	res.syncPreRollup = NewSyncPreRollup(ethMan, st, res.blockRangeProcessor, cfg.SyncChunkSize, genesis.BlockNumber)
 	switch cfg.L1SynchronizationMode {

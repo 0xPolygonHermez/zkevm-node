@@ -5,7 +5,6 @@ package mock_syncinterfaces
 import (
 	context "context"
 
-	pgx "github.com/jackc/pgx/v4"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -22,17 +21,17 @@ func (_m *SyncPreRollupSyncer) EXPECT() *SyncPreRollupSyncer_Expecter {
 	return &SyncPreRollupSyncer_Expecter{mock: &_m.Mock}
 }
 
-// SynchronizePreGenesisRollupEvents provides a mock function with given fields: ctx, dbTx
-func (_m *SyncPreRollupSyncer) SynchronizePreGenesisRollupEvents(ctx context.Context, dbTx pgx.Tx) error {
-	ret := _m.Called(ctx, dbTx)
+// SynchronizePreGenesisRollupEvents provides a mock function with given fields: ctx
+func (_m *SyncPreRollupSyncer) SynchronizePreGenesisRollupEvents(ctx context.Context) error {
+	ret := _m.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SynchronizePreGenesisRollupEvents")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) error); ok {
-		r0 = rf(ctx, dbTx)
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(ctx)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -47,14 +46,13 @@ type SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call struct {
 
 // SynchronizePreGenesisRollupEvents is a helper method to define mock.On call
 //   - ctx context.Context
-//   - dbTx pgx.Tx
-func (_e *SyncPreRollupSyncer_Expecter) SynchronizePreGenesisRollupEvents(ctx interface{}, dbTx interface{}) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
-	return &SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call{Call: _e.mock.On("SynchronizePreGenesisRollupEvents", ctx, dbTx)}
+func (_e *SyncPreRollupSyncer_Expecter) SynchronizePreGenesisRollupEvents(ctx interface{}) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
+	return &SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call{Call: _e.mock.On("SynchronizePreGenesisRollupEvents", ctx)}
 }
 
-func (_c *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
+func (_c *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call) Run(run func(ctx context.Context)) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(pgx.Tx))
+		run(args[0].(context.Context))
 	})
 	return _c
 }
@@ -64,7 +62,7 @@ func (_c *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call) Return(_a0
 	return _c
 }
 
-func (_c *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call) RunAndReturn(run func(context.Context, pgx.Tx) error) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
+func (_c *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call) RunAndReturn(run func(context.Context) error) *SyncPreRollupSyncer_SynchronizePreGenesisRollupEvents_Call {
 	_c.Call.Return(run)
 	return _c
 }
