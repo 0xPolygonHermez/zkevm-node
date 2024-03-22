@@ -1320,6 +1320,13 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 		return nil, err
 	}
 
+	var (
+		maxSequenceTimestamp     uint64
+		initSequencedBatchNumber uint64
+		coinbase                 common.Address
+		dataAvailabilityMsg      []byte
+	)
+
 	switch method.Name {
 	case "sequenceBatches":
 		var sequences []polygonzkevm.PolygonRollupBaseEtrogBatchData
@@ -1327,9 +1334,17 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 		if err != nil {
 			return nil, err
 		}
-		maxSequenceTimestamp := data[1].(uint64)
-		initSequencedBatchNumber := data[2].(uint64)
-		coinbase := data[3].(common.Address)
+
+		switch forkID {
+		case state.FORKID_ETROG:
+			coinbase = data[1].(common.Address)
+
+		case state.FORKID_ELDERBERRY:
+			maxSequenceTimestamp = data[1].(uint64)
+			initSequencedBatchNumber = data[2].(uint64)
+			coinbase = data[3].(common.Address)
+		}
+
 		sequencedBatches := make([]SequencedBatch, len(sequences))
 		for i, seq := range sequences {
 			bn := lastBatchNumber - uint64(len(sequences)-(i+1))
@@ -1359,19 +1374,32 @@ func decodeSequencedBatches(smcAbi abi.ABI, txData []byte, forkID uint64, lastBa
 		if err != nil {
 			return nil, err
 		}
-		maxSequenceTimestamp := data[1].(uint64)
-		initSequencedBatchNumber := data[2].(uint64)
-		coinbase := data[3].(common.Address)
-		dataAvailabilityMessage := (data[4]).([]byte)
+
+		switch forkID {
+		case state.FORKID_ETROG:
+			coinbase = data[1].(common.Address)
+			dataAvailabilityMsg = data[2].([]byte)
+
+		case state.FORKID_ELDERBERRY:
+			maxSequenceTimestamp = data[1].(uint64)
+			initSequencedBatchNumber = data[2].(uint64)
+			coinbase = data[3].(common.Address)
+			dataAvailabilityMsg = data[4].([]byte)
+		}
+
 		sequencedBatches := make([]SequencedBatch, len(sequencesValidium))
-		var batchNums []uint64
-		var hashes []common.Hash
+
+		var (
+			batchNums []uint64
+			hashes    []common.Hash
+		)
+
 		for i, validiumData := range sequencesValidium {
 			bn := lastBatchNumber - uint64(len(sequencesValidium)-(i+1))
 			batchNums = append(batchNums, bn)
 			hashes = append(hashes, validiumData.TransactionsHash)
 		}
-		batchL2Data, err := da.GetBatchL2Data(batchNums, hashes, dataAvailabilityMessage)
+		batchL2Data, err := da.GetBatchL2Data(batchNums, hashes, dataAvailabilityMsg)
 		if err != nil {
 			return nil, err
 		}
