@@ -254,25 +254,27 @@ func (f *finalizer) checkL1InfoTreeUpdate(ctx context.Context) {
 		}
 
 		if firstL1InfoRootUpdate || l1InfoRoot.L1InfoTreeIndex > f.lastL1InfoTree.L1InfoTreeIndex {
-			l1BlockState, err := f.stateIntf.GetBlockByNumber(ctx, l1InfoRoot.BlockNumber, nil)
-			if err != nil {
-				log.Errorf("error getting L1 block %d from the state, error: %v", l1InfoRoot.BlockNumber, err)
-				continue
-			}
+			log.Infof("received new L1InfoRoot, l1InfoTreeIndex: %d, l1InfoTreeRoot: %s, l1Block: %d",
+				l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.BlockNumber)
 
-			log.Infof("received new L1InfoRoot, l1InfoTreeIndex: %d, l1InfoTreeRoot: %s, l1Block: %d, l1BlockHash: %s",
-				l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.L1InfoTreeRoot, l1InfoRoot.BlockNumber, l1BlockState.BlockHash)
+			// Sanity check l1BlockState (l1InfoRoot.BlockNumber) blockhash matches blockhash on ethereum. We skip it if l1InfoRoot.BlockNumber == 0 (empty tree)
+			if l1InfoRoot.BlockNumber > 0 {
+				l1BlockState, err := f.stateIntf.GetBlockByNumber(ctx, l1InfoRoot.BlockNumber, nil)
+				if err != nil {
+					log.Errorf("error getting L1 block %d from the state, error: %v", l1InfoRoot.BlockNumber, err)
+					continue
+				}
 
-			// Sanity check l1BlockState (l1InfoRoot.BlockNumber) blockhash matches blockhash on ethereum
-			l1BlockEth, err := f.etherman.HeaderByNumber(ctx, new(big.Int).SetUint64(l1InfoRoot.BlockNumber))
-			if err != nil {
-				log.Errorf("error getting L1 block %d from ethereum, error: %v", l1InfoRoot.BlockNumber, err)
-				continue
-			}
-			if l1BlockState.BlockHash != l1BlockEth.Hash() {
-				log.Warnf("skipping use of l1InfoTreeIndex %d, L1 block %d blockhash %s doesn't match blockhash on ethereum %s (L1 reorg?)",
-					l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.BlockNumber, l1BlockState.BlockHash, l1BlockEth.Hash())
-				continue
+				l1BlockEth, err := f.etherman.HeaderByNumber(ctx, new(big.Int).SetUint64(l1InfoRoot.BlockNumber))
+				if err != nil {
+					log.Errorf("error getting L1 block %d from ethereum, error: %v", l1InfoRoot.BlockNumber, err)
+					continue
+				}
+				if l1BlockState.BlockHash != l1BlockEth.Hash() {
+					log.Warnf("skipping use of l1InfoTreeIndex %d, L1 block %d blockhash %s doesn't match blockhash on ethereum %s (L1 reorg?)",
+						l1InfoRoot.L1InfoTreeIndex, l1InfoRoot.BlockNumber, l1BlockState.BlockHash, l1BlockEth.Hash())
+					continue
+				}
 			}
 
 			firstL1InfoRootUpdate = false
