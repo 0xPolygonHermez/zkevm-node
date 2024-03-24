@@ -1033,6 +1033,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
 			if !contained && l2blockRaw.IndexL1InfoTree != 0 {
 				l1InfoTreeExitRootStorageEntry := state.L1InfoTreeExitRootStorageEntry{}
+				l1InfoTreeExitRootStorageEntry.Timestamp = time.Unix(0, 0)
 				if l2blockRaw.IndexL1InfoTree <= leaves[len(leaves)-1].L1InfoTreeIndex {
 					l1InfoTreeExitRootStorageEntry, err = a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
 					if err != nil {
