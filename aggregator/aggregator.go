@@ -35,6 +35,8 @@ const (
 
 	ethTxManagerOwner = "aggregator"
 	monitoredIDFormat = "proof-from-%v-to-%v"
+
+	forkId9 = uint64(9)
 )
 
 type finalProofMsg struct {
@@ -182,7 +184,7 @@ func (a *Aggregator) Channel(stream prover.AggregatorService_ChannelServer) erro
 	log.Info("Establishing stream connection with prover")
 
 	// Check if prover supports the required Fork ID
-	if !prover.SupportsForkID(a.cfg.ForkId) {
+	if !prover.SupportsForkID(forkId9) {
 		err := errors.New("prover does not support required fork ID")
 		log.Warn(FirstToUpper(err.Error()))
 		return err
@@ -1091,7 +1093,7 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 			OldAccInputHash:   previousBatch.AccInputHash.Bytes(),
 			OldBatchNum:       previousBatch.BatchNumber,
 			ChainId:           a.cfg.ChainID,
-			ForkId:            a.cfg.ForkId,
+			ForkId:            forkId9,
 			BatchL2Data:       batchToVerify.BatchL2Data,
 			L1InfoRoot:        l1InfoRoot.Bytes(),
 			TimestampLimit:    uint64(batchToVerify.Timestamp.Unix()),
