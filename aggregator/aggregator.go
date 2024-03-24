@@ -1032,9 +1032,12 @@ func (a *Aggregator) buildInputProver(ctx context.Context, batchToVerify *state.
 		for _, l2blockRaw := range batchRawData.Blocks {
 			_, contained := l1InfoTreeData[l2blockRaw.IndexL1InfoTree]
 			if !contained && l2blockRaw.IndexL1InfoTree != 0 {
-				l1InfoTreeExitRootStorageEntry, err := a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
-				if err != nil {
-					return nil, err
+				l1InfoTreeExitRootStorageEntry := state.L1InfoTreeExitRootStorageEntry{}
+				if l2blockRaw.IndexL1InfoTree <= leaves[len(leaves)-1].L1InfoTreeIndex {
+					l1InfoTreeExitRootStorageEntry, err = a.State.GetL1InfoRootLeafByIndex(ctx, l2blockRaw.IndexL1InfoTree, nil)
+					if err != nil {
+						return nil, err
+					}
 				}
 
 				// Calculate smt proof
