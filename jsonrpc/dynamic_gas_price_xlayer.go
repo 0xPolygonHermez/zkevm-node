@@ -6,7 +6,9 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+	"time"
 
+	zktypes "github.com/0xPolygonHermez/zkevm-node/config/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -34,6 +36,9 @@ type DynamicGPConfig struct {
 
 	// MinPrice defines the dynamic gas price lower limit
 	MinPrice uint64 `mapstructure:"MinPrice"`
+
+	//UpdatePeriod defines the time interval for updating dynamic gas price
+	UpdatePeriod zktypes.Duration `mapstructure:"UpdatePeriod"`
 }
 
 // DynamicGPManager allows to update recommended gas price
@@ -44,10 +49,34 @@ type DynamicGPManager struct {
 	fetchLock         sync.Mutex
 }
 
+// runDynamicSuggester init the routine for dynamic gas price updates
+func (e *EthEndpoints) runDynamicGPSuggester() {
+	ctx := context.Background()
+	// initialization
+	updateTimer := time.NewTimer(10 * time.Second) //nolint:gomnd
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info("Finishing dynamic gas price suggester...")
+			return
+		case <-updateTimer.C:
+			if getApolloConfig().Enable() {
+				getApolloConfig().RLock()
+				e.cfg.DynamicGP = getApolloConfig().DynamicGP
+				getApolloConfig().RUnlock()
+			}
+			log.Info("Dynamic gas price update period is ", e.cfg.DynamicGP.UpdatePeriod.Duration.String())
+			e.calcDynamicGP(ctx)
+			updateTimer.Reset(e.cfg.DynamicGP.UpdatePeriod.Duration)
+		}
+	}
+}
+
 func (e *EthEndpoints) calcDynamicGP(ctx context.Context) {
 	l2BatchNumber, err := e.state.GetLastBatchNumber(ctx, nil)
 	if err != nil {
 		log.Errorf("failed to get last l2 batch number, err: %v", err)
+		return
 	}
 
 	e.dgpMan.cacheLock.RLock()
@@ -57,6 +86,28 @@ func (e *EthEndpoints) calcDynamicGP(ctx context.Context) {
 		log.Debug("Batch is still the same, no need to update the gas price at the moment, lastL2BatchNumber: ", lastL2BatchNumber)
 		return
 	}
+
+	// judge if there is congestion
+	isCongested, err := e.isCongested(ctx)
+	if err != nil {
+		log.Errorf("failed to count pool txs by status pending while judging if the pool is congested: ", err)
+		return
+	}
+
+	if !isCongested {
+		gasPrices, err := e.pool.GetGasPrices(ctx)
+		if err != nil {
+			log.Errorf("failed to get raw gas prices when it is not congested: ", err)
+			return
+		}
+		e.dgpMan.cacheLock.Lock()
+		e.dgpMan.lastPrice = new(big.Int).SetUint64(gasPrices.L2GasPrice)
+		e.dgpMan.lastL2BatchNumber = l2BatchNumber
+		e.dgpMan.cacheLock.Unlock()
+		return
+	}
+
+	log.Debug("there is congestion for L2")
 
 	e.dgpMan.fetchLock.Lock()
 	defer e.dgpMan.fetchLock.Unlock()

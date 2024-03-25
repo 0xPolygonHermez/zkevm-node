@@ -789,6 +789,16 @@
 							"type": "integer",
 							"description": "MinPrice defines the dynamic gas price lower limit",
 							"default": 0
+						},
+						"UpdatePeriod": {
+							"type": "string",
+							"title": "Duration",
+							"description": "UpdatePeriod defines the time interval for updating dynamic gas price",
+							"default": "0s",
+							"examples": [
+								"1m",
+								"300ms"
+							]
 						}
 					},
 					"additionalProperties": false,
