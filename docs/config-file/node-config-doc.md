@@ -1272,6 +1272,7 @@ FreeClaimGasLimit=150000
 | - [DisableAPIs](#RPC_DisableAPIs )                                           | No      | array of string  | No         | -          | DisableAPIs disable some API                                                                                                                                                                                                                                                                                                                       |
 | - [RateLimit](#RPC_RateLimit )                                               | No      | object           | No         | -          | RateLimit enable rate limit                                                                                                                                                                                                                                                                                                                        |
 | - [DynamicGP](#RPC_DynamicGP )                                               | No      | object           | No         | -          | DynamicGP defines the config of dynamic gas price                                                                                                                                                                                                                                                                                                  |
+| - [EnableInnerTxCacheDB](#RPC_EnableInnerTxCacheDB )                         | No      | boolean          | No         | -          | EnableInnerTxCacheDB enables the inner tx cache db                                                                                                                                                                                                                                                                                                 |
 
 ### <a name="RPC_Host"></a>8.1. `RPC.Host`
 
@@ -2010,6 +2011,7 @@ SpecialApis=[]
 | - [Percentile](#RPC_DynamicGP_Percentile )                       | No      | integer | No         | -          | Percentile defines the sampling weight of all sampled gas prices                      |
 | - [MaxPrice](#RPC_DynamicGP_MaxPrice )                           | No      | integer | No         | -          | MaxPrice defines the dynamic gas price upper limit                                    |
 | - [MinPrice](#RPC_DynamicGP_MinPrice )                           | No      | integer | No         | -          | MinPrice defines the dynamic gas price lower limit                                    |
+| - [UpdatePeriod](#RPC_DynamicGP_UpdatePeriod )                   | No      | string  | No         | -          | Duration                                                                              |
 
 #### <a name="RPC_DynamicGP_Enabled"></a>8.24.1. `RPC.DynamicGP.Enabled`
 
@@ -2107,6 +2109,46 @@ MaxPrice=0
 ```
 [RPC.DynamicGP]
 MinPrice=0
+```
+
+#### <a name="RPC_DynamicGP_UpdatePeriod"></a>8.24.8. `RPC.DynamicGP.UpdatePeriod`
+
+**Title:** Duration
+
+**Type:** : `string`
+
+**Default:** `"0s"`
+
+**Description:** UpdatePeriod defines the time interval for updating dynamic gas price
+
+**Examples:** 
+
+```json
+"1m"
+```
+
+```json
+"300ms"
+```
+
+**Example setting the default value** ("0s"):
+```
+[RPC.DynamicGP]
+UpdatePeriod="0s"
+```
+
+### <a name="RPC_EnableInnerTxCacheDB"></a>8.25. `RPC.EnableInnerTxCacheDB`
+
+**Type:** : `boolean`
+
+**Default:** `false`
+
+**Description:** EnableInnerTxCacheDB enables the inner tx cache db
+
+**Example setting the default value** (false):
+```
+[RPC]
+EnableInnerTxCacheDB=false
 ```
 
 ## <a name="Synchronizer"></a>9. `[Synchronizer]`

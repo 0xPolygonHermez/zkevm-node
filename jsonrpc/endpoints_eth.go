@@ -48,6 +48,7 @@ func NewEthEndpoints(cfg Config, chainID uint64, p types.PoolInterface, s types.
 		lastL2BatchNumber: 0,
 		lastPrice:         new(big.Int).SetUint64(cfg.DynamicGP.MinPrice),
 	}
+	go e.runDynamicGPSuggester()
 	s.RegisterNewL2BlockEventHandler(e.onNewL2Block)
 
 	return e
@@ -218,26 +219,12 @@ func (e *EthEndpoints) GasPrice() (interface{}, types.Error) {
 	if err != nil {
 		return "0x0", nil
 	}
+
 	result := new(big.Int).SetUint64(gasPrices.L2GasPrice)
-	if getApolloConfig().Enable() {
-		getApolloConfig().RLock()
-		e.cfg.DynamicGP = getApolloConfig().DynamicGP
-		getApolloConfig().RUnlock()
-	}
 	if e.cfg.DynamicGP.Enabled {
-		log.Debug("enable dynamic gas price")
-		// judge if there is congestion
-		isCongested, err := e.isCongested(ctx)
-		if err != nil {
-			log.Errorf("failed to count pool txs by status pending while judging if the pool is congested: ", err)
-			return hex.EncodeUint64(gasPrices.L2GasPrice), nil
-		}
-		if isCongested {
-			log.Debug("there is congestion for L2")
-			e.calcDynamicGP(ctx)
-			if result.Cmp(e.dgpMan.lastPrice) < 0 {
-				result = new(big.Int).Set(e.dgpMan.lastPrice)
-			}
+		dgp := e.dgpMan.lastPrice
+		if result.Cmp(dgp) < 0 {
+			result = new(big.Int).Set(dgp)
 		}
 	}
 
