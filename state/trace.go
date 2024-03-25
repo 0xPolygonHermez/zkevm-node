@@ -78,7 +78,11 @@ func (s *State) DebugTransaction(ctx context.Context, transactionHash common.Has
 	var effectivePercentage []uint8
 	for i := 0; i <= count; i++ {
 		txsToEncode = append(txsToEncode, *l2Block.Transactions()[i])
-		effectivePercentage = append(effectivePercentage, MaxEffectivePercentage)
+		egpPercentage, err := CalculateEffectiveGasPricePercentage(tx.GasPrice(), receipt.EffectiveGasPrice)
+		if err != nil {
+			return nil, err
+		}
+		effectivePercentage = append(effectivePercentage, egpPercentage)
 		log.Debugf("trace will reprocess tx: %v", l2Block.Transactions()[i].Hash().String())
 	}
 
