@@ -658,7 +658,7 @@ func TestForkIDs(t *testing.T) {
 		require.Equal(t, forks[i].Version, forkId.Version)
 	}
 	forkID3.ToBatchNumber = 18446744073709551615
-	err = testState.UpdateForkID(ctx, forkID3, dbTx)
+	err = testState.UpdateForkIDToBatchNumber(ctx, forkID3, dbTx)
 	require.NoError(t, err)
 
 	forkIDs, err = testState.GetForkIDs(ctx, dbTx)

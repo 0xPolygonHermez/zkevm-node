@@ -70,4 +70,7 @@ type StateFullInterface interface {
 	GetExitRootByGlobalExitRoot(ctx context.Context, ger common.Hash, dbTx pgx.Tx) (*state.GlobalExitRoot, error)
 	GetForkIDInMemory(forkId uint64) *state.ForkIDInterval
 	GetLastL2BlockByBatchNumber(ctx context.Context, batchNumber uint64, dbTx pgx.Tx) (*state.L2Block, error)
+	UpdateForkIDBlockNumber(ctx context.Context, forkdID uint64, newBlockNumber uint64, updateMemCache bool, dbTx pgx.Tx) error
+	GetLastL2BlockNumber(ctx context.Context, dbTx pgx.Tx) (uint64, error)
+	GetL2BlockByNumber(ctx context.Context, blockNumber uint64, dbTx pgx.Tx) (*state.L2Block, error)
 }
