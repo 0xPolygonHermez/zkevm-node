@@ -97,6 +97,9 @@ type Config struct {
 
 	// DynamicGP defines the config of dynamic gas price
 	DynamicGP DynamicGPConfig `mapstructure:"DynamicGP"`
+
+	// EnableInnerTxCacheDB enables the inner tx cache db
+	EnableInnerTxCacheDB bool `mapstructure:"EnableInnerTxCacheDB"`
 }
 
 // ZKCountersLimits defines the ZK Counter limits

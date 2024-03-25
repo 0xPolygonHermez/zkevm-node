@@ -804,6 +804,11 @@
 					"additionalProperties": false,
 					"type": "object",
 					"description": "DynamicGP defines the config of dynamic gas price"
+				},
+				"EnableInnerTxCacheDB": {
+					"type": "boolean",
+					"description": "EnableInnerTxCacheDB enables the inner tx cache db",
+					"default": false
 				}
 			},
 			"additionalProperties": false,

@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/jsonrpc/types"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/state"
@@ -32,6 +34,21 @@ func (e *EthEndpoints) GetInternalTransactions(hash types.ArgHash) (interface{},
 			state: e.state,
 		}
 	})
+	if e.cfg.EnableInnerTxCacheDB {
+		dbCtx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond) //nolint:gomnd
+		defer cancel()
+		if ret, err := e.pool.GetInnerTx(dbCtx, hash.Hash()); err == nil {
+			var innerTxs []*InnerTx
+			err = json.Unmarshal([]byte(ret), &innerTxs)
+			if err == nil {
+				metrics.RequestInnerTxCachedCount()
+				return innerTxs, nil
+			} else {
+				log.Errorf("failed to unmarshal inner txs: %v", err)
+			}
+		}
+	}
+
 	return debugEndPoints.txMan.NewDbTxScope(debugEndPoints.state, func(ctx context.Context, dbTx pgx.Tx) (interface{}, types.Error) {
 		ret, err := debugEndPoints.buildInnerTransaction(ctx, hash.Hash(), dbTx)
 		if err != nil {
@@ -52,6 +69,20 @@ func (e *EthEndpoints) GetInternalTransactions(hash types.ArgHash) (interface{},
 			return nil, types.NewRPCError(types.ParserErrorCode, stderr.Error())
 		}
 		result := internalTxTraceToInnerTxs(of)
+		metrics.RequestInnerTxExecutedCount()
+
+		if e.cfg.EnableInnerTxCacheDB {
+			// Add inner txs to the pool
+			if innerTxBlob, err := json.Marshal(result); err == nil {
+				go func() {
+					dbContext, c := context.WithTimeout(context.Background(), 3*time.Second) //nolint:gomnd
+					defer c()
+					if err := e.pool.AddInnerTx(dbContext, hash.Hash(), innerTxBlob); err != nil {
+						metrics.RequestInnerTxAddErrorCount()
+					}
+				}()
+			}
+		}
 
 		return result, nil
 	})
