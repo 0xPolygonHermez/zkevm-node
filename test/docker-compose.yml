@@ -603,10 +603,14 @@ services:
   zkevm-permissionless-prover:
     container_name: zkevm-permissionless-prover
 <<<<<<< HEAD
+<<<<<<< HEAD
     image: hermeznetwork/zkevm-prover:v5.0.6
 =======
     image: hermeznetwork/zkevm-prover:v6.0.0
 >>>>>>> a103c15e (fix aggregator l1 info tree (#3491))
+=======
+    image: hermeznetwork/zkevm-prover:v5.0.9
+>>>>>>> release/v0.6.4
     ports:
       # - 50058:50058 # Prover
       - 50059:50052 # Mock prover
