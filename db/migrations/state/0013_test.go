@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ()
-
 // this migration changes length of the token name
 type migrationTest0013 struct {
 	blockHashValue         string

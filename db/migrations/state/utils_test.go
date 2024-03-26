@@ -44,13 +44,21 @@ type migrationBase struct {
 }
 
 func (m migrationBase) AssertNewAndRemovedItemsAfterMigrationUp(t *testing.T, db *sql.DB) {
+	assertIndexesNotExist(t, db, m.removedIndexes)
 	assertTablesNotExist(t, db, m.removedTables)
+	assertColumnsNotExist(t, db, m.removedColumns)
+
+	assertIndexesExist(t, db, m.newIndexes)
 	assertTablesExist(t, db, m.newTables)
 	assertColumnsExist(t, db, m.newColumns)
 }
 
 func (m migrationBase) AssertNewAndRemovedItemsAfterMigrationDown(t *testing.T, db *sql.DB) {
+	assertIndexesExist(t, db, m.removedIndexes)
 	assertTablesExist(t, db, m.removedTables)
+	assertColumnsExist(t, db, m.removedColumns)
+
+	assertIndexesNotExist(t, db, m.newIndexes)
 	assertTablesNotExist(t, db, m.newTables)
 	assertColumnsNotExist(t, db, m.newColumns)
 }
