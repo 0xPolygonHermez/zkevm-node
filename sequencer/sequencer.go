@@ -11,6 +11,7 @@ import (
 	"github.com/0xPolygonHermez/zkevm-node/event"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/0xPolygonHermez/zkevm-node/pool"
+	pmetrics "github.com/0xPolygonHermez/zkevm-node/sequencer/metrics"
 	"github.com/0xPolygonHermez/zkevm-node/state"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -73,6 +74,7 @@ func (s *Sequencer) Start(ctx context.Context) {
 		log.Infof("waiting for synchronizer to sync...")
 		time.Sleep(time.Second)
 	}
+	pmetrics.Register()
 
 	err := s.pool.MarkWIPTxsAsPending(ctx)
 	if err != nil {
@@ -95,6 +97,8 @@ func (s *Sequencer) Start(ctx context.Context) {
 	}
 
 	go s.loadFromPool(ctx)
+
+	go s.countPendingTx()
 
 	if s.streamServer != nil {
 		go s.sendDataToStreamer(s.cfg.StreamServer.ChainID)
@@ -196,7 +200,7 @@ func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 // loadFromPool keeps loading transactions from the pool
 func (s *Sequencer) loadFromPool(ctx context.Context) {
 	for {
-		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx)
+		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx, getQueryPendingTxsLimit(s.cfg.QueryPendingTxsLimit))
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("error loading txs from pool, error: %v", err)
 		}

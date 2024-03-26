@@ -51,24 +51,15 @@ const (
 	ProcessingTxCommit logTag = "ProcessingTxCommit"
 	// ProcessingTxResponse is used to log transaction response events.
 	ProcessingTxResponse logTag = "ProcessingTxResponse"
+	// ProcessingBlockTiming is used to log block processing time.
+	ProcessingBlockTiming logTag = "ProcessBlockTiming"
+	// StoreBlockTiming is used to log block storage time.
+	StoreBlockTiming logTag = "StoreBlockTiming"
 
 	// CloseWIPL2Block is used to log close WIP L2 block events.
 	CloseWIPL2Block logTag = "CloseWIPL2Block"
 	// OpenNewWIPL2Block is used to log open new WIP L2 block events.
 	OpenNewWIPL2Block logTag = "OpenNewWIPL2Block"
-	// StoreL2Block is used to log L2 block storage events.
-	StoreL2Block logTag = "StoreL2Block"
-
-	// PoolUpdateTxStatus is used to log pool update transaction status events.
-	PoolUpdateTxStatus logTag = "PoolUpdateTxStatus"
-	// DeletePendingTxToStore is used to log delete pending transaction to store events.
-	DeletePendingTxToStore logTag = "DeletePendingTxToStore"
-	// UpdateWIPBatch is used to log update WIP batch events.
-	UpdateWIPBatch logTag = "UpdateWIPBatch"
-	// DSSendL2Block is used to log DS send L2 block events.
-	DSSendL2Block logTag = "DSSendL2Block"
-	// StateStoreL2Block is used to log state store L2 block events.
-	StateStoreL2Block logTag = "StateStoreL2Block"
 
 	// FinalizeBatchTiming is used to log batch finalization time.
 	FinalizeBatchTiming logTag = "FinalizeBatchTiming"

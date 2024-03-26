@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -380,7 +381,7 @@ func (f *finalizer) finalizeBatches(ctx context.Context) {
 			seqMetrics.GetLogStatistics().SetTag(seqMetrics.BatchCloseReason, string(closeReason))
 
 			log.Infof(seqMetrics.GetLogStatistics().Summary())
-			seqMetrics.BatchExecuteTime(seqMetrics.BatchFinalizeTypeLabelDeadline, seqMetrics.GetLogStatistics().GetStatistics(seqMetrics.ProcessingTxCommit))
+			seqMetrics.BatchExecuteTime(seqMetrics.BatchFinalizeTypeLabel(strings.ToLower(strings.ReplaceAll(string(closeReason), " ", "_"))), seqMetrics.GetLogStatistics().GetStatistics(seqMetrics.ProcessingTxCommit))
 			seqMetrics.GetLogStatistics().ResetStatistics()
 			seqMetrics.GetLogStatistics().UpdateTimestamp(seqMetrics.NewRound, time.Now())
 			seqMetrics.TrustBatchNum(f.wipBatch.batchNumber - 1)
@@ -826,6 +827,7 @@ func (f *finalizer) Halt(ctx context.Context, err error, isFatal bool) {
 		log.Fatalf("fatal error on finalizer, error: %v", err)
 	} else {
 		for {
+			seqMetrics.HaltCount()
 			log.Errorf("halting finalizer, error: %v", err)
 			time.Sleep(5 * time.Second) //nolint:gomnd
 		}
