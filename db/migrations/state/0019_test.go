@@ -38,7 +38,7 @@ func (m migrationTest0019) insertRowInOldTable(db *sql.DB, args ...interface{}) 
 
 func (m migrationTest0019) insertRowInMigratedTable(db *sql.DB, args ...interface{}) error {
 	sql := `
-    INSERT INTO state.exit_root (block_num, "timestamp", mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index, l1_info_tree_index_feijoa)
+    INSERT INTO state.exit_root (block_num, "timestamp", mainnet_exit_root, rollup_exit_root, global_exit_root, prev_block_hash, l1_info_root, l1_info_tree_index, l1_info_tree_recursive_index)
                          VALUES (       $1,          $2,                $3,               $4,               $5,              $6,           $7,                 $8,                        $9);`
 
 	_, err := db.Exec(sql, args...)
@@ -88,10 +88,10 @@ func TestMigration0019(t *testing.T) {
 	m := migrationTest0019{
 		migrationBase: migrationBase{
 			newIndexes: []string{
-				"idx_exit_root_l1_info_tree_index_feijoa",
+				"idx_exit_root_l1_info_tree_recursive_index",
 			},
 			newColumns: []columnMetadata{
-				{"state", "exit_root", "l1_info_tree_index_feijoa"},
+				{"state", "exit_root", "l1_info_tree_recursive_index"},
 			},
 		},
 

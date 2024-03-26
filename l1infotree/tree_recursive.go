@@ -30,14 +30,11 @@ func NewL1InfoTreeRecursive(height uint8) (*L1InfoTreeRecursive, error) {
 
 // NewL1InfoTreeRecursiveFromLeaves creates a new L1InfoTreeRecursive from leaves
 func NewL1InfoTreeRecursiveFromLeaves(height uint8, leaves [][32]byte) (*L1InfoTreeRecursive, error) {
-	historic, err := NewL1InfoTree(height, nil)
+	res, err := NewL1InfoTreeRecursive(height)
 	if err != nil {
 		return nil, err
 	}
 
-	res := &L1InfoTreeRecursive{
-		historicL1InfoTree: historic,
-	}
 	for _, leaf := range leaves {
 		_, err := res.AddLeaf(uint32(len(res.leaves)), leaf)
 		if err != nil {

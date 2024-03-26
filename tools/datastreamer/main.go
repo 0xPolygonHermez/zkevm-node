@@ -207,7 +207,7 @@ func generate(cliCtx *cli.Context) error {
 	stateTree := merkletree.NewStateTree(mtDBServiceClient)
 	log.Debug("Connected to the merkle tree")
 
-	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil, nil)
+	stateDB := state.NewState(state.Config{}, stateDBStorage, nil, stateTree, nil, nil, nil)
 
 	// Calculate intermediate state roots
 	var imStateRoots map[uint64][]byte

@@ -32,18 +32,18 @@ var (
 type State struct {
 	cfg Config
 	storage
-	executorClient executor.ExecutorServiceClient
-	tree           *merkletree.StateTree
-	eventLog       *event.EventLog
-	l1InfoTree     *l1infotree.L1InfoTree
+	executorClient      executor.ExecutorServiceClient
+	tree                *merkletree.StateTree
+	eventLog            *event.EventLog
+	l1InfoTree          *l1infotree.L1InfoTree
+	l1InfoTreeRecursive *l1infotree.L1InfoTreeRecursive
 
 	newL2BlockEvents        chan NewL2BlockEvent
 	newL2BlockEventHandlers []NewL2BlockEventHandler
-	StateL1InfoTreeV2
 }
 
 // NewState creates a new State
-func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog, mt *l1infotree.L1InfoTree) *State {
+func NewState(cfg Config, storage storage, executorClient executor.ExecutorServiceClient, stateTree *merkletree.StateTree, eventLog *event.EventLog, mt *l1infotree.L1InfoTree, mtr *l1infotree.L1InfoTreeRecursive) *State {
 	var once sync.Once
 	once.Do(func() {
 		metrics.Register()
@@ -58,7 +58,7 @@ func NewState(cfg Config, storage storage, executorClient executor.ExecutorServi
 		newL2BlockEvents:        make(chan NewL2BlockEvent, newL2BlockEventBufferSize),
 		newL2BlockEventHandlers: []NewL2BlockEventHandler{},
 		l1InfoTree:              mt,
-		StateL1InfoTreeV2:       StateL1InfoTreeV2{storageL1InfoTreeV2: storage},
+		l1InfoTreeRecursive:     mtr,
 	}
 
 	return state
