@@ -243,6 +243,7 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 	imStateRoots := make([]common.Hash, 0, numTxs)
 	var receipt *types.Receipt
 
+	txIndex := 0
 	for i, txResponse := range l2Block.TransactionResponses {
 		// if the transaction has an intrinsic invalid tx error it means
 		// the transaction has not changed the state, so we don't store it
@@ -262,9 +263,10 @@ func (s *State) StoreL2Block(ctx context.Context, batchNumber uint64, l2Block *P
 
 		storeTxsEGPData = append(storeTxsEGPData, storeTxEGPData)
 
-		receipt = GenerateReceipt(header.Number, txResponse, uint(i), forkID)
+		receipt = GenerateReceipt(header.Number, txResponse, uint(txIndex), forkID)
 		receipts = append(receipts, receipt)
 		imStateRoots = append(imStateRoots, txResp.StateRoot)
+		txIndex++
 	}
 
 	// Create block to be able to calculate its hash
