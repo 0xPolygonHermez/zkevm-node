@@ -36,6 +36,8 @@ type Config struct {
 	PackBatchSpacialList []string `mapstructure:"PackBatchSpacialList"`
 	// GasPriceMultiple is the multiple of the gas price
 	GasPriceMultiple float64 `mapstructure:"GasPriceMultiple"`
+	// QueryPendingTxsLimit is used to limit amount txs from the db
+	QueryPendingTxsLimit uint64 `mapstructure:"QueryPendingTxsLimit"`
 }
 
 // StreamServerCfg contains the data streamer's configuration properties

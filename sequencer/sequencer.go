@@ -200,7 +200,7 @@ func (s *Sequencer) expireOldWorkerTxs(ctx context.Context) {
 // loadFromPool keeps loading transactions from the pool
 func (s *Sequencer) loadFromPool(ctx context.Context) {
 	for {
-		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx)
+		poolTransactions, err := s.pool.GetNonWIPPendingTxs(ctx, getQueryPendingTxsLimit(s.cfg.QueryPendingTxsLimit))
 		if err != nil && err != pool.ErrNotFound {
 			log.Errorf("error loading txs from pool, error: %v", err)
 		}

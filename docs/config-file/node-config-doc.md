@@ -2572,6 +2572,7 @@ CheckLastL2BlockHashOnCloseBatch=true
 | - [StreamServer](#Sequencer_StreamServer )                                           | No      | object          | No         | -          | StreamServerCfg is the config for the stream server                                                 |
 | - [PackBatchSpacialList](#Sequencer_PackBatchSpacialList )                           | No      | array of string | No         | -          | XLayer config<br />PackBatchSpacialList is the list of addresses that will have a special gas price |
 | - [GasPriceMultiple](#Sequencer_GasPriceMultiple )                                   | No      | number          | No         | -          | GasPriceMultiple is the multiple of the gas price                                                   |
+| - [QueryPendingTxsLimit](#Sequencer_QueryPendingTxsLimit )                           | No      | integer         | No         | -          | QueryPendingTxsLimit is used to limit amount txs from the db                                        |
 
 ### <a name="Sequencer_DeletePoolTxsL1BlockConfirmations"></a>10.1. `Sequencer.DeletePoolTxsL1BlockConfirmations`
 
@@ -3228,6 +3229,20 @@ PackBatchSpacialList is the list of addresses that will have a special gas price
 ```
 [Sequencer]
 GasPriceMultiple=0
+```
+
+### <a name="Sequencer_QueryPendingTxsLimit"></a>10.11. `Sequencer.QueryPendingTxsLimit`
+
+**Type:** : `integer`
+
+**Default:** `0`
+
+**Description:** QueryPendingTxsLimit is used to limit amount txs from the db
+
+**Example setting the default value** (0):
+```
+[Sequencer]
+QueryPendingTxsLimit=0
 ```
 
 ## <a name="SequenceSender"></a>11. `[SequenceSender]`
