@@ -60,21 +60,21 @@ var (
 				Name: requestInnerTxCachedName,
 				Help: "[JSONRPC] number of cached innertx requests",
 			},
-			Labels: []string{},
+			Labels: []string{"type"},
 		},
 		{
 			CounterOpts: prometheus.CounterOpts{
 				Name: requestInnerTxExecutedName,
 				Help: "[JSONRPC] number of executed innertx requests",
 			},
-			Labels: []string{},
+			Labels: []string{"type"},
 		},
 		{
 			CounterOpts: prometheus.CounterOpts{
 				Name: requestInnerTxAddErrorCount,
 				Help: "[JSONRPC] number of add innertx count",
 			},
-			Labels: []string{},
+			Labels: []string{"type"},
 		},
 	}
 )
@@ -105,15 +105,15 @@ func RequestMethodCount(method string) {
 
 // RequestInnerTxExecutedCount increments the inner tx executed counter vector by one.
 func RequestInnerTxExecutedCount() {
-	metrics.CounterInc(requestInnerTxExecutedName)
+	metrics.CounterVecInc(requestInnerTxExecutedName, "executed")
 }
 
 // RequestInnerTxCachedCount increments the inner tx cached counter vector by one.
 func RequestInnerTxCachedCount() {
-	metrics.CounterInc(requestInnerTxCachedName)
+	metrics.CounterVecInc(requestInnerTxCachedName, "cached")
 }
 
 // RequestInnerTxAddErrorCount increments the inner tx add error counter vector by one.
 func RequestInnerTxAddErrorCount() {
-	metrics.CounterInc(requestInnerTxAddErrorCount)
+	metrics.CounterVecInc(requestInnerTxAddErrorCount, "add_error")
 }
