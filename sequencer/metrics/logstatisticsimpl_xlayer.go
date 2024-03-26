@@ -71,12 +71,8 @@ func (l *logStatisticsInstance) Summary() string {
 
 	wipBlock := "CloseWIPL2Block<" + strconv.Itoa(int(l.statistics[CloseWIPL2Block])) + "ms>, " + "OpenNewWIPL2Block<" + strconv.Itoa(int(l.statistics[OpenNewWIPL2Block])) + "ms>, "
 
-	storeL2Block := "StoreL2Block<" + strconv.Itoa(int(l.statistics[StoreL2Block])) + "ms, " +
-		"StateStoreL2Block<" + strconv.Itoa(int(l.statistics[StateStoreL2Block])) + "ms>, " +
-		"UpdateWIPBatch<" + strconv.Itoa(int(l.statistics[UpdateWIPBatch])) + "ms>, " +
-		"PoolUpdateTxStatus<" + strconv.Itoa(int(l.statistics[PoolUpdateTxStatus])) + "ms>, " +
-		"DSSendL2Block<" + strconv.Itoa(int(l.statistics[DSSendL2Block])) + "ms>, " +
-		"DeletePendingTxToStore<" + strconv.Itoa(int(l.statistics[DeletePendingTxToStore])) + "ms>>, "
+	processingL2Block := "ProcessBlock<" + strconv.Itoa(int(l.statistics[ProcessingBlockTiming])) + "ms>, "
+	storeL2Block := "StoreBlock<" + strconv.Itoa(int(l.statistics[StoreBlockTiming])) + "ms>, "
 
 	result := "Batch<" + l.tags[FinalizeBatchNumber] + ">, " +
 		"TotalDuration<" + batchTotalDuration + "ms>, " +
@@ -92,6 +88,7 @@ func (l *logStatisticsInstance) Summary() string {
 		processTxTiming +
 		finalizeBatchTiming +
 		wipBlock +
+		processingL2Block +
 		storeL2Block +
 		"BatchCloseReason<" + l.tags[BatchCloseReason] + ">"
 
