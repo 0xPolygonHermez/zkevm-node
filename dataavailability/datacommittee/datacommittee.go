@@ -89,58 +89,136 @@ func (d *DataCommitteeBackend) Init() error {
 
 // GetSequence gets backend data one hash at a time. This should be optimized on the DAC side to get them all at once.
 func (d *DataCommitteeBackend) GetSequence(ctx context.Context, hashes []common.Hash, dataAvailabilityMessage []byte) ([][]byte, error) {
-	// TODO: optimize this on the DAC side by implementing a multi batch retrieve api
 	var batchData [][]byte
-	for _, h := range hashes {
-		data, err := d.GetBatchL2Data(h)
+
+	const batchSize = 5
+	for i := 0; i < len(hashes); i += batchSize {
+		end := i + batchSize
+		if end > len(hashes) {
+			end = len(hashes)
+		}
+
+		data, err := d.ListBatchL2Data(ctx, hashes[i:end])
 		if err != nil {
 			return nil, err
 		}
-		batchData = append(batchData, data)
+
+		batchData = append(batchData, data...)
 	}
+
 	return batchData, nil
 }
 
-// GetBatchL2Data returns the data from the DAC. It checks that it matches with the expected hash
-func (d *DataCommitteeBackend) GetBatchL2Data(hash common.Hash) ([]byte, error) {
+// ListBatchL2Data returns the offchain data from the DAC by the given list of hashes.
+// It checks that the returned data matches with the expected hashes.
+func (d *DataCommitteeBackend) ListBatchL2Data(ctx context.Context, hashes []common.Hash) ([][]byte, error) {
+	var batchData [][]byte
+
 	intialMember := d.selectedCommitteeMember
-	found := false
-	for !found && intialMember != -1 {
+	for intialMember != -1 {
 		member := d.committeeMembers[d.selectedCommitteeMember]
-		log.Infof("trying to get data from %s at %s", member.Addr.Hex(), member.URL)
 		c := d.dataCommitteeClientFactory.New(member.URL)
-		data, err := c.GetOffChainData(d.ctx, hash)
-		if err != nil {
-			log.Warnf(
-				"error getting data from DAC node %s at %s: %s",
-				member.Addr.Hex(), member.URL, err,
-			)
-			d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
-			if d.selectedCommitteeMember == intialMember {
+		dataMap := make(map[common.Hash][]byte)
+
+		log.Infof("trying to list off-chain data from %s at %s", member.Addr.Hex(), member.URL)
+
+		// The offchain data is going to be fetched depending on the DAC version
+		if _, err := c.GetStatus(ctx); err == nil {
+			// The endpoint to get DAC status was implemented after the one to list offchain data.
+			// Meaning the endpoint is there is the status endpoint does not return error.
+			// No needed to check the version here.
+			if dataMap, err = c.ListOffChainData(ctx, hashes); err != nil {
+				log.Warnf(
+					"error getting data from DAC node %s at %s: %s",
+					member.Addr.Hex(), member.URL, err,
+				)
+				d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
+				if d.selectedCommitteeMember == intialMember {
+					break
+				}
+				continue
+			}
+		} else {
+			valid := true
+			outOfCommittee := false
+			for _, hash := range hashes {
+				data, err := c.GetOffChainData(ctx, hash)
+				if err != nil {
+					log.Warnf(
+						"error getting data from DAC node %s at %s: %s",
+						member.Addr.Hex(), member.URL, err,
+					)
+					d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
+					if d.selectedCommitteeMember == intialMember {
+						outOfCommittee = true
+						break
+					}
+
+					valid = false
+					break
+				}
+
+				dataMap[hash] = data
+			}
+
+			if outOfCommittee {
 				break
 			}
-			continue
+
+			if !valid {
+				continue
+			}
 		}
-		actualTransactionsHash := crypto.Keccak256Hash(data)
-		if actualTransactionsHash != hash {
-			unexpectedHash := fmt.Errorf(
-				unexpectedHashTemplate, hash, actualTransactionsHash,
-			)
-			log.Warnf(
-				"error getting data from DAC node %s at %s: %s",
-				member.Addr.Hex(), member.URL, unexpectedHash,
-			)
-			d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
-			if d.selectedCommitteeMember == intialMember {
+
+		valid := true
+		outOfCommittee := false
+		for _, hash := range hashes {
+			data, ok := dataMap[hash]
+			if !ok {
+				log.Warnf(
+					"error getting data from DAC node %s at %s: hash %s not found",
+					member.Addr.Hex(), member.URL, hash,
+				)
+
+				valid = false
 				break
 			}
+
+			actualTransactionsHash := crypto.Keccak256Hash(data)
+			if actualTransactionsHash != hash {
+				unexpectedHash := fmt.Errorf(unexpectedHashTemplate, hash, actualTransactionsHash)
+				log.Warnf(
+					"error getting data from DAC node %s at %s: %s",
+					member.Addr.Hex(), member.URL, unexpectedHash,
+				)
+				d.selectedCommitteeMember = (d.selectedCommitteeMember + 1) % len(d.committeeMembers)
+				if d.selectedCommitteeMember == intialMember {
+					outOfCommittee = true
+					break
+				}
+
+				valid = false
+				break
+			}
+
+			batchData = append(batchData, data)
+		}
+
+		if outOfCommittee {
+			break
+		}
+
+		if !valid {
 			continue
 		}
-		return data, nil
+
+		return batchData, nil
 	}
+
 	if err := d.Init(); err != nil {
 		return nil, fmt.Errorf("error loading data committee: %s", err)
 	}
+
 	return nil, fmt.Errorf("couldn't get the data from any committee member")
 }
 
@@ -201,14 +279,14 @@ func (s *DataCommitteeBackend) PostSequence(ctx context.Context, batchesData [][
 	// Stop requesting as soon as we have N valid signatures
 	cancelSignatureCollection()
 
-	return buildSignaturesAndAddrs(signatureMsgs(msgs), committee.Members), nil
+	return buildSignaturesAndAddrs(msgs, committee.Members), nil
 }
 
 func requestSignatureFromMember(ctx context.Context, signedSequence daTypes.SignedSequence, member DataCommitteeMember, ch chan signatureMsg) {
 	// request
 	c := client.New(member.URL)
 	log.Infof("sending request to sign the sequence to %s at %s", member.Addr.Hex(), member.URL)
-	signature, err := c.SignSequence(signedSequence)
+	signature, err := c.SignSequence(ctx, signedSequence)
 	if err != nil {
 		ch <- signatureMsg{
 			addr: member.Addr,
