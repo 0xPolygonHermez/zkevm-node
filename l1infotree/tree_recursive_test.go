@@ -3,11 +3,13 @@ package l1infotree_test
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/0xPolygonHermez/zkevm-node/l1infotree"
 	"github.com/0xPolygonHermez/zkevm-node/log"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,9 +24,10 @@ const (
 type vectorTestData struct {
 	GlobalExitRoot         common.Hash   `json:"globalExitRoot"`
 	BlockHash              common.Hash   `json:"blockHash"`
-	Timestamp              uint64        `json:"timestamp"`
-	SmtProofPreviousIndex  []common.Hash `json:"smtProofPreviousIndex"`
+	MinTimestamp           string        `json:"minTimestamp"`
+	SmtProof               []common.Hash `json:"smtProof"`
 	Index                  uint32        `json:"index"`
+	PreviousIndex          uint32        `json:"previousIndex"`
 	PreviousL1InfoTreeRoot common.Hash   `json:"previousL1InfoTreeRoot"`
 	L1DataHash             common.Hash   `json:"l1DataHash"`
 	L1InfoTreeRoot         common.Hash   `json:"l1InfoTreeRoot"`
@@ -42,16 +45,18 @@ func readData(t *testing.T) []vectorTestData {
 
 func TestBuildTreeVectorData(t *testing.T) {
 	data := readData(t)
-	sut, err := l1infotree.NewL1InfoTreeRecursive(L1InfoRootRecursiveHeight)
+	mtr, err := l1infotree.NewL1InfoTreeRecursive(L1InfoRootRecursiveHeight)
 	require.NoError(t, err)
 	for _, testVector := range data {
-		// Add leaf
-		leafData := l1infotree.HashLeafData(testVector.GlobalExitRoot, testVector.BlockHash, testVector.Timestamp)
-		leafDataHash := common.BytesToHash(leafData[:])
-		root, err := sut.AddLeaf(testVector.Index-1, leafData)
+		minTimestamp, err := strconv.ParseUint(testVector.MinTimestamp, 10, 0)
 		require.NoError(t, err)
-		require.Equal(t, testVector.L1InfoTreeRoot.String(), root.String(), "Roots do not match leaf", testVector.Index)
-		require.Equal(t, testVector.L1DataHash.String(), leafDataHash.String(), "leafData do not match leaf", testVector.Index)
+		leafData := l1infotree.HashLeafData(testVector.GlobalExitRoot, testVector.BlockHash, minTimestamp)
+		leafDataHash := common.BytesToHash(leafData[:])
+		assert.Equal(t, testVector.L1DataHash.String(), leafDataHash.String(), "leafData do not match leaf", testVector.Index)
+
+		root, err := mtr.AddLeaf(testVector.Index-1, leafData)
+		require.NoError(t, err)
+		assert.Equal(t, testVector.L1InfoTreeRoot.String(), root.String(), "Roots do not match leaf", testVector.Index)
 	}
 }
 
@@ -69,16 +74,18 @@ func TestProofsTreeVectorData(t *testing.T) {
 	require.NoError(t, err)
 	for _, testVector := range data {
 		// Add leaf
-		leafData := l1infotree.HashLeafData(testVector.GlobalExitRoot, testVector.BlockHash, testVector.Timestamp)
+		minTimestamp, err := strconv.ParseUint(testVector.MinTimestamp, 10, 0)
+		require.NoError(t, err)
+		leafData := l1infotree.HashLeafData(testVector.GlobalExitRoot, testVector.BlockHash, minTimestamp)
 
-		_, err := sut.AddLeaf(testVector.Index-1, leafData)
+		_, err = sut.AddLeaf(testVector.Index-1, leafData)
 		require.NoError(t, err)
 		mp, _, err := sut.ComputeMerkleProof(testVector.Index)
 		require.NoError(t, err)
 		for i, v := range mp {
 			c := common.Hash(v)
-			if c.String() != testVector.SmtProofPreviousIndex[i].String() {
-				log.Info("MerkleProof: index ", testVector.Index, " mk:", i, " v:", c.String(), " expected:", testVector.SmtProofPreviousIndex[i].String())
+			if c.String() != testVector.SmtProof[i].String() {
+				log.Info("MerkleProof: index ", testVector.Index, " mk:", i, " v:", c.String(), " expected:", testVector.SmtProof[i].String())
 			}
 		}
 	}
