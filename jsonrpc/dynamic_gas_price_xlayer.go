@@ -13,6 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// DefaultUpdatePeriod defines default value of UpdatePeriod
+const DefaultUpdatePeriod = 10 * time.Second //nolint:gomnd
+
 // DynamicGPConfig represents the configuration of the dynamic gas price
 type DynamicGPConfig struct {
 
@@ -53,7 +56,10 @@ type DynamicGPManager struct {
 func (e *EthEndpoints) runDynamicGPSuggester() {
 	ctx := context.Background()
 	// initialization
-	updateTimer := time.NewTimer(10 * time.Second) //nolint:gomnd
+	updateTimer := time.NewTimer(DefaultUpdatePeriod)
+	if e.cfg.DynamicGP.UpdatePeriod.Duration.Nanoseconds() > 0 {
+		updateTimer.Reset(e.cfg.DynamicGP.UpdatePeriod.Duration)
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -65,9 +71,17 @@ func (e *EthEndpoints) runDynamicGPSuggester() {
 				e.cfg.DynamicGP = getApolloConfig().DynamicGP
 				getApolloConfig().RUnlock()
 			}
-			log.Info("Dynamic gas price update period is ", e.cfg.DynamicGP.UpdatePeriod.Duration.String())
-			e.calcDynamicGP(ctx)
-			updateTimer.Reset(e.cfg.DynamicGP.UpdatePeriod.Duration)
+			period := e.cfg.DynamicGP.UpdatePeriod.Duration
+			if period.Nanoseconds() <= 0 {
+				log.Warn("Dynamic gas price update period is less than or equal to 0. Set it to DefaultUpdatePeriod.")
+				period = DefaultUpdatePeriod
+			}
+			log.Info("Dynamic gas price update period is ", period.String())
+			updateTimer.Reset(period)
+
+			if e.cfg.DynamicGP.Enabled {
+				e.calcDynamicGP(ctx)
+			}
 		}
 	}
 }
