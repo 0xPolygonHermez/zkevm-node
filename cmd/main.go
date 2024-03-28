@@ -25,7 +25,7 @@ const (
 	// ETHTXMANAGER is the service that manages the tx sent to L1
 	ETHTXMANAGER = "eth-tx-manager"
 	// L2GASPRICER is the l2 gas pricer component identifier
-	L2GASPRICER = "l2gaspricer"
+	L2GASPRICER = "l2-gas-pricer"
 	// SEQUENCE_SENDER is the sequence sender component identifier
 	SEQUENCE_SENDER = "sequence-sender"
 )
