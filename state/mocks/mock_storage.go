@@ -418,6 +418,54 @@ func (_c *StorageMock_AddL1InfoRootToExitRoot_Call) RunAndReturn(run func(contex
 	return _c
 }
 
+// AddL1InfoTreeRecursiveRootToExitRoot provides a mock function with given fields: ctx, exitRoot, dbTx
+func (_m *StorageMock) AddL1InfoTreeRecursiveRootToExitRoot(ctx context.Context, exitRoot *state.L1InfoTreeRecursiveExitRootStorageEntry, dbTx pgx.Tx) error {
+	ret := _m.Called(ctx, exitRoot, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddL1InfoTreeRecursiveRootToExitRoot")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *state.L1InfoTreeRecursiveExitRootStorageEntry, pgx.Tx) error); ok {
+		r0 = rf(ctx, exitRoot, dbTx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddL1InfoTreeRecursiveRootToExitRoot'
+type StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call struct {
+	*mock.Call
+}
+
+// AddL1InfoTreeRecursiveRootToExitRoot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - exitRoot *state.L1InfoTreeRecursiveExitRootStorageEntry
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) AddL1InfoTreeRecursiveRootToExitRoot(ctx interface{}, exitRoot interface{}, dbTx interface{}) *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call {
+	return &StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call{Call: _e.mock.On("AddL1InfoTreeRecursiveRootToExitRoot", ctx, exitRoot, dbTx)}
+}
+
+func (_c *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call) Run(run func(ctx context.Context, exitRoot *state.L1InfoTreeRecursiveExitRootStorageEntry, dbTx pgx.Tx)) *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*state.L1InfoTreeRecursiveExitRootStorageEntry), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call) Return(_a0 error) *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call) RunAndReturn(run func(context.Context, *state.L1InfoTreeRecursiveExitRootStorageEntry, pgx.Tx) error) *StorageMock_AddL1InfoTreeRecursiveRootToExitRoot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddL2Block provides a mock function with given fields: ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, imStateRoots, dbTx
 func (_m *StorageMock) AddL2Block(ctx context.Context, batchNumber uint64, l2Block *state.L2Block, receipts []*types.Receipt, txsL2Hash []common.Hash, txsEGPData []state.StoreTxEGPData, imStateRoots []common.Hash, dbTx pgx.Tx) error {
 	ret := _m.Called(ctx, batchNumber, l2Block, receipts, txsL2Hash, txsEGPData, imStateRoots, dbTx)
@@ -1414,6 +1462,65 @@ func (_c *StorageMock_GetAllL1InfoRootEntries_Call) Return(_a0 []state.L1InfoTre
 }
 
 func (_c *StorageMock_GetAllL1InfoRootEntries_Call) RunAndReturn(run func(context.Context, pgx.Tx) ([]state.L1InfoTreeExitRootStorageEntry, error)) *StorageMock_GetAllL1InfoRootEntries_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAllL1InfoTreeRecursiveRootEntries provides a mock function with given fields: ctx, dbTx
+func (_m *StorageMock) GetAllL1InfoTreeRecursiveRootEntries(ctx context.Context, dbTx pgx.Tx) ([]state.L1InfoTreeRecursiveExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAllL1InfoTreeRecursiveRootEntries")
+	}
+
+	var r0 []state.L1InfoTreeRecursiveExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) ([]state.L1InfoTreeRecursiveExitRootStorageEntry, error)); ok {
+		return rf(ctx, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, pgx.Tx) []state.L1InfoTreeRecursiveExitRootStorageEntry); ok {
+		r0 = rf(ctx, dbTx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]state.L1InfoTreeRecursiveExitRootStorageEntry)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, pgx.Tx) error); ok {
+		r1 = rf(ctx, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllL1InfoTreeRecursiveRootEntries'
+type StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call struct {
+	*mock.Call
+}
+
+// GetAllL1InfoTreeRecursiveRootEntries is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetAllL1InfoTreeRecursiveRootEntries(ctx interface{}, dbTx interface{}) *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call {
+	return &StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call{Call: _e.mock.On("GetAllL1InfoTreeRecursiveRootEntries", ctx, dbTx)}
+}
+
+func (_c *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call) Run(run func(ctx context.Context, dbTx pgx.Tx)) *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call) Return(_a0 []state.L1InfoTreeRecursiveExitRootStorageEntry, _a1 error) *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call) RunAndReturn(run func(context.Context, pgx.Tx) ([]state.L1InfoTreeRecursiveExitRootStorageEntry, error)) *StorageMock_GetAllL1InfoTreeRecursiveRootEntries_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4905,6 +5012,64 @@ func (_c *StorageMock_GetLatestL1InfoRoot_Call) Return(_a0 state.L1InfoTreeExitR
 }
 
 func (_c *StorageMock_GetLatestL1InfoRoot_Call) RunAndReturn(run func(context.Context, uint64) (state.L1InfoTreeExitRootStorageEntry, error)) *StorageMock_GetLatestL1InfoRoot_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetLatestL1InfoTreeRecursiveRoot provides a mock function with given fields: ctx, maxBlockNumber, dbTx
+func (_m *StorageMock) GetLatestL1InfoTreeRecursiveRoot(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx) (state.L1InfoTreeRecursiveExitRootStorageEntry, error) {
+	ret := _m.Called(ctx, maxBlockNumber, dbTx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLatestL1InfoTreeRecursiveRoot")
+	}
+
+	var r0 state.L1InfoTreeRecursiveExitRootStorageEntry
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) (state.L1InfoTreeRecursiveExitRootStorageEntry, error)); ok {
+		return rf(ctx, maxBlockNumber, dbTx)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, pgx.Tx) state.L1InfoTreeRecursiveExitRootStorageEntry); ok {
+		r0 = rf(ctx, maxBlockNumber, dbTx)
+	} else {
+		r0 = ret.Get(0).(state.L1InfoTreeRecursiveExitRootStorageEntry)
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, pgx.Tx) error); ok {
+		r1 = rf(ctx, maxBlockNumber, dbTx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLatestL1InfoTreeRecursiveRoot'
+type StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call struct {
+	*mock.Call
+}
+
+// GetLatestL1InfoTreeRecursiveRoot is a helper method to define mock.On call
+//   - ctx context.Context
+//   - maxBlockNumber uint64
+//   - dbTx pgx.Tx
+func (_e *StorageMock_Expecter) GetLatestL1InfoTreeRecursiveRoot(ctx interface{}, maxBlockNumber interface{}, dbTx interface{}) *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call {
+	return &StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call{Call: _e.mock.On("GetLatestL1InfoTreeRecursiveRoot", ctx, maxBlockNumber, dbTx)}
+}
+
+func (_c *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call) Run(run func(ctx context.Context, maxBlockNumber uint64, dbTx pgx.Tx)) *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uint64), args[2].(pgx.Tx))
+	})
+	return _c
+}
+
+func (_c *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call) Return(_a0 state.L1InfoTreeRecursiveExitRootStorageEntry, _a1 error) *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call) RunAndReturn(run func(context.Context, uint64, pgx.Tx) (state.L1InfoTreeRecursiveExitRootStorageEntry, error)) *StorageMock_GetLatestL1InfoTreeRecursiveRoot_Call {
 	_c.Call.Return(run)
 	return _c
 }

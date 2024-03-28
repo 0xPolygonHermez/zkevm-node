@@ -176,6 +176,11 @@ func (mt *L1InfoTree) initSiblings(initialLeaves [][32]byte) ([][32]byte, common
 	return mt.ComputeMerkleProof(mt.count, initialLeaves)
 }
 
+// GetRoot returns the root of the L1InfoTree
+func (mt *L1InfoTree) GetRoot() common.Hash {
+	return mt.currentRoot
+}
+
 // GetCurrentRootCountAndSiblings returns the latest root, count and sibblings
 func (mt *L1InfoTree) GetCurrentRootCountAndSiblings() (common.Hash, uint32, [][32]byte) {
 	return mt.currentRoot, mt.count, mt.siblings

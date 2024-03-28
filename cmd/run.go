@@ -490,7 +490,7 @@ func newState(ctx context.Context, c *config.Config, etherman *etherman.Client, 
 	}
 	stateDb := pgstatestorage.NewPostgresStorage(stateCfg, sqlDB)
 
-	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil)
+	st := state.NewState(stateCfg, stateDb, executorClient, stateTree, eventLog, nil, nil)
 	// This is to force to build cache, and check that DB is ok before starting the application
 	l1InfoRoot, err := st.GetCurrentL1InfoRoot(ctx, nil)
 	if err != nil {
